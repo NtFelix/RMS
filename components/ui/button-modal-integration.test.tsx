@@ -14,6 +14,7 @@ const mockUseModalStore = {
   openHouseModal: mockOpenHouseModal,
   openTenantModal: mockOpenTenantModal,
   openBetriebskostenModal: mockOpenBetriebskostenModal,
+  openAufgabeModal: mockOpenAufgabeModal,
   getState: () => ({
     openFinanceModal: mockOpenFinanceModal,
     openAufgabeModal: mockOpenAufgabeModal,
@@ -35,6 +36,8 @@ jest.mock('@/hooks/use-toast', () => ({
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/',
 }));
 
 jest.mock('@/hooks/use-debounce', () => ({
@@ -72,10 +75,6 @@ jest.mock('@/components/tables/operating-costs-table', () => ({
 
 jest.mock('@/components/tasks/task-board', () => ({
   TaskBoard: () => <div role="table">Task Board</div>
-}));
-
-jest.mock('@/components/finance-transactions', () => ({
-  FinanceTransactions: () => <div role="table">Finance Transactions</div>
 }));
 
 jest.mock('@/components/finance/finance-visualization', () => ({
@@ -206,7 +205,7 @@ describe('Button Modal Integration Tests', () => {
       await user.click(addButton);
 
       expect(mockOpenTenantModal).toHaveBeenCalledWith(
-        undefined,
+        { status: 'mieter' },
         props.initialWohnungen
       );
     });
@@ -232,7 +231,7 @@ describe('Button Modal Integration Tests', () => {
       await user.click(addButton);
 
       expect(mockOpenTenantModal).toHaveBeenCalledWith(
-        undefined,
+        { status: 'mieter' },
         mockWohnungen
       );
     });
@@ -244,15 +243,20 @@ describe('Button Modal Integration Tests', () => {
       
       const props = {
         initialNebenkosten: [],
-        initialHaeuser: [{ id: '1', name: 'Test House', ort: 'Test City', strasse: 'Test St', user_id: 'u1' }],
+        initialHaeuser: [{ id: '1', name: 'Test House', ort: 'Test City', strasse: 'Test St', erstellt_von: 'u1' }],
         ownerName: 'Test Owner',
       };
 
       const user = userEvent.setup();
       render(<BetriebskostenClientView {...props} />);
 
+      // Click the dropdown trigger to open the menu
       const addButton = screen.getByRole('button', { name: /Betriebskostenabrechnung erstellen/i });
       await user.click(addButton);
+      
+      // Click "Leere Abrechnung" menu item to trigger the modal
+      const blankOption = screen.getByText('Leere Abrechnung');
+      await user.click(blankOption);
 
       expect(mockOpenBetriebskostenModal).toHaveBeenCalledWith(
         null,
@@ -273,8 +277,13 @@ describe('Button Modal Integration Tests', () => {
       const user = userEvent.setup();
       render(<BetriebskostenClientView {...props} />);
 
+      // Click the dropdown trigger to open the menu
       const addButton = screen.getByRole('button', { name: /Betriebskostenabrechnung erstellen/i });
       await user.click(addButton);
+      
+      // Click "Leere Abrechnung" menu item to trigger the modal
+      const blankOption = screen.getByText('Leere Abrechnung');
+      await user.click(blankOption);
 
       // Check that a callback function was passed
       expect(mockOpenBetriebskostenModal).toHaveBeenCalledWith(
@@ -330,15 +339,10 @@ describe('Button Modal Integration Tests', () => {
         summaryData: null,
       };
 
-      const user = userEvent.setup();
       render(<FinanzenClientWrapper {...props} />);
 
-      // Find the add transaction button (it should be in the FinanceTransactions component)
-      // Since it's mocked, we'll test the component's handleAddTransaction function indirectly
-      // by checking if the modal store method would be called
-      
-      // This test verifies the component structure is correct
-      expect(screen.getByText('Finance Transactions')).toBeInTheDocument();
+      // Verify the component renders with the finance tab
+      expect(screen.getByText('Finanzen')).toBeInTheDocument();
     });
 
     it('has special layout with summary cards', async () => {
@@ -364,7 +368,7 @@ describe('Button Modal Integration Tests', () => {
       const { container } = render(<FinanzenClientWrapper {...props} />);
 
       // Check for summary cards grid
-      const summaryGrid = container.querySelector('.grid.gap-4.md\\:grid-cols-2.lg\\:grid-cols-4');
+      const summaryGrid = container.querySelector('.flex.flex-col.gap-3.sm\\:grid.sm\\:grid-cols-2.md\\:grid-cols-4.sm\\:gap-4');
       expect(summaryGrid).toBeInTheDocument();
 
       // Check for summary card titles

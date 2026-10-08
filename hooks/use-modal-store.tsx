@@ -1,17 +1,19 @@
 import { create } from 'zustand';
 import type { Nebenkosten, Mieter, Wasserzaehler, MeterReadingFormData } from "@/lib/types";
-import { MeterModalData } from '@/types/optimized-betriebskosten';
-import { Tenant, KautionData } from '@/types/Tenant';
+import { MeterModalData, OptimizedNebenkosten } from '@/types/optimized-betriebskosten';
+import { Tenant } from '@/types/Tenant';
 import { Template } from '@/types/template';
 import { ConfirmationDialogVariant } from '@/components/ui/confirmation-dialog';
 import { TenantBentoItem } from '@/types/tenant-payment';
 import { AIDocumentationContext } from '@/types/ai';
+import type { KautionLoeschauswirkung } from '@/types/Kaution';
 
 // Overview Modal Types
 interface HausWithWohnungen {
   id: string;
   name: string;
   strasse?: string;
+  plz?: number | string | null;
   ort: string;
   size?: string;
   totalArea: number;
@@ -170,20 +172,23 @@ interface CloseModalOptions {
   force?: boolean;
 }
 
+/**
+ * Kautionsmanagement (GH-6): Der Dialog lädt seine Daten selbst (`getKautionDetailsAction`), der Store
+ * transportiert nur den Mieter (ohne Kautionsdaten) und den gewünschten Start-Tab.
+ */
+/** Übersicht "Kautionen werden mitgelöscht": die Auswirkung und die Entscheidung des Nutzers (`true` = bestätigt). */
+export interface LoeschUebersichtConfig {
+  auswirkung: KautionLoeschauswirkung;
+  onEntscheidung: (bestaetigt: boolean) => void;
+}
+
 interface KautionModalData {
   tenant: {
     id: string;
     name: string;
-    wohnung_id?: string;
+    wohnung_id?: string | null;
   };
-  existingKaution?: {
-    amount: number;
-    paymentDate: string;
-    status: 'Erhalten' | 'Ausstehend' | 'Zurückgezahlt';
-    createdAt?: string;
-    updatedAt?: string;
-  };
-  suggestedAmount?: number;
+  initialTab?: 'uebersicht' | 'raten' | 'kontoauszug' | 'dokumente';
 }
 
 interface ApplicantScoreModalData {
@@ -285,6 +290,7 @@ export interface ModalState {
   betriebskostenInitialData?: {
     id?: string;
     useTemplate?: 'previous' | 'default';
+    haeuser_id?: string;
   } | null;
   betriebskostenModalHaeuser: any[]; // Replace 'any' with Haus[]
   betriebskostenModalOnSuccess?: () => void; // Adjust if it needs to pass data
@@ -310,9 +316,23 @@ export interface ModalState {
   isKautionModalOpen: boolean;
   kautionInitialData?: KautionModalData;
   isKautionModalDirty: boolean;
-  openKautionModal: (tenant: Tenant, existingKaution?: KautionData) => void;
+  openKautionModal: (
+    tenant: Pick<Tenant, 'id' | 'name' | 'wohnung_id'>,
+    options?: { tab?: KautionModalData['initialTab'] }
+  ) => void;
   closeKautionModal: (options?: CloseModalOptions) => void;
   setKautionModalDirty: (isDirty: boolean) => void;
+  // Modulrecht `kautionen: ansehen` des Nutzers. Nur UX (Menüeintrag "Kaution" im global gemounteten
+  // Mieter-Bearbeiten-Dialog, der keinen Prop-Pfad von der Seite hat); der Kautionsdialog selbst bekommt
+  // seine Rechte autoritativ vom Server und die Datenbank prüft erneut.
+  canViewKautionen: boolean;
+  setCanViewKautionen: (canView: boolean) => void;
+
+  // Löschen mit Kautionsübersicht (Haus/Wohnung/Mieter mit gebuchter Kaution)
+  isLoeschUebersichtOpen: boolean;
+  loeschUebersichtConfig: LoeschUebersichtConfig | null;
+  openLoeschUebersicht: (config: LoeschUebersichtConfig) => void;
+  closeLoeschUebersicht: () => void;
 
   // Haus Overview Modal State
   isHausOverviewModalOpen: boolean;
@@ -493,6 +513,17 @@ export interface ModalState {
   mailPreviewId?: string;
   openMailPreviewModal: (mailId: string) => void;
   closeMailPreviewModal: () => void;
+
+  // Operating Costs Overview Modal State
+  isOperatingCostsOverviewModalOpen: boolean;
+  operatingCostsOverviewData?: OptimizedNebenkosten | null;
+  openOperatingCostsOverviewModal: (nebenkosten: OptimizedNebenkosten) => void;
+  closeOperatingCostsOverviewModal: () => void;
+
+  // Trash Bin Modal State
+  isTrashBinModalOpen: boolean;
+  openTrashBinModal: () => void;
+  closeTrashBinModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -571,6 +602,11 @@ const initialKautionModalState = {
   isKautionModalOpen: false,
   kautionInitialData: undefined,
   isKautionModalDirty: false,
+};
+
+const initialLoeschUebersichtState = {
+  isLoeschUebersichtOpen: false,
+  loeschUebersichtConfig: null as LoeschUebersichtConfig | null,
 };
 
 const initialHausOverviewModalState = {
@@ -690,6 +726,11 @@ const initialMailPreviewModalState = {
   mailPreviewId: undefined,
 };
 
+const initialOperatingCostsOverviewModalState = {
+  isOperatingCostsOverviewModalOpen: false,
+  operatingCostsOverviewData: null,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -700,6 +741,8 @@ const createInitialModalState = () => ({
   ...initialBetriebskostenModalState,
   ...initialWasserzaehlerModalState,
   ...initialKautionModalState,
+  canViewKautionen: false, // bewusst nicht in initialKautionModalState: bleibt beim Schließen des Dialogs erhalten
+  ...initialLoeschUebersichtState,
   ...initialHausOverviewModalState,
   ...initialWohnungOverviewModalState,
   ...initialTenantPaymentOverviewModalState,
@@ -720,8 +763,10 @@ const createInitialModalState = () => ({
   ...initialZaehlerModalState,
   ...initialApplicantScoreModalState,
   ...initialMailPreviewModalState,
+  ...initialOperatingCostsOverviewModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
+  isTrashBinModalOpen: false,
 });
 
 type DirtyFlagKey = {
@@ -832,7 +877,7 @@ export const useModalStore = create<ModalState>((set, get) => {
     setTenantPaymentEditModalDirty: (isDirty) => set({ isTenantPaymentEditModalDirty: isDirty }),
 
     // Betriebskosten Modal
-    openBetriebskostenModal: (initialData: { id?: string; useTemplate?: 'previous' | 'default' } | null, haeuser, onSuccess) => set({
+    openBetriebskostenModal: (initialData: { id?: string; useTemplate?: 'previous' | 'default'; haeuser_id?: string } | null, haeuser, onSuccess) => set({
       isBetriebskostenModalOpen: true,
       betriebskostenInitialData: initialData,
       betriebskostenModalHaeuser: haeuser || [],
@@ -855,6 +900,13 @@ export const useModalStore = create<ModalState>((set, get) => {
       mailPreviewId: mailId,
     }),
     closeMailPreviewModal: () => set(initialMailPreviewModalState),
+
+    // Operating Costs Overview Modal
+    openOperatingCostsOverviewModal: (nebenkosten) => set({
+      isOperatingCostsOverviewModalOpen: true,
+      operatingCostsOverviewData: nebenkosten,
+    }),
+    closeOperatingCostsOverviewModal: () => set(initialOperatingCostsOverviewModalState),
 
 
 
@@ -882,17 +934,25 @@ export const useModalStore = create<ModalState>((set, get) => {
     setWasserzaehlerModalDirty: (isDirty) => set({ isWasserzaehlerModalDirty: isDirty }),
 
     // Kaution Modal
-    openKautionModal: (tenant, existingKaution) => set({
+    openKautionModal: (tenant, options) => set({
       isKautionModalOpen: true,
       kautionInitialData: {
-        tenant,
-        existingKaution,
-        suggestedAmount: undefined, // Will be calculated in the modal component
+        // Nur die drei benötigten Felder übernehmen (kein ganzes Tenant-Objekt samt Kompat-Kaution im Store).
+        tenant: { id: tenant.id, name: tenant.name, wohnung_id: tenant.wohnung_id },
+        initialTab: options?.tab,
       },
       isKautionModalDirty: false
     }),
     closeKautionModal: createCloseHandler('isKautionModalDirty', initialKautionModalState),
     setKautionModalDirty: (isDirty) => set({ isKautionModalDirty: isDirty }),
+    setCanViewKautionen: (canView) => set({ canViewKautionen: canView }),
+
+    // Löschen mit Kautionsübersicht: Der Aufrufer wartet auf `onEntscheidung`; ein zweites Öffnen verwirft die erste Anfrage (= abgebrochen).
+    openLoeschUebersicht: (config) => {
+      get().loeschUebersichtConfig?.onEntscheidung(false);
+      set({ isLoeschUebersichtOpen: true, loeschUebersichtConfig: config });
+    },
+    closeLoeschUebersicht: () => set(initialLoeschUebersichtState),
 
     // Haus Overview Modal
     openHausOverviewModal: async (hausId: string) => {
@@ -1298,5 +1358,9 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeZaehlerModal: createCloseHandler('isZaehlerModalDirty', initialZaehlerModalState),
     setZaehlerModalDirty: (isDirty) => set({ isZaehlerModalDirty: isDirty }),
+
+    // Trash Bin Modal
+    openTrashBinModal: () => set({ isTrashBinModalOpen: true }),
+    closeTrashBinModal: () => set({ isTrashBinModalOpen: false }),
   };
 });

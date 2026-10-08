@@ -15,8 +15,11 @@ export async function register() {
     });
   }
 
-  // Initialize PostHog logging (OpenTelemetry-based)
+  // Initialize PostHog observability (OpenTelemetry-based logging + tracing)
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { initTracing } = await import('./lib/posthog-tracing');
+    initTracing();
+
     const { initLogger, posthogLogger } = await import('./lib/posthog-logger');
     initLogger();
 

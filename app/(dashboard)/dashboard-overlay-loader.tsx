@@ -38,7 +38,6 @@ export default function DashboardOverlayLoader() {
       state.isAufgabeModalOpen ||
       state.isBetriebskostenModalOpen ||
       state.isWasserzaehlerModalOpen ||
-      state.isKautionModalOpen ||
       state.isHausOverviewModalOpen ||
       state.isWohnungOverviewModalOpen
 
@@ -58,8 +57,7 @@ export default function DashboardOverlayLoader() {
       state.isFolderDeleteConfirmationModalOpen ||
       state.isFileMoveModalOpen ||
       state.isShareDocumentModalOpen ||
-      state.isMarkdownEditorModalOpen ||
-      state.isAIAssistantModalOpen
+      state.isMarkdownEditorModalOpen
 
     const isMeterModalOpen =
       state.isAblesungenModalOpen ||

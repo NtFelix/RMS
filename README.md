@@ -49,7 +49,7 @@ STRIPE_SECRET_KEY=your_stripe_secret_key
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
 STRIPE_WEBHOOK_SIGNING_SECRET=your_stripe_webhook_signing_secret
 
-# PostHog (Analytics)
+# PostHog (Analytics, Logs & Tracing)
 NEXT_PUBLIC_POSTHOG_KEY=phc_your_public_project_key
 NEXT_PUBLIC_POSTHOG_HOST=/assets/v2
 NEXT_PUBLIC_POSTHOG_UI_HOST=https://eu.posthog.com

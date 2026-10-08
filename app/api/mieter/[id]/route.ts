@@ -1,7 +1,7 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { MIETER_SPALTEN_OHNE_KAUTION, pickMieterSchreibbareFelder } from "@/lib/mieter-columns";
 
 // GET specific tenant by ID
 export async function GET(
@@ -11,10 +11,11 @@ export async function GET(
     try {
         const { id } = await params;
 
-        const supabase = await createClient();
+        const supabase = await createSupabaseServerClient();
         const { data, error } = await supabase
             .from('Mieter')
-            .select('*, Wohnungen(id, name)')
+            // Explizite Spaltenliste ohne das Altfeld "kaution" (Kautionsdaten sind an das Modul "kautionen" gebunden).
+            .select(`${MIETER_SPALTEN_OHNE_KAUTION}, Wohnungen(id, name)`)
             .eq('id', id)
             .single();
 
@@ -24,6 +25,11 @@ export async function GET(
                 return NextResponse.json({ error: 'Mieter nicht gefunden.' }, { status: 404, headers: NO_CACHE_HEADERS });
             }
             return NextResponse.json({ error: error.message }, { status: 500, headers: NO_CACHE_HEADERS });
+        }
+
+        const { verifyWohnungInScope } = await import("@/lib/api-permissions");
+        if (data.wohnung_id && !(await verifyWohnungInScope(data.wohnung_id))) {
+            return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
         }
 
         return NextResponse.json(data, { status: 200, headers: NO_CACHE_HEADERS });
@@ -40,14 +46,40 @@ export async function PATCH(
 ): Promise<NextResponse> {
     try {
         const { id } = await params;
-        const body = await request.json();
+        const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+        await requireApiPermission('mieter', 'bearbeiten');
 
-        const supabase = await createClient();
+        // Nur schreibbare Mieterspalten übernehmen; das Altfeld "kaution" wird verworfen.
+        const body = pickMieterSchreibbareFelder(await request.json());
+        if (!body) {
+            return NextResponse.json({ error: 'Ungültiger Request-Body.' }, { status: 400, headers: NO_CACHE_HEADERS });
+        }
+        if (Object.keys(body).length === 0) {
+            return NextResponse.json({ error: 'Keine änderbaren Felder angegeben.' }, { status: 400, headers: NO_CACHE_HEADERS });
+        }
+        const supabase = await createSupabaseServerClient();
+
+        // Check scope of existing tenant
+        const { data: currentTenant, error: checkError } = await supabase
+            .from('Mieter')
+            .select('wohnung_id')
+            .eq('id', id)
+            .single();
+
+        if (checkError || !currentTenant || (currentTenant.wohnung_id && !(await verifyWohnungInScope(currentTenant.wohnung_id)))) {
+            return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
+        }
+
+        // Check scope of new apartment if changing
+        if (body.wohnung_id && !(await verifyWohnungInScope(body.wohnung_id as string))) {
+            return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
+        }
+
         const { data, error } = await supabase
             .from('Mieter')
             .update(body)
             .eq('id', id)
-            .select();
+            .select(MIETER_SPALTEN_OHNE_KAUTION);
 
         if (error) {
             console.error(`PATCH /api/mieter/${id} error:`, error);
@@ -61,7 +93,8 @@ export async function PATCH(
         return NextResponse.json(data[0], { status: 200, headers: NO_CACHE_HEADERS });
     } catch (e) {
         console.error('Server error PATCH /api/mieter/[id]:', e);
-        return NextResponse.json({ error: 'Serverfehler beim Aktualisieren des Mieters.' }, { status: 500, headers: NO_CACHE_HEADERS });
+        const status = (e as Error).message === 'Permission denied' ? 403 : 500
+        return NextResponse.json({ error: (e as Error).message || 'Serverfehler beim Aktualisieren des Mieters.' }, { status, headers: NO_CACHE_HEADERS });
     }
 }
 
@@ -75,12 +108,26 @@ export async function DELETE(
 ): Promise<NextResponse> {
     try {
         const { id } = await params;
+        const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+        await requireApiPermission('mieter', 'loeschen');
 
-        const supabase = await createClient();
-        const { error } = await supabase
+        const supabase = await createSupabaseServerClient();
+
+        // Check scope of existing tenant
+        const { data: currentTenant, error: checkError } = await supabase
             .from('Mieter')
-            .delete()
-            .eq('id', id);
+            .select('wohnung_id')
+            .eq('id', id)
+            .single();
+
+        if (checkError || !currentTenant || (currentTenant.wohnung_id && !(await verifyWohnungInScope(currentTenant.wohnung_id)))) {
+            return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
+        }
+
+        const { error } = await supabase.rpc('soft_delete_record', {
+            p_table_name: 'Mieter',
+            p_record_id: id,
+        });
 
         if (error) {
             console.error(`DELETE /api/mieter/${id} error:`, error);
@@ -90,6 +137,7 @@ export async function DELETE(
         return NextResponse.json({ message: 'Mieter gelöscht' }, { status: 200, headers: NO_CACHE_HEADERS });
     } catch (e) {
         console.error('Server error DELETE /api/mieter/[id]:', e);
-        return NextResponse.json({ error: 'Serverfehler beim Löschen des Mieters.' }, { status: 500, headers: NO_CACHE_HEADERS });
+        const status = (e as Error).message === 'Permission denied' ? 403 : 500
+        return NextResponse.json({ error: (e as Error).message || 'Serverfehler beim Löschen des Mieters.' }, { status, headers: NO_CACHE_HEADERS });
     }
 }

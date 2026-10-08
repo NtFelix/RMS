@@ -1,5 +1,4 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { TemplatePayload } from "@/types/template";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
@@ -9,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const resolvedParams = await params;
     
     // Validate template ID
@@ -34,7 +33,6 @@ export async function GET(
       .from('Vorlagen')
       .select('*')
       .eq('id', resolvedParams.id)
-      .eq('user_id', user.id)
       .single();
 
     if (error) {
@@ -76,7 +74,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const resolvedParams = await params;
     
     // Validate template ID
@@ -162,7 +160,6 @@ export async function PUT(
       .from('Vorlagen')
       .update(updateData)
       .eq('id', resolvedParams.id)
-      .eq('user_id', user.id)
       .select()
       .single();
 
@@ -212,7 +209,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const resolvedParams = await params;
     
     // Validate template ID
@@ -238,7 +235,6 @@ export async function DELETE(
       .from('Vorlagen')
       .select('id, titel')
       .eq('id', resolvedParams.id)
-      .eq('user_id', user.id)
       .single();
 
     if (checkError) {
@@ -259,11 +255,10 @@ export async function DELETE(
     }
 
     // Perform the deletion
-    const { error } = await supabase
-      .from('Vorlagen')
-      .delete()
-      .eq('id', resolvedParams.id)
-      .eq('user_id', user.id);
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Vorlagen',
+      p_record_id: resolvedParams.id,
+    });
 
     if (error) {
       console.error('DELETE /api/templates/[id] database error:', error);

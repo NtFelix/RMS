@@ -8,17 +8,21 @@ Object.defineProperty(global, 'crypto', {
 });
 
 describe('encryption', () => {
-  const originalEnv = process.env;
+  const originalEnv = { ...process.env };
 
   beforeEach(() => {
     jest.resetModules();
-    process.env = { ...originalEnv };
     // Generate a valid key for testing
     process.env.TOKEN_ENCRYPTION_KEY = generateEncryptionKey();
   });
 
   afterAll(() => {
-    process.env = originalEnv;
+    for (const key in process.env) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
   });
 
   describe('generateEncryptionKey', () => {

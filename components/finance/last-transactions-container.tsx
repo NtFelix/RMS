@@ -64,7 +64,7 @@ export function LastTransactionsContainer() {
           for (const item of data) {
             try {
               const betrag = typeof item.betrag === 'string' 
-                ? parseFloat(item.betrag) 
+                ? Math.round(parseFloat(item.betrag) * 100) / 100 
                 : Number(item.betrag);
               
               formattedTransactions.push({

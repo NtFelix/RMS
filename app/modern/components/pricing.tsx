@@ -14,14 +14,17 @@ import {
 } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, Minus, HelpCircle, ArrowRight, SquareArrowOutUpRight, Sparkles } from "lucide-react";
-import { useEffect, useState, useMemo, Fragment, useRef } from 'react';
+import { Check, Minus, HelpCircle, SquareArrowOutUpRight, Sparkles, WifiOff, RotateCw } from "lucide-react";
+import { useEffect, useState, useMemo, useCallback, Fragment } from 'react';
+import { posthogLogger } from "@/lib/posthog-logger";
+import { motion } from "framer-motion";
 import { WaitlistButton } from './waitlist-button';
 import { FAQ } from './faq';
 import { PreviewLimitNoticeBanner } from './preview-limit-notice-banner';
 import { Profile } from '@/types/supabase';
 import { POSTHOG_FEATURE_FLAGS, BRAND_NAME } from '@/lib/constants';
 import { trackBillingCycleChanged, trackPricingPlanSelected, trackPricingViewAllClicked, type BillingCycle } from '@/lib/posthog-landing-events';
+import { cn } from "@/lib/utils";
 
 // Updated Plan interface to match the API response structure
 interface Plan {
@@ -42,20 +45,15 @@ interface Plan {
 
 // Helper function to format price for display
 const formatDisplayPrice = (amount: number, currency: string, interval: string | null): string => {
-  const price = (amount / 100).toLocaleString('de-DE', { // Using de-DE for Euro formatting
-    style: 'currency',
-    currency: currency,
+  return (amount / 100).toLocaleString('de-DE', {
     minimumFractionDigits: 2,
   });
-  // The interval text like "/month" or "/year" will be part of the tab/description, not the price itself
-  return price;
 };
 
 interface PricingProps {
   onSelectPlan: (priceId: string) => void;
   userProfile: Profile | null;
   isLoading?: boolean; // This is isProcessingCheckout from LandingPage
-  // currentPlanId is now derived from userProfile.stripe_price_id
   showComparison?: boolean;
   showViewAllButton?: boolean;
 }
@@ -148,9 +146,6 @@ function ComparisonTable({ plans, billingCycle, onSelectPlan, getButtonTextAndSt
     }).filter(category => category.features.length > 0); // Remove empty categories
   }, [plans]);
 
-  // Calculate total rows for the grid-row span: 1 header row + category rows + feature rows
-  const totalRows = 1 + filteredConfig.length + filteredConfig.reduce((acc, cat) => acc + cat.features.length, 0);
-
   // If no plans are available or no features to show, don't render the table
   if (plans.length === 0 || filteredConfig.length === 0) return null;
 
@@ -189,9 +184,12 @@ function ComparisonTable({ plans, billingCycle, onSelectPlan, getButtonTextAndSt
               <div key={`${plan.productName}-price`} className="p-4 flex justify-center items-center min-h-[60px]">
                 {planVariant ? (
                   <span className="text-xl font-semibold text-muted-foreground">
-                    {formatDisplayPrice(planVariant.price, planVariant.currency, planVariant.interval)}
+                    <AnimatedPrice
+                      key={billingCycle}
+                      value={formatDisplayPrice(planVariant.price, planVariant.currency, planVariant.interval)}
+                    />
                     <span className="text-sm font-normal ml-1">
-                      {billingCycle === "monthly" ? "/Monat" : "/Jahr"}
+                      {billingCycle === "monthly" ? " € /Monat" : " € /Jahr"}
                     </span>
                   </span>
                 ) : (
@@ -298,6 +296,23 @@ function renderFeatureValue(value: boolean | string) {
   return <span className="text-sm font-medium">{value}</span>;
 }
 
+function AnimatedPrice({ value, className }: { value: string; className?: string }) {
+  const chars = value.split('');
+  return (
+    <span className={`price-digit-group is-animating ${className || ''}`}>
+      {chars.map((char, i) => (
+        <span
+          key={`${i}`}
+          className="price-digit"
+          data-stagger={i > 0 ? String(i) : undefined}
+        >
+          {char === ' ' ? '\u00A0' : char}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export default function Pricing({
   onSelectPlan,
   userProfile,
@@ -318,29 +333,34 @@ export default function Pricing({
     setIsMounted(true);
   }, []);
 
-  useEffect(() => {
-    const fetchPlans = async () => {
-      setIsLoadingPlans(true);
-      setError(null);
-      try {
-        const response = await fetch('/api/stripe/plans');
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Failed to fetch plans: ${response.status}`);
-        }
-        // productName now comes directly from the API
-        const data: Plan[] = await response.json();
-        setAllPlans(data);
-      } catch (err) {
-        console.error(err);
-        setError((err as Error).message || 'An unexpected error occurred');
-      } finally {
-        setIsLoadingPlans(false);
+  const fetchPlans = useCallback(async () => {
+    setIsLoadingPlans(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/stripe/plans');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const message = errorData.error || `Failed to fetch plans: ${response.status}`;
+        throw new Error(message);
       }
-    };
-
-    fetchPlans();
+      const data: Plan[] = await response.json();
+      setAllPlans(data);
+    } catch (err) {
+      const errorMessage = (err as Error).message || 'An unexpected error occurred';
+      console.error(err);
+      setError(errorMessage);
+      posthogLogger.error('Pricing plans could not be loaded on frontend', {
+        error: errorMessage,
+        component: 'Pricing',
+      });
+    } finally {
+      setIsLoadingPlans(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchPlans();
+  }, [fetchPlans]);
 
   const groupedPlans = useMemo(() => {
     const groups: Record<string, GroupedPlan> = {};
@@ -499,7 +519,7 @@ export default function Pricing({
                   }`}
               >
                 {i === 1 && (
-                  <Skeleton className="absolute -top-3 left-1/2 transform -translate-x-1/2 h-6 w-32 rounded-full" />
+                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2">Am beliebtesten</Badge>
                 )}
 
                 <CardHeader className="text-center pb-8">
@@ -533,27 +553,6 @@ export default function Pricing({
     );
   }
 
-  if (error) {
-    return (
-      <section className="py-16 px-4 text-foreground">
-        <div className="max-w-6xl mx-auto text-center text-destructive">
-          <p>Error loading plans: {error}</p>
-        </div>
-      </section>
-    );
-  }
-
-  if (groupedPlans.length === 0 && !isLoadingPlans) {
-    return (
-      <section className="py-16 px-4 text-foreground">
-        <div className="max-w-6xl mx-auto text-center">
-          <p>No subscription plans are currently available. Please check back later.</p>
-        </div>
-      </section>
-    );
-  }
-
-
   return (
     <>
       <section className="py-16 px-4">
@@ -565,145 +564,215 @@ export default function Pricing({
             </p>
           </div>
 
-          <PreviewLimitNoticeBanner
-            onGetStarted={handleFreePlanGetStarted}
-            isSignedIn={!!userProfile}
-          />
+          {error ? (
+            <div className="max-w-md mx-auto text-center py-8">
+              <Card className="border-destructive/20 bg-card/50 backdrop-blur-xs shadow-xl rounded-[2.5rem] p-8 sm:p-10">
+                <CardContent className="flex flex-col items-center text-center space-y-6 p-0">
+                  <div className="rounded-full bg-destructive/10 p-4 ring-1 ring-destructive/20 text-destructive">
+                    <WifiOff className="w-10 h-10" />
+                  </div>
 
-          <div className="flex justify-center mb-12">
-            <div className="inline-flex items-center rounded-full bg-muted p-1">
-              <Button
-                variant={billingCycle === "monthly" ? "default" : "ghost"}
-                onClick={() => {
-                  if (billingCycle !== "monthly") {
-                    trackBillingCycleChanged(billingCycle, "monthly")
-                    setBillingCycle("monthly")
-                  }
-                }}
-                className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
-              >
-                Monatlich
-              </Button>
-              <Button
-                variant={billingCycle === "yearly" ? "default" : "ghost"}
-                onClick={() => {
-                  if (billingCycle !== "yearly") {
-                    trackBillingCycleChanged(billingCycle, "yearly")
-                    setBillingCycle("yearly")
-                  }
-                }}
-                className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
-              >
-                Jährlich (20% Rabatt)
-              </Button>
+                  <div className="space-y-2 max-w-sm">
+                    <h3 className="text-2xl font-bold tracking-tight">Verbindung fehlgeschlagen</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      Die Preisinformationen konnten derzeit nicht geladen werden. Bitte überprüfen Sie Ihre Netzwerkverbindung oder versuchen Sie es später erneut.
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={fetchPlans}
+                    variant="outline"
+                    className="rounded-xl gap-2 mt-2"
+                  >
+                    <RotateCw className="w-4 h-4" />
+                    Erneut versuchen
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
-          </div>
+          ) : groupedPlans.length === 0 && !isLoadingPlans ? (
+            <div className="max-w-md mx-auto text-center py-8">
+              <Card className="border-border/60 bg-card/50 backdrop-blur-xs shadow-xl rounded-[2.5rem] p-8 sm:p-10">
+                <CardContent className="flex flex-col items-center text-center space-y-6 p-0">
+                  <div className="space-y-2 max-w-sm">
+                    <h3 className="text-2xl font-bold tracking-tight">Keine Tarife verfügbar</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      Derzeit sind keine Abonnement-Pläne verfügbar. Bitte schauen Sie zu einem späteren Zeitpunkt wieder vorbei.
+                    </p>
+                  </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {groupedPlans.filter(group => group.position !== 0).map((group) => {
-              const planToDisplay = billingCycle === 'monthly' ? group.monthly : group.annually;
-              if (!planToDisplay) {
-                // If the selected cycle isn't available for this group, maybe show a message or skip
-                // For now, skipping seems fine as per original logic.
-                return null;
-              }
+                  <Button
+                    onClick={fetchPlans}
+                    variant="outline"
+                    className="rounded-xl gap-2 mt-2"
+                  >
+                    <RotateCw className="w-4 h-4" />
+                    Aktualisieren
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <>
+              <PreviewLimitNoticeBanner
+                onGetStarted={handleFreePlanGetStarted}
+                isSignedIn={!!userProfile}
+              />
 
-              // const yearlySavings = group.monthly && group.annually
-              //   ? (group.monthly.price * 12) - group.annually.price
-              //   : 0;
-              // The example UI doesn't show savings this way, but has a "(20% off)" in the yearly button.
-              // We'll stick to the example's UI for now.
+              <div className="flex justify-center mb-12">
+                <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
+                  <motion.button
+                    type="button"
+                    layout
+                    onClick={() => {
+                      if (billingCycle !== "monthly") {
+                        trackBillingCycleChanged(billingCycle, "monthly")
+                        setBillingCycle("monthly")
+                      }
+                    }}
+                    className={cn(
+                      "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
+                      billingCycle === "monthly" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {billingCycle === "monthly" && (
+                      <motion.div
+                        layoutId="active-billing-tab-pill"
+                        className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <span>Monatlich</span>
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    layout
+                    onClick={() => {
+                      if (billingCycle !== "yearly") {
+                        trackBillingCycleChanged(billingCycle, "yearly")
+                        setBillingCycle("yearly")
+                      }
+                    }}
+                    className={cn(
+                      "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
+                      billingCycle === "yearly" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {billingCycle === "yearly" && (
+                      <motion.div
+                        layoutId="active-billing-tab-pill"
+                        className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <span>Jährlich (20% Rabatt)</span>
+                  </motion.button>
+                </div>
+              </div>
 
-              return (
-                <Card
-                  key={group.productName}
-                  className={`relative flex flex-col rounded-[2.5rem] ${group.popular ? "border-primary shadow-lg scale-105" : "border-border"}`}
-                >
-                  {group.popular && (
-                    <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2">Am beliebtesten</Badge>
-                  )}
+              <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto items-stretch">
+                {groupedPlans.filter(group => group.position !== 0).map((group) => {
+                  const planToDisplay = billingCycle === 'monthly' ? group.monthly : group.annually;
+                  if (!planToDisplay) return null;
 
-                  <CardHeader className="text-center pb-8">
-                    <CardTitle className="text-xl font-semibold">{group.productName}</CardTitle>
-                    <div className="mt-4">
-                      <span className="text-4xl font-bold">
-                        {formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {billingCycle === "monthly" ? "/Monat" : "/Jahr"}
-                      </span>
-                    </div>
-                    <CardDescription className="mt-2 h-12 overflow-hidden"> {/* Added fixed height and overflow for description consistency */}
-                      {group.description || `Unser ${group.productName} Plan.`} {/* Use group's description */}
-                    </CardDescription>
-                  </CardHeader>
+                  const { text, disabled } = getButtonTextAndState(planToDisplay.priceId);
 
-                  <CardContent className="grow">
-                    <ul className="space-y-3">
-                      {group.features.map((feature, featureIndex) => (
-                        <li key={featureIndex} className="flex items-center gap-3">
-                          <Check className="h-4 w-4 text-primary shrink-0" />
-                          <span className="text-sm">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-
-                  <CardFooter className="mt-auto py-6">
-                    <Button
-                      onClick={() => {
-                        trackPricingPlanSelected(
-                          group.productName,
-                          planToDisplay.priceId,
-                          billingCycle,
-                          planToDisplay.price / 100,
-                          planToDisplay.currency
-                        )
-                        onSelectPlan(planToDisplay.priceId)
-                      }}
-                      className="w-full rounded-xl"
-                      variant={group.popular ? "default" : "outline"}
-                      size="lg"
-                      disabled={getButtonTextAndState(planToDisplay.priceId).disabled}
+                  return (
+                    <Card
+                      key={group.productName}
+                      className={`relative flex flex-col rounded-[2.5rem] ${group.popular ? "border-primary shadow-lg scale-105" : "border-border"}`}
                     >
-                      {getButtonTextAndState(planToDisplay.priceId).text}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              );
-            })}
-          </div>
+                      {group.popular && (
+                        <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2">Am beliebtesten</Badge>
+                      )}
 
-          {isTrialEligible && (
-            <div className="text-center mt-12">
-              <p className="text-muted-foreground">Alle Pläne beinhalten eine 14-tägige kostenlose Testversion. Keine Kreditkarte erforderlich.</p>
-            </div>
-          )}
+                      <CardHeader className="text-center pb-8">
+                        <CardTitle className="text-xl font-semibold">{group.productName}</CardTitle>
+                        <div className="mt-4 flex flex-col items-center">
+                          <div className="flex items-end justify-center gap-1">
+                            <AnimatedPrice
+                              key={billingCycle}
+                              value={`${formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)} €`}
+                              className="text-4xl font-bold"
+                            />
+                            <span className="mb-1 text-sm text-muted-foreground">
+                              /{billingCycle === "monthly" ? "Monat" : "Jahr"}
+                            </span>
+                          </div>
+                        </div>
+                        <CardDescription className="mt-4 text-center text-sm leading-relaxed text-muted-foreground">
+                          {group.description || `Unser ${group.productName} Plan.`}
+                        </CardDescription>
+                      </CardHeader>
 
-          {showComparison && <ComparisonTable
-            plans={groupedPlans}
-            billingCycle={billingCycle}
-            onSelectPlan={onSelectPlan}
-            getButtonTextAndState={getButtonTextAndState}
-          />}
+                      <CardContent className="grow flex flex-col gap-6">
+                        <Button
+                          onClick={() => {
+                            trackPricingPlanSelected(
+                              group.productName,
+                              planToDisplay.priceId,
+                              billingCycle,
+                              planToDisplay.price / 100,
+                              planToDisplay.currency
+                            )
+                            onSelectPlan(planToDisplay.priceId)
+                          }}
+                          className="w-full rounded-xl"
+                          variant={group.popular ? "default" : "outline"}
+                          size="lg"
+                          disabled={disabled}
+                        >
+                          {text}
+                        </Button>
 
-          {showViewAllButton && (
-            <div className="text-center mt-16">
-              <Button
-                size="lg"
-                variant="outline"
-                className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg rounded-full"
-                onClick={() => {
-                  trackPricingViewAllClicked()
-                  router.push('/preise')
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  Alle Preise und Pläne ansehen
-                  <SquareArrowOutUpRight className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                </span>
-              </Button>
-            </div>
+                        <ul className="space-y-3">
+                          {group.features.map((feature, featureIndex) => (
+                            <li key={featureIndex} className="flex items-start gap-3 text-sm">
+                              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+                                <Check className="h-3.5 w-3.5" />
+                              </span>
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {isTrialEligible && (
+                <div className="text-center mt-12">
+                  <p className="text-muted-foreground">Alle Pläne beinhalten eine 14-tägige kostenlose Testversion. Keine Kreditkarte erforderlich.</p>
+                </div>
+              )}
+
+              {showComparison && <ComparisonTable
+                plans={groupedPlans}
+                billingCycle={billingCycle}
+                onSelectPlan={onSelectPlan}
+                getButtonTextAndState={getButtonTextAndState}
+              />}
+
+              {showViewAllButton && (
+                <div className="text-center mt-16">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg rounded-full"
+                    onClick={() => {
+                      trackPricingViewAllClicked()
+                      router.push('/preise')
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      Alle Preise und Pläne ansehen
+                      <SquareArrowOutUpRight className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                    </span>
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>

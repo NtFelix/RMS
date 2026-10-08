@@ -13,6 +13,11 @@ jest.mock('@/components/common/user-settings', () => ({
   UserSettings: () => <div data-testid="user-settings">User Settings</div>,
 }))
 
+// Mock PostHog feature flags to enable all features
+jest.mock('posthog-js/react', () => ({
+  useFeatureFlagEnabled: jest.fn().mockReturnValue(true),
+}))
+
 // Mock Supabase client
 jest.mock('@/utils/supabase/client', () => ({
   createClient: jest.fn(() => ({
@@ -20,6 +25,13 @@ jest.mock('@/utils/supabase/client', () => ({
       getUser: jest.fn(() => Promise.resolve({ data: { user: null } })),
     },
   })),
+}))
+
+const mockToast = jest.fn()
+jest.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: mockToast,
+  }),
 }))
 
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>
@@ -31,6 +43,9 @@ const mockSidebarData: SidebarUserData = {
   userInitials: 'TU',
   apartmentCount: 5,
   apartmentLimit: 10,
+  hasOrganisationPermission: true,
+  isOrganisationHidden: false,
+  modulePermissions: null,
 }
 
 describe('DashboardSidebar Navigation', () => {
@@ -42,75 +57,63 @@ describe('DashboardSidebar Navigation', () => {
     jest.clearAllMocks()
   })
 
-  it('renders all navigation items including Cloud Storage', () => {
-    render(<DashboardSidebar sidebarData={mockSidebarData} />)
+  it('renders primary navigation links on desktop', () => {
+    const { container } = render(<DashboardSidebar sidebarData={mockSidebarData} />)
 
-    // Check that all navigation items are present
-    expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    expect(screen.getByText('Häuser')).toBeInTheDocument()
-    expect(screen.getByText('Wohnungen')).toBeInTheDocument()
-    expect(screen.getByText('Mieter')).toBeInTheDocument()
-    expect(screen.getByText('Finanzen')).toBeInTheDocument()
-    expect(screen.getByText('Betriebskosten')).toBeInTheDocument()
-    expect(screen.getByText('Aufgaben')).toBeInTheDocument()
-    expect(screen.getByText('Cloud Storage')).toBeInTheDocument()
+    // Verify all primary route links exist in the desktop navigation strip
+    const hrefs = ['/dashboard', '/haeuser', '/wohnungen', '/mieter', '/finanzen', '/betriebskosten', '/todos', '/dateien', '/mails']
+    hrefs.forEach(href => {
+      const link = container.querySelector(`a[href="${href}"]`)
+      expect(link).toBeInTheDocument()
+    })
   })
 
   it('renders Cloud Storage navigation item with correct href', () => {
-    render(<DashboardSidebar sidebarData={mockSidebarData} />)
+    const { container } = render(<DashboardSidebar sidebarData={mockSidebarData} />)
 
-    const cloudStorageLink = screen.getByRole('link', { name: /cloud storage/i })
+    const cloudStorageLink = container.querySelector('a[href="/dateien"]')
     expect(cloudStorageLink).toBeInTheDocument()
-    expect(cloudStorageLink).toHaveAttribute('href', '/dateien')
   })
 
   it('applies active styling to current route', () => {
     mockUsePathname.mockReturnValue('/dateien')
-    render(<DashboardSidebar sidebarData={mockSidebarData} />)
+    const { container } = render(<DashboardSidebar sidebarData={mockSidebarData} />)
 
-    const cloudStorageLink = screen.getByRole('link', { name: /cloud storage/i })
-    expect(cloudStorageLink).toHaveClass('bg-accent', 'text-accent-foreground')
+    const cloudStorageLink = container.querySelector('a[href="/dateien"]')
+    expect(cloudStorageLink).toHaveClass('bg-accent')
   })
 
   it('applies inactive styling to non-current routes', () => {
     mockUsePathname.mockReturnValue('/dashboard')
-    render(<DashboardSidebar sidebarData={mockSidebarData} />)
+    const { container } = render(<DashboardSidebar sidebarData={mockSidebarData} />)
 
-    const cloudStorageLink = screen.getByRole('link', { name: /cloud storage/i })
+    const cloudStorageLink = container.querySelector('a[href="/dateien"]')
     expect(cloudStorageLink).toHaveClass('text-muted-foreground')
-    expect(cloudStorageLink).not.toHaveClass('bg-accent', 'text-accent-foreground')
+    expect(cloudStorageLink).not.toHaveClass('bg-accent')
   })
 
-  it('renders navigation items in correct order', () => {
-    render(<DashboardSidebar sidebarData={mockSidebarData} />)
+  it('renders primary navigation items in correct order', () => {
+    const { container } = render(<DashboardSidebar sidebarData={mockSidebarData} />)
 
-    const navLinks = screen.getAllByRole('link')
-    const navTexts = navLinks.map(link => link.textContent)
+    // Query links in the primary left column's nav
+    const navElement = container.querySelector('nav')
+    expect(navElement).toBeInTheDocument()
+    const links = navElement!.querySelectorAll('a')
+    const hrefs = Array.from(links).map(link => link.getAttribute('href'))
 
-    // Filter out the logo link and get only navigation items
-    const navigationTexts = navTexts.filter(text =>
-      text && !text.includes('Property Manager')
-    )
-
-    expect(navigationTexts).toEqual([
-      'Dashboard',
-      'Häuser',
-      'Wohnungen',
-      'Mieter',
-      'Finanzen',
-      'Betriebskosten',
-      'Aufgaben',
-      'Cloud Storage'
+    expect(hrefs).toEqual([
+      '/dashboard',
+      '/suche',
+      '/organisation',
+      '/haeuser',
+      '/wohnungen',
+      '/mieter',
+      '/finanzen',
+      '/betriebskosten',
+      '/todos',
+      '/dateien',
+      '/mails',
+      '/agenten'
     ])
   })
-
-  it('renders with proper accessibility attributes', () => {
-    render(<DashboardSidebar sidebarData={mockSidebarData} />)
-
-    const cloudStorageLink = screen.getByRole('link', { name: /cloud storage/i })
-    expect(cloudStorageLink).toBeInTheDocument()
-
-    // Check that the link is properly accessible
-    expect(cloudStorageLink).toHaveAttribute('href', '/dateien')
-  })
-})
+})

@@ -4,7 +4,8 @@ import JSZip from 'jszip';
 import Papa from 'papaparse';
 import { GoogleGenAI } from '@google/genai';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { WorkerLogger, ExecutionContext } from './logger';
+import { WorkerLogger, ExecutionContext, getPostHogApiKey } from './logger';
+import { initTracing, startSpan, endSpan, flushSpans, withSpan, runWithTrace, generateTraceId, SPAN_KINDS, STATUS_CODES } from './tracing';
 import pako from 'pako';
 import { PostHog } from 'posthog-node';
 
@@ -15,6 +16,7 @@ export interface Env {
     SUPABASE_URL: string;
     SUPABASE_SERVICE_ROLE_KEY: string;
     POSTHOG_API_KEY?: string;
+    NEXT_PUBLIC_POSTHOG_KEY?: string;
     POSTHOG_HOST?: string;
     RATE_LIMITER: unknown; // Using 'unknown' instead of 'any'
     WORKER_AUTH_KEY?: string;
@@ -41,12 +43,26 @@ interface QueueTask {
 }
 
 
-import { formatCurrency, isoToGermanDate, roundToNearest5 } from './utils';
+import { formatCurrency, formatNumberDe, isoToGermanDate, isRechenbasis360, formatPlzOrt } from './utils';
 
 // --- Constants ---
 const QUEUE_VISIBILITY_TIMEOUT = 60;
 
 // --- PDF Generation Functions (Preserved) ---
+
+// How a tenant's Rechentage came about on the 360-day basis ("30/360"), for the settlement's
+// explanation of its distribution key (BGH VIII ZR 84/07). Mirrors (a subset of) the app's
+// RechentageDetails (types/optimized-betriebskosten.ts); this worker cannot import app types.
+interface TenantDataRechentage {
+    rechentage: number;
+    totalRechentage: number;
+    billedFromIso: string;
+    billedToIso: string;
+    einzugGerundet?: boolean;
+    auszugGerundet?: boolean;
+    einzugGerundetIso?: string;
+    auszugGerundetIso?: string;
+}
 
 interface TenantData {
     apartmentName?: string;
@@ -67,14 +83,26 @@ interface TenantData {
     vorauszahlungen?: number;
     finalSettlement?: number;
     recommendedPrepayment?: number;
+    /** Tenant's raw move-in / move-out date, only needed to explain 360-basis rounding */
+    einzug?: string | null;
+    auszug?: string | null;
+    /** Set on the 360-day basis ('360_tage'); daysOccupied above is then Rechentage */
+    rechentage?: TenantDataRechentage;
 }
 
 interface NebenkostenItem {
     startdatum: string;
     enddatum: string;
-    Haeuser?: { name: string };
+    Haeuser?: {
+        name: string;
+        strasse?: string | null;
+        plz?: number | string | null;
+        ort?: string | null;
+    };
     zaehlerkosten?: Record<string, number>;
     zaehlerverbrauch?: Record<string, number>;
+    /** '360_tage' switches the settlement to the 30/360 basis; see isRechenbasis360 */
+    rechenbasis?: 'kalendertage' | '360_tage';
 }
 
 export interface SingleTenantPayload {
@@ -91,20 +119,23 @@ export interface SingleTenantPayload {
     houseCity?: string;
 }
 
-function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
+export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
     const { tenantData, nebenkostenItem, ownerName, ownerAddress, billingAddress, houseCity } = payload;
     let startY = 20;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const tableWidth = pageWidth - 40;
 
     let displayAddress = ownerAddress || '';
     let displayCity = houseCity || '';
 
     if (!displayCity && ownerAddress) {
         const parts = ownerAddress.split(',').map((p: string) => p.trim());
-        const potentialCity = parts.find((p: string) => !/^\d{5}$/.test(p) && p.length > 2);
-        if (potentialCity) {
-            displayCity = potentialCity;
-        } else if (parts.length > 0) {
-            displayCity = parts[parts.length - 1];
+        const lastPart = parts[parts.length - 1] || '';
+        const cleanedCity = lastPart.replace(/^\d{5}\s*/, '').trim();
+        if (cleanedCity) {
+            displayCity = cleanedCity;
+        } else if (parts.length > 1) {
+            displayCity = parts[parts.length - 2];
         }
     }
 
@@ -118,31 +149,62 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
         }
     }
 
-    doc.setFontSize(10);
-    doc.text(ownerName || '', 20, startY);
-    startY += 6;
-    doc.text(displayAddress, 20, startY);
-    startY += 10;
-
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text("Jahresabrechnung", doc.internal.pageSize.getWidth() / 2, startY, { align: "center" });
-    startY += 10;
-
-    doc.setFontSize(10);
+    // 1. Absender einzeilig links oben mit mehr Raum zum Atmen
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(`Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)}`, 20, startY);
-    startY += 6;
+    doc.setTextColor(40, 40, 40);
+    const senderLine = [ownerName, displayAddress].filter(Boolean).join(', ');
+    doc.text(senderLine, 20, startY);
+    startY += 18;
 
-    const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
-    doc.text(propertyDetails, 20, startY);
-    startY += 6;
+    // 2. Zentrierter Titelblock (Überschrift + Zeitraum)
+    doc.setFontSize(17);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text("Jahresabrechnung", pageWidth / 2, startY, { align: "center" });
+    startY += 8.5;
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "normal");
+    doc.text("Zeitraum", pageWidth / 2, startY, { align: "center" });
+    startY += 6.5;
+
+    doc.setFontSize(12);
+    const startDate = (tenantData.rechentage?.billedFromIso && tenantData.rechentage.billedFromIso.trim() !== '')
+        ? tenantData.rechentage.billedFromIso
+        : nebenkostenItem.startdatum;
+    const endDate = (tenantData.rechentage?.billedToIso && tenantData.rechentage.billedToIso.trim() !== '')
+        ? tenantData.rechentage.billedToIso
+        : nebenkostenItem.enddatum;
+    const zeitraumDates = `${isoToGermanDate(startDate)} – ${isoToGermanDate(endDate)}`;
+    doc.text(zeitraumDates, pageWidth / 2, startY, { align: "center" });
+    startY += 12;
+
+    // 3. Objekt & Mieter
+    // Address only (street, PLZ Ort); the internal house name is irrelevant for the billing
+    // and often repeats the street. It is only used as a fallback when no address data exists.
+    const haus = nebenkostenItem.Haeuser;
+    const objekt = [haus?.strasse?.trim(), formatPlzOrt(haus?.plz, haus?.ort)]
+        .filter(Boolean).join(', ') || haus?.name?.trim() || 'N/A';
+    const addressParts = [
+        objekt,
+        tenantData.apartmentName,
+        tenantData.apartmentSize != null
+            ? `${tenantData.apartmentSize.toLocaleString('de-DE', { maximumFractionDigits: 2 })} qm`
+            : '',
+    ].filter(Boolean);
+
+    const propertyDetails = `Objekt: ${addressParts.join(', ')}`;
+    const propertyLines = doc.splitTextToSize(propertyDetails, tableWidth);
+    doc.text(propertyLines, 20, startY);
+    startY += propertyLines.length * 5.5;
 
     const tenantDetails = `Mieter: ${tenantData.tenantName}`;
     doc.text(tenantDetails, 20, startY);
     startY += 10;
 
-    const tableColumn = ["Leistungsart", "Gesamtkosten\nin €", "Verteiler\nEinheit/ qm", "Kosten\nPro qm", "Kostenanteil\nIn €"];
+    // 4. Tabelle
+    const tableColumn = ["Leistungsart", "Gesamtkosten\nIn €", "Verteiler\nEinheit/ qm", "Kosten\nPro qm", "Kostenanteil\nIn €"];
     const tableRows: unknown[][] = [];
 
     if (tenantData.costItems) {
@@ -153,11 +215,16 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
             pricePerSqm?: number;
             tenantShare: number;
         }) => {
+            let verteilerVal = item.verteiler ? String(item.verteiler).replace(/m²|qm/gi, '').trim() : '';
+            if (!verteilerVal || verteilerVal === '-') {
+                verteilerVal = 'Rechnung';
+            }
+
             tableRows.push([
                 item.costName,
                 formatCurrency(item.totalCostForItem),
-                item.verteiler || '-',
-                item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-',
+                verteilerVal,
+                item.pricePerSqm ? formatNumberDe(item.pricePerSqm, 2) : '',
                 formatCurrency(item.tenantShare)
             ]);
         });
@@ -173,12 +240,14 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
             textColor: [0, 0, 0],
             fontStyle: 'bold',
             lineWidth: { bottom: 0.3 },
-            lineColor: [0, 0, 0]
+            lineColor: [0, 0, 0],
+            cellPadding: { top: 2.5, bottom: 3, left: 1, right: 1 }
         },
         styles: {
             fontSize: 9,
-            cellPadding: 1.5,
-            lineWidth: 0
+            cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
+            lineWidth: 0,
+            textColor: [0, 0, 0]
         },
         bodyStyles: {
             lineWidth: { bottom: 0.1 },
@@ -197,7 +266,7 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
                 d.cell.styles.halign = 'right';
             }
         },
-        tableWidth: doc.internal.pageSize.getWidth() - 40,
+        tableWidth: tableWidth,
         margin: { left: 20, right: 20 }
     });
 
@@ -207,69 +276,60 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
     const sumOfTotalCostForItem = tenantData.costItems ? tenantData.costItems.reduce((sum: number, item: { totalCostForItem: number }) => sum + item.totalCostForItem, 0) : 0;
     const sumOfTenantSharesFromCostItems = tenantData.costItems ? tenantData.costItems.reduce((sum: number, item: { tenantShare: number }) => sum + item.tenantShare, 0) : 0;
 
-    startY += 8;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const tableWidth = pageWidth - 40;
     const leftMargin = 20;
     const col1Start = leftMargin;
     const col3Start = leftMargin + (tableWidth * 0.45);
     const col4Start = leftMargin + (tableWidth * 0.65);
     const col5End = leftMargin + tableWidth;
 
+    // 5. Betriebskosten gesamt (ohne Doppelpunkt)
+    startY += 4;
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
-    doc.text("Betriebskosten gesamt:", col1Start, startY, { align: 'left' });
+
+    doc.text("Betriebskosten gesamt", col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(sumOfTotalCostForItem), col3Start + 15.65, startY, { align: 'right' });
     doc.text(formatCurrency(sumOfTenantSharesFromCostItems), col5End, startY, { align: 'right' });
 
-    startY += 12;
-
+    // 6. Wasserverbrauch / Wasserkosten
+    startY += 10;
     const tenantWaterShare = tenantData.waterCost?.tenantShare || 0;
     const tenantWaterConsumption = tenantData.waterCost?.consumption || 0;
-
-    // Price per unit shown on PDF is the weighted average across all meter types (for display only)
-    // The actual tenant cost (tenantWaterShare) is already calculated per-type upstream
     const pricePerCubicMeterCalc = tenantWaterConsumption > 0 ? tenantWaterShare / tenantWaterConsumption : 0;
 
-    doc.text("Wasserkosten:", col1Start, startY, { align: 'left' });
-    doc.text(`${tenantWaterConsumption} m³`, col3Start + 15.65, startY, { align: 'right' });
-    doc.text(`${formatCurrency(pricePerCubicMeterCalc)} / m3`, col4Start + 15, startY, { align: 'right' });
+    doc.setFont("helvetica", "normal");
+    doc.text("Wasserverbrauch m³", col1Start, startY, { align: 'left' });
+    doc.text(formatNumberDe(tenantWaterConsumption, 2), col3Start + 15.65, startY, { align: 'right' });
+    doc.text(`${formatNumberDe(pricePerCubicMeterCalc, 2)}/ m3`, col4Start + 15, startY, { align: 'right' });
     doc.text(formatCurrency(tenantWaterShare), col5End, startY, { align: 'right' });
 
-    startY += 16;
+    // 7. Gesamt, bereits geleistete Zahlungen, Nachzahlung / Guthaben
+    startY += 14;
     const totalTenantCosts = sumOfTenantSharesFromCostItems + tenantWaterShare;
-    doc.text("Gesamt:", col1Start, startY, { align: 'left' });
+    doc.setFont("helvetica", "bold");
+    doc.text("Gesamt", col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(totalTenantCosts), col5End, startY, { align: 'right' });
 
     startY += 8;
-    doc.text("Vorauszahlungen:", col1Start, startY, { align: 'left' });
+    doc.setFont("helvetica", "normal");
+    doc.text("bereits geleistete Zahlungen", col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(tenantData.vorauszahlungen || 0), col5End, startY, { align: 'right' });
 
     startY += 8;
     const isPositiveSettlement = (tenantData.finalSettlement || 0) >= 0;
-    const settlementLabel = isPositiveSettlement ? "Nachzahlung:" : "Guthaben:";
+    const settlementLabel = isPositiveSettlement ? "Nachzahlung" : "Guthaben";
     const settlementAmount = Math.abs(tenantData.finalSettlement || 0);
+    doc.setFont("helvetica", "bold");
     doc.text(settlementLabel, col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(settlementAmount), col5End, startY, { align: 'right' });
 
-    startY += 8;
-    const suggestedVorauszahlung = tenantData.recommendedPrepayment ? roundToNearest5(tenantData.recommendedPrepayment) : 0;
-    const monthlyVorauszahlung = suggestedVorauszahlung / 12;
-
+    // 8. Datum unten
+    startY += 26;
     const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    const formattedDate = nextMonth.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
-
-    doc.setFont("helvetica", "bold");
-    doc.text(`Vorauszahlung ab ${formattedDate}`, col1Start, startY, { align: 'left' });
-    doc.text(formatCurrency(monthlyVorauszahlung), col5End, startY, { align: 'right' });
-
+    const formattedToday = today.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     doc.setFont("helvetica", "normal");
-    startY += 25;
-
-    doc.text(`${displayCity}, den ${today.toLocaleDateString('de-DE')}`, col1Start, startY);
+    doc.text(`${displayCity}, den ${formattedToday}`, col1Start, startY);
 }
 
 const ZAEHLER_CONFIG = {
@@ -291,6 +351,8 @@ export interface HouseOverviewPayload {
         betrag?: (number | null)[];
         zaehlerkosten?: Record<string, number>;
         zaehlerverbrauch?: Record<string, number>;
+        /** '360_tage' switches the settlement to the 30/360 basis; see isRechenbasis360 */
+        rechenbasis?: 'kalendertage' | '360_tage';
     };
     totalArea: number;
     totalCosts: number;
@@ -300,6 +362,7 @@ export interface HouseOverviewPayload {
 function generateHouseOverviewPDF(doc: jsPDF, payload: HouseOverviewPayload) {
     const { nebenkosten, totalArea, totalCosts, costPerSqm } = payload;
     let startY = 20;
+    const is360 = isRechenbasis360(nebenkosten);
 
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
@@ -308,8 +371,16 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: HouseOverviewPayload) {
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`Zeitraum: ${isoToGermanDate(nebenkosten.startdatum)} bis ${isoToGermanDate(nebenkosten.enddatum)}`, 20, startY);
-    startY += 6;
+    if (is360) {
+        const zeitraumText = `Zeitraum: ${isoToGermanDate(nebenkosten.startdatum)} bis ${isoToGermanDate(nebenkosten.enddatum)} (gerechnet mit 360 Tagen, 30-Tage-Monate)`;
+        const maxTextWidth = doc.internal.pageSize.getWidth() - 40;
+        const zeitraumLines = doc.splitTextToSize(zeitraumText, maxTextWidth);
+        doc.text(zeitraumLines, 20, startY);
+        startY += zeitraumLines.length * 6;
+    } else {
+        doc.text(`Zeitraum: ${isoToGermanDate(nebenkosten.startdatum)} bis ${isoToGermanDate(nebenkosten.enddatum)}`, 20, startY);
+        startY += 6;
+    }
     if (nebenkosten.haus_name) {
         doc.text(`Haus: ${nebenkosten.haus_name}`, 20, startY);
         startY += 6;
@@ -547,7 +618,7 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
         // Initialize Gemini
         const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
         const fullPrompt = `${SYSTEM_INSTRUCTION}\n\nUser Message: ${message}\n${contextText}`;
-        logger.info('Initializing Gemini API', { model: 'gemini-2.5-flash-lite', promptLength: fullPrompt.length });
+        logger.info('Initializing Gemini API', { model: 'gemini-3.1-flash-lite-preview', promptLength: fullPrompt.length });
 
         // Retry logic with exponential backoff
         const maxRetries = 3;
@@ -560,7 +631,7 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
             try {
                 logger.info('Attempting AI connection', { attempt: attempt + 1, maxRetries });
                 stream = await client.models.generateContentStream({
-                    model: 'models/gemini-2.5-flash-lite',
+                    model: 'models/gemini-3.1-flash-lite-preview',
                     contents: [{ role: 'user', parts: [{ text: fullPrompt }] }]
                 });
                 logger.info('AI connection successful', { attempt: attempt + 1 });
@@ -759,7 +830,7 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     usage: { model: string; inputTokens?: number; outputTokens?: number; totalTokens?: number; latencyMs: number; };
 }> {
     const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-    const model = 'gemini-2.5-flash-lite'; // Latest high-speed, cost-efficient model for batch tasks
+    const model = 'gemini-3.1-flash-lite-preview'; // Latest high-speed, cost-efficient model for batch tasks
     const startTime = Date.now();
     // Using a more lightweight model strictly for JSON extraction if possible, 
     // but gemini-1.5-flash is good. 'models/gemini-2.5-flash-lite' was used in existing code.
@@ -960,8 +1031,10 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         }
 
         // Initialize PostHog only if we have work
-        if (env.POSTHOG_API_KEY) {
-            posthog = new PostHog(env.POSTHOG_API_KEY, {
+        const posthogKey = getPostHogApiKey(env);
+
+        if (posthogKey) {
+            posthog = new PostHog(posthogKey, {
                 host: env.POSTHOG_HOST || 'https://eu.i.posthog.com',
                 flushAt: 1,
                 flushInterval: 0,
@@ -1008,6 +1081,8 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         const aiStartTime = Date.now();
 
         if (dateipfad) {
+            // Create a child span for AI analysis (wraps the AI call + PostHog $ai_generation event)
+            const aiChildSpan = startSpan('aiAnalysis', SPAN_KINDS.INTERNAL);
             try {
                 // Download & AI with retry for rate limits
                 logger.info('Starting email download', { msgId, mailId: mail_id, dateipfad });
@@ -1030,6 +1105,20 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                 // Log LLM generation to PostHog for LLM Analytics dashboard
                 if (posthog) {
                     const traceId = crypto.randomUUID();
+                    // Resolve org_id from the mail's user context
+                    let orgId = 'unknown';
+                    try {
+                        const { data: userOrgs } = await supabase
+                            .from('Organisation_Mitglieder')
+                            .select('organisation_id')
+                            .eq('user_id', userIdForTracking)
+                            .limit(1);
+                        if (userOrgs && userOrgs.length > 0) {
+                            orgId = userOrgs[0].organisation_id;
+                        }
+                    } catch {
+                        // Best-effort, default to unknown
+                    }
                     await posthog.capture({
                         distinctId: userIdForTracking, // Use the actual user if provided
                         event: '$ai_generation',
@@ -1047,6 +1136,9 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                             user_id: userIdForTracking,
                             mail_id: mail_id,
                             completeness_score: aiScore || 0,
+                            // Org analytics
+                            org_id: orgId,
+                            feature: 'agent',
                         }
                     });
                     // Shutdown is handled at the end of function
@@ -1059,6 +1151,7 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                     score: aiScore || 0,
                     totalProcessingMs: Date.now() - processingStartTime
                 });
+                endSpan(aiChildSpan, { code: STATUS_CODES.OK });
 
                 // Update DB with Top-Level fields for easier access/sorting
                 logger.info('Updating tenant record in database', { mailId: mail_id, msgId });
@@ -1092,6 +1185,9 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                 logger.info('Tenant record updated successfully', { mailId: mail_id, msgId });
 
             } catch (processError: unknown) {
+                if (!aiChildSpan.endTimeUnixNano) {
+                    endSpan(aiChildSpan, { code: STATUS_CODES.ERROR, message: (processError as Error).message });
+                }
                 logger.error('Queue item processing failed', {
                     msgId,
                     mailId: mail_id,
@@ -1349,8 +1445,14 @@ export async function handleFileGeneration(request: Request, env: Env, ctx: Exec
 
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-        const logger = new WorkerLogger(env, ctx);
+        // Initialize tracing with PostHog env vars
+        initTracing({ POSTHOG_API_KEY: env.POSTHOG_API_KEY, POSTHOG_HOST: env.POSTHOG_HOST });
+
         const requestStartTime = Date.now();
+        const url = new URL(request.url);
+        const method = request.method;
+        const pathname = url.pathname;
+        const userAgent = request.headers.get('User-Agent') || 'none';
 
         const origin = request.headers.get('Origin') || '*';
         const corsHeaders: Record<string, string> = {
@@ -1362,64 +1464,88 @@ export default {
             'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time',
         };
 
-        const url = new URL(request.url);
-        logger.info('Worker request received', {
-            method: request.method,
-            pathname: url.pathname,
-            userAgent: request.headers.get('User-Agent') || 'none'
-        });
+        // Run the entire request lifecycle under a single trace context
+        return runWithTrace(generateTraceId(), async () => {
+            const logger = new WorkerLogger(env, ctx);
 
-        // Handle CORS preflight requests
-        if (request.method === "OPTIONS") {
-            logger.info('CORS preflight handled', { pathname: url.pathname });
-            return new Response(null, {
-                headers: corsHeaders
-            });
-        }
+            // Create root span for the entire request
+            const rootSpan = startSpan(`${method} ${pathname}`, SPAN_KINDS.SERVER, [
+                { key: 'http.method', value: { stringValue: method } },
+                { key: 'http.url', value: { stringValue: pathname } },
+                { key: 'http.user_agent', value: { stringValue: userAgent } },
+            ]);
 
-        try {
-            // Route based on URL path first (more robust)
-            let response: Response;
-            if (url.pathname === '/ai') {
-                response = await handleAIRequest(request, env, ctx);
-            } else if (url.pathname === '/process-queue') {
-                response = await processQueue(request, env, ctx);
-            } else {
-                // Fallback to file generation logic (PDF/ZIP/CSV)
-                response = await handleFileGeneration(request, env, ctx);
+            logger.info('Worker request received', { method, pathname, userAgent });
+
+            // Handle CORS preflight requests
+            if (method === "OPTIONS") {
+                logger.info('CORS preflight handled', { pathname });
+                endSpan(rootSpan, { code: STATUS_CODES.OK });
+                logger.flush();
+                ctx.waitUntil(flushSpans());
+                return new Response(null, {
+                    headers: corsHeaders
+                });
             }
 
-            // Append CORS headers to every response
-            const newHeaders = new Headers(response.headers);
-            Object.entries(corsHeaders).forEach(([key, value]) => {
-                newHeaders.set(key, value);
-            });
+            try {
+                // Route based on URL path first (more robust)
+                let response: Response;
 
-            const duration = Date.now() - requestStartTime;
-            logger.info('Worker request completed', {
-                pathname: url.pathname,
-                status: response.status,
-                durationMs: duration
-            });
-            logger.flush();
+                // Handle simple GET/HEAD requests (health checks, root)
+                if (method === 'GET' || method === 'HEAD') {
+                    if (pathname === '/' || pathname === '/health') {
+                        response = new Response('OK', { status: 200 });
+                    } else {
+                        response = new Response('Not Found', { status: 404 });
+                    }
+                } else if (pathname === '/ai') {
+                    response = await withSpan('handleAIRequest', () => handleAIRequest(request, env, ctx), SPAN_KINDS.SERVER);
+                } else if (pathname === '/process-queue') {
+                    response = await withSpan('processQueue', () => processQueue(request, env, ctx), SPAN_KINDS.SERVER);
+                } else {
+                    // Fallback to file generation logic (PDF/ZIP/CSV)
+                    response = await withSpan('handleFileGeneration', () => handleFileGeneration(request, env, ctx), SPAN_KINDS.SERVER);
+                }
 
-            return new Response(response.body, {
-                status: response.status,
-                statusText: response.statusText,
-                headers: newHeaders
-            });
+                // Append CORS headers to every response
+                const newHeaders = new Headers(response.headers);
+                Object.entries(corsHeaders).forEach(([key, value]) => {
+                    newHeaders.set(key, value);
+                });
 
-        } catch (error: unknown) {
-            // Re-use existing logger instance
-            logger.error('Worker request failed with unhandled error', {
-                error: (error as Error).message,
-                pathname: url.pathname,
-                method: request.method,
-                durationMs: Date.now() - requestStartTime
-            });
-            logger.flush();
+                const duration = Date.now() - requestStartTime;
+                const status = response.status;
+                logger.info('Worker request completed', {
+                    pathname, status, durationMs: duration
+                });
 
-            return new Response(`Error: ${(error as Error).message}`, { status: 500, headers: corsHeaders });
-        }
+                endSpan(rootSpan, { code: STATUS_CODES.OK });
+
+                logger.flush();
+                ctx.waitUntil(flushSpans());
+
+                return new Response(response.body, {
+                    status,
+                    statusText: response.statusText,
+                    headers: newHeaders
+                });
+
+            } catch (error: unknown) {
+                const errMsg = (error as Error).message;
+                endSpan(rootSpan, { code: STATUS_CODES.ERROR, message: errMsg });
+
+                logger.error('Worker request failed with unhandled error', {
+                    error: errMsg,
+                    pathname,
+                    method,
+                    durationMs: Date.now() - requestStartTime
+                });
+                logger.flush();
+                ctx.waitUntil(flushSpans());
+
+                return new Response(`Error: ${errMsg}`, { status: 500, headers: corsHeaders });
+            }
+        });
     },
 };

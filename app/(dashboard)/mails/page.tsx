@@ -1,21 +1,24 @@
-
-export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
-
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
+import { requirePermission } from "@/lib/permissions";
 import MailsClientView from "./client-wrapper";
 import type { LegacyMail } from "@/types/Mail";
 import { convertToLegacyMail } from "@/types/Mail";
 import type { Mail } from "@/types/Mail";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export default async function MailsPage() {
-  const { supabase, user } = await requireAuthenticatedUser();
+  const [{ supabase, user }] = await Promise.all([
+    requireAuthenticatedUser(),
+    requirePermission('organisation', 'ansehen'),
+  ]);
 
   // Fetch initial page of emails from database
-  const { data: emails, error: emailsError, count } = await supabase
+  const { data: emails, error: emailsError } = await supabase
     .from('Mail_Metadaten')
     .select('*', { count: 'exact' })
-    .eq('user_id', user.id)
     .order('datum_erhalten', { ascending: false })
     .range(0, 49); // First 50 emails
 

@@ -5,10 +5,21 @@
  * and we need to use ctx.waitUntil for async operations.
  */
 
+import { getTraceContext } from './tracing';
+
 export interface Env {
     POSTHOG_API_KEY?: string;
+    NEXT_PUBLIC_POSTHOG_KEY?: string;
     POSTHOG_HOST?: string;
     [key: string]: unknown;
+}
+
+export function getPostHogApiKey(env: Env): string | undefined {
+    const key = env.POSTHOG_API_KEY;
+    if (key && !key.startsWith('phx_')) {
+        return key;
+    }
+    return env.NEXT_PUBLIC_POSTHOG_KEY;
 }
 
 export interface LogAttributes {
@@ -51,6 +62,8 @@ interface LogRecord {
     severityNumber: number;
     severityText: string;
     body: { stringValue: string };
+    traceId?: string;
+    spanId?: string;
     attributes: { key: string; value: Record<string, unknown> }[];
 }
 
@@ -58,11 +71,10 @@ export class WorkerLogger {
     private logs: LogRecord[] = [];
     private env: Env;
     private ctx: ExecutionContext;
-
     constructor(env: Env, ctx: ExecutionContext) {
         this.env = env;
         this.ctx = ctx;
-        if (!this.env.POSTHOG_API_KEY) {
+        if (!getPostHogApiKey(this.env)) {
             console.warn('[WorkerLogger] POSTHOG_API_KEY not set. Logs will not be sent to PostHog.');
         }
     }
@@ -79,19 +91,26 @@ export class WorkerLogger {
         // Console log for local debugging / real-time logs in dashboard
         console.log(`[${severity.toUpperCase()}] ${message}`, JSON.stringify(attributes));
 
-        const apiKey = this.env.POSTHOG_API_KEY;
+        const apiKey = getPostHogApiKey(this.env);
         if (!apiKey) return;
 
         const timestamp = new Date().toISOString();
 
+        // Get trace context from the live async context
+        const trace = getTraceContext() ?? undefined;
+
         // Enrich attributes
-        const enrichedAttributes = {
+        const enrichedAttributes: LogAttributes = {
             ...attributes,
             'log.timestamp': timestamp,
             'service.name': SERVICE_NAME,
         };
+        if (trace) {
+            enrichedAttributes['trace.trace_id'] = trace.traceId;
+            enrichedAttributes['trace.span_id'] = trace.spanId;
+        }
 
-        this.logs.push({
+        const record: LogRecord = {
             timeUnixNano: String(Date.now() * 1000000),
             severityNumber: getSeverityNumber(severity),
             severityText: severity.toUpperCase(),
@@ -102,7 +121,12 @@ export class WorkerLogger {
                     key,
                     value: formatAttributeValue(value)
                 }))
-        });
+        };
+        if (trace) {
+            record.traceId = trace.traceId;
+            record.spanId = trace.spanId;
+        }
+        this.logs.push(record);
     }
 
     debug(message: string, attributes?: LogAttributes) { this.log('debug', message, attributes); }
@@ -113,7 +137,7 @@ export class WorkerLogger {
     async flush() {
         if (this.logs.length === 0) return;
 
-        const apiKey = this.env.POSTHOG_API_KEY;
+        const apiKey = getPostHogApiKey(this.env);
         const host = this.env.POSTHOG_HOST || 'https://eu.i.posthog.com';
         const endpoint = `${host.replace(/\/$/, '')}/i/v1/logs`;
 

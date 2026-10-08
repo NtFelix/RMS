@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { posthogLogger } from "@/lib/posthog-logger";
@@ -10,6 +10,11 @@ export async function searchMailSenders(query: string) {
     try {
         ({ user, supabase } = await ensureAuth());
     } catch {
+        return [];
+    }
+
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('mieter', 'ansehen'))) {
         return [];
     }
 
@@ -38,6 +43,11 @@ export async function getMailsBySender(sender: string, startDate?: Date, endDate
     try {
         ({ user, supabase } = await ensureAuth());
     } catch {
+        return [];
+    }
+
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('mieter', 'ansehen'))) {
         return [];
     }
 
@@ -73,8 +83,13 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
     let user, supabase;
     try {
         ({ user, supabase } = await ensureAuth());
-    } catch {
+    } catch (authError) {
         return { success: false, error: "Nicht authentifiziert" };
+    }
+
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('mieter', 'erstellen'))) {
+        return { success: false, error: "Keine Berechtigung" };
     }
     const userId = user.id;
 
@@ -107,7 +122,6 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
                 email: mail.absender.match(/<([^>]+)>/)?.[1] ?? mail.absender,
                 status: 'bewerber',
                 bewerbung_mail_id: mail.id,
-                user_id: userId,
                 // bewerbung_metadaten left empty for now, to be filled by AI later
             };
         });
@@ -233,6 +247,11 @@ export async function checkWorkerQueueStatus(userId: string) {
         ({ user } = await ensureAuth());
     } catch {
         return { hasMore: false, error: "Nicht authentifiziert" };
+    }
+
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('mieter', 'ansehen'))) {
+        return { hasMore: false, error: "Keine Berechtigung" };
     }
 
     if (user.id !== userId) {
