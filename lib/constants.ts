@@ -10,6 +10,12 @@ export type BerechnungsartValue = typeof BERECHNUNGSART_OPTIONS[number]['value']
 // You can also export an array of the values if that's useful
 export const BERECHNUNGSART_VALUES = BERECHNUNGSART_OPTIONS.map(opt => opt.value);
 
+// German month names (Januar … Dezember), shared across the finance/betriebskosten UI
+export const GERMAN_MONTHS = [
+  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+] as const;
+
 // Supabase PWA images storage URL
 export const PWA_IMAGES_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images';
 
@@ -29,6 +35,9 @@ export const INFO_EMAIL = "info@mietevo.de";
 // DEPRECATED: Use SUPPORT_EMAIL or INFO_EMAIL directly.
 // For backward compatibility, CONTACT_EMAIL now aliases INFO_EMAIL (it was previously SUPPORT_EMAIL).
 export const CONTACT_EMAIL = INFO_EMAIL;
+
+// Centralized media query breakpoints
+export const TABLET_BREAKPOINT = '(max-width: 1023px)';
 
 // Base URL - centralized to ensure consistency across all environments
 export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de';

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { z } from 'zod';
+import { findBlockedModules } from '@/lib/blocked-modules';
 
 const updateAgentSchema = z.object({
   name: z.string().min(1).optional(),
@@ -26,7 +27,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -52,7 +53,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -67,6 +68,16 @@ export async function PATCH(
     }
 
     const { name, beschreibung, icon, anweisungen, trigger, aktionen, benachrichtigungs_kanaele, status, berechtigungen } = parsed.data;
+
+    // Das Modul "kautionen" darf Agenten nie zugewiesen werden (R2). Vor dem Aktualisieren prüfen,
+    // damit bei abgelehnter Anfrage auch die übrigen Felder unverändert bleiben.
+    const blockedModules = findBlockedModules(berechtigungen);
+    if (blockedModules.length > 0) {
+      return NextResponse.json(
+        { error: 'Das Modul "Kautionen" kann Agenten nicht zugewiesen werden.' },
+        { status: 400 }
+      );
+    }
 
     const { error: updateError } = await supabase.rpc('update_ki_agent', {
       p_agent_id: id,
@@ -110,7 +121,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {

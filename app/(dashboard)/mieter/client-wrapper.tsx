@@ -87,6 +87,11 @@ interface MieterClientViewProps {
   canCreate?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
+  /**
+   * Modulrecht `kautionen: ansehen` (GH-6). Ohne dieses Recht gibt es keine Kautionskarte und keine Menüeinträge
+   * "Kaution". Nur UX: Der Kautionsdialog bekommt seine Rechte vom Server, die Datenbank prüft erneut.
+   */
+  canViewKautionen?: boolean;
 }
 
 // Internal AddTenantButton (could be kept from previous step if preferred)
@@ -105,6 +110,7 @@ export default function MieterClientView({
   canCreate = true,
   canEdit = true,
   canDelete = true,
+  canViewKautionen = false,
 }: MieterClientViewProps) {
   const router = useRouter()
   const rawFlag = useFeatureFlagEnabled('applicants-tab');
@@ -114,8 +120,6 @@ export default function MieterClientView({
   const [currentTab, setCurrentTab] = useTabParams<"mieter" | "bewerber" | "overview">("mieter", validTabs);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set());
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -554,13 +558,20 @@ export default function MieterClientView({
   const summary = useMemo(() => {
     const tenantsInTab = filteredTenantsByTab;
     const total = tenantsInTab.length;
-    const today = new Date();
+
+    // Get today's date in YYYY-MM-DD format in local time
+    const now = new Date()
+    const todayStr = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-')
 
     // For "mieter" tab, we distinguish active vs former
     // For "bewerber" tab, activeCount/formerCount doesn't make as much sense with current definitions,
     // so we might just show Total and maybe "With Email" or similar.
     // But to keep it simple, we reuse the logic:
-    const activeCount = tenantsInTab.filter(t => !t.auszug || new Date(t.auszug) > today).length;
+    const activeCount = tenantsInTab.filter(t => !t.auszug || t.auszug > todayStr).length;
     const formerCount = total - activeCount;
 
     // Average utility cost (use last nebenkosten entry of each tenant if available)
@@ -568,7 +579,7 @@ export default function MieterClientView({
       if (t.nebenkosten && t.nebenkosten.length > 0) {
         // Find latest entry by date (ISO string)
         const latestEntry = t.nebenkosten.reduce((latest, current) => {
-          return new Date(current.date) > new Date(latest.date) ? current : latest;
+          return current.date > latest.date ? current : latest;
         });
         const val = parseFloat(latestEntry.amount);
         if (!isNaN(val)) {
@@ -674,57 +685,6 @@ export default function MieterClientView({
       variant: "success",
     })
   }, [selectedTenants, initialTenants, wohnungsMap, escapeCsvValue])
-
-  const handleBulkDelete = useCallback(async () => {
-    if (selectedTenants.size === 0) {
-      toast({
-        title: "Keine Einträge ausgewählt",
-        description: "Bitte wählen Sie mindestens einen Eintrag zum Löschen aus.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsBulkDeleting(true)
-
-    try {
-      const response = await fetch('/api/mieter/bulk-delete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ids: Array.from(selectedTenants)
-        }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Fehler beim Löschen der Einträge')
-      }
-
-      setShowBulkDeleteConfirm(false)
-      setSelectedTenants(new Set())
-
-      toast({
-        title: "Erfolg",
-        description: `${result.successCount} Einträge erfolgreich gelöscht.`,
-        variant: "success",
-      })
-
-      router.refresh()
-    } catch (error) {
-      console.error('Bulk delete error:', error)
-      toast({
-        title: "Fehler",
-        description: error instanceof Error ? error.message : "Fehler beim Löschen der Einträge",
-        variant: "destructive",
-      })
-    } finally {
-      setIsBulkDeleting(false)
-    }
-  }, [selectedTenants, router]);
 
   const handleDeleteAllApplicants = async () => {
     setIsDeletingAll(true);
@@ -903,7 +863,7 @@ export default function MieterClientView({
                     wohnungsMap={wohnungsMap}
                     onClearSelection={() => setSelectedTenants(new Set())}
                     onExport={handleBulkExport}
-                    onDelete={() => setShowBulkDeleteConfirm(true)}
+                    onUpdate={() => router.refresh()}
                     canEdit={canEdit}
                     canDelete={canDelete}
                   />
@@ -920,6 +880,7 @@ export default function MieterClientView({
                   mode={currentTab === "mieter" ? "tenants" : "applicants"}
                   canEdit={canEdit}
                   canDelete={canDelete}
+                  canViewKautionen={canViewKautionen}
                 />
               </CardContent>
             </Card>
@@ -1090,7 +1051,9 @@ export default function MieterClientView({
 
             {/* Grid 2: Deposits Details & Applicant Suitability Funnel */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Enhanced Deposits Details Card */}
+              {/* Enhanced Deposits Details Card: nur mit Modulrecht `kautionen: ansehen` (ohne Recht ist `kaution` ohnehin
+                  leer, die Karte würde "Keine Kautionsdaten erfasst" melden, was irreführend wäre) */}
+              {canViewKautionen && (
               <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
                 <div>
                   <CardHeader className="px-0 pt-0">
@@ -1197,8 +1160,19 @@ export default function MieterClientView({
                               return (
                                 <div
                                   key={t.id || idx}
-                                  onClick={() => openKautionModal(t, t.kaution)}
-                                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-all duration-200 cursor-pointer select-none"
+                                  role="button"
+                                  tabIndex={0}
+                                  aria-label={`Kaution von ${t.name} öffnen`}
+                                  onClick={() => openKautionModal(t)}
+                                  onKeyDown={(event) => {
+                                    // Nur Tastendrücke der Zeile selbst (nicht von Elementen darin); Leertaste ohne Seitenscroll.
+                                    if (event.target !== event.currentTarget) return;
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                      event.preventDefault();
+                                      openKautionModal(t);
+                                    }
+                                  }}
+                                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-[border-color,box-shadow] duration-200 cursor-pointer select-none focus-visible:outline-hidden focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
                                 >
                                   <div className="flex items-center gap-3">
                                     <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
@@ -1264,15 +1238,17 @@ export default function MieterClientView({
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-1">
                         Verhältnis der zurückgezahlten Kautionen zum Gesamtkautionsvolumen.
+                        Die Beträge entsprechen dem vereinbarten Soll-Betrag, nicht dem aktuellen Kontostand der Kaution.
                       </p>
                     </div>
 
                   </CardContent>
                 </div>
               </Card>
+              )}
 
               {/* Applicant Fit Distribution / Score Funnel Card */}
-              <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
+              <Card className={cn(canViewKautionen ? "lg:col-span-5" : "lg:col-span-12", "bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between")}>
                 <div>
                   <CardHeader className="px-0 pt-0">
                     <CardTitle className="text-base font-semibold">
@@ -1568,23 +1544,6 @@ export default function MieterClientView({
           </div>
         )}
       </div>
-
-      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Mehrere Einträge löschen?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Möchten Sie wirklich {selectedTenants.size} Einträge löschen? Diese Aktion kann nicht rückgängig gemacht werden.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
-              {isBulkDeleting ? "Lösche..." : `${selectedTenants.size} Einträge löschen`}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <AlertDialog open={showDeleteAllConfirm} onOpenChange={setShowDeleteAllConfirm}>
         <AlertDialogContent>

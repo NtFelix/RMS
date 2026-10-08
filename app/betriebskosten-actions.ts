@@ -1,10 +1,11 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
+import { createSupabaseServerClient } from "@/lib/supabase-server"; // Adjusted based on common project structure
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, MeterReadingFormData, Mieter, Zaehler, ZaehlerAblesung, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchMeterReadingsByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new meter types
 import { roundToNearest5 } from "@/lib/utils";
+import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
 import { logAction } from '@/lib/logging-middleware';
 import { type SupabaseClient } from "@supabase/supabase-js";
 
@@ -13,6 +14,7 @@ import {
   OptimizedNebenkosten,
   MeterModalData,
   AbrechnungModalData,
+  HouseApartment,
   OptimizedActionResponse,
   SafeRpcCallResult,
   AbrechnungCalculationResult,
@@ -28,6 +30,9 @@ import {
 
 // Import logger for performance monitoring
 import { logger } from '@/utils/logger';
+import { findDuplicateNachRechnungName, normalizeBerechnungsart } from '@/utils/betriebskosten';
+import { type Rechenbasis, RECHENBASIS_KALENDERTAGE, RECHENBASIS_360_TAGE, isValid360Period } from '@/utils/rechentage';
+import { BERECHNUNGSART_OPTIONS } from '@/lib/constants';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { posthogLogger } from '@/lib/posthog-logger';
 
@@ -58,6 +63,7 @@ export type NebenkostenFormData = {
   zaehlerkosten?: Record<string, number> | null; // New JSONB: { [zaehlerTyp]: cost }
   haeuser_id: string;
   vorauszahlungs_art?: 'soll' | 'ist'; // 'soll' (default) = scheduled prepayments, 'ist' = actual payments
+  rechenbasis?: Rechenbasis; // 'kalendertage' (default) or '360_tage' (30-day months, see utils/rechentage)
 };
 
 export interface RechnungData {
@@ -66,6 +72,72 @@ export interface RechnungData {
   betrag: number;
   name: string;
   // user_id will be added by the action itself
+}
+
+/**
+ * Trims cost names, maps legacy Berechnungsart spellings to their canonical value and rejects
+ * unknown ones (the calculation would bill them by area), and rejects duplicate 'nach Rechnung'
+ * names, because Einzelrechnungen are matched to their cost item by name.
+ * Returns an error message or the normalized data.
+ */
+function normalizeCostItemNames<T extends Partial<Pick<NebenkostenFormData, 'nebenkostenart' | 'berechnungsart'>>>(
+  formData: T
+): { data: T; error: null } | { data: null; error: string } {
+  const nebenkostenart = formData.nebenkostenart?.map(name => name.trim());
+  const berechnungsart = formData.berechnungsart?.map(art => normalizeBerechnungsart(art ?? ''));
+
+  // Cost items and their Berechnungsart are saved together, so they must match in length
+  if (nebenkostenart && nebenkostenart.length !== (berechnungsart ?? []).length) {
+    return { data: null, error: 'Jede Kostenart braucht genau eine Berechnungsart.' };
+  }
+  const invalidIndex = berechnungsart?.findIndex(art => !art) ?? -1;
+  if (invalidIndex !== -1) {
+    const costName = nebenkostenart?.[invalidIndex];
+    const allowed = BERECHNUNGSART_OPTIONS.map(opt => opt.label).join(', ');
+    return {
+      data: null,
+      error: `Ungültige Berechnungsart "${formData.berechnungsart?.[invalidIndex] ?? ''}"${costName ? ` für Kostenart "${costName}"` : ''}. Erlaubt sind: ${allowed}.`
+    };
+  }
+
+  if (nebenkostenart) {
+    const duplicateName = findDuplicateNachRechnungName(nebenkostenart, berechnungsart ?? []);
+    if (duplicateName) {
+      return { data: null, error: `Die Kostenart "${duplicateName}" ist mehrfach mit "nach Rechnung" angelegt. Bitte vergeben Sie eindeutige Namen.` };
+    }
+  }
+
+  return {
+    data: {
+      ...formData,
+      ...(nebenkostenart && { nebenkostenart }),
+      ...(berechnungsart && { berechnungsart })
+    },
+    error: null
+  };
+}
+
+/**
+ * Validates the optional Rechenbasis: rejects unknown values, and for '360_tage' requires the
+ * billing period to span exactly 12 whole months (see isValid360Period in utils/rechentage).
+ * `rechenbasis === undefined` is valid (the DB column defaults to 'kalendertage'); the date
+ * check is skipped when either date isn't part of this call (e.g. a partial update that doesn't
+ * touch the period), since existing behaviour is unaffected until the period is changed too.
+ * Returns an error message, or null when the data is valid.
+ */
+function validateRechenbasis(
+  rechenbasis: string | undefined,
+  startdatum: string | undefined,
+  enddatum: string | undefined
+): string | null {
+  if (rechenbasis === undefined) return null;
+  if (rechenbasis !== RECHENBASIS_KALENDERTAGE && rechenbasis !== RECHENBASIS_360_TAGE) {
+    return `Ungültige Rechenbasis "${rechenbasis}". Erlaubt sind: Kalendertage, 360 Tage.`;
+  }
+  if (rechenbasis === RECHENBASIS_360_TAGE && startdatum && enddatum && !isValid360Period(startdatum, enddatum)) {
+    return "Mit 360 Tagen muss der Abrechnungszeitraum aus 12 ganzen Monaten bestehen (vom 1. eines Monats bis zum Monatsletzten zwölf Monate später).";
+  }
+  return null;
 }
 
 // Implement createNebenkosten function
@@ -99,9 +171,21 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
     }
   }
 
+  const normalized = normalizeCostItemNames(formData);
+  if (normalized.error !== null) {
+    logAction(actionName, 'error', { house_id: formData.haeuser_id, error_message: normalized.error });
+    return { success: false, message: normalized.error, data: null };
+  }
+
+  const rechenbasisError = validateRechenbasis(formData.rechenbasis, formData.startdatum, formData.enddatum);
+  if (rechenbasisError) {
+    logAction(actionName, 'error', { house_id: formData.haeuser_id, error_message: rechenbasisError });
+    return { success: false, message: rechenbasisError, data: null };
+  }
+
   const { data, error } = await supabase
     .from("Nebenkosten")
-    .insert([formData])
+    .insert([normalized.data])
     .select()
     .single();
 
@@ -158,9 +242,48 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
     }
   }
 
+  const normalized = normalizeCostItemNames(formData);
+  if (normalized.error !== null) {
+    logAction(actionName, 'error', { nebenkosten_id: id, error_message: normalized.error });
+    return { success: false, message: normalized.error, data: null };
+  }
+
+  const invalidValueError = validateRechenbasis(formData.rechenbasis, undefined, undefined);
+  if (invalidValueError) {
+    logAction(actionName, 'error', { nebenkosten_id: id, error_message: invalidValueError });
+    return { success: false, message: invalidValueError, data: null };
+  }
+
+  // A partial update can change only the basis or only the period: validate the resulting record,
+  // so a 360 settlement can't end up with a period that isn't 12 whole months
+  let rechenbasisToCheck = formData.rechenbasis;
+  let startdatumToCheck = formData.startdatum;
+  let enddatumToCheck = formData.enddatum;
+  const touchesRechenbasis = formData.rechenbasis !== undefined || formData.startdatum !== undefined || formData.enddatum !== undefined;
+  if (touchesRechenbasis && (rechenbasisToCheck === undefined || !startdatumToCheck || !enddatumToCheck)) {
+    const { data: existing, error: existingError } = await supabase
+      .from("Nebenkosten")
+      .select("rechenbasis, startdatum, enddatum")
+      .eq("id", id)
+      .single();
+    if (existingError || !existing) {
+      logAction(actionName, 'error', { nebenkosten_id: id, error_message: existingError?.message ?? 'Nebenkosten nicht gefunden' });
+      return { success: false, message: "Die Betriebskostenabrechnung konnte nicht geladen werden.", data: null };
+    }
+    rechenbasisToCheck ??= existing.rechenbasis ?? undefined;
+    startdatumToCheck ||= existing.startdatum;
+    enddatumToCheck ||= existing.enddatum;
+  }
+
+  const rechenbasisError = validateRechenbasis(rechenbasisToCheck, startdatumToCheck, enddatumToCheck);
+  if (rechenbasisError) {
+    logAction(actionName, 'error', { nebenkosten_id: id, error_message: rechenbasisError });
+    return { success: false, message: rechenbasisError, data: null };
+  }
+
   const { data, error } = await supabase
     .from("Nebenkosten")
-    .update(formData)
+    .update(normalized.data)
     .eq("id", id)
     .select()
     .single();
@@ -322,7 +445,8 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
 
   const { data, error } = await supabase
     .from("Rechnungen")
-    .insert(rechnungen)
+    // Names must match the trimmed nebenkostenart of the cost item
+    .insert(rechnungen.map(r => ({ ...r, name: r.name.trim() })))
     .select(); // .select() returns the inserted rows
 
   if (data) {
@@ -432,7 +556,7 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
  * Fetches a single Nebenkosten record with optimized metrics (house name, area, tenant counts)
  */
 export async function fetchOptimizedNebenkostenById(id: string): Promise<{ success: boolean; data: OptimizedNebenkosten | null; message?: string }> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, data: null, message: "Not authenticated" };
 
@@ -1189,8 +1313,10 @@ export async function saveMeterReadingsOptimized(
   const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
   const { createSupabaseServerClient } = await import("@/lib/supabase-server");
 
-  const supabase = createSupabaseServerClient();
-  const accessibleIds = await getAccessibleHaeuserIds();
+  const [supabase, accessibleIds] = await Promise.all([
+    createSupabaseServerClient(),
+    getAccessibleHaeuserIds(),
+  ]);
   if (accessibleIds !== null && formData.entries.length > 0) {
     const meterIds = formData.entries.map(e => e.zaehler_id).filter(Boolean);
     const mieterIds = formData.entries.map(e => e.mieter_id).filter(Boolean);
@@ -1926,7 +2052,7 @@ async function resolveActualPaymentsData(
  * - Water meter readings for consumption calculations
  * - Pre-calculated house metrics (area, apartment count, tenant count)
  * 
- * **Database Function**: `get_abrechnung_modal_data(nebenkosten_id, user_id)`
+ * **Database Function**: `get_abrechnung_modal_data(nebenkosten_id uuid)`
  * 
  * **Expected Performance**:
  * - Reduces modal open time from 4-6s to 1-2s
@@ -2065,16 +2191,24 @@ export async function getAbrechnungModalDataAction(
 
       // Workaround for vorauszahlungs_art removed - database functions now include it.
 
-      // Fetch actual payments if mode is 'ist'
-      if ((modalData.nebenkosten_data as any).vorauszahlungs_art === 'ist') {
-        modalData.actualPayments = await resolveActualPaymentsData(
-          supabase,
-          modalData.nebenkosten_data,
-          modalData.tenants,
-          {},
-          nebenkostenId
-        );
+      // All apartments of the house for the vacancy costs, and the house totals the RPC doesn't
+      // return yet (TODO: drop the totals fill once mietevo-db#48 is deployed), so every consumer
+      // of this data leaves vacancy with the landlord. Actual payments ('ist' mode) don't depend
+      // on them, so load both in parallel.
+      const nk = modalData.nebenkosten_data;
+      const [houseApartments, actualPayments] = await Promise.all([
+        fetchHouseApartments(supabase, nk.haeuser_id),
+        (nk as any).vorauszahlungs_art === 'ist'
+          ? resolveActualPaymentsData(supabase, nk, modalData.tenants, {}, nebenkostenId)
+          : undefined
+      ]);
+      if (houseApartments) {
+        const houseTotals = sumHouseApartments(houseApartments);
+        nk.anzahlWohnungen ??= houseTotals.count;
+        nk.gesamtFlaeche ||= houseTotals.area;
+        modalData.houseApartments = houseApartments;
       }
+      if (actualPayments) modalData.actualPayments = actualPayments;
 
       logger.info('Successfully fetched Abrechnung modal data (optimized)', {
         userId: user.id,
@@ -2119,6 +2253,37 @@ export async function getAbrechnungModalDataAction(
 }
 
 /**
+ * ALL apartments of a house (vacant ones included), like get_abrechnung_modal_data counts them.
+ * Returns undefined when the query fails or finds none, so callers fall back to the tenants'
+ * apartments.
+ */
+async function fetchHouseApartments(
+  supabase: any,
+  haeuserId: string | null | undefined
+): Promise<HouseApartment[] | undefined> {
+  if (!haeuserId) return undefined;
+  const { data, error } = await supabase
+    .from("Wohnungen")
+    .select("id, name, groesse")
+    .eq("haus_id", haeuserId);
+
+  if (error) {
+    logger.warn('Failed to fetch house apartments, using tenant apartments', { haeuserId, error: error.message });
+    return undefined;
+  }
+  // An empty result can't be right while tenants live in the house, so treat it like an error
+  return data?.length ? data : undefined;
+}
+
+/** Number and summed area of the house apartments */
+function sumHouseApartments(apartments: HouseApartment[]): { count: number; area: number } {
+  return {
+    count: apartments.length,
+    area: apartments.reduce((sum, w) => sum + (w.groesse || 0), 0)
+  };
+}
+
+/**
  * Fallback function for getAbrechnungModalDataAction when database function fails
  * Uses individual server-side queries as backup
  */
@@ -2140,6 +2305,9 @@ async function getAbrechnungModalDataFallback(
       *,
       Haeuser (
         name,
+        strasse,
+        plz,
+        ort,
         groesse
       )
     `)
@@ -2154,21 +2322,27 @@ async function getAbrechnungModalDataFallback(
     return { success: false, message: "Nebenkosten-Eintrag nicht gefunden." };
   }
 
-  // Fetch tenants overlapping the billing period for the same house
-  const { data: tenants, error: tenantsError } = await supabase
-    .from("Mieter")
-    .select(`
-      *,
-      Wohnungen!inner (
-        name,
-        groesse,
-        miete,
-        haus_id
-      )
-    `)
-    .eq("Wohnungen.haus_id", nebenkostenData.haeuser_id)
-    .lte("einzug", nebenkostenData.enddatum)
-    .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`);
+  // Fetch tenants overlapping the billing period for the same house, and ALL apartments of
+  // the house (incl. vacant ones) for the apartment count and area fallback
+  const [{ data: tenants, error: tenantsError }, houseApartments] = await Promise.all([
+    supabase
+      .from("Mieter")
+      // Explizite Spaltenliste ohne das Altfeld "kaution": die Mieter gehen mit dem Modal-Datensatz an den Browser.
+      .select(`
+        ${MIETER_SPALTEN_OHNE_KAUTION},
+        Wohnungen!inner (
+          name,
+          groesse,
+          miete,
+          haus_id
+        )
+      `)
+      .eq("Wohnungen.haus_id", nebenkostenData.haeuser_id)
+      .lte("einzug", nebenkostenData.enddatum)
+      .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`),
+    fetchHouseApartments(supabase, nebenkostenData.haeuser_id)
+  ]);
+  const houseTotals = houseApartments && sumHouseApartments(houseApartments);
 
   if (tenantsError) {
     logger.error('Failed to fetch tenants in fallback', tenantsError || undefined, {
@@ -2189,6 +2363,10 @@ async function getAbrechnungModalDataFallback(
       userId,
       nebenkostenId
     });
+    // Without Rechnungen every 'nach Rechnung' share would silently be 0 €
+    if (nebenkostenData.berechnungsart?.includes('nach Rechnung')) {
+      return { success: false, message: "Fehler beim Laden der Einzelrechnungen." };
+    }
   }
 
   // Legacy wasserzaehler readings are no longer used - replaced by new water meter structure
@@ -2239,10 +2417,11 @@ async function getAbrechnungModalDataFallback(
     }
   }
 
-  // Aggregate basic metrics for the modal (compatible with component expectations)
-  const totalArea = nebenkostenData.Haeuser?.groesse ||
-    (tenants || []).reduce((sum: number, t: any) => sum + (t.Wohnungen?.groesse || 0), 0);
-  const apartmentCount = new Set((tenants || []).map((t: any) => t.wohnung_id)).size;
+  // Aggregate basic metrics for the modal (compatible with component expectations).
+  // Without the house apartments, count each tenant apartment once.
+  const { sumUniqueApartmentAreas } = await import('@/utils/cost-calculations');
+  const apartmentCount = houseTotals?.count ?? new Set((tenants || []).map((t: any) => t.wohnung_id)).size;
+  const totalArea = nebenkostenData.Haeuser?.groesse || houseTotals?.area || sumUniqueApartmentAreas(tenants || []);
 
   const modalData: AbrechnungModalData = {
     nebenkosten_data: {
@@ -2254,7 +2433,8 @@ async function getAbrechnungModalDataFallback(
     tenants: tenants || [],
     rechnungen: rechnungen || [],
     meters: waterMeters,
-    readings: waterReadings
+    readings: waterReadings,
+    houseApartments
   };
 
   // Fetch actual payments if mode is 'ist'
@@ -2298,13 +2478,14 @@ async function getAbrechnungModalDataFallback(
  * - Recommended prepayment calculations for next period
  * - Comprehensive validation and error handling
  * 
- * **Calculation Types Supported**:
- * - `pro qm` / `qm` / `pro flaeche`: Distributed by apartment size
- * - `nach rechnung`: Individual bills per tenant
- * - `pro mieter` / `pro person`: Equal distribution among tenants
- * - `pro wohnung`: Equal distribution among apartments
- * - `fix` / `pro einheit`: Fixed amount per tenant
- * - `nach verbrauch`: Water costs based on consumption
+ * **Calculation Types Supported** (`berechnungsart`, normalised via `normalizeBerechnungsart`,
+ * so legacy spellings like `pro person`, `pro qm`/`qm` or lowercase variants are accepted):
+ * - `pro Fläche` / `pro Flaeche`: Distributed by apartment area
+ * - `pro Mieter`: Distributed per tenant
+ * - `pro Wohnung`: Distributed per apartment
+ * - `nach Rechnung`: Individual amounts per tenant (Rechnungen)
+ * - Any other or empty value is billed like `pro Fläche`; `validateCalculationData` warns about it
+ * Water/meter costs (`zaehlerkosten`) are distributed by consumption, separate from `berechnungsart`.
  * 
  * **Database Function**: Uses `get_abrechnung_calculation_data` for optimized data fetching
  * 
@@ -2486,8 +2667,10 @@ export async function createAbrechnungCalculationAction(
       nebenkostenId
     );
 
-    // Calculate costs for each tenant
+    // Calculate costs for each tenant; WG factors depend only on tenants and period, so compute them once
     const tenantCalculations: TenantCalculationResult[] = [];
+    const { computeWgFactorsByTenant } = await import('@/utils/wg-cost-calculations');
+    const wgFactors = computeWgFactorsByTenant(tenants, nebenkosten_data.startdatum, nebenkosten_data.enddatum, nebenkosten_data.rechenbasis);
 
     for (const tenant of tenants) {
       try {
@@ -2498,7 +2681,9 @@ export async function createAbrechnungCalculationAction(
           meters,
           readings,
           actualPayments,
-          effectivePrepaymentMode
+          effectivePrepaymentMode,
+          rechnungen,
+          wgFactors
         );
 
         tenantCalculations.push(tenantCalculation);
@@ -2724,6 +2909,7 @@ export async function createAbrechnungCalculationOptimizedAction(
     // Ensure gesamtFlaeche is set on nebenkosten_data for calculations to use
     if (nebenkosten_data && house_metrics) {
       nebenkosten_data.gesamtFlaeche = house_metrics.totalArea;
+      nebenkosten_data.anzahlWohnungen = house_metrics.apartmentCount;
     }
 
     // Validate that we have the necessary data
@@ -2754,8 +2940,12 @@ export async function createAbrechnungCalculationOptimizedAction(
       nebenkostenId
     );
 
-    // Process each tenant using pre-calculated occupancy data
+    // Process each tenant using pre-calculated occupancy data; WG factors are shared by all tenants
     const tenantCalculations: TenantCalculationResult[] = [];
+    const { computeWgFactorsByTenant } = await import('@/utils/wg-cost-calculations');
+    const wgFactors = nebenkosten_data.startdatum && nebenkosten_data.enddatum
+      ? computeWgFactorsByTenant(tenants_with_occupancy, nebenkosten_data.startdatum, nebenkosten_data.enddatum, nebenkosten_data.rechenbasis)
+      : undefined;
 
     for (const tenant of tenants_with_occupancy) {
       try {
@@ -2768,7 +2958,9 @@ export async function createAbrechnungCalculationOptimizedAction(
           wasserzaehler_meters as any[], // meters from RPC
           wasserzaehler_readings as any[], // readings from RPC
           actualPayments,
-          effectivePrepaymentMode
+          effectivePrepaymentMode,
+          rechnungen,
+          wgFactors
         );
 
         tenantCalculations.push(tenantCalculation);

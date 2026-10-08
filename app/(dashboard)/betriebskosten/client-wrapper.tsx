@@ -4,12 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTabParams } from "@/hooks/use-tab-params";
-import { Droplets, X, FileSpreadsheet, Building2, Euro, Ruler, Percent, Activity, BarChart3, TrendingUp, TrendingDown, Info, HelpCircle, Target, Coins } from "lucide-react";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+import { X, FileSpreadsheet, Building2, Euro, Ruler, Activity, BarChart3, TrendingUp, Info, Target, Coins } from "lucide-react";
 import { CreateAbrechnungDropdown } from "@/components/abrechnung/create-abrechnung-dropdown";
 import { OperatingCostsFilters } from "@/components/finance/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/tables/operating-costs-table";
@@ -17,7 +12,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { StatCard } from "@/components/common/stat-card";
-import { NebenkostenDonutChart, BaseDonutChart } from "@/components/dashboard/dashboard-charts";
+import { BaseDonutChart } from "@/components/dashboard/dashboard-charts";
 import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 
 import { Haus } from "../../../lib/data-fetching"; // Ensure correct path
@@ -39,19 +34,28 @@ const CURRENCY_FORMATTER = new Intl.NumberFormat('de-DE', {
   maximumFractionDigits: 0 
 });
 
-const CURRENCY_FORMATTER_WITH_DECIMALS = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-});
+interface DevelopmentTooltipPayloadItem {
+  value?: number;
+  color?: string;
+  stroke?: string;
+  name?: string;
+  payload?: {
+    total?: number;
+  };
+}
+
+interface CustomDevelopmentTooltipProps {
+  active?: boolean;
+  payload?: DevelopmentTooltipPayloadItem[];
+  label?: string | number;
+}
 
 // Custom tooltip component for the yearly development chart
-const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
+const CustomDevelopmentTooltip = ({ active, payload, label }: CustomDevelopmentTooltipProps) => {
   if (active && payload && payload.length) {
     const sortedPayload = [...payload]
-      .filter((item: any) => typeof item.value === 'number' && item.value > 0)
-      .sort((a: any, b: any) => b.value - a.value);
+      .filter((item): item is DevelopmentTooltipPayloadItem & { value: number } => typeof item.value === 'number' && item.value > 0)
+      .sort((a, b) => b.value - a.value);
 
     const top3 = sortedPayload.slice(0, 3);
     const totalYearCost = payload[0]?.payload?.total || 0;
@@ -62,7 +66,7 @@ const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
           Jahr: {label}
         </p>
         <div className="flex flex-col gap-2">
-          {top3.map((item: any, idx: number) => {
+          {top3.map((item, idx: number) => {
             const color = item.color || item.stroke || 'currentColor';
             return (
               <div key={idx} className="flex items-center justify-between gap-4">
@@ -82,7 +86,7 @@ const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
             <span>Andere Häuser</span>
             <span>
               {CURRENCY_FORMATTER.format(
-                sortedPayload.slice(3).reduce((sum: number, item: any) => sum + (item.value || 0), 0)
+                sortedPayload.slice(3).reduce((sum: number, item) => sum + (item.value || 0), 0)
               )}
             </span>
           </div>
@@ -98,76 +102,32 @@ const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
   }
   return null;
 };
+interface WohnungSimple {
+  id: string;
+  haus_id?: string | null;
+  groesse?: number | null;
+}
 
-// Custom tooltip component for the horizontal stacked bar chart
-const CustomHorizontalTooltip = ({ active, payload, houseSqmCosts, houseApartmentSizes, initialHaeuser }: any) => {
-  if (active && payload && payload.length) {
-    const sortedPayload = [...payload]
-      .filter((item: any) => typeof item.value === 'number' && item.value > 0)
-      .sort((a: any, b: any) => b.value - a.value);
+interface TenantSimple {
+  id?: string;
+  name?: string;
+  wohnung_id?: string | null;
+  einzug?: string | null;
+  auszug?: string | null;
+  nebenkosten?: Array<{ amount?: number | string; date?: string | number | Date }> | null;
+}
 
-    const top3 = sortedPayload.slice(0, 3);
-    const otherCost = sortedPayload.slice(3).reduce((sum, item) => sum + (item.value || 0), 0);
-    const totalCost = sortedPayload.reduce((sum, item) => sum + (item.value || 0), 0);
+interface FinanceSimple {
+  datum?: string | number | Date | null;
+  betrag?: number | string | null;
+}
 
-    return (
-      <div className="bg-white/95 dark:bg-[#18181b]/95 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-xl text-zinc-900 dark:text-zinc-50 min-w-[240px] transition-all duration-150 animate-in fade-in zoom-in-95 duration-150">
-        <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2.5">
-          Betriebskosten-Prognose (bereinigt)
-        </p>
-        <div className="flex flex-col gap-3">
-          {top3.map((item: any, idx: number) => {
-            const houseName = item.name;
-            const adjustedCost = item.value;
-            const sqmCost = houseSqmCosts[houseName] || 0;
-            const houseObj = initialHaeuser.find((h: any) => h.name === houseName);
-            const aptArea = houseObj ? houseApartmentSizes[houseObj.id] || 0 : 0;
-            
-            return (
-              <div key={idx} className="border-b border-zinc-100 dark:border-zinc-800 last:border-0 pb-2 last:pb-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: item.fill || item.color }} />
-                  <span className="text-xs font-bold truncate">{houseName}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
-                  <span>m²-Kosten:</span>
-                  <span className="text-right  font-bold text-zinc-800 dark:text-zinc-200">{sqmCost.toFixed(2)} €/m²</span>
-                  <span>Wohnungen-Fläche:</span>
-                  <span className="text-right  font-bold text-zinc-800 dark:text-zinc-200">{aptArea.toFixed(1)} m²</span>
-                  <span className="text-primary font-bold">Prognose (ber.):</span>
-                  <span className="text-right  font-bold text-primary">
-                    {CURRENCY_FORMATTER.format(adjustedCost)}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {sortedPayload.length > 3 && (
-          <div className="mt-2.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[10px] font-semibold text-zinc-400">
-            <span>Andere Häuser</span>
-            <span className=" font-bold text-zinc-800 dark:text-zinc-200">
-              {CURRENCY_FORMATTER.format(otherCost)}
-            </span>
-          </div>
-        )}
-        <div className="mt-2.5 pt-2.5 border-t border-zinc-150 dark:border-zinc-800 flex items-center justify-between text-xs font-bold">
-          <span>Gesamt-Prognose</span>
-          <span className=" text-primary">
-            {CURRENCY_FORMATTER.format(totalCost)}
-          </span>
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
 // Props for the main client view component
 interface BetriebskostenClientViewProps {
   initialNebenkosten: OptimizedNebenkosten[];
   initialHaeuser: Haus[];
-  initialTenants?: any[];
-  initialFinances?: any[];
+  initialTenants?: TenantSimple[];
+  initialFinances?: FinanceSimple[];
   ownerName: string;
   canCreate?: boolean;
   canEdit?: boolean;
@@ -310,7 +270,7 @@ export default function BetriebskostenClientView({
   }, [energyTrendData]);
 // ... rest of state stays same ...
   const [searchQuery, setSearchQuery] = useState("");
-  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const [deletedIds] = useState<Set<string>>(new Set());
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
   // isModalOpen and editingNebenkosten are now managed by useModalStore
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
@@ -324,10 +284,8 @@ export default function BetriebskostenClientView({
   const [hoveredHouseIndex, setHoveredHouseIndex] = useState<number | null>(null);
   const [hoveredCategoryIndex, setHoveredCategoryIndex] = useState<number | null>(null);
   const [developmentTimeframe, setDevelopmentTimeframe] = useState<5 | 10 | 25>(5);
-  const [showPrognosisInfo, setShowPrognosisInfo] = useState(false);
   const [showDetailedPrognosis, setShowDetailedPrognosis] = useState(false);
-  const [hoveredSegmentHouse, setHoveredSegmentHouse] = useState<string | null>(null);
-  const [wohnungen, setWohnungen] = useState<any[]>([]);
+  const [wohnungen, setWohnungen] = useState<WohnungSimple[]>([]);
 
   useEffect(() => {
     const fetchAllWohnungen = async () => {
@@ -336,7 +294,7 @@ export default function BetriebskostenClientView({
         .from("Wohnungen")
         .select("id, haus_id, groesse");
       if (!error && data) {
-        setWohnungen(data);
+        setWohnungen(data as WohnungSimple[]);
       }
     };
     fetchAllWohnungen();
@@ -371,7 +329,7 @@ export default function BetriebskostenClientView({
 
       let totalItemCost = billSum;
       if (item.zaehlerkosten) {
-        Object.entries(item.zaehlerkosten).forEach(([key, val]) => {
+        Object.values(item.zaehlerkosten).forEach((val) => {
           const amount = Number(val || 0);
           if (amount > 0) totalItemCost += amount;
         });
@@ -394,16 +352,6 @@ export default function BetriebskostenClientView({
       houseAdjustedCosts
     };
   }, [initialNebenkosten, houseApartmentSizes]);
-
-  const horizontalChartData = useMemo(() => {
-    const dataPoint: Record<string, any> = { name: "Nebenkosten" };
-    let hasData = false;
-    Object.entries(adjustedHouseCosts.houseAdjustedCosts).forEach(([houseName, val]) => {
-      dataPoint[houseName] = Number(val.toFixed(2));
-      hasData = true;
-    });
-    return hasData ? [dataPoint] : [];
-  }, [adjustedHouseCosts]);
 
   // Compute stats for operating costs dashboard
   const nebenkostenStats = useMemo(() => {
@@ -528,7 +476,7 @@ export default function BetriebskostenClientView({
 
       let totalItemCost = billSum;
       if (item.zaehlerkosten) {
-        Object.entries(item.zaehlerkosten).forEach(([key, val]) => {
+        Object.values(item.zaehlerkosten).forEach((val) => {
           const amount = Number(val || 0);
           if (amount > 0) {
             totalItemCost += amount;
@@ -570,7 +518,7 @@ export default function BetriebskostenClientView({
     }
     years.sort((a, b) => a - b);
     const yearlyDevelopment = years.map(year => {
-      const dataPoint: Record<string, any> = { year: String(year) };
+      const dataPoint: Record<string, string | number> = { year: String(year) };
       let yearTotal = 0;
       Array.from(allHouses).forEach(houseName => {
         const cost = yearlyHouseMap[year]?.[houseName] || 0;
@@ -1418,7 +1366,7 @@ export default function BetriebskostenClientView({
                         <button
                           type="button"
                           key={mode}
-                          onClick={() => setAuditTimeframe(mode as any)}
+                          onClick={() => setAuditTimeframe(mode as "this" | "last" | "5y")}
                           className={cn(
                             "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[45px] z-10",
                             auditTimeframe === mode ? "text-zinc-900 dark:text-zinc-50" : "text-muted-foreground hover:text-foreground"
@@ -1529,7 +1477,7 @@ export default function BetriebskostenClientView({
                       <button
                         type="button"
                         key={years}
-                        onClick={() => setEnergyTimeframe(years as any)}
+                        onClick={() => setEnergyTimeframe(years as 5 | 10 | 25)}
                         className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[45px] z-10",
                           energyTimeframe === years ? "text-zinc-900 dark:text-zinc-50" : "text-muted-foreground hover:text-foreground"

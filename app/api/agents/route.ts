@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { z } from 'zod';
+import { findBlockedModules } from '@/lib/blocked-modules';
 
 const createAgentSchema = z.object({
   name: z.string().min(1),
@@ -21,7 +22,7 @@ const createAgentSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -58,6 +59,16 @@ export async function POST(req: NextRequest) {
     }
 
     const { name, beschreibung, icon, anweisungen, trigger, aktionen, benachrichtigungs_kanaele, berechtigungen } = parsed.data;
+
+    // Das Modul "kautionen" darf Agenten nie zugewiesen werden (R2). Vor dem Anlegen prüfen,
+    // damit bei abgelehnter Anfrage kein Agent entsteht.
+    const blockedModules = findBlockedModules(berechtigungen);
+    if (blockedModules.length > 0) {
+      return NextResponse.json(
+        { error: 'Das Modul "Kautionen" kann Agenten nicht zugewiesen werden.' },
+        { status: 400 }
+      );
+    }
 
     const { data: agentId, error: createError } = await supabase.rpc('create_ki_agent', {
       p_name: name,

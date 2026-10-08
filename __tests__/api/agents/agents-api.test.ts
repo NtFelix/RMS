@@ -25,8 +25,8 @@ const mockSupabaseClient = {
   from: mockFrom,
 };
 
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(() => Promise.resolve(mockSupabaseClient)),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(() => Promise.resolve(mockSupabaseClient)),
 }));
 
 beforeAll(async () => {
@@ -141,37 +141,11 @@ describe('Agents API Endpoints', () => {
     });
   });
 
-  describe('POST /api/agents/[id]/run', () => {
-    it('creates run record for active agent', async () => {
+  describe('POST /api/agents/[id]/run (proxied to AI service)', () => {
+    it('proxies run request to AI service', async () => {
       const params = Promise.resolve({ id: 'agent-123' });
-      mockRpc.mockResolvedValueOnce({
-        data: { id: 'agent-123', status: 'aktiv', organisation_id: 'org-1', trigger: { type: 'manual' } },
-        error: null,
-      });
-
-      const buildQuery = (resolveValue: any) => {
-        const q = jest.fn(() => q) as any;
-        q.select = jest.fn(() => q);
-        q.eq = jest.fn(() => q);
-        q.is = jest.fn(() => q);
-        q.single = jest.fn().mockResolvedValue(resolveValue);
-        q.maybeSingle = jest.fn().mockResolvedValue(resolveValue);
-        q.insert = jest.fn(() => q);
-        return q;
-      };
-
-      const memberQuery = buildQuery({ data: { id: 'member-1', rolle: 'mitarbeiter' }, error: null });
-      const accessQuery = buildQuery({ data: { zugriffs_level: 'view' }, error: null });
-      const runInsertQuery = buildQuery(null);
-      runInsertQuery.select = jest.fn(() => runInsertQuery);
-      const runSingleResolve = { data: { id: 'run-999' }, error: null };
-      runInsertQuery.single = jest.fn().mockResolvedValue(runSingleResolve);
-
-      mockFrom.mockImplementation((table: string) => {
-        if (table === 'Organisation_Mitglieder') return memberQuery;
-        if (table === 'KI_Agenten_Zugriffsrechte') return accessQuery;
-        return runInsertQuery;
-      });
+      const { proxyToAiService } = require('@/lib/ai-service-proxy');
+      proxyToAiService.mockResolvedValue(new Response(JSON.stringify({ runId: 'run-999' }), { status: 202 }));
 
       const req = createMockRequest('http://localhost/api/agents/agent-123/run', { method: 'POST' });
       const res = await POST_RUN(req, { params });
@@ -181,9 +155,11 @@ describe('Agents API Endpoints', () => {
     });
   });
 
-  describe('GET /api/agents/runs and /api/agents/runs/[id]', () => {
+  describe('GET /api/agents/runs and /api/agents/runs/[id] (proxied to AI service)', () => {
     it('GET /api/agents/runs returns list of runs', async () => {
-      mockRpc.mockResolvedValueOnce({ data: [{ id: 'run-1' }], error: null });
+      const { proxyToAiService } = require('@/lib/ai-service-proxy');
+      proxyToAiService.mockResolvedValue(new Response(JSON.stringify([{ id: 'run-1' }]), { status: 200 }));
+
       const req = createMockRequest('http://localhost/api/agents/runs');
       const res = await GET_RUNS(req);
       expect(res.status).toBe(200);
@@ -191,7 +167,9 @@ describe('Agents API Endpoints', () => {
 
     it('GET /api/agents/runs/[id] returns run details', async () => {
       const params = Promise.resolve({ id: 'run-1' });
-      mockRpc.mockResolvedValueOnce({ data: { id: 'run-1', nachrichten: [] }, error: null });
+      const { proxyToAiService } = require('@/lib/ai-service-proxy');
+      proxyToAiService.mockResolvedValue(new Response(JSON.stringify({ id: 'run-1', nachrichten: [] }), { status: 200 }));
+
       const req = createMockRequest('http://localhost/api/agents/runs/run-1');
       const res = await GET_RUN_ID(req, { params });
       expect(res.status).toBe(200);
@@ -228,6 +206,81 @@ describe('Agents API Endpoints', () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.success).toBe(true);
+    });
+  });
+
+  describe('Sperre für das Modul "kautionen" (R2)', () => {
+    const params = Promise.resolve({ id: 'agent-123' });
+    const basePayload = {
+      name: 'New Agent',
+      anweisungen: 'Perform audit',
+      trigger: { type: 'manual' },
+    };
+
+    it('POST lehnt Berechtigungen mit dem Modul "kautionen" ab (400) und legt keinen Agenten an', async () => {
+      const req = createMockRequest('http://localhost/api/agents', {
+        method: 'POST',
+        body: { ...basePayload, berechtigungen: { module: { mieter: ['ansehen'], kautionen: ['ansehen'] } } },
+      });
+      const res = await POST_AGENTS(req);
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toContain('Kautionen');
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('POST lehnt auch abweichend geschriebene Schlüssel ab (Groß-/Kleinschreibung, Leerraum)', async () => {
+      const req = createMockRequest('http://localhost/api/agents', {
+        method: 'POST',
+        body: { ...basePayload, berechtigungen: { module: { ' Kautionen ': ['ansehen'] } } },
+      });
+      const res = await POST_AGENTS(req);
+
+      expect(res.status).toBe(400);
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('POST akzeptiert weiterhin Berechtigungen ohne "kautionen" und reicht sie unverändert durch', async () => {
+      mockRpc.mockResolvedValueOnce({ data: 'agent-123', error: null });
+      mockRpc.mockResolvedValueOnce({ data: null, error: null });
+      const berechtigungen = { module: { mieter: ['ansehen'] }, objekte: { haeuser: null } };
+      const req = createMockRequest('http://localhost/api/agents', {
+        method: 'POST',
+        body: { ...basePayload, berechtigungen },
+      });
+      const res = await POST_AGENTS(req);
+
+      expect(res.status).toBe(201);
+      expect(mockRpc).toHaveBeenCalledWith('set_agent_overrides', {
+        p_agent_id: 'agent-123',
+        p_berechtigungen: berechtigungen,
+      });
+    });
+
+    it('PATCH lehnt Berechtigungen mit dem Modul "kautionen" ab (400) und ändert nichts', async () => {
+      const req = createMockRequest('http://localhost/api/agents/agent-123', {
+        method: 'PATCH',
+        body: { name: 'Updated Agent Name', berechtigungen: { module: { kautionen: ['ansehen', 'erstellen'] } } },
+      });
+      const res = await PATCH_AGENT_ID(req, { params });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toContain('Kautionen');
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('PATCH akzeptiert weiterhin Berechtigungen ohne "kautionen"', async () => {
+      mockRpc.mockResolvedValue({ data: null, error: null });
+      const req = createMockRequest('http://localhost/api/agents/agent-123', {
+        method: 'PATCH',
+        body: { berechtigungen: { module: { haeuser: ['ansehen'] } } },
+      });
+      const res = await PATCH_AGENT_ID(req, { params });
+
+      expect(res.status).toBe(200);
+      expect(mockRpc).toHaveBeenCalledWith('set_agent_overrides', expect.objectContaining({ p_agent_id: 'agent-123' }));
     });
   });
 });
