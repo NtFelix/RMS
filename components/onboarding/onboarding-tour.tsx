@@ -64,6 +64,9 @@ export function OnboardingTour() {
     const pathnameRef = useRef(pathname);
     const routerRef = useRef(router);
     const setShowCloseConfirmRef = useRef(setShowCloseConfirm);
+    // Track the last pathname the driver was initialized for, so we can tear it
+    // down when the route changes (see navigation teardown below).
+    const driverPathnameRef = useRef(pathname);
 
     useEffect(() => {
         pathnameRef.current = pathname;
@@ -140,6 +143,21 @@ export function OnboardingTour() {
             return;
         }
 
+        // When the route changes, destroy the existing driver instance before
+        // continuing. driver.js registers global resize/scroll listeners that keep
+        // calling getBoundingClientRect() on the previously highlighted element. If
+        // we reuse the instance across a Next.js navigation, that element is detached
+        // or replaced while the listeners live on, which throws
+        // "getBoundingClientRect is not a function" mid-tour. Tearing down here fully
+        // removes those listeners so a fresh instance is created for the new page.
+        // Same-page step transitions keep the instance (pathname unchanged) so their
+        // highlight animations stay smooth.
+        if (driverPathnameRef.current !== pathname && driverRef.current) {
+            driverRef.current.destroy();
+            driverRef.current = null;
+        }
+        driverPathnameRef.current = pathname;
+
         // Initialize driver if not exists
         if (!driverRef.current) {
             driverRef.current = driver({
@@ -206,7 +224,14 @@ export function OnboardingTour() {
                         if (step.path && pathname !== step.path) {
                             const navId = `#sidebar-nav-${step.path.replace(/^\//, '')}`;
                             // Wait for sidebar element
-                            await waitForElement(navId, 5000);
+                            const navElement = await waitForElement(navId, 5000);
+
+                            // Bail out if the element detached (or the driver was torn
+                            // down) while we were waiting — highlighting a stale node
+                            // would crash driver.js on its next refresh.
+                            if (!navElement.isConnected || driverRef.current !== driverInstance) {
+                                return;
+                            }
 
                             driverInstance.highlight({
                                 element: navId,
@@ -224,7 +249,14 @@ export function OnboardingTour() {
                         }
 
                         // Wait for element to be present in DOM
-                        await waitForElement(step.element, 5000);
+                        const targetElement = await waitForElement(step.element, 5000);
+
+                        // Bail out if the element detached (or the driver was torn
+                        // down) while we were waiting — highlighting a stale node
+                        // would crash driver.js on its next refresh.
+                        if (!targetElement.isConnected || driverRef.current !== driverInstance) {
+                            return;
+                        }
 
                         // Use highlight to show the specific step
                         driverInstance.highlight({
