@@ -1,5 +1,5 @@
 import { ensureAuth } from "@/lib/auth-utils";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 
 import { evaluatePermission, type Modul, type Aktion } from "./permissions-core";
 export { evaluatePermission, type Modul, type Aktion };
@@ -25,6 +25,7 @@ export async function hasPermission(modul: Modul, aktion: Aktion): Promise<boole
 
     return await evaluatePermission(supabase, user.id, orgId, modul, aktion);
   } catch (error) {
+    unstable_rethrow(error);
     console.error(`Exception checking permission for ${modul}:${aktion}:`, error);
     return false;
   }
@@ -40,3 +41,23 @@ export async function requirePermission(modul: Modul, aktion: Aktion): Promise<v
     redirect("/unauthorized");
   }
 }
+
+/**
+ * Checks if the current user is an owner or admin in the active organization.
+ */
+export async function isOrgAdminOrOwner(): Promise<boolean> {
+  try {
+    const { supabase } = await ensureAuth();
+    const { data: isAdmin, error } = await supabase.rpc('is_org_admin_or_owner');
+    if (error) {
+      console.error("Error checking isOrgAdminOrOwner:", error);
+      return false;
+    }
+    return !!isAdmin;
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("Exception checking isOrgAdminOrOwner:", error);
+    return false;
+  }
+}
+

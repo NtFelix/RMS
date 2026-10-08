@@ -11,6 +11,7 @@ import { AlertTriangle } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { toast } from "@/hooks/use-toast"
 import { PAYMENT_KEYWORDS, PAYMENT_TAGS } from "@/utils/constants"
+import { getTodayISOString } from "@/utils/date-calculations"
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
@@ -109,7 +110,7 @@ export default function TenantPaymentEditModal() {
     setIsSubmitting(true)
 
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const today = getTodayISOString()
       const reasonText = getPaymentReasonText()
 
       // Prepare entries for batch insertion

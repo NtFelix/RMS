@@ -13,6 +13,7 @@ import { ApartmentTenantRowContextMenu } from "@/components/apartments/apartment
 import { ApartmentTenantRowSkeleton } from "@/components/apartments/apartment-tenant-row-skeleton"
 import { formatCurrency, formatNumber } from "@/utils/format"
 import { cn } from "@/lib/utils"
+import { formatPlzOrt } from "@/lib/address"
 
 export function HausOverviewModal() {
   const {
@@ -222,7 +223,7 @@ export function HausOverviewModal() {
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {hausOverviewData.strasse && `${hausOverviewData.strasse}, `}
-                    {hausOverviewData.ort}
+                    {formatPlzOrt(hausOverviewData.plz, hausOverviewData.ort)}
                   </p>
                 </div>
 

@@ -1,9 +1,8 @@
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from 'next/server'
 import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
 // PATCH - Update a Wasserzähler
 export async function PATCH(
@@ -14,7 +13,7 @@ export async function PATCH(
     const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
     await requireApiPermission('zaehler', 'bearbeiten');
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -87,7 +86,7 @@ export async function DELETE(
     const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
     await requireApiPermission('zaehler', 'loeschen');
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -111,10 +110,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS })
     }
 
-    const { error } = await supabase
-      .from('Zaehler')
-      .delete()
-      .eq('id', id)
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Zaehler',
+      p_record_id: id,
+    });
 
     if (error) {
       console.error('Error deleting Wasserzähler:', error)

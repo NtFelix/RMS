@@ -1,7 +1,7 @@
-export const runtime = 'edge';
 import { NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import Stripe from 'stripe';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 
@@ -54,7 +54,7 @@ export async function GET() {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
 
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -123,6 +123,7 @@ export async function GET() {
     }, { headers: NO_CACHE_HEADERS });
 
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching customer data:', error);
     const errorMessage = error instanceof Stripe.errors.StripeError
       ? error.message
