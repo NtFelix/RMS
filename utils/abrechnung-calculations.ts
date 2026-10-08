@@ -10,15 +10,17 @@ import type { Mieter, Nebenkosten, Zaehler, ZaehlerAblesung, Finanzen, Rechnung 
 
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
-import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
+import { calculateTenantOccupancy, calculateTotalDays, TenantOccupancy, getMonthDateRange, isDateInPeriod, maxIsoDate, minIsoDate, toIsoDateOnly } from "./date-calculations";
+import { isSameCostName, normalizeBerechnungsart } from "./betriebskosten";
+import { computeWgFactorsByTenant, getApartmentOccupants } from "./wg-cost-calculations";
 import { roundToNearest5 } from "@/lib/utils";
-import { parseISO } from "date-fns";
+import { BERECHNUNGSART_OPTIONS } from "@/lib/constants";
 import {
+  effectiveApartmentCount,
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
   calculateProWohnungDistribution,
-  calculateNachRechnungDistribution,
-  calculateWaterCostDistribution as calculateWaterDistribution
+  sumUniqueApartmentAreas
 } from "./cost-calculations";
 import {
   OperatingCostBreakdown,
@@ -26,35 +28,62 @@ import {
   PrepaymentBreakdown,
   OccupancyCalculation,
   TenantCalculationResult,
-  CalculationValidationResult
+  CalculationValidationResult,
+  HouseApartment
 } from "@/types/optimized-betriebskosten";
 import {
   calculateTenantMeterCosts,
   getTenantMeterCost,
   type TenantMeterCost
 } from "./water-cost-calculations";
+import {
+  isRechenbasis360,
+  isValid360Period,
+  calculateTenantRechentage,
+  rechentageInMonth,
+  getRechentagePeriod,
+  calculateTotalRechentage,
+  RECHENTAGE_PRO_MONAT,
+  type Rechenbasis
+} from "./rechentage";
 
 /**
- * Calculate occupancy percentage for a tenant during the billing period
+ * Calculate occupancy percentage for a tenant during the billing period.
+ * On the 360-day basis, daysOccupied/daysInPeriod are Rechentage (not calendar days),
+ * effectivePeriodStart/End are the rounded, billed days, and rechentage carries the details.
  */
 export function calculateOccupancyPercentage(
   tenant: Mieter,
   startdatum: string,
-  enddatum: string
+  enddatum: string,
+  rechenbasis?: Rechenbasis
 ): OccupancyCalculation {
+  if (isRechenbasis360({ rechenbasis })) {
+    const r = calculateTenantRechentage(tenant, startdatum, enddatum);
+    return {
+      percentage: r.ratio * 100,
+      daysOccupied: r.rechentage,
+      daysInPeriod: r.totalRechentage,
+      moveInDate: tenant.einzug || undefined,
+      moveOutDate: tenant.auszug || undefined,
+      effectivePeriodStart: r.billedFromIso ?? '',
+      effectivePeriodEnd: r.billedToIso ?? '',
+      rechentage: {
+        rechentage: r.rechentage,
+        totalRechentage: r.totalRechentage,
+        billedFromIso: r.billedFromIso ?? '',
+        billedToIso: r.billedToIso ?? '',
+        einzugGerundet: r.einzugGerundet,
+        auszugGerundet: r.auszugGerundet,
+        ...(r.einzugGerundetIso ? { einzugGerundetIso: r.einzugGerundetIso } : {}),
+        ...(r.auszugGerundetIso ? { auszugGerundetIso: r.auszugGerundetIso } : {})
+      }
+    };
+  }
+
   const occupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
 
-  // Calculate total days in period
-  const startDate = parseISO(startdatum);
-  const endDate = parseISO(enddatum);
-  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
-
-  // Determine effective period dates
-  const tenantStart = tenant.einzug ? parseISO(tenant.einzug) : startDate;
-  const tenantEnd = tenant.auszug ? parseISO(tenant.auszug) : endDate;
-
-  const effectiveStart = new Date(Math.max(startDate.getTime(), tenantStart.getTime()));
-  const effectiveEnd = new Date(Math.min(endDate.getTime(), tenantEnd.getTime()));
+  const totalDays = calculateTotalDays(toIsoDateOnly(startdatum), toIsoDateOnly(enddatum));
 
   return {
     percentage: occupancy.occupancyRatio * 100,
@@ -62,9 +91,118 @@ export function calculateOccupancyPercentage(
     daysInPeriod: totalDays,
     moveInDate: tenant.einzug || undefined,
     moveOutDate: tenant.auszug || undefined,
-    effectivePeriodStart: effectiveStart.toISOString().split('T')[0],
-    effectivePeriodEnd: effectiveEnd.toISOString().split('T')[0]
+    // Empty when the tenant does not occupy any part of the period (consistent with 0% occupancy)
+    effectivePeriodStart: occupancy.overlapStartIso ?? '',
+    effectivePeriodEnd: occupancy.overlapEndIso ?? ''
   };
+}
+
+/**
+ * Cost type used for billing: legacy spellings ('pro person', 'pro mieter', …) are mapped to
+ * their canonical value. An empty or unrecognised value is returned as-is ('pro Fläche' when
+ * empty) and billed by area; findUnrecognisedBerechnungsarten reports those items.
+ */
+const resolveBerechnungsart = (art: string | null | undefined): string =>
+  normalizeBerechnungsart(art || '') || art || 'pro Fläche';
+
+/** Whether a cost type is split by area: 'pro Fläche' and any empty or unknown type */
+export const isAreaBasedBerechnungsart = (art: string): boolean => {
+  const normalized = normalizeBerechnungsart(art || '');
+  return !normalized || normalized === 'pro Flaeche';
+};
+
+/**
+ * Cost items whose Berechnungsart is empty or not recognised even after normalising.
+ * The calculation bills them by area, so callers should warn the user.
+ */
+export function findUnrecognisedBerechnungsarten(
+  nebenkosten: Pick<Nebenkosten, 'nebenkostenart' | 'berechnungsart'>
+): { costName: string; berechnungsart: string }[] {
+  return (nebenkosten.nebenkostenart || [])
+    .map((costName, i) => ({ costName, berechnungsart: nebenkosten.berechnungsart?.[i] || '' }))
+    .filter(item => !normalizeBerechnungsart(item.berechnungsart));
+}
+
+/**
+ * House area for 'pro Fläche': the stored area (gesamtFlaeche), or the occupied apartments' area
+ * when none is stored. A stored area below the occupied area is used as it is, so the shares
+ * sum to more than 100 %; the Abrechnung modal warns about it.
+ */
+export function effectiveHouseArea(gesamtFlaeche: number | null | undefined, tenants: Mieter[]): number {
+  return gesamtFlaeche || sumUniqueApartmentAreas(tenants);
+}
+
+export type VacancyCost = {
+  apartmentId: string;
+  apartmentName: string;
+  vacantDays: number;
+  amount: number;
+};
+
+/**
+ * Operating costs the landlord bears because apartments were empty, per apartment. Computed like
+ * the tenants' shares: for the days nobody lived in an apartment, its area share of the
+ * pro Fläche items and its apartment share of the pro Wohnung items. pro Mieter and
+ * nach Rechnung items go to tenants only; meter costs aren't included.
+ * Without houseApartments only the tenants' apartments are known, so apartments that were empty
+ * all period are missing.
+ */
+export function calculateVacancyCosts(
+  nebenkosten: Nebenkosten,
+  tenants: Mieter[],
+  houseApartments?: HouseApartment[],
+  // Precomputed computeWgFactorsByTenant(tenants, startdatum, enddatum)
+  precomputedWgFactors?: Record<string, number>
+): { total: number; apartments: VacancyCost[] } {
+  const { startdatum, enddatum } = nebenkosten;
+  if (!startdatum || !enddatum) return { total: 0, apartments: [] };
+
+  let areaCosts = 0;
+  let apartmentCosts = 0;
+  (nebenkosten.nebenkostenart || []).forEach((_, i) => {
+    const art = nebenkosten.berechnungsart?.[i] || '';
+    const betrag = nebenkosten.betrag?.[i] || 0;
+    if (isAreaBasedBerechnungsart(art)) areaCosts += betrag;
+    else if (normalizeBerechnungsart(art) === 'pro Wohnung') apartmentCosts += betrag;
+  });
+
+  const houseArea = effectiveHouseArea((nebenkosten as any).gesamtFlaeche, tenants);
+  const apartmentCount = effectiveApartmentCount(nebenkosten.anzahlWohnungen, tenants);
+  // On the 360-day basis the period length is Rechentage (e.g. 360), so vacantDays below are too
+  const periodDays = isRechenbasis360(nebenkosten)
+    ? calculateTotalRechentage(startdatum, enddatum)
+    : calculateTotalDays(toIsoDateOnly(startdatum), toIsoDateOnly(enddatum));
+  const wgFactors = precomputedWgFactors ?? computeWgFactorsByTenant(tenants, startdatum, enddatum, nebenkosten.rechenbasis);
+
+  // The house's apartments, plus any tenant apartment the list doesn't have
+  const apartments = new Map<string, { name: string; area: number }>();
+  for (const apartment of houseApartments ?? []) {
+    apartments.set(apartment.id, { name: apartment.name, area: apartment.groesse || 0 });
+  }
+  const occupiedShare = new Map<string, number>();
+  for (const tenant of tenants) {
+    if (!tenant.wohnung_id) continue;
+    if (!apartments.has(tenant.wohnung_id)) {
+      apartments.set(tenant.wohnung_id, { name: tenant.Wohnungen?.name || '', area: tenant.Wohnungen?.groesse || 0 });
+    }
+    // The WG factors of one apartment sum to its occupied share of the period
+    occupiedShare.set(tenant.wohnung_id, (occupiedShare.get(tenant.wohnung_id) || 0) + (wgFactors[tenant.id] || 0));
+  }
+
+  const result: VacancyCost[] = [];
+  for (const [apartmentId, { name, area }] of apartments) {
+    const vacantShare = Math.max(0, 1 - (occupiedShare.get(apartmentId) || 0));
+    const amount = vacantShare * (
+      (houseArea > 0 ? (area / houseArea) * areaCosts : 0) +
+      (apartmentCount > 0 ? apartmentCosts / apartmentCount : 0)
+    );
+    if (amount > 0.005) {
+      result.push({ apartmentId, apartmentName: name, vacantDays: Math.round(vacantShare * periodDays), amount });
+    }
+  }
+  result.sort((a, b) => b.amount - a.amount);
+
+  return { total: result.reduce((sum, apartment) => sum + apartment.amount, 0), apartments: result };
 }
 
 /**
@@ -75,28 +213,38 @@ export function calculateTenantCosts(
   nebenkosten: Nebenkosten,
   allTenants?: Mieter[],
   occupancyData?: OccupancyCalculation,
-  rechnungen?: Rechnung[]
+  rechnungen?: Rechnung[],
+  // Precomputed computeWgFactorsByTenant(allTenants, startdatum, enddatum), shared across tenants
+  precomputedWgFactors?: Record<string, number>
 ): OperatingCostBreakdown {
-  const occupancy = occupancyData || calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
+  // The 360-day basis is a property of the settlement (Nebenkosten), not of an individual call
+  const rechenbasis = nebenkosten.rechenbasis;
+  const occupancy = occupancyData || calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum, rechenbasis);
   const tenants = allTenants || [tenant]; // For distribution calculations
 
   const costItems: OperatingCostBreakdown['costItems'] = [];
   let totalCost = 0;
 
   // For the verteiler display in the PDF: show tenant area vs total physical house area.
-  // gesamtFlaeche is the canonical value set by the server action (Haeuser.groesse),
-  // consistent with what the overview modal shows.
-  const totalHouseArea = (nebenkosten as any).gesamtFlaeche
-    || tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
+  // gesamtFlaeche is the canonical value set by the server action (Haeuser.groesse).
+  // Only area-based items need it, so compute it at most once and only when needed.
+  let totalHouseArea: number | undefined;
+  const getTotalHouseArea = () =>
+    totalHouseArea ??= effectiveHouseArea((nebenkosten as any).gesamtFlaeche, tenants);
 
-  const tenantArea = tenant.Wohnungen?.groesse || 0;
+  // WG day-share factors depend only on the tenants and period, so compute them at most once
+  // for all area- and apartment-based cost items instead of once per item.
+  let wgFactors = precomputedWgFactors;
+  const getWgFactors = () =>
+    wgFactors ??= computeWgFactorsByTenant(tenants, nebenkosten.startdatum, nebenkosten.enddatum, rechenbasis);
 
   // Process each cost item
-  if (nebenkosten.nebenkostenart && nebenkosten.betrag && nebenkosten.berechnungsart) {
+  // A missing Berechnungsart is billed by area like an empty one (findUnrecognisedBerechnungsarten warns)
+  if (nebenkosten.nebenkostenart && nebenkosten.betrag) {
     for (let i = 0; i < nebenkosten.nebenkostenart.length; i++) {
       const costName = nebenkosten.nebenkostenart[i];
       const totalCostForItem = nebenkosten.betrag[i] || 0;
-      const calculationType = nebenkosten.berechnungsart[i] || 'pro Fläche';
+      const calculationType = resolveBerechnungsart(nebenkosten.berechnungsart?.[i]);
 
       let tenantShare = 0;
       let pricePerSqm: number | undefined;
@@ -106,28 +254,38 @@ export function calculateTenantCosts(
       switch (calculationType) {
         case 'pro Fläche':
         case 'pro Flaeche':
+        default: { // Unknown calculation types default to area-based distribution (validateCalculationData warns)
+          const houseArea = getTotalHouseArea();
           const flächeDistribution = calculateProFlächeDistribution(
             tenants,
             totalCostForItem,
             nebenkosten.startdatum,
-            nebenkosten.enddatum
+            nebenkosten.enddatum,
+            houseArea,
+            getWgFactors(),
+            rechenbasis
           );
           tenantShare = flächeDistribution[tenant.id]?.amount || 0;
-          // Self-consistent per-tenant rate: pricePerSqm × area × occupancyRatio = tenantShare
-          // This avoids the stacking problem (sequential tenants in same apartment).
-          pricePerSqm = (tenantArea > 0 && occupancy.percentage > 0)
-            ? tenantShare / (tenantArea * (occupancy.percentage / 100))
+          // House-wide rate for this cost item (total cost ÷ total house area), not derived
+          // back from tenantShare — that would divide the rate itself by the number of
+          // co-tenants sharing an apartment, showing WG tenants a misleadingly low €/m²
+          // even though the underlying rate is the same for every tenant in the house.
+          // Not shown for tenants without occupied days (their share is 0).
+          pricePerSqm = (houseArea > 0 && occupancy.percentage > 0)
+            ? Math.round((totalCostForItem / houseArea) * 10000) / 10000
             : undefined;
           // Verteiler shows physical area vs total house area (for PDF column)
-          distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
+          distributionBasis = houseArea > 0 ? `${houseArea} m²` : '-';
           break;
+        }
 
         case 'pro Mieter':
           const mieterDistribution = calculateProMieterDistribution(
             tenants,
             totalCostForItem,
             nebenkosten.startdatum,
-            nebenkosten.enddatum
+            nebenkosten.enddatum,
+            rechenbasis
           );
           tenantShare = mieterDistribution[tenant.id]?.amount || 0;
           distributionBasis = '1 Mieter';
@@ -138,7 +296,10 @@ export function calculateTenantCosts(
             tenants,
             totalCostForItem,
             nebenkosten.startdatum,
-            nebenkosten.enddatum
+            nebenkosten.enddatum,
+            nebenkosten.anzahlWohnungen,
+            getWgFactors(),
+            rechenbasis
           );
           tenantShare = wohnungDistribution[tenant.id]?.amount || 0;
           distributionBasis = '1 Wohnung';
@@ -146,35 +307,26 @@ export function calculateTenantCosts(
 
         case 'nach Rechnung': {
           // Look up the tenant's specific invoice from Rechnungen by cost name + mieter_id.
-          // The betrag[] in Nebenkosten is a placeholder 0; the real per-tenant amount lives in Rechnungen.
+          // betrag[] in Nebenkosten holds the SUM of all tenants' amounts, so it must not be
+          // used as a per-tenant fallback: a tenant without a Rechnungen row owes nothing.
           const matching = rechnungen?.find(
-            r => r.name === costName && r.mieter_id === tenant.id
+            r => isSameCostName(r.name, costName) && r.mieter_id === tenant.id
           );
-          tenantShare = matching?.betrag ?? totalCostForItem;
+          // Use occupancy.percentage (same basis as the other distributions) instead of
+          // daysOccupied / daysInPeriod, whose day counts differ across DST boundaries.
+          // Tenants without an Einzugsdatum have 0 occupancy; keep their entered amount in full.
+          const occupancyRatio = tenant.einzug ? occupancy.percentage / 100 : 1;
+          tenantShare = (matching?.betrag ?? 0) * occupancyRatio;
           distributionBasis = '-';
           break;
         }
-
-
-        default:
-          // Default to area-based distribution
-          const defaultDistribution = calculateProFlächeDistribution(
-            tenants,
-            totalCostForItem,
-            nebenkosten.startdatum,
-            nebenkosten.enddatum
-          );
-          tenantShare = defaultDistribution[tenant.id]?.amount || 0;
-          pricePerSqm = (tenantArea > 0 && occupancy.percentage > 0)
-            ? tenantShare / (tenantArea * (occupancy.percentage / 100))
-            : undefined;
-          distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
       }
 
       costItems.push({
         costName,
         totalCostForItem,
-        calculationType,
+        // Shown to the user, so use the option label ('pro Fläche', not 'pro Flaeche')
+        calculationType: BERECHNUNGSART_OPTIONS.find(opt => opt.value === calculationType)?.label ?? calculationType,
         tenantShare,
         pricePerSqm,
         distributionBasis
@@ -234,13 +386,14 @@ export function calculateMeterCostDistribution(
     // Find the most recent reading for this tenant's apartment
     const apartmentMeters = meters.filter(m => m.wohnung_id === tenant.wohnung_id);
     const apartmentMeterIds = apartmentMeters.map(m => m.id);
-    const relevantReadings = readings
+    // Latest reading in the period (YYYY-MM-DD strings compare chronologically)
+    const latestReading = readings
       .filter(r => apartmentMeterIds.includes(r.zaehler_id || ''))
-      .filter(r => r.ablese_datum >= nebenkosten.startdatum && r.ablese_datum <= nebenkosten.enddatum)
-      .sort((a, b) => parseISO(b.ablese_datum).getTime() - parseISO(a.ablese_datum).getTime());
+      .filter(r => isDateInPeriod(r.ablese_datum, nebenkosten.startdatum, nebenkosten.enddatum))
+      .reduce<ZaehlerAblesung | undefined>((latest, r) =>
+        !latest || toIsoDateOnly(r.ablese_datum) > toIsoDateOnly(latest.ablese_datum) ? r : latest, undefined);
 
-    if (relevantReadings.length > 0) {
-      const latestReading = relevantReadings[0];
+    if (latestReading) {
       meterReading = {
         previousReading: 0, // Would need historical data
         currentReading: latestReading.zaehlerstand || 0,
@@ -259,81 +412,167 @@ export function calculateMeterCostDistribution(
   };
 }
 
+type PrepaymentSchedule = { iso: string; amount: number | string }[];
+
+/** A tenant's prepayment schedule (Soll), newest entry first */
+const getPrepaymentSchedule = (tenant: Mieter): PrepaymentSchedule =>
+  (Array.isArray(tenant.nebenkosten) ? tenant.nebenkosten : [])
+    .filter(n => n.date)
+    .map(n => ({ iso: toIsoDateOnly(n.date), amount: n.amount }))
+    .sort((a, b) => b.iso.localeCompare(a.iso));
+
 /**
- * Calculate prepayments for a tenant during the billing period
+ * Soll prepayment for the billed part of a month: the newest schedule entry dated on or before
+ * the end of that part, prorated by the days the tenant lived there in the calendar month.
+ */
+const scheduledMonthlyAmount = (
+  schedule: PrepaymentSchedule,
+  rangeEndIso: string,
+  occupancyDays: number,
+  daysInMonth: number
+): number => {
+  if (occupancyDays <= 0) return 0;
+  const applicable = schedule.find(n => n.iso <= rangeEndIso);
+  return applicable ? (Number(applicable.amount) || 0) * (occupancyDays / daysInMonth) : 0;
+};
+
+/**
+ * Calculate prepayments for a tenant during the billing period.
+ *
+ * On the 360-day basis the 'actual' (Ist) assignment of a month's real payments stays ENTIRELY
+ * on calendar days: the calendar Soll computed here is only an internal distribution key, and
+ * switching it to Rechentage would make a real payment vanish (e.g. a move-in on 28.03. has 0
+ * Rechentage in March, so the gate below would credit nobody). Only the 'scheduled' (Soll) amount
+ * and the reported isActiveMonth/occupancyPercentage switch to Rechentage.
  */
 export function calculatePrepayments(
   tenant: Mieter,
   startdatum: string,
   enddatum: string,
   actualPayments?: Finanzen[],
-  mode: 'scheduled' | 'actual' = 'scheduled'
+  mode: 'scheduled' | 'actual' = 'scheduled',
+  // All tenants of the house/apartment, needed only in 'actual' mode to split a month's
+  // apartment payment(s) between the tenants living there that month.
+  // Falls back to treating the tenant as the sole occupant when omitted.
+  allTenants?: Mieter[],
+  rechenbasis?: Rechenbasis
 ): PrepaymentBreakdown {
+  const is360 = isRechenbasis360({ rechenbasis });
+  // The tenant's Rechentage range, computed once and intersected with each month below
+  const rechentage360 = is360 ? calculateTenantRechentage(tenant, startdatum, enddatum) : null;
+  const period360 = is360 ? getRechentagePeriod(startdatum, enddatum) : null;
   const monthlyPayments: PrepaymentBreakdown['monthlyPayments'] = [];
   let totalPrepayments = 0;
   let missingScheduleMonths = 0;
+  // Number of billed months, counting partial first/last months by their share
+  let totalMonthShare = 0;
 
   // Generate monthly breakdown
-  const startDate = new Date(startdatum);
-  const endDate = new Date(enddatum);
+  const periodStartIso = toIsoDateOnly(startdatum);
+  const periodEndIso = toIsoDateOnly(enddatum);
+  const [startYear, startMonth] = periodStartIso.split('-').map(Number);
+  const [endYear, endMonth] = periodEndIso.split('-').map(Number);
 
-  const currentDate = parseISO(startdatum);
-  while (currentDate <= endDate) {
-    const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
+  if ([startYear, startMonth, endYear, endMonth].some(n => !n) || periodEndIso < periodStartIso) {
+    return {
+      monthlyPayments: [],
+      totalPrepayments: 0,
+      averageMonthlyPayment: 0
+    };
+  }
 
-    // Calculate occupancy for this month
-    const monthOccupancy = calculateTenantOccupancy(
-      tenant,
-      monthStart.toISOString().split('T')[0],
-      monthEnd.toISOString().split('T')[0]
-    );
+  // Prepayment schedule normalized once, newest entry first
+  const nebenkostenSchedule = getPrepaymentSchedule(tenant);
+
+  // 'actual' mode: the other tenants of the same apartment, with their schedules
+  const roommates = mode === 'actual'
+    ? getApartmentOccupants(allTenants ?? [], tenant.wohnung_id)
+      .filter(t => t.id !== tenant.id)
+      .map(t => ({ tenant: t, schedule: getPrepaymentSchedule(t) }))
+    : [];
+
+  const lastMonthIndex = endYear * 12 + endMonth - 1;
+  for (let monthIndex = startYear * 12 + startMonth - 1; monthIndex <= lastMonthIndex; monthIndex++) {
+    const monthYear = Math.floor(monthIndex / 12);
+    const month = monthIndex % 12 + 1;
+    const { startIso: monthStartIso, endIso: monthEndIso, daysInMonth } = getMonthDateRange(monthYear, month);
+
+    // Clip the first/last month to the billing period so partial months are prorated, not charged in full
+    const rangeStartIso = maxIsoDate(periodStartIso, monthStartIso);
+    const rangeEndIso = minIsoDate(periodEndIso, monthEndIso);
+    totalMonthShare += calculateTotalDays(rangeStartIso, rangeEndIso) / daysInMonth;
+
+    // Occupancy for the part of this month inside the billing period, relative to the full calendar month.
+    // This calendar occupancy stays the 'actual' mode's distribution key even on the 360 basis (see above).
+    const { occupancyDays } = calculateTenantOccupancy(tenant, rangeStartIso, rangeEndIso);
+    const occupancyRatio = occupancyDays / daysInMonth;
+
+    // Rechentage of this tenant in this calendar month of the period (0, 15 or 30), only on the 360 basis
+    const rechentageMonth = rechentage360 ? rechentageInMonth(rechentage360, period360, monthYear, month) : 0;
 
     // Use tenant's actual Nebenkosten prepayment data
     let monthlyAmount = 0;
 
     if (mode === 'actual' && actualPayments) {
-      const monthPayments = actualPayments.filter(p => {
-        if (!p.datum) return false;
-        const pDate = parseISO(p.datum);
-        return pDate >= monthStart && pDate <= monthEnd;
-      });
-      monthlyAmount = monthPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
-    } else if (mode === 'scheduled') {
-      if (monthOccupancy.occupancyDays > 0 && tenant.nebenkosten && Array.isArray(tenant.nebenkosten)) {
-        // Find applicable prepayment for this month.
-        // We look for the latest prepayment entry that is valid before or during this month.
-        const applicableNK = [...(tenant.nebenkosten || [])]
-          .filter(n => n.date && parseISO(n.date) <= monthEnd)
-          .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())[0];
+      const monthPayments = actualPayments.filter(p => isDateInPeriod(p.datum, rangeStartIso, rangeEndIso));
+      const monthTotal = monthPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
 
-        if (applicableNK) {
-          monthlyAmount = (Number(applicableNK.amount) || 0) * monthOccupancy.occupancyRatio;
+      // A tenant who did not occupy the apartment during this month owes nothing from it,
+      // mirroring the 'scheduled' branch's occupancyDays > 0 gate below. A tenant without a
+      // move-in date has no occupied days, but is still credited in months nobody lived there.
+      if ((occupancyDays > 0 || !tenant.einzug) && monthTotal !== 0) {
+        // Payments belong to the apartment, not to a tenant (Finanzen has no mieter_id). Split a
+        // month's payments between the tenants living there that month (a WG, or a handover
+        // within the month) in proportion to what each should have prepaid (Soll, prorated by
+        // days); if none of them has a Soll that month, by occupied days.
+        // Known limitation (accepted for now): a roommate without a Soll gets none of the payment
+        // while others have one, even if they paid. Fixing it needs payments linked to a tenant.
+        const ownSoll = scheduledMonthlyAmount(nebenkostenSchedule, rangeEndIso, occupancyDays, daysInMonth);
+        let totalSoll = ownSoll;
+        let totalDays = occupancyDays;
+        for (const roommate of roommates) {
+          const { occupancyDays: days } = calculateTenantOccupancy(roommate.tenant, rangeStartIso, rangeEndIso);
+          totalSoll += scheduledMonthlyAmount(roommate.schedule, rangeEndIso, days, daysInMonth);
+          totalDays += days;
+        }
+
+        if (totalDays === 0) {
+          // Nobody lived there that month: the payment belongs to the tenants without a move-in date
+          const withoutMoveIn = 1 + roommates.filter(roommate => !roommate.tenant.einzug).length;
+          monthlyAmount = monthTotal / withoutMoveIn;
+        } else {
+          monthlyAmount = totalSoll > 0
+            ? monthTotal * (ownSoll / totalSoll)
+            : monthTotal * (occupancyDays / totalDays);
         }
       }
+    } else if (mode === 'scheduled') {
+      // On the 360-day basis the Soll is prorated by Rechentage / 30 instead of calendar days
+      monthlyAmount = is360
+        ? scheduledMonthlyAmount(nebenkostenSchedule, rangeEndIso, rechentageMonth, RECHENTAGE_PRO_MONAT)
+        : scheduledMonthlyAmount(nebenkostenSchedule, rangeEndIso, occupancyDays, daysInMonth);
 
       // Track months where the tenant was occupied but no schedule entry exists.
       // We do NOT inject a fallback value — missing data should be surfaced explicitly.
-      if (monthlyAmount === 0 && monthOccupancy.occupancyDays > 0) {
+      if (monthlyAmount === 0 && (is360 ? rechentageMonth > 0 : occupancyDays > 0)) {
         missingScheduleMonths++;
       }
     }
 
     monthlyPayments.push({
-      month: `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`,
+      month: monthStartIso.slice(0, 7),
       amount: monthlyAmount,
-      isActiveMonth: monthOccupancy.occupancyDays > 0,
-      occupancyPercentage: monthOccupancy.occupancyRatio * 100
+      // Reported occupancy always reflects the settlement's basis, even in 'actual' mode where
+      // the money itself is still assigned by calendar days (see function comment)
+      isActiveMonth: is360 ? rechentageMonth > 0 : occupancyDays > 0,
+      occupancyPercentage: is360 ? (rechentageMonth / RECHENTAGE_PRO_MONAT) * 100 : occupancyRatio * 100
     });
 
     totalPrepayments += monthlyAmount;
-
-    // Move to next month
-    currentDate.setMonth(currentDate.getMonth() + 1);
   }
 
-  const averageMonthlyPayment = monthlyPayments.length > 0
-    ? totalPrepayments / monthlyPayments.length
+  const averageMonthlyPayment = totalMonthShare > 0
+    ? totalPrepayments / totalMonthShare
     : 0;
 
   return {
@@ -393,10 +632,13 @@ export function validateCalculationData(
   // Validate Nebenkosten data
   if (!nebenkosten.startdatum || !nebenkosten.enddatum) {
     errors.push('Start- und Enddatum sind erforderlich');
-  }
-
-  if (parseISO(nebenkosten.enddatum) <= parseISO(nebenkosten.startdatum)) {
+  } else if (toIsoDateOnly(nebenkosten.enddatum) <= toIsoDateOnly(nebenkosten.startdatum)) {
+    // Compared as YYYY-MM-DD so German dates are validated too (parseISO rejects them)
     errors.push('Enddatum muss nach dem Startdatum liegen');
+  } else if (isRechenbasis360(nebenkosten) && !isValid360Period(nebenkosten.startdatum, nebenkosten.enddatum)) {
+    // The 360-day basis assumes 12 whole months (30 Rechentage each); anything else leaves the
+    // denominator inconsistent with the 30-day months the rest of the calculation assumes
+    warnings.push('360-Tage-Basis: Der Abrechnungszeitraum besteht nicht aus 12 ganzen Monaten (vom 1. eines Monats bis zum Monatsletzten zwölf Monate später)');
   }
 
   if (!nebenkosten.nebenkostenart || nebenkosten.nebenkostenart.length === 0) {
@@ -411,6 +653,13 @@ export function validateCalculationData(
     nebenkosten.nebenkostenart.length !== nebenkosten.betrag.length) {
     errors.push('Anzahl der Nebenkostenarten muss mit Anzahl der Beträge übereinstimmen');
   }
+
+  // Unknown cost types are billed by area; say so instead of doing it silently
+  findUnrecognisedBerechnungsarten(nebenkosten).forEach(({ costName, berechnungsart }) => {
+    warnings.push(berechnungsart
+      ? `Kostenart "${costName}": Unbekannte Berechnungsart "${berechnungsart}", wird pro Fläche verteilt`
+      : `Kostenart "${costName}": Keine Berechnungsart angegeben, wird pro Fläche verteilt`);
+  });
 
   // Validate tenants
   if (!tenants || tenants.length === 0) {
@@ -449,8 +698,7 @@ export function validateCalculationData(
       waterMeters.forEach(meter => {
         const meterReadings = waterReadings.filter(r =>
           r.zaehler_id === meter.id &&
-          r.ablese_datum >= nebenkosten.startdatum &&
-          r.ablese_datum <= nebenkosten.enddatum
+          isDateInPeriod(r.ablese_datum, nebenkosten.startdatum, nebenkosten.enddatum)
         );
 
         if (meterReadings.length === 0) {
@@ -478,13 +726,16 @@ export function calculateCompleteTenantResult(
   readings: ZaehlerAblesung[],
   actualPayments?: Finanzen[],
   prepaymentMode: 'scheduled' | 'actual' = 'scheduled',
-  rechnungen?: Rechnung[]
+  rechnungen?: Rechnung[],
+  // Precomputed computeWgFactorsByTenant(allTenants, startdatum, enddatum); compute it once
+  // per billing run instead of once per tenant
+  wgFactors?: Record<string, number>
 ): TenantCalculationResult {
   // Calculate occupancy
-  const occupancy = calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
+  const occupancy = calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum, nebenkosten.rechenbasis);
 
   // Calculate operating costs
-  const operatingCosts = calculateTenantCosts(tenant, nebenkosten, allTenants, occupancy, rechnungen);
+  const operatingCosts = calculateTenantCosts(tenant, nebenkosten, allTenants, occupancy, rechnungen, wgFactors);
 
 
   // Calculate meter costs using new system
@@ -496,10 +747,13 @@ export function calculateCompleteTenantResult(
     readings
   );
 
-  // Pre-filter actual payments for this tenant if in actual mode
-  // This improves performance by avoiding repeated building-wide filtering inside the monthly loop
-  const tenantActualPayments = (prepaymentMode === 'actual' && actualPayments && tenant.wohnung_id)
-    ? actualPayments.filter(p => p.wohnung_id === tenant.wohnung_id)
+  // Pre-filter actual payments for this tenant if in actual mode.
+  // This improves performance by avoiding repeated building-wide filtering inside the monthly loop.
+  // A tenant without an apartment (no wohnung_id) gets an empty list, never the unfiltered
+  // building-wide payments — apartment payments must never be assigned to a tenant with no
+  // apartment to tie them to.
+  const tenantActualPayments = (prepaymentMode === 'actual' && actualPayments)
+    ? (tenant.wohnung_id ? actualPayments.filter(p => p.wohnung_id === tenant.wohnung_id) : [])
     : actualPayments;
 
   // Calculate prepayments
@@ -508,7 +762,9 @@ export function calculateCompleteTenantResult(
     nebenkosten.startdatum,
     nebenkosten.enddatum,
     tenantActualPayments,
-    prepaymentMode
+    prepaymentMode,
+    allTenants,
+    nebenkosten.rechenbasis
   );
 
   // Calculate totals
@@ -544,7 +800,9 @@ export function calculateCompleteTenantResult(
     totalCosts,
     prepayments,
     finalSettlement,
-    recommendedPrepayment
+    recommendedPrepayment,
+    // Set on the 360-day basis; daysOccupied/daysInPeriod above are then Rechentage
+    ...(occupancy.rechentage ? { rechentage: occupancy.rechentage } : {})
   };
 }
 
@@ -557,10 +815,14 @@ export function calculateAbrechnungSummary(
   meters: Zaehler[],
   readings: ZaehlerAblesung[],
   actualPayments?: Finanzen[],
-  prepaymentMode: 'scheduled' | 'actual' = 'scheduled'
+  prepaymentMode: 'scheduled' | 'actual' = 'scheduled',
+  rechnungen?: Rechnung[]
 ) {
   let totalAbrechnungVolumen = 0;
   let totalVorauszahlungen = 0;
+  const wgFactors = nebenkosten.startdatum && nebenkosten.enddatum
+    ? computeWgFactorsByTenant(tenants, nebenkosten.startdatum, nebenkosten.enddatum, nebenkosten.rechenbasis)
+    : undefined;
 
   tenants.forEach(tenant => {
     // We can reuse the complete tenant result calculation which encapsulates all logic
@@ -572,7 +834,9 @@ export function calculateAbrechnungSummary(
       meters,
       readings,
       actualPayments,
-      prepaymentMode
+      prepaymentMode,
+      rechnungen,
+      wgFactors
     );
 
     totalAbrechnungVolumen += result.totalCosts;

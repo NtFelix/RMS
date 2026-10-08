@@ -5,14 +5,14 @@ import {
   updateZaehler,
   deleteZaehler
 } from '@/app/meter-actions';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { logAction } from '@/lib/logging-middleware';
 import { capturePostHogEvent } from '@/lib/posthog-helpers';
 
 // Mock dependencies
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn()
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn()
 }));
 
 jest.mock('next/cache', () => ({
@@ -63,7 +63,7 @@ describe('meter-actions', () => {
       order: jest.fn().mockReturnThis(),
       single: jest.fn()
     };
-    (createClient as jest.Mock).mockResolvedValue(mockSupabase);
+    (createSupabaseServerClient as jest.Mock).mockResolvedValue(mockSupabase);
   });
 
   describe('getMeterForHausAction', () => {
@@ -157,18 +157,20 @@ describe('meter-actions', () => {
   describe('deleteZaehler', () => {
     it('deletes a meter successfully', async () => {
       const chain = {
-        delete: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: { id: 'm1' }, error: null })
       };
       mockSupabase.from.mockReturnValue(chain);
-      mockSupabase.delete.mockResolvedValue({ error: null });
+      mockSupabase.rpc.mockResolvedValue({ error: null });
 
       const result = await deleteZaehler('m1');
 
       expect(result.success).toBe(true);
-      expect(chain.delete).toHaveBeenCalled();
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+        p_table_name: 'Zaehler',
+        p_record_id: 'm1',
+      });
     });
   });
 });

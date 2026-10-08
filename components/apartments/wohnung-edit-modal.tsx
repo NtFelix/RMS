@@ -37,6 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions";
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
 
 interface Haus {
   id: string;
@@ -341,11 +342,11 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     closeWohnungModal({ force: true });
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
     if (!wohnungInitialData || isPending) return;
     try {
       setIsDeleting(true);
-      const result = await loescheWohnung(wohnungInitialData.id);
+      const result = await loescheWohnung(wohnungInitialData.id, pruefsummen[wohnungInitialData.id]);
 
       if (result.success) {
         toast({
@@ -376,6 +377,12 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
     }
+  };
+
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  const handleDeleteStart = () => {
+    if (!wohnungInitialData || isPending) return;
+    void starteLoeschenMitKautionen("Wohnungen", [wohnungInitialData.id], { einfach: () => setDeleteDialogOpen(true), loeschen: handleDelete });
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -469,7 +476,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
               openZaehlerModal(wohnungInitialData.id, wohnungInitialData.name);
             }
           }}
-          onDeleteRequest={() => setDeleteDialogOpen(true)}
+          onDeleteRequest={handleDeleteStart}
         />
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">

@@ -25,6 +25,7 @@ import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { cn } from "@/lib/utils"
+import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary"
 
 export interface Apartment {
   id: string
@@ -434,12 +435,13 @@ export function ApartmentTable({
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Fehler beim Löschen der Wohnungen.');
       }
-      const { successCount } = await response.json();
+      // Teilerfolg (z. B. ein Mieter mit hinterlegter Kaution in der Wohnung): die Route nennt die Gründe der abgelehnten Löschungen.
+      const { successCount, reasons = [] } = await response.json();
       const failedCount = selectedIds.length - successCount;
       dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: false });
       setSelectedApartments(new Set());
       if (successCount > 0) {
-        toast({ title: "Erfolg", description: `${successCount} Wohnungen erfolgreich gelöscht${failedCount > 0 ? `, ${failedCount} fehlgeschlagen` : ''}.`, variant: "success" });
+        toast({ title: "Erfolg", description: `${successCount} Wohnungen erfolgreich gelöscht${formatBulkDeleteSuffix(failedCount, reasons)}`, variant: "success" });
         if (onTableRefresh) await onTableRefresh();
         router.refresh();
       } else {

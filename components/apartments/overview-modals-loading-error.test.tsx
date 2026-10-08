@@ -96,8 +96,8 @@ describe('Overview Modals Loading and Error Handling', () => {
       const retryButton = screen.getByText('Erneut versuchen');
       expect(retryButton).toBeInTheDocument();
 
-      // Should show close button
-      expect(screen.getByText('Schließen')).toBeInTheDocument();
+      // Should show close button (appears twice: button text + sr-only span on X button)
+      expect(screen.getAllByText('Schließen').length).toBeGreaterThanOrEqual(1);
     });
 
     it('handles timeout error after 2 seconds', async () => {
@@ -208,7 +208,7 @@ describe('Overview Modals Loading and Error Handling', () => {
 
       // Should show retry and close buttons
       expect(screen.getByText('Erneut versuchen')).toBeInTheDocument();
-      expect(screen.getByText('Schließen')).toBeInTheDocument();
+      expect(screen.getAllByText('Schließen').length).toBeGreaterThanOrEqual(1);
     });
 
     it('displays empty state when no Mieter exist', () => {

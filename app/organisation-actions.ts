@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { hasPermission } from "@/lib/permissions";
@@ -10,6 +10,7 @@ import { cookies, headers } from "next/headers";
 import { safeRpcCall } from "@/lib/error-handling";
 import { logger } from "@/utils/logger";
 import { posthogLogger } from "@/lib/posthog-logger";
+import { sanitizeOrgId } from "@/lib/supabase-env";
 
 
 
@@ -384,8 +385,8 @@ export const getMyOrganisationsAction = withLogging(
 
       // Fallback to reading cookie directly on the server side
       const cookieStore = await cookies();
-      const cookieVal = cookieStore.get('current_organisation_id')?.value || null;
-      currentOrgId = (cookieVal && cookieVal !== 'null' && cookieVal !== 'private') ? cookieVal : null;
+      const cookieVal = cookieStore.get('current_organisation_id')?.value;
+      currentOrgId = sanitizeOrgId(cookieVal);
       posthogLogger.info('current_organisation_id resolved via cookie fallback', {
         'user_id': user.id,
         'cookie.value': cookieVal,
@@ -546,4 +547,123 @@ export const switchOrganisationAction = withLogging(
   }
 );
 
+/**
+ * Fetches audit logs for the current organization (paginated, brief view).
+ */
+export const getAuditLogsAction = withLogging(
+  'getAuditLogs',
+  async (
+    limit: number,
+    offset: number,
+    tableName?: string,
+    actionType?: string
+  ): Promise<{ success: boolean; data?: any[]; error?: { message: string } }> => {
+    try {
+      const { user, supabase } = await ensureAuth();
 
+      if (!(await hasPermission('organisation', 'verwalten'))) {
+        return { success: false, error: { message: "Keine Berechtigung zum Anzeigen der Audit-Logs." } };
+      }
+      
+      const { data, error } = await supabase.rpc('get_organisation_audit_log', {
+        p_limit: limit,
+        p_offset: offset,
+        p_tabellenname: tableName || null,
+        p_aktion: actionType || null
+      });
+
+      if (error) {
+        return { success: false, error: { message: error.message } };
+      }
+
+      return { success: true, data: data || [] };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Fehler beim Laden der Audit-Logs";
+      return { success: false, error: { message: msg } };
+    }
+  }
+);
+
+/**
+ * Fetches detail view for a specific audit log record.
+ */
+export const getAuditLogDetailsAction = withLogging(
+  'getAuditLogDetails',
+  async (
+    auditLogId: string
+  ): Promise<{ success: boolean; data?: any; error?: { message: string } }> => {
+    try {
+      const { user, supabase } = await ensureAuth();
+
+      if (!(await hasPermission('organisation', 'verwalten'))) {
+        return { success: false, error: { message: "Keine Berechtigung zum Anzeigen der Audit-Log-Details." } };
+      }
+      
+      const { data, error } = await supabase.rpc('get_audit_log_details', {
+        p_audit_log_id: auditLogId
+      });
+
+      if (error) {
+        return { success: false, error: { message: error.message } };
+      }
+
+      return { success: true, data: data?.[0] || null };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Fehler beim Laden des Audit-Log-Details";
+      return { success: false, error: { message: msg } };
+    }
+  }
+);
+
+export interface SetOrganisationMcpAccessResult {
+  success: boolean;
+  data?: {
+    success: boolean;
+    organisation_id?: string;
+    mcp_zugriff_aktiviert?: boolean;
+  };
+  error?: { message: string };
+}
+
+/**
+ * Toggles MCP server access for an organisation.
+ * Only callable by organisation Admins and Owners.
+ */
+export const setOrganisationMcpAccessAction = withLogging(
+  'setOrganisationMcpAccess',
+  async (
+    organisationId: string,
+    enabled: boolean
+  ): Promise<SetOrganisationMcpAccessResult> => {
+    let supabase;
+    try {
+      ({ supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, error: { message: errorMessage } };
+    }
+
+    if (!(await hasPermission('organisation', 'verwalten'))) {
+      return { success: false, error: { message: "Keine Berechtigung zum Verwalten der Organisation." } };
+    }
+
+    if (!organisationId || typeof organisationId !== 'string' || !organisationId.trim()) {
+      return { success: false, error: { message: "Organisations-ID ist erforderlich." } };
+    }
+
+    const { data, error } = await supabase.rpc('set_organisation_mcp_access', {
+      p_org_id: organisationId,
+      p_enabled: enabled,
+    });
+
+    if (error) {
+      // Do not surface raw DB error details to the client (matches the consent actions)
+      console.error('[MCP] setOrganisationMcpAccess failed:', error.message);
+      return { success: false, error: { message: "MCP-Zugriff für die Organisation konnte nicht geändert werden. Bitte versuchen Sie es erneut." } };
+    }
+
+    revalidatePath('/organisation');
+    revalidatePath('/einstellungen/mcp');
+    return { success: true, data };
+  }
+);
