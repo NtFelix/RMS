@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { generateApiKeySecret } from "@/lib/api-keys";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { findBlockedModules } from "@/lib/blocked-modules";
 
 export async function POST(
   request: NextRequest,
@@ -21,6 +22,11 @@ export async function POST(
 
     const body = await request.json();
     const { berechtigungen, environment } = body;
+
+    // Das Modul "kautionen" darf API-Schlüsseln nie zugewiesen werden (R2). Vor der Schlüsselerzeugung prüfen.
+    if (findBlockedModules(berechtigungen).length > 0) {
+      return NextResponse.json({ error: "Das Modul \"Kautionen\" kann API-Schlüsseln nicht zugewiesen werden." }, { status: 400, headers: NO_CACHE_HEADERS });
+    }
 
     // Generate plain secret, hash, and prefix securely on the server
     const { plaintext, key_hash, key_prefix } = generateApiKeySecret(environment === "test" ? "test" : "live");
