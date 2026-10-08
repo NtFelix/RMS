@@ -1,6 +1,3 @@
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
-
 import FinanzenClientWrapper from "./client-wrapper";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchWithRpcFallback } from "@/lib/data-fetching";
@@ -101,7 +98,22 @@ function determineInitialYear(
   return fallbackYear ?? currentYear;
 }
 
-export default async function FinanzenPage() {
+import { Suspense } from "react";
+import { TableSkeleton } from "@/components/common/table-skeleton";
+
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
+export default function FinanzenPage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <FinanzenContent />
+    </Suspense>
+  );
+}
+
+async function FinanzenContent() {
   const { supabase } = await requireAuthenticatedUser();
 
   const currentYear = new Date().getFullYear();

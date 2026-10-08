@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
-export const runtime = 'edge';
 
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
@@ -41,7 +40,7 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_R
 
 export async function POST(request: Request) {
     try {
-        const supabase = await createClient();
+        const supabase = await createSupabaseServerClient();
         const { data: { user }, error: authError } = await supabase.auth.getUser();
 
         if (authError || !user) {

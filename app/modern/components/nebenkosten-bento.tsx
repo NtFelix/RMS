@@ -82,7 +82,7 @@ const nkFeatures: NKFeature[] = [
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-2xl font-bold">85%</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Bezahlt</span>
+            <span className="text-[10px] text-muted-foreground font-medium">Bezahlt</span>
           </div>
         </div>
         <div className="w-full space-y-2">
@@ -94,8 +94,8 @@ const nkFeatures: NKFeature[] = [
             />
           </div>
           <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
-            <span>ERHALTEN: 12.450 €</span>
-            <span>OFFEN: 1.200 €</span>
+            <span>Erhalten: 12.450 €</span>
+            <span>Offen: 1.200 €</span>
           </div>
         </div>
       </div>
@@ -214,7 +214,7 @@ export default function NebenkostenBento() {
               transition={{ duration: 0.5, delay: index * 0.1 }}
               viewport={{ once: true }}
               className={cn(
-                "group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500",
+                "group relative rounded-[3.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-shadow duration-500",
                 feature.colSpan
               )}
             >
@@ -235,7 +235,7 @@ export default function NebenkostenBento() {
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                       <feature.icon size={20} />
                     </div>
-                    <span className="text-xs font-bold uppercase tracking-widest text-primary/60">
+                    <span className="text-xs font-semibold text-primary">
                       {feature.subtitle}
                     </span>
                   </div>

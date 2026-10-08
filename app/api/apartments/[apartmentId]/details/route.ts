@@ -1,5 +1,4 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { createRequestLogger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
@@ -9,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ apartmentId: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { apartmentId } = await params;
 
     if (!apartmentId) {
@@ -60,9 +59,10 @@ export async function GET(
 
     // Fetch current tenant (if any)
     const today = new Date().toISOString();
+    // Nur die benötigten Spalten; das Altfeld "kaution" wird bewusst nicht gelesen.
     const { data: tenant, error: tenantError } = await supabase
       .from('Mieter')
-      .select('*')
+      .select('id, name, email, telefonnummer, einzug, auszug, notiz')
       .eq('wohnung_id', apartmentId)
       .or(`auszug.is.null,auszug.gt.${today}`)
       .order('einzug', { ascending: false })

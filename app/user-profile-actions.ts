@@ -32,6 +32,11 @@ export interface UserProfileForSettings extends SupabaseProfile {
   } | null | undefined;
   hasActiveSubscription: boolean;
   currentWohnungenCount: number;
+  // Pre-computed storage statistics of the organisation (Organisation.speicher_bytes / dokumente_anzahl),
+  // only set when requested with `includeStorage` and loaded successfully
+  storage?: { usedBytes: number; documentCount: number };
+  // Plan storage limit in bytes: 0 = no storage included, null = unlimited, undefined = unknown (plan lookup failed)
+  storageLimit?: number | null;
   // Explicitly add fields expected by SettingsModal and other parts of the system
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
@@ -41,7 +46,11 @@ export interface UserProfileForSettings extends SupabaseProfile {
   stripe_cancel_at_period_end?: boolean | null;
 }
 
-export async function getUserProfileForSettings(): Promise<UserProfileForSettings | { error: string; details?: any }> {
+export async function getUserProfileForSettings(
+  options?: { includeStorage?: boolean }
+): Promise<UserProfileForSettings | { error: string; details?: any }> {
+  // Arguments of a Server Action come from the client, so `options` may be null
+  const includeStorage = options?.includeStorage === true;
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
@@ -62,24 +71,42 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
       return { error: 'Profile not found', details: profileError?.message };
     }
 
-    // Use the new utility function to get the count of Wohnungen
-    const currentWohnungenCount = await getCurrentWohnungenCount(supabase, user.id);
+    const planExpected = !!profile.stripe_price_id &&
+      (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing');
 
-    let planDetails = null;
-    if (profile.stripe_price_id &&
-      (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing')) {
+    const loadPlanDetails = async () => {
+      if (!planExpected) return null;
       try {
-        planDetails = await getPlanDetails(profile.stripe_price_id);
+        return await getPlanDetails(profile.stripe_price_id!);
       } catch (stripeError) {
         console.error('Stripe API error in getUserProfileForSettings:', stripeError);
         // Not returning error here, just means plan details couldn't be fetched
         // The client can decide how to handle missing planDetails
+        return null;
       }
+    };
+
+    // The three lookups are independent of each other
+    const [currentWohnungenCount, storageResult, planDetails] = await Promise.all([
+      getCurrentWohnungenCount(supabase, user.id),
+      includeStorage ? supabase.rpc('get_organisation_storage_stats') : Promise.resolve(null),
+      loadPlanDetails(),
+    ]);
+
+    // Stays undefined when not requested or when the lookup failed, so a failure is not shown as "0 B"
+    let storage: UserProfileForSettings['storage'];
+    if (storageResult?.error) {
+      console.error('Storage stats error in getUserProfileForSettings:', storageResult.error);
+    } else if (storageResult?.data?.[0]) {
+      const row = storageResult.data[0];
+      storage = { usedBytes: row.speicher_bytes, documentCount: row.dokumente_anzahl };
     }
 
-    const hasActiveSubscription = !!planDetails &&
-      (profile.stripe_subscription_status === 'active' ||
-        profile.stripe_subscription_status === 'trialing');
+    // Unknown (undefined) when a plan was expected but could not be loaded, e.g. because of a Stripe error
+    const storageLimit = planDetails ? planDetails.storageLimit : planExpected ? undefined : 0;
+
+    // planDetails is only loaded for an active or trialing subscription
+    const hasActiveSubscription = !!planDetails;
 
     // Construct the response, ensuring it matches UserProfileForSettings
     const responseData: UserProfileForSettings = {
@@ -89,6 +116,8 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
       activePlan: planDetails,
       hasActiveSubscription,
       currentWohnungenCount,
+      storage,
+      storageLimit,
     };
 
     return responseData;
