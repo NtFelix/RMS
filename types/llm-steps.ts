@@ -1,0 +1,20 @@
+export type StepStatus = "pending" | "loading" | "done" | "error";
+export type StepType = "thinking" | "tool_call" | "generating" | "complete";
+
+export interface LLMStep {
+  id: string;
+  type: StepType;
+  label: string;
+  detail?: string;
+  status: StepStatus;
+  startedAt?: number;
+  duration?: number;
+  toolResult?: ToolCallRecord;
+}
+
+export interface ToolCallRecord {
+  name: string;
+  args: Record<string, unknown> | undefined;
+  result?: Record<string, unknown>;
+  error?: string | null;
+}

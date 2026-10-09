@@ -86,7 +86,7 @@ describe('SummaryCard', () => {
     render(<SummaryCard {...defaultProps} onClick={onClickMock} />);
     
     // Find the card container (the one with the onClick handler)
-    const card = screen.getByText('Total Rent').closest('[class*="cursor-pointer"]');
+    const card = screen.getByText('Total Rent').closest('div[class*="rounded-3xl"]');
     expect(card).toHaveClass('cursor-pointer');
   });
 
@@ -94,7 +94,7 @@ describe('SummaryCard', () => {
     render(<SummaryCard {...defaultProps} />);
     
     // Find the card container
-    const card = screen.getByText('Total Rent').closest('[class*="rounded-2xl"]');
+    const card = screen.getByText('Total Rent').closest('div[class*="rounded-3xl"]');
     expect(card).not.toHaveClass('cursor-pointer');
   });
 
@@ -102,7 +102,7 @@ describe('SummaryCard', () => {
     render(<SummaryCard {...defaultProps} className="custom-class" />);
     
     // Find the card container
-    const card = screen.getByText('Total Rent').closest('[class*="custom-class"]');
+    const card = screen.getByText('Total Rent').closest('div[class*="rounded-3xl"]');
     expect(card).toHaveClass('custom-class');
   });
 
@@ -227,7 +227,7 @@ describe('SummaryCard', () => {
     const onClickMock = jest.fn();
     render(<SummaryCard {...defaultProps} onClick={onClickMock} />);
     
-    const card = screen.getByText('Total Rent').closest('[class*="hover:scale-"]');
+    const card = screen.getByText('Total Rent').closest('div[class*="rounded-3xl"]');
     expect(card).toHaveClass('hover:scale-[1.02]');
   });
 });

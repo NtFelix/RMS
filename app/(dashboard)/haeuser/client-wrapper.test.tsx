@@ -1,11 +1,16 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import HaeuserClientView from './client-wrapper';
 import { House } from '@/components/tables/house-table';
 import { useModalStore } from '@/hooks/use-modal-store';
+import { starteLoeschenMitKautionen } from '@/lib/kautionen-loeschen';
 
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store');
+jest.mock('@/lib/kautionen-loeschen', () => ({
+  // Standard: keine gebuchte Kaution betroffen -> die übliche Frage wird gezeigt
+  starteLoeschenMitKautionen: jest.fn(async (_tabelle, _ids, handlers) => handlers.einfach()),
+}));
 jest.mock('@/components/houses/house-filters', () => ({
   HouseFilters: ({ onFilterChange, onSearchChange }: any) => (
     <div data-testid="house-filters">
@@ -22,7 +27,7 @@ jest.mock('@/components/houses/house-filters', () => ({
 }));
 
 jest.mock('@/components/tables/house-table', () => ({
-  HouseTable: ({ filter, searchQuery, onEdit, initialHouses, reloadRef }: any) => (
+  HouseTable: ({ filter, searchQuery, onEdit, initialHouses, reloadRef, onSelectionChange }: any) => (
     <div data-testid="house-table">
       <div data-testid="filter-value">{filter}</div>
       <div data-testid="search-value">{searchQuery}</div>
@@ -33,11 +38,13 @@ jest.mock('@/components/tables/house-table', () => ({
           <button onClick={() => onEdit(house)} data-testid={`edit-${house.id}`}>Edit</button>
         </div>
       ))}
+      <button onClick={() => onSelectionChange?.(new Set(['1']))} data-testid="select-1">Select</button>
       <button onClick={() => reloadRef?.current?.()} data-testid="reload-table">Reload</button>
     </div>
   ),
 }));
 
+const mockStart = starteLoeschenMitKautionen as jest.Mock;
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 
 describe('HaeuserClientView', () => {
@@ -398,6 +405,56 @@ describe('HaeuserClientView', () => {
 
       expect(screen.getByTestId('houses-count')).toHaveTextContent('1');
       expect(screen.getByText('Complete House')).toBeInTheDocument();
+    });
+  });
+
+  describe('Bulk delete with Kautionen overview', () => {
+    const mockFetch = global.fetch as jest.Mock;
+
+    const waehleUndKlickeLoeschen = async (user: ReturnType<typeof userEvent.setup>) => {
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
+      await user.click(screen.getByTestId('select-1'));
+      await user.click(screen.getByRole('button', { name: /Löschen \(1\)/ }));
+    };
+
+    beforeEach(() => {
+      mockFetch.mockClear();
+      mockFetch.mockImplementation(() =>
+        Promise.resolve(Response.json({ successCount: 1, reasons: [] }))
+      );
+    });
+
+    it('loads the impact first, then asks the usual question and sends empty checksums', async () => {
+      const user = userEvent.setup();
+      await waehleUndKlickeLoeschen(user);
+
+      await user.click(await screen.findByRole('button', { name: '1 Häuser löschen' }));
+
+      await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/haeuser/bulk-delete', expect.any(Object)));
+      expect(mockStart).toHaveBeenCalledWith('Haeuser', ['1'], expect.any(Object));
+      expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({ ids: ['1'], pruefsummen: {} });
+      // Nach einer Löschung wird die Auswahl zurückgesetzt
+      await waitFor(() => expect(screen.queryByRole('button', { name: /Löschen \(1\)/ })).not.toBeInTheDocument());
+    });
+
+    it('with booked deposits: no second question, the confirmed overview sends its checksums', async () => {
+      mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ '1': 'abc' }));
+      await waehleUndKlickeLoeschen(userEvent.setup());
+
+      await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/haeuser/bulk-delete', expect.any(Object)));
+      expect(screen.queryByRole('button', { name: '1 Häuser löschen' })).not.toBeInTheDocument();
+      expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({ ids: ['1'], pruefsummen: { '1': 'abc' } });
+      await waitFor(() => expect(screen.queryByRole('button', { name: /Löschen \(1\)/ })).not.toBeInTheDocument());
+    });
+
+    it('deletes nothing, shows no question and keeps the selection when the overview is cancelled', async () => {
+      mockStart.mockImplementationOnce(async () => undefined);
+      await waehleUndKlickeLoeschen(userEvent.setup());
+
+      await waitFor(() => expect(mockStart).toHaveBeenCalledWith('Haeuser', ['1'], expect.any(Object)));
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(screen.queryByRole('button', { name: '1 Häuser löschen' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Löschen \(1\)/ })).toBeInTheDocument();
     });
   });
 });

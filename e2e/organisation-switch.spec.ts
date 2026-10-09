@@ -7,8 +7,8 @@ test.describe('Organisation Switcher E2E', () => {
     await login(page);
     await acceptCookieConsent(page);
 
-    console.log("Locating user menu trigger...");
-    const userMenuTrigger = page.locator('[aria-label="User menu"], [data-dropdown-trigger]').first();
+    console.log("Locating organisation menu trigger...");
+    const userMenuTrigger = page.locator('[aria-label="Organisation menu"], [data-org-switcher-trigger], [aria-label="User menu"]').first();
     await expect(userMenuTrigger).toBeVisible({ timeout: 15000 });
 
     console.log("Opening user menu...");

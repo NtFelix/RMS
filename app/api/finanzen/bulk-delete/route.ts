@@ -1,14 +1,13 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
-export const runtime = 'edge';
 
 export async function POST(
   request: NextRequest
 ): Promise<NextResponse> {
   try {
-    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    const { requireApiPermission } = await import("@/lib/api-permissions");
     await requireApiPermission('finanzen', 'loeschen');
 
     const { ids } = await request.json();
@@ -20,7 +19,7 @@ export async function POST(
       );
     }
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     // Fetch wohnung_ids of the records to check
     const { data: recordsToCheck, error: fetchError } = await supabase
@@ -42,16 +41,23 @@ export async function POST(
       }
     }
     
-    // Delete all selected finance records in a single transaction
-    const { data, error } = await supabase
-      .from('Finanzen')
-      .delete()
-      .in('id', ids);
-      
-    if (error) {
-      console.error('Bulk delete error:', error);
+    // Delete all selected finance records concurrently
+    try {
+      await Promise.all(
+        ids.map(async (id) => {
+          const { error } = await supabase.rpc('soft_delete_record', {
+            p_table_name: 'Finanzen',
+            p_record_id: id,
+          });
+          if (error) {
+            console.error("Supabase Bulk Delete Error for Finanzen:", id, error);
+            throw new Error(error.message);
+          }
+        })
+      );
+    } catch (error: any) {
       return NextResponse.json(
-        { error: 'Fehler beim Löschen der Transaktionen' }, 
+        { error: error.message },
         { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
