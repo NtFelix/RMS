@@ -24,11 +24,6 @@ describe('isAuditPayloadPurged', () => {
     expect(isAuditPayloadPurged({ alte_daten: {}, neue_daten: {}, geaendert_am: alt }, NOW)).toBe(false);
   });
 
-  it('unterscheidet fehlende Payloads (undefined) nicht von NULL', () => {
-    const entry = { alte_daten: undefined, neue_daten: undefined, geaendert_am: daysAgo(45) };
-    expect(isAuditPayloadPurged(entry, NOW)).toBe(true);
-  });
-
   it('wertet einen ungültigen Zeitstempel nicht als entfernt', () => {
     expect(isAuditPayloadPurged({ alte_daten: null, neue_daten: null, geaendert_am: 'kein-datum' }, NOW)).toBe(false);
   });

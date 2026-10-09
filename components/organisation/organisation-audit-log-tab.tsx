@@ -186,20 +186,7 @@ const ZAEHLER_LABEL_MAP: Record<string, string> = {
 };
 
 // Simple diff view
-function SimpleDiff({ aktion, alteDaten, neueDaten, geaendertAm }: { aktion: string; alteDaten: any; neueDaten: any; geaendertAm: string }) {
-  // Die Datenbank entfernt die Feldwerte nach 30 Tagen (Audit-Log-Aufbewahrung); ohne Hinweis wirkte das wie "nichts geändert".
-  if (isAuditPayloadPurged({ alte_daten: alteDaten, neue_daten: neueDaten, geaendert_am: geaendertAm })) {
-    return (
-      <div className="flex items-start gap-2 p-4 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 text-sm text-muted-foreground/70">
-        <Info className="size-4 shrink-0 mt-0.5 text-muted-foreground/40" />
-        <span>
-          Die geänderten Feldwerte werden nach {AUDIT_PAYLOAD_RETENTION_DAYS} Tagen aus Datenschutzgründen entfernt und sind für diesen Eintrag nicht mehr verfügbar.
-          Wer wann welchen Datensatz geändert hat, bleibt weiterhin nachvollziehbar.
-        </span>
-      </div>
-    );
-  }
-
+function SimpleDiff({ aktion, alteDaten, neueDaten }: { aktion: string; alteDaten: any; neueDaten: any }) {
   const oldObj = alteDaten || {};
   const newObj = neueDaten || {};
 
@@ -1289,12 +1276,21 @@ Audit-Log
                       <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
                         Änderungen
                       </div>
-                      <SimpleDiff 
-                        aktion={detailedLog.aktion} 
-                        alteDaten={detailedLog.alte_daten} 
-                        neueDaten={detailedLog.neue_daten}
-                        geaendertAm={detailedLog.geaendert_am}
-                      />
+                      {isAuditPayloadPurged(detailedLog) ? (
+                        <div className="flex items-start gap-2 p-4 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 text-sm text-muted-foreground/70">
+                          <Info className="size-4 shrink-0 mt-0.5 text-muted-foreground/40" />
+                          <span>
+                            Die geänderten Feldwerte werden nach {AUDIT_PAYLOAD_RETENTION_DAYS} Tagen aus Datenschutzgründen entfernt und sind für diesen Eintrag nicht mehr verfügbar.
+                            Wer wann welchen Datensatz geändert hat, bleibt weiterhin nachvollziehbar.
+                          </span>
+                        </div>
+                      ) : (
+                        <SimpleDiff
+                          aktion={detailedLog.aktion}
+                          alteDaten={detailedLog.alte_daten}
+                          neueDaten={detailedLog.neue_daten}
+                        />
+                      )}
                     </div>
                   </div>
                 ) : (
