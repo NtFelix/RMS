@@ -114,13 +114,15 @@ const CURRENCY_FORMATTER = new Intl.NumberFormat('de-DE', {
   maximumFractionDigits: 0 
 });
 
+const EMPTY_WOHNUNGEN: Wohnung[] = [];
+const EMPTY_AVAILABLE_YEARS: number[] = [];
 const VALID_FINANZEN_TABS = ["finance", "overview"] as const;
 
 export default function FinanzenClientWrapper({
   finances: initialFinances,
-  wohnungen = [],
+  wohnungen = EMPTY_WOHNUNGEN,
   summaryData: initialSummaryData,
-  initialAvailableYears = [],
+  initialAvailableYears = EMPTY_AVAILABLE_YEARS,
   initialYear,
   isUsingFallbackYear = false,
   currentYear = new Date().getFullYear(),
@@ -198,9 +200,7 @@ export default function FinanzenClientWrapper({
     fetchTenantPayments();
   }, [currentTab, tenantPaymentsData.length]);
 
-  const monthlyChartSource = useMemo(() => {
-    return chartFinances.length > 0 ? chartFinances : finData;
-  }, [chartFinances, finData]);
+  const monthlyChartSource = chartFinances.length > 0 ? chartFinances : finData;
 
   // Compute stats for finance dashboard overview
   const financeStats = useMemo(() => {
@@ -688,9 +688,11 @@ export default function FinanzenClientWrapper({
   }, [wohnungen, handleSuccess]);
 
   const refreshFinances = useCallback(async () => {
-    await loadMoreTransactions(true);
-    await refreshSummaryData();
-    await fetchBalance();
+    await Promise.all([
+      loadMoreTransactions(true),
+      refreshSummaryData(),
+      fetchBalance(),
+    ]);
   }, [loadMoreTransactions, refreshSummaryData, fetchBalance]);
 
   // Constants for filter options
@@ -1333,11 +1335,11 @@ export default function FinanzenClientWrapper({
                 <div className="flex flex-col gap-2.5 overflow-y-auto pr-2 custom-scrollbar h-[250px]">
                   {unitProfitability
                     .filter(u => u.name.toLowerCase().includes(unitSearch.toLowerCase()))
-                    .map((unit, idx) => {
+                    .map((unit) => {
                       const isProfitable = unit.netProfit >= 0;
                       return (
                         <div 
-                          key={idx}
+                          key={unit.id}
                           className="group flex items-center justify-between gap-4 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 hover:shadow-xs transition-all duration-200"
                         >
                           <div className="flex items-center gap-3">
