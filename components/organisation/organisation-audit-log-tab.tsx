@@ -33,6 +33,7 @@ import { toast } from "@/hooks/use-toast";
 import { AuditLogDetailSkeleton } from "./organisation-loading-skeletons";
 import { MODULE_CONFIG, ACTION_CONFIG, getTableIcon } from "@/lib/organisation/permission-utils";
 import { AUDIT_MASKED_PLACEHOLDER, isMaskedAuditValue } from "@/lib/organisation/audit-masking";
+import { AUDIT_PAYLOAD_RETENTION_DAYS, isAuditPayloadPurged } from "@/lib/organisation/audit-retention";
 
 interface AuditLogSummary {
   id: string;
@@ -1080,6 +1081,7 @@ Audit-Log
                   <TableCell colSpan={6} className="h-36 text-center text-xs text-muted-foreground">
                     <Info className="size-6 mx-auto mb-1.5 text-zinc-400 stroke-1" />
                     Keine Logs gefunden.
+                    <span className="block mt-1 text-[11px] text-muted-foreground/70">Einträge werden nach 90 Tagen gelöscht.</span>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -1275,11 +1277,21 @@ Audit-Log
                       <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
                         Änderungen
                       </div>
-                      <SimpleDiff 
-                        aktion={detailedLog.aktion} 
-                        alteDaten={detailedLog.alte_daten} 
-                        neueDaten={detailedLog.neue_daten} 
-                      />
+                      {isAuditPayloadPurged(detailedLog) ? (
+                        <div className="flex items-start gap-2 p-4 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 text-sm text-muted-foreground/70">
+                          <Info className="size-4 shrink-0 mt-0.5 text-muted-foreground/40" />
+                          <span>
+                            Die geänderten Feldwerte werden nach {AUDIT_PAYLOAD_RETENTION_DAYS} Tagen aus Datenschutzgründen entfernt und sind für diesen Eintrag nicht mehr verfügbar.
+                            Wer wann welchen Datensatz geändert hat, bleibt weiterhin nachvollziehbar.
+                          </span>
+                        </div>
+                      ) : (
+                        <SimpleDiff
+                          aktion={detailedLog.aktion}
+                          alteDaten={detailedLog.alte_daten}
+                          neueDaten={detailedLog.neue_daten}
+                        />
+                      )}
                     </div>
                   </div>
                 ) : (
