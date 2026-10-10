@@ -42,6 +42,8 @@ const TemplatesModal = dynamic(() => import('@/components/templates/templates-mo
 const TenantMailTemplatesModal = dynamic(() => import('@/components/tenants/tenant-mail-templates-modal').then(mod => mod.TenantMailTemplatesModal), { ssr: false })
 const OperatingCostsOverviewModal = dynamic(() => import('@/components/finance/operating-costs-overview-modal').then(mod => mod.OperatingCostsOverviewModal), { ssr: false })
 const TrashBinModal = dynamic(() => import('@/components/trash-bin/trash-bin-modal').then(mod => mod.TrashBinModal), { ssr: false })
+const AbrechnungVersandModal = dynamic(() => import('@/components/finance/abrechnung-versand-modal').then(mod => mod.AbrechnungVersandModal), { ssr: false })
+const VorauszahlungUebernehmenModal = dynamic(() => import('@/components/finance/vorauszahlung-uebernehmen-modal').then(mod => mod.VorauszahlungUebernehmenModal), { ssr: false })
 // Default exports
 const TenantPaymentEditModal = dynamic(() => import('@/components/tenants/tenant-payment-edit-modal'), { ssr: false })
 const TenantPaymentOverviewModal = dynamic(() => import('@/components/tenants/tenant-payment-overview-modal'), { ssr: false })
@@ -112,6 +114,10 @@ export default function DashboardInnerLayout({
 
     // Trash Bin Modal State
     isTrashBinModalOpen,
+
+    // Abrechnung-Versand (GH-23)
+    isAbrechnungVersandModalOpen,
+    isVorauszahlungUebernehmenModalOpen,
 
     // Löschen mit Kautionsübersicht
     isLoeschUebersichtOpen,
@@ -266,6 +272,9 @@ export default function DashboardInnerLayout({
         )}
         {/* Trash Bin Modal */}
         {isTrashBinModalOpen && <TrashBinModal />}
+        {/* Abrechnung-Versand: mounted only while open, so the templates load on demand */}
+        {isAbrechnungVersandModalOpen && <AbrechnungVersandModal />}
+        {isVorauszahlungUebernehmenModalOpen && <VorauszahlungUebernehmenModal />}
         {/* Global Confirmation Dialog */}
         {isConfirmationModalOpen && confirmationModalConfig && (
           <ConfirmationDialog

@@ -1,19 +1,27 @@
-import { Mail, FileText, MoreHorizontal } from 'lucide-react';
+import { Mail, FileText, MoreHorizontal, Receipt } from 'lucide-react';
 import React from 'react';
 
 // Template categories for German property management
 export const TEMPLATE_CATEGORIES = [
   'Mail',
   'Dokumente',
-  'Sonstiges'
+  'Sonstiges',
+  'Betriebskostenabrechnung'
 ] as const;
 
 export type TemplateCategory = typeof TEMPLATE_CATEGORIES[number];
+
+/** Mail template sent with the Nebenkostenabrechnung; knows the Abrechnung and Vorauszahlung variables */
+export const BETRIEBSKOSTENABRECHNUNG_CATEGORY: TemplateCategory = 'Betriebskostenabrechnung';
+
+/** Template categories that can be opened as a mail */
+export const MAIL_TEMPLATE_CATEGORIES: readonly TemplateCategory[] = ['Mail', BETRIEBSKOSTENABRECHNUNG_CATEGORY];
 
 export const TEMPLATE_ICON_MAP: Record<string, React.ElementType> = {
   Mail,
   FileText,
   MoreHorizontal,
+  Receipt,
 };
 
 export const TEMPLATE_TYPE_CONFIGS: Record<TemplateCategory, { icon: string; label: string; description: string; color: { text: string; full: string } }> = {
@@ -42,6 +50,16 @@ export const TEMPLATE_TYPE_CONFIGS: Record<TemplateCategory, { icon: string; lab
     color: {
       text: 'text-slate-600 dark:text-slate-400',
       full: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 dark:bg-slate-500/20'
+    },
+  },
+  'Betriebskostenabrechnung': {
+    icon: 'Receipt',
+    // Soft hyphen: the long word may break as "Betriebskosten-abrechnung" in narrow cards
+    label: 'Betriebskosten\u00ADabrechnung',
+    description: 'Für den Versand der Abrechnung, optional mit Vorauszahlungserhöhung.',
+    color: {
+      text: 'text-emerald-600 dark:text-emerald-400',
+      full: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-500/20'
     },
   },
 };
@@ -91,6 +109,20 @@ export const CATEGORY_CONFIGS: Record<string, CategoryConfig> = {
     color: 'text-indigo-600',
     order: 5,
   },
+  abrechnung: {
+    id: 'abrechnung',
+    label: 'Abrechnung',
+    icon: 'Receipt',
+    color: 'text-emerald-600',
+    order: 6,
+  },
+  vorauszahlung: {
+    id: 'vorauszahlung',
+    label: 'Vorauszahlung',
+    icon: 'TrendingUp',
+    color: 'text-teal-600',
+    order: 7,
+  },
 };
 
 // Mention variables for TipTap editor
@@ -98,7 +130,7 @@ export interface MentionVariable {
   id: string;
   label: string;
   description: string;
-  category?: 'mieter' | 'wohnung' | 'haus' | 'datum' | 'vermieter' | 'eigentuemer';
+  category?: 'mieter' | 'wohnung' | 'haus' | 'datum' | 'vermieter' | 'eigentuemer' | 'abrechnung' | 'vorauszahlung';
   keywords?: string[]; // Additional search terms for better discoverability
   icon?: string; // Optional icon for visual distinction
 }
@@ -203,6 +235,14 @@ export const MENTION_VARIABLES: MentionVariable[] = [
     keywords: ['größe', 'size', 'fläche', 'quadratmeter', 'm²', 'wohnfläche'],
     icon: 'Ruler'
   },
+  {
+    id: 'wohnung.bezeichnung',
+    label: 'Wohnung.Bezeichnung',
+    description: 'Bezeichnung bzw. Name der Wohnung (z.B. EG links)',
+    category: 'wohnung',
+    keywords: ['bezeichnung', 'name', 'wohnung', 'einheit', 'apartment'],
+    icon: 'Home'
+  },
 
   // Haus (House) variables
   {
@@ -258,6 +298,22 @@ export const MENTION_VARIABLES: MentionVariable[] = [
     icon: 'UserCheck'
   },
   {
+    id: 'vermieter.vorname',
+    label: 'Vermieter.Vorname',
+    description: 'Vorname des Vermieters',
+    category: 'vermieter',
+    keywords: ['vorname', 'firstname', 'vermieter', 'landlord'],
+    icon: 'UserCheck'
+  },
+  {
+    id: 'vermieter.nachname',
+    label: 'Vermieter.Nachname',
+    description: 'Nachname des Vermieters',
+    category: 'vermieter',
+    keywords: ['nachname', 'lastname', 'familienname', 'vermieter', 'landlord'],
+    icon: 'UserCheck'
+  },
+  {
     id: 'vermieter.adresse',
     label: 'Vermieter.Adresse',
     description: 'Geschäftsadresse des Vermieters oder der Verwaltung',
@@ -281,7 +337,82 @@ export const MENTION_VARIABLES: MentionVariable[] = [
     keywords: ['email', 'mail', 'kontakt', 'geschäft', 'verwaltung'],
     icon: 'Mail'
   },
+
+  // Abrechnung (Nebenkostenabrechnung) variables, only in Betriebskostenabrechnung templates
+  {
+    id: 'abrechnung.zeitraum',
+    label: 'Abrechnung.Zeitraum',
+    description: 'Abrechnungszeitraum der Nebenkostenabrechnung (z.B. 1.1.2025 – 31.12.2025)',
+    category: 'abrechnung',
+    keywords: ['zeitraum', 'abrechnungszeitraum', 'periode', 'abrechnung', 'jahr'],
+    icon: 'Calendar'
+  },
+  {
+    id: 'abrechnung.nachzahlung',
+    label: 'Abrechnung.Nachzahlung',
+    description: 'Nachzahlungsbetrag des Mieters, leer bei Guthaben',
+    category: 'abrechnung',
+    keywords: ['nachzahlung', 'betrag', 'abrechnung', 'zahlung', 'offen'],
+    icon: 'Receipt'
+  },
+  {
+    id: 'abrechnung.guthaben',
+    label: 'Abrechnung.Guthaben',
+    description: 'Guthaben des Mieters, leer bei Nachzahlung',
+    category: 'abrechnung',
+    keywords: ['guthaben', 'erstattung', 'betrag', 'abrechnung', 'rückzahlung'],
+    icon: 'Receipt'
+  },
+
+  // Vorauszahlung variables, only in Betriebskostenabrechnung templates
+  {
+    id: 'vorauszahlung.satz',
+    label: 'Vorauszahlung.Satz',
+    description: 'Der Satz zur Vorauszahlungserhöhung aus der Vorlage; entfällt ohne Erhöhung',
+    category: 'vorauszahlung',
+    keywords: ['satz', 'erhöhung', 'vorauszahlung', 'anpassung', 'absatz'],
+    icon: 'TrendingUp'
+  },
+  {
+    id: 'vorauszahlung.alter_betrag',
+    label: 'Vorauszahlung.Alter_Betrag',
+    description: 'Bisherige monatliche Nebenkosten-Vorauszahlung',
+    category: 'vorauszahlung',
+    keywords: ['alt', 'bisher', 'betrag', 'vorauszahlung', 'monatlich'],
+    icon: 'TrendingUp'
+  },
+  {
+    id: 'vorauszahlung.neuer_betrag',
+    label: 'Vorauszahlung.Neuer_Betrag',
+    description: 'Neue monatliche Nebenkosten-Vorauszahlung',
+    category: 'vorauszahlung',
+    keywords: ['neu', 'erhöhung', 'betrag', 'vorauszahlung', 'monatlich'],
+    icon: 'TrendingUp'
+  },
+  {
+    id: 'vorauszahlung.ab_datum',
+    label: 'Vorauszahlung.Ab_Datum',
+    description: 'Datum, ab dem die neue Vorauszahlung gilt',
+    category: 'vorauszahlung',
+    keywords: ['datum', 'ab', 'gültig', 'vorauszahlung', 'beginn'],
+    icon: 'Calendar'
+  },
 ];
+
+/** Variable categories that only Betriebskostenabrechnung templates know */
+const ABRECHNUNG_ONLY_VARIABLE_CATEGORIES: ReadonlyArray<MentionVariable['category']> = ['abrechnung', 'vorauszahlung'];
+
+/** The Vorauszahlung sentence itself; it may use these variables, but never itself */
+export const VORAUSZAHLUNG_SATZ_VARIABLE_ID = 'vorauszahlung.satz';
+export const VORAUSZAHLUNG_SATZ_VARIABLES: MentionVariable[] = MENTION_VARIABLES.filter(
+  variable => variable.category === 'vorauszahlung' && variable.id !== VORAUSZAHLUNG_SATZ_VARIABLE_ID
+);
+
+/** Variables the editor offers and validation accepts for a template category */
+export const getMentionVariablesForTemplateCategory = (category?: string | null): MentionVariable[] =>
+  category === BETRIEBSKOSTENABRECHNUNG_CATEGORY
+    ? MENTION_VARIABLES
+    : MENTION_VARIABLES.filter(variable => !ABRECHNUNG_ONLY_VARIABLE_CATEGORIES.includes(variable.category));
 
 // Helper function to get variables by category
 export const getMentionVariablesByCategory = (category?: string) => {
