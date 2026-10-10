@@ -16,7 +16,8 @@ import {
   KautionFormularFehler,
   useDirtyMelder,
 } from "@/components/kaution/kaution-feld";
-import { KAUTION_ART_LABELS, KAUTION_ARTEN_VERFUEGBAR, KAUTION_TEXT_LIMITS } from "@/lib/kautionen-constants";
+import { useKautionFlag } from "@/hooks/use-kaution-flag";
+import { KAUTION_ART_LABELS, KAUTION_TEXT_LIMITS } from "@/lib/kautionen-constants";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
 import { getMoneyInputError } from "@/lib/kautionen-money";
 import { validateKautionText } from "@/lib/kautionen-validation";
@@ -47,8 +48,6 @@ interface FeldFehler {
   notiz?: string;
 }
 
-const STANDARD_ART: KautionArt = KAUTION_ARTEN_VERFUEGBAR[0] ?? "barkaution";
-
 export function KautionAnlegenForm({
   tenantId,
   vorschlag,
@@ -59,11 +58,14 @@ export function KautionAnlegenForm({
   onDirtyChange,
 }: KautionAnlegenFormProps) {
   const basisId = useId();
+  // Offered types: payload of the flag intersected with what the RPCs release (never empty).
+  const { arten } = useKautionFlag();
+  const standardArt: KautionArt = arten[0] ?? "barkaution";
   const vorschlagBetrag = vorschlag?.vorschlag_betrag ?? null;
 
   // The suggestion is only the starting value: the user may change it freely.
   const [startWert] = useState(() => betragZuEingabe(vorschlagBetrag));
-  const [art, setArt] = useState<KautionArt>(STANDARD_ART);
+  const [art, setArt] = useState<KautionArt>(standardArt);
   const [soll, setSoll] = useState(startWert);
   const [miete, setMiete] = useState("");
   const [notiz, setNotiz] = useState("");
@@ -72,10 +74,10 @@ export function KautionAnlegenForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
-  const isDirty = soll !== startWert || miete !== "" || notiz !== "" || art !== STANDARD_ART;
+  const isDirty = soll !== startWert || miete !== "" || notiz !== "" || art !== standardArt;
   useDirtyMelder(isDirty, onDirtyChange);
 
-  const mehrereArten = KAUTION_ARTEN_VERFUEGBAR.length > 1;
+  const mehrereArten = arten.length > 1;
   const gesperrt = !darfErstellen || isSubmitting;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -146,7 +148,7 @@ export function KautionAnlegenForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {KAUTION_ARTEN_VERFUEGBAR.map((verfuegbar) => (
+                  {arten.map((verfuegbar) => (
                     <SelectItem key={verfuegbar} value={verfuegbar}>
                       {KAUTION_ART_LABELS[verfuegbar]}
                     </SelectItem>
@@ -158,7 +160,7 @@ export function KautionAnlegenForm({
         ) : (
           <div className="space-y-1.5">
             <p className="text-sm font-medium leading-none">Kautionsart</p>
-            <p className="text-sm">{KAUTION_ART_LABELS[STANDARD_ART]}</p>
+            <p className="text-sm">{KAUTION_ART_LABELS[standardArt]}</p>
           </div>
         )}
 

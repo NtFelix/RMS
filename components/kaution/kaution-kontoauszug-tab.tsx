@@ -5,6 +5,7 @@ import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, ChevronRight, Minus, Plu
 import type { LucideIcon } from "lucide-react";
 import type { KautionActionError } from "@/app/kautionen-actions";
 import { Badge } from "@/components/ui/badge";
+import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import { Button } from "@/components/ui/button";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,7 +15,6 @@ import { formatBetrag, formatDatum } from "@/components/kaution/kaution-format";
 import { KautionStornoDialog } from "@/components/kaution/kaution-storno-dialog";
 import {
   KAUTION_ABZUG_KATEGORIE_LABELS,
-  KAUTION_BEWEGUNGSARTEN_VERFUEGBAR,
   KAUTION_BEWEGUNGSART_LABELS,
   KAUTION_BUCHUNG_TITEL,
 } from "@/lib/kautionen-constants";
@@ -78,6 +78,7 @@ export function KautionKontoauszugTab({
   onBuchungDirtyChange,
   onVerwerfenBestaetigen,
 }: KautionKontoauszugTabProps) {
+  const { bewegungsarten } = useKautionFlag();
   const [aktiveBuchung, setAktiveBuchung] = useState<KautionBewegungsArt | null>(null);
   const [offeneZeilen, setOffeneZeilen] = useState<ReadonlySet<string>>(() => new Set());
   const [stornoZiel, setStornoZiel] = useState<KautionBewegung | null>(null);
@@ -137,7 +138,7 @@ export function KautionKontoauszugTab({
   return (
     <div className="space-y-4">
       <div role="group" aria-label="Buchung erfassen" className="flex flex-wrap gap-2">
-        {KAUTION_BEWEGUNGSARTEN_VERFUEGBAR.map((art) => {
+        {bewegungsarten.map((art) => {
           const Icon = BUCHUNG_ICONS[art];
           return (
             <ButtonWithTooltip

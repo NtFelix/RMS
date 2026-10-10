@@ -99,6 +99,7 @@ interface MieterClientViewProps {
 
 // This is the new main client component, previously MieterPageClientComponent in page.tsx
 import { useFeatureFlagEnabled } from "posthog-js/react";
+import { useKautionFlag } from "@/hooks/use-kaution-flag";
 
 const VALID_MIETER_TABS_DEFAULT = ["mieter", "overview"] as const;
 const VALID_MIETER_TABS_WITH_BEWERBER = ["mieter", "overview", "bewerber"] as const;
@@ -110,9 +111,12 @@ export default function MieterClientView({
   canCreate = true,
   canEdit = true,
   canDelete = true,
-  canViewKautionen = false,
+  canViewKautionen: kautionsrecht = false,
 }: MieterClientViewProps) {
   const router = useRouter()
+  // Kaution (GH-6): Modulrecht UND Feature Flag `advanced-kautionsmanagment` (siehe lib/kautionen-flag.ts).
+  const kautionFlag = useKautionFlag();
+  const canViewKautionen = kautionsrecht && kautionFlag.aktiv;
   const rawFlag = useFeatureFlagEnabled('applicants-tab');
   const showApplicantsTab = !!rawFlag;
   const validTabs = showApplicantsTab ? VALID_MIETER_TABS_WITH_BEWERBER : VALID_MIETER_TABS_DEFAULT;
