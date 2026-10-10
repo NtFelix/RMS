@@ -1081,6 +1081,7 @@ Audit-Log
                   <TableCell colSpan={6} className="h-36 text-center text-xs text-muted-foreground">
                     <Info className="size-6 mx-auto mb-1.5 text-zinc-400 stroke-1" />
                     Keine Logs gefunden.
+                    <span className="block mt-1 text-[11px] text-muted-foreground/70">Einträge werden nach 90 Tagen gelöscht.</span>
                   </TableCell>
                 </TableRow>
               ) : (
