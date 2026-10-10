@@ -97,7 +97,7 @@
     "pako": "^2.1.0",
     "papaparse": "^5.5.4",
     "posthog-js": "^1.390.2",
-    "posthog-node": "^5.38.0",
+    "posthog-node": "^5.55.1",
     "react": "^19.2.8",
     "react-day-picker": "^9.13.2",
     "react-dom": "^19.2.8",
