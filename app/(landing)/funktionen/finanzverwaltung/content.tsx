@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { SearchInput } from '@/components/ui/search-input';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, PieLabelRenderProps } from 'recharts';
@@ -688,14 +688,9 @@ export default function FinanceManagementPage() {
                 <div className="text-sm font-medium text-muted-foreground mb-3">Transaktionen suchen</div>
 
                 {/* Search Bar */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Nebenkostenvorauszahlung..."
-                    className="pl-10"
-                  />
-                </div>
+                <SearchInput
+                  placeholder="Nebenkostenvorauszahlung..."
+                />
 
                 {/* Results Table */}
                 <div className="mt-4">
