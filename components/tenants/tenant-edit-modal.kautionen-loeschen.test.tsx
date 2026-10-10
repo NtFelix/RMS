@@ -20,6 +20,7 @@ jest.mock('@/hooks/use-onboarding-store', () => ({
 
 jest.mock('posthog-js/react', () => ({
   useFeatureFlagEnabled: () => false,
+  useFeatureFlagPayload: () => undefined,
 }));
 
 // Stabiles Router-Objekt, damit router.refresh() prüfbar ist
