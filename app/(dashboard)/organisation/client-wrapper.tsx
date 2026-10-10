@@ -363,6 +363,16 @@ function OrganisationMembersTab({
     }
   }, [inviteEmail]);
 
+  // On narrow viewports the detail pane renders below the member table, so
+  // selecting a member can look like nothing happened. Scroll it into view
+  // whenever a member is selected.
+  const detailPaneRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selectedMemberId && detailPaneRef.current) {
+      detailPaneRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selectedMemberId]);
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
       {/* Left Pane: Unified Member List */}
@@ -525,7 +535,7 @@ function OrganisationMembersTab({
       </Card>
 
       {/* Right Pane: Detail Panel */}
-      <div className="md:col-span-2 h-[calc(100vh-180px)] overflow-y-auto pr-1 md:sticky md:top-24 scrollbar-thin">
+      <div ref={detailPaneRef} className="md:col-span-2 h-[calc(100vh-180px)] overflow-y-auto pr-1 md:sticky md:top-24 scrollbar-thin scroll-mt-24">
         {selectedItem ? (
           selectedItem.type === 'member' ? (
             <MitgliedPermissionDetail
