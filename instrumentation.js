@@ -17,10 +17,17 @@ export async function register() {
 
   // Initialize PostHog observability (OpenTelemetry-based logging + tracing)
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    // Tracing must init first: HttpInstrumentation is created there (patching http before the
+    // metrics/logger modules load), and its meter is bound to the then-no-op global provider,
+    // which keeps built-in HTTP metrics out of the PostHog metrics export.
     const { initTracing } = await import('./lib/posthog-tracing');
     initTracing();
 
-    const { initLogger, posthogLogger } = await import('./lib/posthog-logger');
+    const [{ initMetrics }, { initLogger, posthogLogger }] = await Promise.all([
+      import('./lib/posthog-metrics-init'),
+      import('./lib/posthog-logger'),
+    ]);
+    initMetrics();
     initLogger();
 
     // Log application startup
@@ -35,6 +42,17 @@ export async function register() {
 
 export const onRequestError = async (err, request, context) => {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    // Count the failure (low-cardinality attributes only)
+    try {
+      const { count } = await import('./lib/posthog-metrics');
+      count('request.errors', 1, {
+        'context.routeType': context?.routeType || 'unknown',
+        'request.method': request?.method || 'unknown',
+      });
+    } catch (metricsError) {
+      console.error('Failed to record request error metric:', metricsError);
+    }
+
     // Log to PostHog logs
     try {
       const { posthogLogger } = await import('./lib/posthog-logger');

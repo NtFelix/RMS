@@ -1,12 +1,13 @@
 import type { RechentageDetails } from "@/types/optimized-betriebskosten";
 import type { Rechenbasis } from "@/utils/rechentage";
+import type { WorkerRequestType, WorkerTemplate } from "@/lib/constants/worker";
 import type { HaeuserAddress } from "@/lib/types";
 
 export const MIETEVO_BACKEND_URL = (process.env.MIETEVO_BACKEND_URL || process.env.NEXT_PUBLIC_MIETEVO_BACKEND_URL || 'https://backend.mietevo.de').trim();
 
 const isBrowser = typeof window !== 'undefined';
 
-async function safeFetch(body: any): Promise<Response> {
+async function safeFetch(body: { type: WorkerRequestType; template?: WorkerTemplate; [key: string]: unknown }): Promise<Response> {
     const url = isBrowser ? '/api/worker' : MIETEVO_BACKEND_URL;
 
     try {

@@ -7,6 +7,7 @@ import { Nebenkosten, MeterReadingFormData, Mieter, Zaehler, ZaehlerAblesung, Wa
 import { roundToNearest5 } from "@/lib/utils";
 import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
 import { logAction } from '@/lib/logging-middleware';
+import { withTiming } from '@/lib/posthog-metrics';
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 // Import optimized types from centralized location
@@ -589,12 +590,11 @@ export async function fetchOptimizedNebenkostenById(id: string): Promise<{ succe
   }
 }
 
-export async function getNebenkostenDetailsAction(id: string): Promise<{
+async function getNebenkostenDetailsActionImpl(id: string): Promise<{
   success: boolean;
   data?: Nebenkosten | null;
   message?: string;
 }> {
-  "use server";
   try {
     let user, supabase;
     try {
@@ -1428,9 +1428,7 @@ export async function saveMeterReadingsOptimized(
  * @see {@link docs/database-functions.md#get_nebenkosten_with_metrics} Database function documentation
  * @see {@link .kiro/specs/betriebskosten-performance-optimization/design.md} Performance optimization design
  */
-export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionResponse<OptimizedNebenkosten[]>> {
-  "use server";
-
+async function fetchNebenkostenListOptimizedImpl(): Promise<OptimizedActionResponse<OptimizedNebenkosten[]>> {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
@@ -1638,11 +1636,9 @@ export async function getLatestBetriebskostenByHausId(hausId: string) {
   }
 }
 
-export async function getMeterModalDataAction(
+async function getMeterModalDataActionImpl(
   nebenkostenId: string
 ): Promise<OptimizedActionResponse<MeterModalData[]>> {
-  "use server";
-
   if (!nebenkostenId || nebenkostenId.trim() === '') {
     logger.warn('Invalid nebenkosten ID provided to getWasserzaehlerModalDataAction', {
       nebenkostenId,
@@ -2088,11 +2084,9 @@ async function resolveActualPaymentsData(
  * @see {@link docs/database-functions.md#get_abrechnung_modal_data} Database function documentation
  * @see {@link components/abrechnung-modal.tsx} Modal component that consumes this data
  */
-export async function getAbrechnungModalDataAction(
+async function getAbrechnungModalDataActionImpl(
   nebenkostenId: string
 ): Promise<OptimizedActionResponse<AbrechnungModalData>> {
-  "use server";
-
   if (!nebenkostenId || nebenkostenId.trim() === '') {
     logger.warn('Invalid nebenkosten ID provided to getAbrechnungModalDataAction', {
       nebenkostenId,
@@ -2551,7 +2545,7 @@ function detectMissingPrepaymentSchedules(
   return warning;
 }
 
-export async function createAbrechnungCalculationAction(
+async function createAbrechnungCalculationActionImpl(
   nebenkostenId: string,
   options: {
     includeRecommendations?: boolean;
@@ -2560,8 +2554,6 @@ export async function createAbrechnungCalculationAction(
     prepaymentMode?: 'scheduled' | 'actual';
   } = {}
 ): Promise<OptimizedActionResponse<AbrechnungCalculationResult>> {
-  "use server";
-
   if (!nebenkostenId || nebenkostenId.trim() === '') {
     logger.warn('Invalid nebenkosten ID provided to createAbrechnungCalculationAction', {
       nebenkostenId,
@@ -2793,7 +2785,7 @@ export async function createAbrechnungCalculationAction(
  * @param {AbrechnungCalculationOptions} options - Calculation options
  * @returns {Promise<OptimizedActionResponse<AbrechnungCalculationResult>>} Complete calculation results
  */
-export async function createAbrechnungCalculationOptimizedAction(
+async function createAbrechnungCalculationOptimizedActionImpl(
   nebenkostenId: string,
   options: {
     includeRecommendations?: boolean;
@@ -2802,8 +2794,6 @@ export async function createAbrechnungCalculationOptimizedAction(
     prepaymentMode?: 'scheduled' | 'actual';
   } = {}
 ): Promise<OptimizedActionResponse<AbrechnungCalculationResult>> {
-  "use server";
-
   if (!nebenkostenId || nebenkostenId.trim() === '') {
     logger.warn('Invalid nebenkosten ID provided to createAbrechnungCalculationOptimizedAction', {
       nebenkostenId,
@@ -2882,7 +2872,7 @@ export async function createAbrechnungCalculationOptimizedAction(
         nebenkostenId
       });
 
-      return await createAbrechnungCalculationAction(nebenkostenId, options);
+      return await createAbrechnungCalculationActionImpl(nebenkostenId, options);
     }
 
     // Extract data from database function result
@@ -3045,4 +3035,15 @@ export async function createAbrechnungCalculationOptimizedAction(
     };
   }
 }
+
+// --- Timed server actions -------------------------------------------------------------------
+// Public entry points for the heaviest actions; each records `server_action.duration` in PostHog
+// Metrics. Actions that delegate to another one (e.g. the Optimized calculation's fallback) call
+// its Impl directly, so one user call records exactly one sample.
+export const getNebenkostenDetailsAction = withTiming('getNebenkostenDetailsAction', getNebenkostenDetailsActionImpl);
+export const fetchNebenkostenListOptimized = withTiming('fetchNebenkostenListOptimized', fetchNebenkostenListOptimizedImpl);
+export const getMeterModalDataAction = withTiming('getMeterModalDataAction', getMeterModalDataActionImpl);
+export const getAbrechnungModalDataAction = withTiming('getAbrechnungModalDataAction', getAbrechnungModalDataActionImpl);
+export const createAbrechnungCalculationAction = withTiming('createAbrechnungCalculationAction', createAbrechnungCalculationActionImpl);
+export const createAbrechnungCalculationOptimizedAction = withTiming('createAbrechnungCalculationOptimizedAction', createAbrechnungCalculationOptimizedActionImpl);
 

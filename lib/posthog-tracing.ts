@@ -17,7 +17,7 @@ import { resourceFromAttributes } from '@opentelemetry/resources';
 import { diag, DiagLogLevel } from '@opentelemetry/api';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 
-import { SERVICE_NAME, POSTHOG_API_KEY, POSTHOG_HOST } from './otlp-utils';
+import { SERVICE_NAME, POSTHOG_API_KEY, getTracesEndpoint, getSdkResourceAttributes, registerShutdownHandler } from './otlp-utils';
 import { posthogLogger } from './posthog-logger';
 
 const safeStringify = (val: unknown): string => {
@@ -67,11 +67,6 @@ const createPostHogDiagLogger = () => {
 
 diag.setLogger(createPostHogDiagLogger(), DiagLogLevel.INFO);
 
-function getTracesEndpoint(): string {
-  const host = POSTHOG_HOST.replace(/\/$/, '');
-  return `${host}/i/v1/traces`;
-}
-
 let sdk: NodeSDK | null = null;
 
 export function initTracing(): void {
@@ -107,11 +102,7 @@ export function initTracing(): void {
   });
 
   sdk = new NodeSDK({
-    resource: resourceFromAttributes({
-      'service.name': SERVICE_NAME,
-      'deployment.environment': process.env.NODE_ENV || 'development',
-      'service.version': process.env.npm_package_version || '1.0.0',
-    }),
+    resource: resourceFromAttributes(getSdkResourceAttributes()),
     spanProcessors: [
       new BatchSpanProcessor(exporter, {
         scheduledDelayMillis: 1000,
@@ -129,12 +120,7 @@ export function initTracing(): void {
 
   console.log('[PostHog Tracing] ✅ Initialized — exporting traces to', endpoint);
 
-  const handleShutdown = () => {
-    shutdownTracing().catch(() => {});
-  };
-
-  process.on('SIGTERM', handleShutdown);
-  process.on('SIGINT', handleShutdown);
+  registerShutdownHandler(shutdownTracing);
 }
 
 export async function shutdownTracing(): Promise<void> {
