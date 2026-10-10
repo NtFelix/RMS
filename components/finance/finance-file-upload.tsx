@@ -5,6 +5,8 @@ import { Upload, File, X, Download, Eye, Loader2, FileText, Image as ImageIcon }
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { ActionMenu } from "@/components/ui/action-menu";
 import { FILE_INPUT_ACCEPT, MAX_FILE_SIZE_LABEL } from "@/lib/finance-file-constants";
 import {
     getFinanceDocumentUrl,
@@ -73,12 +75,12 @@ function reducer(state: State, action: Action): State {
 
 const getFileIcon = (mimeType: string | null) => {
     if (mimeType?.startsWith("image/")) {
-        return <ImageIcon className="size-5 text-blue-500" />;
+        return <ImageIcon className="size-5 text-blue-500 shrink-0" />;
     }
     if (mimeType === "application/pdf") {
-        return <FileText className="size-5 text-red-500" />;
+        return <FileText className="size-5 text-red-500 shrink-0" />;
     }
-    return <File className="size-5 text-gray-500" />;
+    return <File className="size-5 text-gray-500 shrink-0" />;
 };
 
 const formatFileSize = (bytes: number | null) => {
@@ -297,52 +299,61 @@ function DocumentPreview({
     onDownload,
     onRemove,
 }: DocumentPreviewProps) {
+    const SpinnerIcon = React.useCallback((props: { className?: string }) => (
+        <Loader2 className={cn(props.className, "animate-spin")} />
+    ), []);
     return (
         <div className="space-y-2">
-            <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
-                {getFileIcon(documentInfo.mime_type)}
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{documentInfo.dateiname}</p>
-                    <p className="text-xs text-muted-foreground">
-                        {formatFileSize(documentInfo.dateigroesse)}
-                    </p>
+            <div className="flex items-center justify-between gap-4 p-3.5 border border-input bg-card hover:border-ring/50 transition-colors shadow-xs rounded-3xl min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
+                    {getFileIcon(documentInfo.mime_type)}
+                    <div className="min-w-0 flex flex-col">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <p className="text-sm font-medium truncate cursor-help max-w-[70px] xs:max-w-[110px] sm:max-w-[160px] md:max-w-[200px]">
+                                        {documentInfo.dateiname}
+                                    </p>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" align="start" className="max-w-[300px] break-all">
+                                    {documentInfo.dateiname}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                        <p className="text-xs text-muted-foreground">
+                            {formatFileSize(documentInfo.dateigroesse)}
+                        </p>
+                    </div>
                 </div>
-                <div className="flex items-center gap-1">
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={onView}
-                        disabled={disabled}
-                        title="Ansehen"
-                    >
-                        <Eye className="size-4" />
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={onDownload}
-                        disabled={disabled}
-                        title="Herunterladen"
-                    >
-                        <Download className="size-4" />
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={onRemove}
-                        disabled={disabled || isDeleting}
-                        title="Entfernen"
-                    >
-                        {isDeleting ? (
-                            <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                            <X className="size-4" />
-                        )}
-                    </Button>
-                </div>
+                <ActionMenu
+                    actions={[
+                        {
+                            id: "view",
+                            icon: Eye,
+                            label: "Ansehen",
+                            onClick: onView,
+                            disabled: disabled,
+                        },
+                        {
+                            id: "download",
+                            icon: Download,
+                            label: "Herunterladen",
+                            onClick: onDownload,
+                            disabled: disabled,
+                        },
+                        {
+                            id: "remove",
+                            icon: isDeleting ? SpinnerIcon : X,
+                            label: "Entfernen",
+                            onClick: onRemove,
+                            variant: "destructive",
+                            disabled: disabled || isDeleting,
+                        },
+                    ]}
+                    shape="pill"
+                    visibility="always"
+                    className="shrink-0"
+                />
             </div>
         </div>
     );
