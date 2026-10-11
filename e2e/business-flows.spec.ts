@@ -363,6 +363,9 @@ test.describe('Business Logic Flows', () => {
     // Only cleanup if we have credentials
     if (!hasTestCredentials()) return;
 
+    // Ein Rückstand aus älteren Läufen kann hunderte Zeilen umfassen; die 60 s Standard-Timeout für Hooks reichen dann nicht
+    test.setTimeout(180000);
+
     // Fresh browser context for cleanup
     const context = await browser.newContext();
     const page = await context.newPage();
