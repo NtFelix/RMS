@@ -1022,7 +1022,7 @@ jobs:
 
       - name: Run Playwright tests (${{ matrix.browser }})
         id: playwright
-        run: npx playwright test --project=${{ matrix.browser }} --grep-invert @visual --reporter=list
+        run: npx playwright test --project=${{ matrix.browser }} --grep-invert @visual
         env:
           CI: true
           NODE_ENV: production
@@ -1032,6 +1032,11 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
           STRIPE_SECRET_KEY: mock-stripe-key
           NEXT_PUBLIC_BASE_URL: http://localhost:3000
+
+      # Reporter kommen aus playwright.config.ts (list, github, json, html); ein CLI-Override würde sie verdrängen
+      - name: E2E summary (${{ matrix.browser }})
+        if: ${{ !cancelled() }}
+        run: node scripts/e2e-summary.mjs test-results/results.json "E2E ${{ matrix.browser }}"
 
       - name: Upload Playwright report (${{ matrix.browser }})
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

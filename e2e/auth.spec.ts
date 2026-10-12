@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
-import { login, hasTestCredentials, acceptCookieConsent } from './utils';
+import { test, expect } from './diagnostics';
+import { login, hasTestCredentials, acceptCookieConsent, limitLogoutToCurrentSession } from './utils';
 
 test.describe('Authentication Flows', () => {
 
@@ -46,6 +46,8 @@ test.describe('Authentication Flows', () => {
   test('Should be able to log out', async ({ page }) => {
     test.skip(!hasTestCredentials(), 'Skipping logout test: No credentials provided');
 
+    // Verhindert, dass der Logout die Sessions der parallelen Jobs auf demselben Testaccount beendet
+    await limitLogoutToCurrentSession(page);
     await login(page);
     await acceptCookieConsent(page);
     // Wait for the page content to stabilize (React hydration)

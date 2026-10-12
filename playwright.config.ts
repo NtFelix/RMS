@@ -23,8 +23,20 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   /* Use 2 workers in CI to avoid overwhelming the server */
   workers: process.env.CI ? 2 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  /* Reporter to use. See https://playwright.dev/docs/test-reporters
+   * CI: list für das Log, github für Annotations, json für die Step-Summary (scripts/e2e-summary.mjs), html für das Artefakt. */
+  reporter: process.env.CI
+    ? [
+        ['list'],
+        ['github'],
+        ['json', { outputFile: 'test-results/results.json' }],
+        ['html', { open: 'never' }],
+      ]
+    : 'html',
+  expect: {
+    /* Firefox/WebKit rendern auf den CI-Runnern merklich langsamer als Chromium */
+    timeout: 10000,
+  },
   /* Global timeout for all tests */
   timeout: 60000, // 60 seconds per test
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -34,8 +46,9 @@ export default defineConfig({
     /* Set larger viewport to "zoom out" and see more of the app */
     viewport: { width: 1920, height: 1080 },
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    /* In CI auch für den Erstversuch eines fehlgeschlagenen Tests einen Trace behalten.
+     * See https://playwright.dev/docs/trace-viewer */
+    trace: process.env.CI ? 'retain-on-failure' : 'on-first-retry',
 
     /* Capture screenshot on failure */
     screenshot: 'only-on-failure',

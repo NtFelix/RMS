@@ -28,6 +28,10 @@ export const login = async (
     throw new Error('Cannot log in: TEST_EMAIL or TEST_PASSWORD not set');
   }
 
+  // Cookie-Banner vorab abwählen: er rendert erst nach einem useEffect und kann sonst Klicks überdecken
+  await skipCookieBanner(page);
+
+  const loginStartedAt = Date.now();
   await page.goto('/auth/login', { waitUntil: 'load' });
 
   // Wait for Next.js hydration to be complete.
@@ -46,6 +50,11 @@ export const login = async (
   // Ensure button is ready to receive clicks
   const loginBtn = page.getByRole('button', { name: /anmelden/i }).first();
   await expect(loginBtn).toBeEnabled();
+
+  // Antwort des Auth-Endpunkts mitschneiden, um "Submit hängt" von "Redirect zurück zum Login" zu unterscheiden
+  const tokenResponse = page
+    .waitForResponse(r => /\/auth\/v1\/token/.test(r.url()) && r.request().method() === 'POST', { timeout: 30000 })
+    .catch(() => null);
   await loginBtn.click();
 
   // Wait for navigation to dashboard or check for errors
@@ -74,7 +83,7 @@ export const login = async (
       try {
         if (await errorAlert.isVisible({ timeout: 2000 })) {
           const errorText = await errorAlert.innerText();
-          throw new Error(`Login failed with error: ${errorText}`);
+          throw new Error(`Login failed with error: ${errorText} | ${await describeLoginState(page, tokenResponse, loginStartedAt)}`);
         }
       } catch (alertError) {
         // Alert check failed, continue to other checks
@@ -83,7 +92,7 @@ export const login = async (
       // Final check of the URL
       const currentUrl = page.url();
       if (currentUrl.includes('/auth/login')) {
-        throw new Error(`Login failed: Still on login page after timeout. URL: ${currentUrl}`);
+        throw new Error(`Login failed: Still on login page after timeout. URL: ${currentUrl} | ${await describeLoginState(page, tokenResponse, loginStartedAt)}`);
       }
 
       // If we are on some other page (like /subscription-locked), report it
@@ -96,13 +105,61 @@ export const login = async (
   }
 };
 
+/**
+ * Setzt die Cookie-Einwilligung (nur notwendige) vor dem ersten Seitenaufruf, damit der Banner gar nicht erscheint.
+ * Schlüssel siehe components/common/cookie-consent-banner.tsx.
+ */
+export const skipCookieBanner = async (page: Page) => {
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('cookieConsent', 'necessary');
+    } catch {
+      // localStorage nicht verfügbar: acceptCookieConsent() fängt den Banner dann ab
+    }
+  });
+};
+
+/**
+ * Fallback, falls der Banner trotzdem erscheint (z. B. in einem Context ohne Init-Script).
+ */
 export const acceptCookieConsent = async (page: Page) => {
   const consentBtn = page.getByRole('button', { name: /Alle akzeptieren|Akzeptieren/i }).first();
-  if (await consentBtn.isVisible()) {
+  const appeared = await consentBtn.waitFor({ state: 'visible', timeout: 1500 }).then(() => true).catch(() => false);
+  if (appeared) {
     await consentBtn.click();
     await expect(consentBtn).toBeHidden();
   }
 };
+
+/**
+ * Der App-Logout ruft signOut() ohne Scope auf (Supabase-Default: global) und widerruft damit ALLE Sessions
+ * des Testaccounts, auch die der parallel laufenden Browser-Jobs. Für Logout-Tests den Scope auf "local" drücken.
+ */
+export const limitLogoutToCurrentSession = async (page: Page) => {
+  await page.route(/\/auth\/v1\/logout/, route => {
+    const url = new URL(route.request().url());
+    url.searchParams.set('scope', 'local');
+    return route.continue({ url: url.toString() });
+  });
+};
+
+async function describeLoginState(page: Page, tokenResponse: Promise<import('@playwright/test').Response | null>, startedAt: number) {
+  const parts: string[] = [`elapsed=${((Date.now() - startedAt) / 1000).toFixed(1)}s`];
+  try {
+    const response = await tokenResponse;
+    parts.push(`tokenResponse=${response ? response.status() : 'none within 30s'}`);
+  } catch {
+    parts.push('tokenResponse=unknown');
+  }
+  try {
+    // Nur Cookie-Namen, niemals Werte
+    const cookieNames = (await page.context().cookies()).map(c => c.name).filter(n => n.startsWith('sb-'));
+    parts.push(`sessionCookies=${cookieNames.length ? cookieNames.join(',') : 'none'}`);
+  } catch {
+    // Context bereits geschlossen
+  }
+  return parts.join(' ');
+}
 
 /**
  * Reusable helper to extract error messages from the UI (toasts, alerts, etc.)
