@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './diagnostics';
 import { login, hasTestCredentials, acceptCookieConsent } from './utils';
 
 test.describe('Settings Pages PPR & Navigation', () => {
