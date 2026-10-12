@@ -9,6 +9,9 @@ import { test as base, expect } from '@playwright/test';
  */
 const MAX_EVENTS = 80;
 
+// App-Logs können personenbezogene Daten enthalten (z. B. E-Mail-Adressen); sie landen in CI-Log und Report
+const redact = (text: string) => text.replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '[email]').slice(0, 300);
+
 const pathOf = (url: string) => {
   try {
     return new URL(url).pathname;
@@ -29,9 +32,9 @@ export const test = base.extend<{ diagnostics: void }>({
       };
 
       page.on('console', msg => {
-        if (msg.type() === 'error') push(`console.error: ${msg.text().slice(0, 300)}`);
+        if (msg.type() === 'error') push(`console.error: ${redact(msg.text())}`);
       });
-      page.on('pageerror', error => push(`pageerror: ${error.message.slice(0, 300)}`));
+      page.on('pageerror', error => push(`pageerror: ${redact(error.message)}`));
       page.on('requestfailed', request =>
         push(`requestfailed ${request.method()} ${pathOf(request.url())}: ${request.failure()?.errorText ?? 'unknown'}`)
       );

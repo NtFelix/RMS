@@ -8,6 +8,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '.env.local') });
 
+const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
@@ -42,13 +44,18 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.BASE_URL ?? 'http://localhost:3000',
+    baseURL,
+    /* Cookie-Banner für jeden Context aus dem page-Fixture abwählen (Schlüssel: components/common/cookie-consent-banner.tsx) */
+    storageState: {
+      cookies: [],
+      origins: [{ origin: new URL(baseURL).origin, localStorage: [{ name: 'cookieConsent', value: 'necessary' }] }],
+    },
     /* Set larger viewport to "zoom out" and see more of the app */
     viewport: { width: 1920, height: 1080 },
 
-    /* In CI auch für den Erstversuch eines fehlgeschlagenen Tests einen Trace behalten.
-     * See https://playwright.dev/docs/trace-viewer */
-    trace: process.env.CI ? 'retain-on-failure' : 'on-first-retry',
+    /* Traces enthalten Login-Request und Tokens und landen als Artefakte; deshalb nur für Wiederholungen.
+     * Den Erstversuch deckt e2e/diagnostics.ts ab. See https://playwright.dev/docs/trace-viewer */
+    trace: 'on-first-retry',
 
     /* Capture screenshot on failure */
     screenshot: 'only-on-failure',

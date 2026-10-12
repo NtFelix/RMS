@@ -31,7 +31,11 @@ type CleanupEntity = {
   ownName: string;
 };
 
-async function deleteE2EEntries(page: Page, entity: CleanupEntity) {
+async function deleteE2EEntries(page: Page, entity: CleanupEntity, deadline: number) {
+  if (Date.now() > deadline) {
+    console.log(`[Cleanup] ${entity.label}: time budget used up, skipping`);
+    return;
+  }
   await safeNavigate(page, entity.path);
 
   const searchInput = page.locator('input[placeholder*="suchen" i]').first();
@@ -52,6 +56,10 @@ async function deleteE2EEntries(page: Page, entity: CleanupEntity) {
   let totalDeleted = 0;
 
   for (let round = 0; round < 10; round++) {
+    if (Date.now() > deadline) {
+      console.log(`[Cleanup] ${entity.label}: time budget used up after ${totalDeleted} deleted, rest stays for the next run`);
+      break;
+    }
     const labels = await rowCheckboxes.evaluateAll(els => els.map(el => el.getAttribute('aria-label') ?? ''));
     // Die Auswahl entfernt keine Zeilen, die Indizes bleiben bis zum Löschen stabil
     const batch = labels
@@ -68,7 +76,18 @@ async function deleteE2EEntries(page: Page, entity: CleanupEntity) {
     }
 
     for (const index of batch) {
-      await rowCheckboxes.nth(index).click();
+      // force: Toasts oder sticky Elemente dürfen den Klick nicht blockieren; die Auswahl wird unten geprüft
+      await rowCheckboxes.nth(index).click({ force: true });
+    }
+
+    // Genau die vorgesehenen Zeilen müssen markiert sein (nicht nur die Anzahl), sonst würde eine umsortierte
+    // Tabelle Daten paralleler Jobs treffen
+    const expectedLabels = batch.map(index => labels[index]).sort();
+    const checkedLabels = (await rowCheckboxes.evaluateAll(els =>
+      els.filter(el => el.getAttribute('aria-checked') === 'true').map(el => el.getAttribute('aria-label') ?? '')
+    )).sort();
+    if (JSON.stringify(checkedLabels) !== JSON.stringify(expectedLabels)) {
+      throw new Error(`selection mismatch: ${checkedLabels.length} rows checked, expected ${expectedLabels.length} (different rows)`);
     }
 
     // Der Button heißt "Löschen (N)"; ein zweiter Span nur für Mobile steckt im Text, nicht im Accessible Name
@@ -371,8 +390,10 @@ test.describe('Business Logic Flows', () => {
     // Only cleanup if we have credentials
     if (!hasTestCredentials()) return;
 
-    // Ein Rückstand aus älteren Läufen kann hunderte Zeilen umfassen; die 60 s Standard-Timeout für Hooks reichen dann nicht
+    // Ein Rückstand aus älteren Läufen kann hunderte Zeilen umfassen; die 60 s Standard-Timeout für Hooks reichen dann nicht.
+    // Das Zeitbudget liegt darunter, damit das Cleanup sauber aufhört statt in den Hook-Timeout zu laufen.
     test.setTimeout(180000);
+    const cleanupDeadline = Date.now() + 140000;
 
     // Fresh browser context for cleanup
     const context = await browser.newContext();
@@ -392,7 +413,7 @@ test.describe('Business Logic Flows', () => {
 
       for (const entity of entities) {
         try {
-          await deleteE2EEntries(page, entity);
+          await deleteE2EEntries(page, entity, cleanupDeadline);
         } catch (entityError: any) {
           console.error(`[Cleanup] Could not clean up ${entity.label}: ${String(entityError?.message ?? entityError).split('\n')[0]}`);
         }

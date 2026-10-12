@@ -21,16 +21,17 @@ export const generateRandomString = (length: number = 8): string => {
 
 // Testdaten tragen einen Zeitstempel (Sekunden): "E2E <Art> <Sekunden> <Zufall>". Die drei Browser-Jobs laufen
 // parallel auf demselben Testaccount; so räumt der Cleanup nur Reste älterer Läufe weg, nicht die laufenden
-// Daten der anderen Jobs. Namen ohne Zeitstempel (altes Format) gelten als Rückstand. Die Frist liegt über dem
-// Job-Timeout (30 min), damit auch ein sehr langer Lauf seine Daten behält.
+// Daten der anderen Jobs. Als Rückstand gilt außerdem das alte Format ohne Zeitstempel ("E2E Apt <6 Zeichen>");
+// alle anderen Namen mit "E2E " fasst der Cleanup nicht an. Die Frist liegt über dem Job-Timeout (30 min),
+// damit auch ein sehr langer Lauf seine Daten behält.
 const E2E_STALE_AFTER_MS = 60 * 60 * 1000;
 
 export const makeE2ERandomId = () => `${Math.floor(Date.now() / 1000)} ${generateRandomString(6)}`;
 
 export const isStaleE2EName = (name: string): boolean => {
-  const match = name.match(/^E2E \w+ (\d{10}) /);
-  if (!match) return true;
-  return Date.now() - Number(match[1]) * 1000 > E2E_STALE_AFTER_MS;
+  if (/^E2E (?:House|Apt|Tenant) [A-Za-z0-9]{6}$/.test(name)) return true;
+  const match = name.match(/^E2E (?:House|Apt|Tenant) (\d{10}) [A-Za-z0-9]{6}$/);
+  return !!match && Date.now() - Number(match[1]) * 1000 > E2E_STALE_AFTER_MS;
 };
 
 export const login = async (
@@ -94,13 +95,17 @@ export const login = async (
 
     // Check if page is still open before calling isVisible
     if (!page.isClosed()) {
+      let alertText = '';
       try {
         if (await errorAlert.isVisible({ timeout: 2000 })) {
-          const errorText = await errorAlert.innerText();
-          throw new Error(`Login failed with error: ${errorText} | ${await describeLoginState(page, tokenResponse, loginStartedAt)}`);
+          alertText = await errorAlert.innerText();
         }
-      } catch (alertError) {
+      } catch {
         // Alert check failed, continue to other checks
+      }
+      // Außerhalb des try werfen, sonst verschluckt das catch den Alert-Text
+      if (alertText) {
+        throw new Error(`Login failed with error: ${alertText} | ${await describeLoginState(page, tokenResponse, loginStartedAt)}`);
       }
 
       // Final check of the URL
@@ -121,7 +126,9 @@ export const login = async (
 
 /**
  * Setzt die Cookie-Einwilligung (nur notwendige) vor dem ersten Seitenaufruf, damit der Banner gar nicht erscheint.
- * Schlüssel siehe components/common/cookie-consent-banner.tsx.
+ * Schlüssel siehe components/common/cookie-consent-banner.tsx. Für Contexts aus dem page-Fixture setzt
+ * playwright.config.ts (use.storageState) denselben Wert; dieses Init-Script deckt manuell erzeugte Contexts ab
+ * (z. B. browser.newContext() im Cleanup), die die use-Optionen nicht erben.
  */
 const skipCookieBanner = async (page: Page) => {
   await page.addInitScript(() => {
@@ -148,13 +155,18 @@ export const acceptCookieConsent = async (page: Page) => {
 /**
  * Der App-Logout ruft signOut() ohne Scope auf (Supabase-Default: global) und widerruft damit ALLE Sessions
  * des Testaccounts, auch die der parallel laufenden Browser-Jobs. Für Logout-Tests den Scope auf "local" drücken.
+ * Gibt einen Zähler der umgeschriebenen Requests zurück: bleibt er bei 0, lief der Logout nicht über den Browser
+ * (z. B. nach einer Umstellung auf eine Server Action) und der Scope wurde NICHT begrenzt.
  */
 export const limitLogoutToCurrentSession = async (page: Page) => {
+  let rewritten = 0;
   await page.route(/\/auth\/v1\/logout/, route => {
     const url = new URL(route.request().url());
     url.searchParams.set('scope', 'local');
+    rewritten++;
     return route.continue({ url: url.toString() });
   });
+  return () => rewritten;
 };
 
 async function describeLoginState(page: Page, tokenResponse: Promise<Response | null>, startedAt: number) {
