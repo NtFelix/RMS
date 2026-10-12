@@ -25,6 +25,7 @@ async function safeNavigate(page: Page, url: string, waitUntil: 'load' | 'domcon
 // demselben Testaccount; so räumt der Cleanup nur Reste älterer Läufe weg, nicht die laufenden
 // Daten der anderen Jobs. Namen ohne Zeitstempel (altes Format) gelten als Rückstand.
 const E2E_STALE_AFTER_MS = 30 * 60 * 1000;
+const E2E_CLEANUP_BATCH_SIZE = 50;
 
 function isStaleE2EName(name: string): boolean {
   const match = name.match(/^E2E (?:House|Apt|Tenant) (\d{10}) /);
@@ -56,38 +57,61 @@ async function deleteE2EEntries(page: Page, entity: CleanupEntity) {
     return;
   }
 
-  // Einzeln anklicken statt "Alle auswählen": gelöscht wird nur, was wir sicher als Testdaten erkennen
-  const labels = await rowCheckboxes.evaluateAll(els => els.map(el => el.getAttribute('aria-label') ?? ''));
+  // Einzeln anklicken statt "Alle auswählen": gelöscht wird nur, was wir sicher als Testdaten erkennen.
+  // In Batches, damit eine große Bulk-Löschung nicht an Server-Limits scheitert, und mit Erfolgskontrolle:
+  // der Dialog schließt auch bei einem Fehler, deshalb prüfen wir, ob die Zeilen wirklich verschwunden sind.
   const nameOf = (label: string) => label.slice(entity.rowLabel.length + 1, -' auswählen'.length);
-  const toDelete = labels.filter(label => {
-    const name = nameOf(label);
-    return name === entity.ownName || isStaleE2EName(name);
-  });
-  if (toDelete.length === 0) {
-    console.log(`[Cleanup] ${entity.label}: ${labels.length} E2E entries belong to running jobs, skipping`);
-    return;
+  let totalDeleted = 0;
+
+  for (let round = 0; round < 10; round++) {
+    const labels = await rowCheckboxes.evaluateAll(els => els.map(el => el.getAttribute('aria-label') ?? ''));
+    const batch = labels
+      .filter(label => {
+        const name = nameOf(label);
+        return name === entity.ownName || isStaleE2EName(name);
+      })
+      .slice(0, E2E_CLEANUP_BATCH_SIZE);
+    if (batch.length === 0) {
+      if (totalDeleted === 0) {
+        console.log(`[Cleanup] ${entity.label}: ${labels.length} E2E entries belong to running jobs, skipping`);
+      }
+      break;
+    }
+
+    for (const label of batch) {
+      await page.getByRole('checkbox', { name: label, exact: true }).click();
+    }
+
+    // Der Button heißt "Löschen (N)"; ein zweiter Span nur für Mobile steckt im Text, nicht im Accessible Name
+    const deleteBtn = page.getByRole('button', { name: /Löschen \(\d+\)/ }).first();
+    await expect(deleteBtn).toBeVisible({ timeout: 10000 });
+    const selectedCount = Number((await deleteBtn.innerText()).match(/\((\d+)\)/)?.[1]);
+    if (selectedCount !== batch.length) {
+      throw new Error(`selection mismatch: clicked ${batch.length}, button says ${selectedCount}`);
+    }
+    await deleteBtn.click();
+
+    // Der Dialog öffnet erst nach einem Server-Action-Aufruf (Kautionsprüfung), daher warten
+    const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog')).last();
+    await expect(dialog).toBeVisible({ timeout: 15000 });
+    await dialog.getByRole('button', { name: /^(?!.*(Abbrechen|Schließen|Close)).+/i }).last().click();
+    await expect(dialog).toBeHidden({ timeout: 20000 });
+
+    const stillThere = await page
+      .getByRole('checkbox', { name: batch[0], exact: true })
+      .waitFor({ state: 'detached', timeout: 15000 })
+      .then(() => false)
+      .catch(() => true);
+    if (stillThere) {
+      const messages = await page.locator('[role="status"], [role="alert"]').allInnerTexts().catch(() => []);
+      throw new Error(`rows still present after delete, UI messages: ${JSON.stringify(messages).slice(0, 300)}`);
+    }
+    totalDeleted += batch.length;
   }
 
-  for (const label of toDelete) {
-    await page.getByRole('checkbox', { name: label, exact: true }).click();
+  if (totalDeleted > 0) {
+    console.log(`[Cleanup] ${entity.label}: deleted ${totalDeleted} entries`);
   }
-
-  // Der Button heißt "Löschen (N)"; ein zweiter Span nur für Mobile steckt im Text, nicht im Accessible Name
-  const deleteBtn = page.getByRole('button', { name: /Löschen \(\d+\)/ }).first();
-  await expect(deleteBtn).toBeVisible({ timeout: 10000 });
-  const selectedCount = Number((await deleteBtn.innerText()).match(/\((\d+)\)/)?.[1]);
-  if (selectedCount !== toDelete.length) {
-    throw new Error(`selection mismatch: clicked ${toDelete.length}, button says ${selectedCount}`);
-  }
-  await deleteBtn.click();
-
-  // Der Dialog öffnet erst nach einem Server-Action-Aufruf (Kautionsprüfung), daher warten
-  const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog')).last();
-  await expect(dialog).toBeVisible({ timeout: 15000 });
-  await dialog.getByRole('button', { name: /^(?!.*(Abbrechen|Schließen|Close)).+/i }).last().click();
-  await expect(dialog).toBeHidden({ timeout: 20000 });
-
-  console.log(`[Cleanup] ${entity.label}: deleted ${toDelete.length} entries`);
 }
 
 test.describe('Business Logic Flows', () => {
