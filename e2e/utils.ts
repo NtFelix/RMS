@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test';
+import { Page, Response, expect } from '@playwright/test';
 
 export const TEST_EMAIL = process.env.TEST_EMAIL;
 export const TEST_PASSWORD = process.env.TEST_PASSWORD;
@@ -17,6 +17,20 @@ export const generateRandomString = (length: number = 8): string => {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
+};
+
+// Testdaten tragen einen Zeitstempel (Sekunden): "E2E <Art> <Sekunden> <Zufall>". Die drei Browser-Jobs laufen
+// parallel auf demselben Testaccount; so räumt der Cleanup nur Reste älterer Läufe weg, nicht die laufenden
+// Daten der anderen Jobs. Namen ohne Zeitstempel (altes Format) gelten als Rückstand. Die Frist liegt über dem
+// Job-Timeout (30 min), damit auch ein sehr langer Lauf seine Daten behält.
+const E2E_STALE_AFTER_MS = 60 * 60 * 1000;
+
+export const makeE2ERandomId = () => `${Math.floor(Date.now() / 1000)} ${generateRandomString(6)}`;
+
+export const isStaleE2EName = (name: string): boolean => {
+  const match = name.match(/^E2E \w+ (\d{10}) /);
+  if (!match) return true;
+  return Date.now() - Number(match[1]) * 1000 > E2E_STALE_AFTER_MS;
 };
 
 export const login = async (
@@ -109,7 +123,7 @@ export const login = async (
  * Setzt die Cookie-Einwilligung (nur notwendige) vor dem ersten Seitenaufruf, damit der Banner gar nicht erscheint.
  * Schlüssel siehe components/common/cookie-consent-banner.tsx.
  */
-export const skipCookieBanner = async (page: Page) => {
+const skipCookieBanner = async (page: Page) => {
   await page.addInitScript(() => {
     try {
       window.localStorage.setItem('cookieConsent', 'necessary');
@@ -124,8 +138,8 @@ export const skipCookieBanner = async (page: Page) => {
  */
 export const acceptCookieConsent = async (page: Page) => {
   const consentBtn = page.getByRole('button', { name: /Alle akzeptieren|Akzeptieren/i }).first();
-  const appeared = await consentBtn.waitFor({ state: 'visible', timeout: 1500 }).then(() => true).catch(() => false);
-  if (appeared) {
+  // login() unterdrückt den Banner; hier nur ein sofortiger Check, kein Warten
+  if (await consentBtn.isVisible()) {
     await consentBtn.click();
     await expect(consentBtn).toBeHidden();
   }
@@ -143,14 +157,12 @@ export const limitLogoutToCurrentSession = async (page: Page) => {
   });
 };
 
-async function describeLoginState(page: Page, tokenResponse: Promise<import('@playwright/test').Response | null>, startedAt: number) {
-  const parts: string[] = [`elapsed=${((Date.now() - startedAt) / 1000).toFixed(1)}s`];
-  try {
-    const response = await tokenResponse;
-    parts.push(`tokenResponse=${response ? response.status() : 'none within 30s'}`);
-  } catch {
-    parts.push('tokenResponse=unknown');
-  }
+async function describeLoginState(page: Page, tokenResponse: Promise<Response | null>, startedAt: number) {
+  const response = await tokenResponse;
+  const parts: string[] = [
+    `elapsed=${((Date.now() - startedAt) / 1000).toFixed(1)}s`,
+    `tokenResponse=${response ? response.status() : 'none within 30s'}`,
+  ];
   try {
     // Nur Cookie-Namen, niemals Werte
     const cookieNames = (await page.context().cookies()).map(c => c.name).filter(n => n.startsWith('sb-'));

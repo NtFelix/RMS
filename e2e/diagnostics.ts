@@ -49,7 +49,7 @@ export const test = base.extend<{ diagnostics: void }>({
       if (testInfo.status !== testInfo.expectedStatus && events.length > 0) {
         const report = events.join('\n');
         console.log(
-          `[Diagnostics] ${testInfo.title} (${testInfo.project.name}, attempt ${testInfo.retry + 1}) ${testInfo.status} after ${(testInfo.duration / 1000).toFixed(1)}s\n  ${events.join('\n  ')}`
+          `[Diagnostics] ${testInfo.title} (${testInfo.project.name}, attempt ${testInfo.retry + 1}) ${testInfo.status} after ${(testInfo.duration / 1000).toFixed(1)}s\n${report}`
         );
         await testInfo.attach('diagnostics', { body: report, contentType: 'text/plain' });
       }

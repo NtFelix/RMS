@@ -1,5 +1,5 @@
 import { test, expect } from './diagnostics';
-import { login, hasTestCredentials, generateRandomString, acceptCookieConsent, getUiErrorMessage } from './utils';
+import { login, hasTestCredentials, makeE2ERandomId, isStaleE2EName, acceptCookieConsent, getUiErrorMessage } from './utils';
 
 
 import { Page } from '@playwright/test';
@@ -21,17 +21,7 @@ async function safeNavigate(page: Page, url: string, waitUntil: 'load' | 'domcon
   }
 }
 
-// Testdaten tragen einen Zeitstempel (Sekunden). Die drei Browser-Jobs laufen parallel auf
-// demselben Testaccount; so räumt der Cleanup nur Reste älterer Läufe weg, nicht die laufenden
-// Daten der anderen Jobs. Namen ohne Zeitstempel (altes Format) gelten als Rückstand.
-const E2E_STALE_AFTER_MS = 30 * 60 * 1000;
 const E2E_CLEANUP_BATCH_SIZE = 50;
-
-function isStaleE2EName(name: string): boolean {
-  const match = name.match(/^E2E (?:House|Apt|Tenant) (\d{10}) /);
-  if (!match) return true;
-  return Date.now() - Number(match[1]) * 1000 > E2E_STALE_AFTER_MS;
-}
 
 type CleanupEntity = {
   label: string;
@@ -48,10 +38,9 @@ async function deleteE2EEntries(page: Page, entity: CleanupEntity) {
   await expect(searchInput).toBeVisible({ timeout: 15000 });
   await searchInput.fill('E2E');
 
-  const rowCheckboxes = page.getByRole('checkbox', {
-    name: new RegExp(`^${entity.rowLabel} E2E .+ auswählen$`),
-  });
-  const hasRows = await rowCheckboxes.first().waitFor({ state: 'visible', timeout: 10000 }).then(() => true).catch(() => false);
+  const rowRe = new RegExp(`^${entity.rowLabel} (E2E .+) auswählen$`);
+  const rowCheckboxes = page.getByRole('checkbox', { name: rowRe });
+  const hasRows = await rowCheckboxes.first().waitFor({ state: 'visible', timeout: 6000 }).then(() => true).catch(() => false);
   if (!hasRows) {
     console.log(`[Cleanup] ${entity.label}: nothing to delete`);
     return;
@@ -60,15 +49,15 @@ async function deleteE2EEntries(page: Page, entity: CleanupEntity) {
   // Einzeln anklicken statt "Alle auswählen": gelöscht wird nur, was wir sicher als Testdaten erkennen.
   // In Batches, damit eine große Bulk-Löschung nicht an Server-Limits scheitert, und mit Erfolgskontrolle:
   // der Dialog schließt auch bei einem Fehler, deshalb prüfen wir, ob die Zeilen wirklich verschwunden sind.
-  const nameOf = (label: string) => label.slice(entity.rowLabel.length + 1, -' auswählen'.length);
   let totalDeleted = 0;
 
   for (let round = 0; round < 10; round++) {
     const labels = await rowCheckboxes.evaluateAll(els => els.map(el => el.getAttribute('aria-label') ?? ''));
+    // Die Auswahl entfernt keine Zeilen, die Indizes bleiben bis zum Löschen stabil
     const batch = labels
-      .filter(label => {
-        const name = nameOf(label);
-        return name === entity.ownName || isStaleE2EName(name);
+      .flatMap((label, index) => {
+        const name = label.match(rowRe)?.[1] ?? '';
+        return name === entity.ownName || isStaleE2EName(name) ? [index] : [];
       })
       .slice(0, E2E_CLEANUP_BATCH_SIZE);
     if (batch.length === 0) {
@@ -78,8 +67,8 @@ async function deleteE2EEntries(page: Page, entity: CleanupEntity) {
       break;
     }
 
-    for (const label of batch) {
-      await page.getByRole('checkbox', { name: label, exact: true }).click();
+    for (const index of batch) {
+      await rowCheckboxes.nth(index).click();
     }
 
     // Der Button heißt "Löschen (N)"; ein zweiter Span nur für Mobile steckt im Text, nicht im Accessible Name
@@ -97,15 +86,10 @@ async function deleteE2EEntries(page: Page, entity: CleanupEntity) {
     await dialog.getByRole('button', { name: /^(?!.*(Abbrechen|Schließen|Close)).+/i }).last().click();
     await expect(dialog).toBeHidden({ timeout: 20000 });
 
-    const stillThere = await page
-      .getByRole('checkbox', { name: batch[0], exact: true })
-      .waitFor({ state: 'detached', timeout: 15000 })
-      .then(() => false)
-      .catch(() => true);
-    if (stillThere) {
+    await expect(page.getByRole('checkbox', { name: labels[batch[0]], exact: true })).toBeHidden({ timeout: 15000 }).catch(async () => {
       const messages = await page.locator('[role="status"], [role="alert"]').allInnerTexts().catch(() => []);
       throw new Error(`rows still present after delete, UI messages: ${JSON.stringify(messages).slice(0, 300)}`);
-    }
+    });
     totalDeleted += batch.length;
   }
 
@@ -118,7 +102,7 @@ test.describe('Business Logic Flows', () => {
   // Use serial mode because we are creating dependencies (House -> Apt -> Tenant)
   test.describe.configure({ mode: 'serial' });
 
-  const randomId = `${Math.floor(Date.now() / 1000)} ${generateRandomString(6)}`;
+  const randomId = makeE2ERandomId();
   const houseName = `E2E House ${randomId}`;
   const aptName = `E2E Apt ${randomId}`;
   const tenantName = `E2E Tenant ${randomId}`;

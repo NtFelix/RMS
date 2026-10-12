@@ -33,7 +33,7 @@ const walk = (suite, trail) => {
   }
   for (const child of suite.suites ?? []) walk(child, here);
 };
-for (const suite of report.suites ?? []) walk(suite, []);
+walk(report, []);
 
 const lines = [
   `### ${label}`,
