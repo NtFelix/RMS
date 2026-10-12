@@ -17,7 +17,8 @@ if (!fs.existsSync(file)) {
 
 const report = JSON.parse(fs.readFileSync(file, 'utf8'));
 const { expected = 0, unexpected = 0, flaky = 0, skipped = 0, duration = 0 } = report.stats ?? {};
-const cell = text => String(text).replace(/\|/g, '\\|');
+// Backslash zuerst escapen, sonst entwertet ein Backslash im Text das Escaping des Pipe-Zeichens
+const cell = text => String(text).replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
 
 const rows = [];
 const walk = (suite, trail) => {
