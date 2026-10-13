@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
-import { login, hasTestCredentials, generateRandomString, acceptCookieConsent, getUiErrorMessage } from './utils';
+import { test, expect } from './diagnostics';
+import { login, hasTestCredentials, makeE2ERandomId, isStaleE2EName, acceptCookieConsent, getUiErrorMessage } from './utils';
 
 
 import { Page } from '@playwright/test';
@@ -21,11 +21,107 @@ async function safeNavigate(page: Page, url: string, waitUntil: 'load' | 'domcon
   }
 }
 
+const E2E_CLEANUP_BATCH_SIZE = 50;
+
+type CleanupEntity = {
+  label: string;
+  path: string;
+  // Präfix des aria-labels der Zeilen-Checkbox, z. B. "Wohnung <Name> auswählen"
+  rowLabel: string;
+  ownName: string;
+};
+
+async function deleteE2EEntries(page: Page, entity: CleanupEntity, deadline: number) {
+  if (Date.now() > deadline) {
+    console.log(`[Cleanup] ${entity.label}: time budget used up, skipping`);
+    return;
+  }
+  await safeNavigate(page, entity.path);
+
+  const searchInput = page.locator('input[placeholder*="suchen" i]').first();
+  await expect(searchInput).toBeVisible({ timeout: 15000 });
+  await searchInput.fill('E2E');
+
+  const rowRe = new RegExp(`^${entity.rowLabel} (E2E .+) auswählen$`);
+  const rowCheckboxes = page.getByRole('checkbox', { name: rowRe });
+  const hasRows = await rowCheckboxes.first().waitFor({ state: 'visible', timeout: 6000 }).then(() => true).catch(() => false);
+  if (!hasRows) {
+    console.log(`[Cleanup] ${entity.label}: nothing to delete`);
+    return;
+  }
+
+  // Einzeln anklicken statt "Alle auswählen": gelöscht wird nur, was wir sicher als Testdaten erkennen.
+  // In Batches, damit eine große Bulk-Löschung nicht an Server-Limits scheitert, und mit Erfolgskontrolle:
+  // der Dialog schließt auch bei einem Fehler, deshalb prüfen wir, ob die Zeilen wirklich verschwunden sind.
+  let totalDeleted = 0;
+
+  for (let round = 0; round < 10; round++) {
+    if (Date.now() > deadline) {
+      console.log(`[Cleanup] ${entity.label}: time budget used up after ${totalDeleted} deleted, rest stays for the next run`);
+      break;
+    }
+    const labels = await rowCheckboxes.evaluateAll(els => els.map(el => el.getAttribute('aria-label') ?? ''));
+    // Die Auswahl entfernt keine Zeilen, die Indizes bleiben bis zum Löschen stabil
+    const batch = labels
+      .flatMap((label, index) => {
+        const name = label.match(rowRe)?.[1] ?? '';
+        return name === entity.ownName || isStaleE2EName(name) ? [index] : [];
+      })
+      .slice(0, E2E_CLEANUP_BATCH_SIZE);
+    if (batch.length === 0) {
+      if (totalDeleted === 0) {
+        console.log(`[Cleanup] ${entity.label}: ${labels.length} E2E entries belong to running jobs, skipping`);
+      }
+      break;
+    }
+
+    for (const index of batch) {
+      // force: Toasts oder sticky Elemente dürfen den Klick nicht blockieren; die Auswahl wird unten geprüft
+      await rowCheckboxes.nth(index).click({ force: true });
+    }
+
+    // Genau die vorgesehenen Zeilen müssen markiert sein (nicht nur die Anzahl), sonst würde eine umsortierte
+    // Tabelle Daten paralleler Jobs treffen
+    const expectedLabels = batch.map(index => labels[index]).sort();
+    const checkedLabels = (await rowCheckboxes.evaluateAll(els =>
+      els.filter(el => el.getAttribute('aria-checked') === 'true').map(el => el.getAttribute('aria-label') ?? '')
+    )).sort();
+    if (JSON.stringify(checkedLabels) !== JSON.stringify(expectedLabels)) {
+      throw new Error(`selection mismatch: ${checkedLabels.length} rows checked, expected ${expectedLabels.length} (different rows)`);
+    }
+
+    // Der Button heißt "Löschen (N)"; ein zweiter Span nur für Mobile steckt im Text, nicht im Accessible Name
+    const deleteBtn = page.getByRole('button', { name: /Löschen \(\d+\)/ }).first();
+    await expect(deleteBtn).toBeVisible({ timeout: 10000 });
+    const selectedCount = Number((await deleteBtn.innerText()).match(/\((\d+)\)/)?.[1]);
+    if (selectedCount !== batch.length) {
+      throw new Error(`selection mismatch: clicked ${batch.length}, button says ${selectedCount}`);
+    }
+    await deleteBtn.click();
+
+    // Der Dialog öffnet erst nach einem Server-Action-Aufruf (Kautionsprüfung), daher warten
+    const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog')).last();
+    await expect(dialog).toBeVisible({ timeout: 15000 });
+    await dialog.getByRole('button', { name: /^(?!.*(Abbrechen|Schließen|Close)).+/i }).last().click();
+    await expect(dialog).toBeHidden({ timeout: 20000 });
+
+    await expect(page.getByRole('checkbox', { name: labels[batch[0]], exact: true })).toBeHidden({ timeout: 15000 }).catch(async () => {
+      const messages = await page.locator('[role="status"], [role="alert"]').allInnerTexts().catch(() => []);
+      throw new Error(`rows still present after delete, UI messages: ${JSON.stringify(messages).slice(0, 300)}`);
+    });
+    totalDeleted += batch.length;
+  }
+
+  if (totalDeleted > 0) {
+    console.log(`[Cleanup] ${entity.label}: deleted ${totalDeleted} entries`);
+  }
+}
+
 test.describe('Business Logic Flows', () => {
   // Use serial mode because we are creating dependencies (House -> Apt -> Tenant)
   test.describe.configure({ mode: 'serial' });
 
-  const randomId = generateRandomString(6);
+  const randomId = makeE2ERandomId();
   const houseName = `E2E House ${randomId}`;
   const aptName = `E2E Apt ${randomId}`;
   const tenantName = `E2E Tenant ${randomId}`;
@@ -126,8 +222,9 @@ test.describe('Business Logic Flows', () => {
     await expect(createBtn.or(addBtn)).toBeVisible({ timeout: 15000 });
 
     if (await createBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      // Wait for it to be enabled (might be disabled while loading plan details)
-      await expect(createBtn).toBeEnabled({ timeout: 15000 });
+      // Der Button wird serverseitig entschieden (Berechtigung, Abo, Limit); Warten hilft nur bei Hydration.
+      // Dauerhaft disabled heißt meist: Limit erreicht, weil Testdaten nicht aufgeräumt wurden.
+      await expect(createBtn, 'Wohnung-hinzufügen-Button ist disabled: Limit erreicht oder keine Berechtigung (Rückstand an "E2E Apt" im Testaccount prüfen)').toBeEnabled({ timeout: 15000 });
       await createBtn.click();
     } else if (await addBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await expect(addBtn).toBeEnabled({ timeout: 15000 });
@@ -293,6 +390,11 @@ test.describe('Business Logic Flows', () => {
     // Only cleanup if we have credentials
     if (!hasTestCredentials()) return;
 
+    // Ein Rückstand aus älteren Läufen kann hunderte Zeilen umfassen; die 60 s Standard-Timeout für Hooks reichen dann nicht.
+    // Das Zeitbudget liegt darunter, damit das Cleanup sauber aufhört statt in den Hook-Timeout zu laufen.
+    test.setTimeout(180000);
+    const cleanupDeadline = Date.now() + 140000;
+
     // Fresh browser context for cleanup
     const context = await browser.newContext();
     const page = await context.newPage();
@@ -301,93 +403,19 @@ test.describe('Business Logic Flows', () => {
       await login(page);
       await acceptCookieConsent(page);
 
-      const entities = [
-        { name: tenantName, path: '/mieter', label: 'Tenant' },
-        { name: aptName, path: '/wohnungen', label: 'Apartment' },
-        { name: houseName, path: '/haeuser', label: 'House' }
+      // Reihenfolge: Mieter -> Wohnung -> Haus. Fehler pro Entität werden mit Grund geloggt,
+      // lassen den Test aber nicht scheitern.
+      const entities: CleanupEntity[] = [
+        { label: 'Tenant', path: '/mieter', rowLabel: 'Mieter', ownName: tenantName },
+        { label: 'Apartment', path: '/wohnungen', rowLabel: 'Wohnung', ownName: aptName },
+        { label: 'House', path: '/haeuser', rowLabel: 'Haus', ownName: houseName },
       ];
 
       for (const entity of entities) {
         try {
-          console.log(`[Cleanup] Processing ${entity.label}: ${entity.name}`);
-          await safeNavigate(page, entity.path, 'domcontentloaded');
-
-          // Strategy 1: Search for the specific entity name
-          let foundAndDeleted = false;
-          const searchInput = page.locator('input[placeholder*="suchen" i]').first();
-
-          if (await searchInput.isVisible({ timeout: 10000 }).catch(() => false)) {
-            await searchInput.clear();
-            await searchInput.fill(entity.name);
-            await page.waitForTimeout(2000);
-
-            foundAndDeleted = await attemptDelete(page, entity);
-          }
-
-          // Strategy 2: If specific name didn't work, search for "E2E" prefix to catch all test data
-          if (!foundAndDeleted && await searchInput.isVisible().catch(() => false)) {
-            console.log(`[Cleanup] Trying broader E2E search for ${entity.label}...`);
-            await searchInput.clear();
-            await searchInput.fill('E2E');
-            await page.waitForTimeout(2000);
-
-            foundAndDeleted = await attemptDelete(page, entity);
-          }
-
-          if (!foundAndDeleted) {
-            console.log(`[Cleanup] Could not delete ${entity.label}: ${entity.name}`);
-          }
-        } catch (entityError) {
-          console.error(`[Cleanup] Error during ${entity.label} cleanup:`, entityError);
-        }
-      }
-
-      async function attemptDelete(page: any, entity: any): Promise<boolean> {
-        // Look for any checkbox in the table header or the first checkbox overall
-        const selectAll = page.locator('thead input[type="checkbox"], thead [role="checkbox"], table [role="checkbox"]').first();
-
-        if (!(await selectAll.isVisible({ timeout: 3000 }).catch(() => false))) {
-          console.log(`[Cleanup] No checkboxes found for ${entity.label}`);
-          return false;
-        }
-
-        console.log(`[Cleanup] Selecting entries for ${entity.label}...`);
-        await selectAll.click({ force: true });
-        await page.waitForTimeout(1500); // Increased wait for bulk action bar
-
-        // Find the delete button - try multiple strategies
-        let deleteBtn = page.getByRole('button')
-          .filter({ hasText: /Löschen/i })
-          .filter({ has: page.locator('svg.lucide-trash-2, .lucide-trash-2, .lucide-trash') })
-          .first();
-
-        if (!(await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
-          // Try without the icon filter
-          deleteBtn = page.getByRole('button').filter({ hasText: /^Löschen \(\d+\)$/i }).first();
-        }
-
-        if (!(await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
-          console.log(`[Cleanup] Delete button not visible for ${entity.label}`);
-          return false;
-        }
-
-        console.log(`[Cleanup] Clicking delete for ${entity.label}...`);
-        await deleteBtn.click({ force: true });
-
-        // Handle confirmation Dialog/AlertDialog
-        const confirmBtn = page.getByRole('button')
-          .filter({ hasText: /Löschen bestätigen|Löschen|Bestätigen/i })
-          .filter({ hasNotText: /Abbrechen/i })
-          .last();
-
-        if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-          await confirmBtn.click({ force: true });
-          console.log(`[Cleanup] Successfully deleted ${entity.label}`);
-          await page.waitForTimeout(2000);
-          return true;
-        } else {
-          console.log(`[Cleanup] Confirmation button not found for ${entity.label}`);
-          return false;
+          await deleteE2EEntries(page, entity, cleanupDeadline);
+        } catch (entityError: any) {
+          console.error(`[Cleanup] Could not clean up ${entity.label}: ${String(entityError?.message ?? entityError).split('\n')[0]}`);
         }
       }
     } catch (globalError) {
