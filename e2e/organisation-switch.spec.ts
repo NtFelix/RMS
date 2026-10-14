@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './diagnostics';
 import { login, acceptCookieConsent } from './utils';
 
 test.describe('Organisation Switcher E2E', () => {
