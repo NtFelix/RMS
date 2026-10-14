@@ -56,4 +56,11 @@ describe('OrganisationAuditLogTab Detailansicht', () => {
     expect(await screen.findByText('Keine Feldänderungen vorhanden.')).toBeInTheDocument();
     expect(screen.queryByText(/aus Datenschutzgründen entfernt/)).not.toBeInTheDocument();
   });
+
+  it('zeigt im Leerzustand den Hinweis auf die 90-Tage-Löschung', async () => {
+    (getAuditLogsAction as jest.Mock).mockResolvedValue({ success: true, data: [] });
+
+    render(<OrganisationAuditLogTab />);
+    expect(await screen.findByText(/Einträge werden nach 90 Tagen gelöscht/)).toBeInTheDocument();
+  });
 });

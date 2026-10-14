@@ -1,10 +1,17 @@
-import { AUDIT_PAYLOAD_RETENTION_DAYS, isAuditPayloadPurged } from './audit-retention';
+import { AUDIT_PAYLOAD_RETENTION_DAYS, AUDIT_ROW_RETENTION_DAYS, isAuditPayloadPurged } from './audit-retention';
 
 const NOW = new Date('2026-10-08T12:00:00.000Z');
 
 function daysAgo(days: number): string {
   return new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
 }
+
+describe('audit-retention Konstanten', () => {
+  it('definiert die 30-Tage-Payload- und 90-Tage-Zeilenaufbewahrung', () => {
+    expect(AUDIT_PAYLOAD_RETENTION_DAYS).toBe(30);
+    expect(AUDIT_ROW_RETENTION_DAYS).toBe(90);
+  });
+});
 
 describe('isAuditPayloadPurged', () => {
   it('erkennt einen Eintrag ohne Payloads, der älter als die Aufbewahrungsfrist ist, als entfernt', () => {
@@ -26,5 +33,11 @@ describe('isAuditPayloadPurged', () => {
 
   it('wertet einen ungültigen Zeitstempel nicht als entfernt', () => {
     expect(isAuditPayloadPurged({ alte_daten: null, neue_daten: null, geaendert_am: 'kein-datum' }, NOW)).toBe(false);
+  });
+
+  it('wertet einen fehlenden oder leeren Zeitstempel (null, undefined, leerer String) nicht als entfernt', () => {
+    expect(isAuditPayloadPurged({ alte_daten: null, neue_daten: null, geaendert_am: null }, NOW)).toBe(false);
+    expect(isAuditPayloadPurged({ alte_daten: null, neue_daten: null, geaendert_am: undefined }, NOW)).toBe(false);
+    expect(isAuditPayloadPurged({ alte_daten: null, neue_daten: null, geaendert_am: '' }, NOW)).toBe(false);
   });
 });

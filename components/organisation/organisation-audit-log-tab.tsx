@@ -33,7 +33,7 @@ import { toast } from "@/hooks/use-toast";
 import { AuditLogDetailSkeleton } from "./organisation-loading-skeletons";
 import { MODULE_CONFIG, ACTION_CONFIG, getTableIcon } from "@/lib/organisation/permission-utils";
 import { AUDIT_MASKED_PLACEHOLDER, isMaskedAuditValue } from "@/lib/organisation/audit-masking";
-import { AUDIT_PAYLOAD_RETENTION_DAYS, isAuditPayloadPurged } from "@/lib/organisation/audit-retention";
+import { AUDIT_PAYLOAD_RETENTION_DAYS, AUDIT_ROW_RETENTION_DAYS, isAuditPayloadPurged } from "@/lib/organisation/audit-retention";
 
 interface AuditLogSummary {
   id: string;
@@ -1081,7 +1081,9 @@ Audit-Log
                   <TableCell colSpan={6} className="h-36 text-center text-xs text-muted-foreground">
                     <Info className="size-6 mx-auto mb-1.5 text-zinc-400 stroke-1" />
                     Keine Logs gefunden.
-                    <span className="block mt-1 text-[11px] text-muted-foreground/70">Einträge werden nach 90 Tagen gelöscht.</span>
+                    <span className="block mt-1 text-[11px] text-muted-foreground/70">
+                      Einträge werden nach {AUDIT_ROW_RETENTION_DAYS} Tagen gelöscht.
+                    </span>
                   </TableCell>
                 </TableRow>
               ) : (
