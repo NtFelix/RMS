@@ -14,6 +14,8 @@ jest.mock('@/hooks/use-toast', () => ({
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+const FIXED_NOW_MS = new Date('2026-10-14T12:00:00.000Z').getTime();
+
 function logAt(daysAgo: number) {
   return {
     id: 'log-1',
@@ -39,8 +41,15 @@ async function openDetails(detail: ReturnType<typeof logAt> & { alte_daten: unkn
 }
 
 describe('OrganisationAuditLogTab Detailansicht', () => {
+  let dateSpy: jest.SpyInstance;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    dateSpy = jest.spyOn(Date, 'now').mockReturnValue(FIXED_NOW_MS);
+  });
+
+  afterEach(() => {
+    dateSpy.mockRestore();
   });
 
   it('zeigt bei einem alten Eintrag ohne Payloads den Aufbewahrungshinweis statt "Keine Feldänderungen"', async () => {

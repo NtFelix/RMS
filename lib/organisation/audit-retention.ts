@@ -19,7 +19,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  */
 export function isAuditPayloadPurged(
   entry: { alte_daten: unknown; neue_daten: unknown; geaendert_am?: string | null },
-  now: Date = new Date()
+  now: Date = new Date(Date.now())
 ): boolean {
   if (entry.alte_daten != null || entry.neue_daten != null) return false;
   if (!entry.geaendert_am) return false;
