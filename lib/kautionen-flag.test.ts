@@ -65,4 +65,22 @@ describe("ermittleKautionFlagKonfig", () => {
     const konfig = ermittleKautionFlagKonfig(true, JSON.stringify({ version: 1, funktionen: { raten: true } }));
     expect(konfig.funktionen.raten).toBe(true);
   });
+
+  it('warns once (without payload content) about an unusable payload, but not about a missing one', () => {
+    jest.isolateModules(() => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const frisch = require('@/lib/kautionen-flag') as typeof import('@/lib/kautionen-flag');
+
+      frisch.ermittleKautionFlagKonfig(true, undefined);
+      frisch.ermittleKautionFlagKonfig(true, null);
+      expect(warn).not.toHaveBeenCalled();
+
+      frisch.ermittleKautionFlagKonfig(true, { arten: { barkaution: true }, geheim: "x" });
+      frisch.ermittleKautionFlagKonfig(true, { version: "1" });
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0][0])).not.toContain("geheim");
+      warn.mockRestore();
+    });
+  });
 });

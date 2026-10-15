@@ -87,6 +87,17 @@ function entpacke(raw: unknown): Record<string, unknown> | null {
   return isRecord(raw) ? raw : null;
 }
 
+let payloadWarnungGezeigt = false;
+
+/** An unusable payload silently falling back to the defaults looks like a broken rollout: warn once (no payload content). */
+function warneUnbrauchbarePayload(rawPayload: unknown): void {
+  if (rawPayload === undefined || rawPayload === null || payloadWarnungGezeigt) return;
+  payloadWarnungGezeigt = true;
+  console.warn(
+    `[kautionen] Payload of flag "${KAUTION_FLAG_KEY}" ignored (no object or "version" is not ${KAUTION_FLAG_PAYLOAD_VERSION}): phase 1 defaults are used.`
+  );
+}
+
 /**
  * Derives the configuration from the flag state and the raw payload (`undefined`/`null` = no payload).
  * Never throws.
@@ -94,7 +105,10 @@ function entpacke(raw: unknown): Record<string, unknown> | null {
 export function ermittleKautionFlagKonfig(aktiv: boolean, rawPayload: unknown): KautionFlagKonfig {
   const standard = standardKautionFlagKonfig(aktiv);
   const payload = entpacke(rawPayload);
-  if (!payload || payload.version !== KAUTION_FLAG_PAYLOAD_VERSION) return standard;
+  if (!payload || payload.version !== KAUTION_FLAG_PAYLOAD_VERSION) {
+    warneUnbrauchbarePayload(rawPayload);
+    return standard;
+  }
 
   const artenPayload = isRecord(payload.arten) ? payload.arten : null;
   const arten = artenPayload

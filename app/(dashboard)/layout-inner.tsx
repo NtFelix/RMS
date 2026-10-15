@@ -7,6 +7,7 @@ import { Suspense, useEffect, useState } from "react"
 import { CommandMenu } from "@/components/search/command-menu"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useModalStore } from "@/hooks/use-modal-store" // Added
+import { KautionDialogGate } from "@/components/kaution/kaution-dialog-gate"
 import dynamic from 'next/dynamic'
 
 // Importing server action from its new location
@@ -25,7 +26,6 @@ const AufgabeEditModal = dynamic(() => import('@/components/tasks/aufgabe-edit-m
 const BetriebskostenEditModal = dynamic(() => import('@/components/finance/betriebskosten-edit-modal').then(mod => mod.BetriebskostenEditModal), { ssr: false })
 const AblesungenModal = dynamic(() => import('@/components/meters/ablesungen-modal').then(mod => mod.AblesungenModal), { ssr: false })
 const ZaehlerModal = dynamic(() => import('@/components/meters/zaehler-modal').then(mod => mod.ZaehlerModal), { ssr: false })
-import { KautionDialogGate } from '@/components/kaution/kaution-dialog-gate'
 const KautionDialog = dynamic(() => import('@/components/kaution/kaution-dialog').then(mod => mod.KautionDialog), { ssr: false })
 const KautionLoeschUebersichtSheet = dynamic(() => import('@/components/kaution/kaution-loesch-uebersicht-sheet').then(mod => mod.KautionLoeschUebersichtSheet), { ssr: false })
 const HausOverviewModal = dynamic(() => import('@/components/houses/haus-overview-modal').then(mod => mod.HausOverviewModal), { ssr: false })

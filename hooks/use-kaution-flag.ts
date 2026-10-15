@@ -15,6 +15,7 @@ export function useKautionFlag(): KautionFlagKonfig {
 
 /** Entry points of the deposit module: module right (`kautionen: ansehen`) AND feature flag. */
 export function useKautionenSichtbar(hatModulrecht: boolean): boolean {
-  const { aktiv } = useKautionFlag();
+  // Only the flag state is needed here: no payload subscription or parsing on every render of the callers.
+  const aktiv = useFeatureFlagEnabled(KAUTION_FLAG_KEY) === true;
   return hatModulrecht && aktiv;
 }
