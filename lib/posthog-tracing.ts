@@ -19,6 +19,7 @@ import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 
 import { SERVICE_NAME, POSTHOG_API_KEY, POSTHOG_HOST } from './otlp-utils';
 import { posthogLogger } from './posthog-logger';
+import '@supabase/supabase-js/tracing';
 
 const safeStringify = (val: unknown): string => {
   if (val instanceof Error) {
