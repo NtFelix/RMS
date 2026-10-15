@@ -29,7 +29,7 @@ import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { cn } from "@/lib/utils"
 import { Tenant, NebenkostenEntry, TenantStatus } from "@/types/Tenant"
 import { useFeatureFlagEnabled } from "posthog-js/react"
-import { useKautionFlag } from "@/hooks/use-kaution-flag"
+import { useKautionenSichtbar } from "@/hooks/use-kaution-flag"
 import { tenantActions, getVisibleActions } from "@/components/tenants/tenant-menu-actions"
 import {
   Users,
@@ -914,8 +914,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const isApplicant = formData.status === 'bewerber'
   const templatesEnabled = useFeatureFlagEnabled('template-modal-enabled')
   // Kaution (GH-6): Modulrecht UND Feature Flag `advanced-kautionsmanagment` (siehe lib/kautionen-flag.ts).
-  const kautionFlag = useKautionFlag()
-  const canViewKautionen = kautionsrecht && kautionFlag.aktiv
+  const canViewKautionen = useKautionenSichtbar(kautionsrecht)
 
   const attemptClose = () => {
     closeTenantModal()

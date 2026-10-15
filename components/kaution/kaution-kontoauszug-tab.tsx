@@ -5,10 +5,10 @@ import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, ChevronRight, Minus, Plu
 import type { LucideIcon } from "lucide-react";
 import type { KautionActionError } from "@/app/kautionen-actions";
 import { Badge } from "@/components/ui/badge";
-import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import { Button } from "@/components/ui/button";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import { KautionBuchungForm } from "@/components/kaution/kaution-buchung-form";
 import { KEINE_BERECHTIGUNG_TEXT } from "@/components/kaution/kaution-feld";
 import { formatBetrag, formatDatum } from "@/components/kaution/kaution-format";

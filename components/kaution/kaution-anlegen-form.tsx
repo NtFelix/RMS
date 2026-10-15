@@ -60,12 +60,12 @@ export function KautionAnlegenForm({
   const basisId = useId();
   // Offered types: payload of the flag intersected with what the RPCs release (never empty).
   const { arten } = useKautionFlag();
-  const standardArt: KautionArt = arten[0] ?? "barkaution";
   const vorschlagBetrag = vorschlag?.vorschlag_betrag ?? null;
 
   // The suggestion is only the starting value: the user may change it freely.
   const [startWert] = useState(() => betragZuEingabe(vorschlagBetrag));
-  const [art, setArt] = useState<KautionArt>(standardArt);
+  const [startArt] = useState<KautionArt>(() => arten[0] ?? "barkaution");
+  const [art, setArt] = useState<KautionArt>(startArt);
   const [soll, setSoll] = useState(startWert);
   const [miete, setMiete] = useState("");
   const [notiz, setNotiz] = useState("");
@@ -74,7 +74,7 @@ export function KautionAnlegenForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
-  const isDirty = soll !== startWert || miete !== "" || notiz !== "" || art !== standardArt;
+  const isDirty = soll !== startWert || miete !== "" || notiz !== "" || art !== startArt;
   useDirtyMelder(isDirty, onDirtyChange);
 
   const mehrereArten = arten.length > 1;
@@ -160,7 +160,7 @@ export function KautionAnlegenForm({
         ) : (
           <div className="space-y-1.5">
             <p className="text-sm font-medium leading-none">Kautionsart</p>
-            <p className="text-sm">{KAUTION_ART_LABELS[standardArt]}</p>
+            <p className="text-sm">{KAUTION_ART_LABELS[startArt]}</p>
           </div>
         )}
 

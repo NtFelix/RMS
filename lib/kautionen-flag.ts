@@ -36,7 +36,7 @@ import type { KautionArt, KautionBewegungsArt } from "@/types/Kaution";
 export const KAUTION_FLAG_KEY = POSTHOG_FEATURE_FLAGS.ADVANCED_KAUTIONSMANAGEMENT;
 
 /** Payload version this parser understands. Other versions fall back to the defaults. */
-export const KAUTION_FLAG_PAYLOAD_VERSION = 1;
+const KAUTION_FLAG_PAYLOAD_VERSION = 1;
 
 /** Functions of the later phases: phase 2 (raten, dokumente, fristen), phase 3 (zinsen), phase 4 (abrechnung). */
 export const KAUTION_FUNKTIONEN = ["raten", "dokumente", "fristen", "zinsen", "abrechnung"] as const;

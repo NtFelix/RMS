@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { useFeatureFlagEnabled, useFeatureFlagPayload } from "posthog-js/react";
 import { ermittleKautionFlagKonfig, KAUTION_FLAG_KEY, type KautionFlagKonfig } from "@/lib/kautionen-flag";
 
@@ -11,7 +10,11 @@ import { ermittleKautionFlagKonfig, KAUTION_FLAG_KEY, type KautionFlagKonfig } f
 export function useKautionFlag(): KautionFlagKonfig {
   const aktiv = useFeatureFlagEnabled(KAUTION_FLAG_KEY) === true;
   const payload = useFeatureFlagPayload(KAUTION_FLAG_KEY);
-  // PostHog may hand out a new object on every render: key the memo on the serialised payload.
-  const payloadSchluessel = JSON.stringify(payload ?? null);
-  return useMemo(() => ermittleKautionFlagKonfig(aktiv, payload), [aktiv, payloadSchluessel]);
+  return ermittleKautionFlagKonfig(aktiv, payload);
+}
+
+/** Entry points of the deposit module: module right (`kautionen: ansehen`) AND feature flag. */
+export function useKautionenSichtbar(hatModulrecht: boolean): boolean {
+  const { aktiv } = useKautionFlag();
+  return hatModulrecht && aktiv;
 }

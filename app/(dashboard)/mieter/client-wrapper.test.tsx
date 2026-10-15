@@ -14,7 +14,7 @@ jest.mock('@/lib/kautionen-loeschen', () => ({
 // Kaution (GH-6): Feature Flag `advanced-kautionsmanagment`, standardmäßig an (einzelne Tests schalten ihn aus).
 let mockKautionFlagAktiv = true;
 jest.mock('@/hooks/use-kaution-flag', () => ({
-  useKautionFlag: () => ({ aktiv: mockKautionFlagAktiv }),
+  useKautionenSichtbar: (hatModulrecht: boolean) => hatModulrecht && mockKautionFlagAktiv,
 }));
 const mockCompleteStep = jest.fn();
 jest.mock('@/hooks/use-onboarding-store', () => ({
