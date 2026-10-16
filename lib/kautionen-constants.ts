@@ -14,6 +14,7 @@ import type {
   KautionArt,
   KautionBewegungsArt,
   KautionFristStufe,
+  KautionRateStatus,
   KautionZustand,
 } from "@/types/Kaution";
 
@@ -68,6 +69,20 @@ export const KAUTION_ABZUG_KATEGORIE_LABELS: Record<KautionAbzugKategorie, strin
   mietrueckstand: "Mietrückstand",
   nebenkosten: "Nebenkosten",
   sonstiges: "Sonstiges",
+};
+
+// ---------------------------------------------------------------------------
+// Instalment plan (phase 2, display only)
+// ---------------------------------------------------------------------------
+
+/** Most rates a plan may have (database: rate_nr 1..3). */
+export const KAUTION_RATEN_MAX_ANZAHL = 3;
+
+export const KAUTION_RATE_STATUS_LABELS: Record<KautionRateStatus, string> = {
+  offen: "Offen",
+  teilweise: "Teilweise bezahlt",
+  bezahlt: "Bezahlt",
+  ueberfaellig: "Überfällig",
 };
 
 // ---------------------------------------------------------------------------

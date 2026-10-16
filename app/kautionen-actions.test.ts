@@ -20,6 +20,7 @@ import {
   deleteKautionAction,
   getKautionDetailsAction,
   getKautionLoeschauswirkungAction,
+  planeKautionRatenAction,
   storniereKautionBewegungAction,
   updateKautionVereinbarungAction,
 } from "@/app/kautionen-actions";
@@ -42,6 +43,7 @@ const LOESCH_AUSWIRKUNG = {
   eintraege: [{ id: HAUS_ID, anzahl_mieter: 3, mit_buchungen: 2, pruefsumme: "0123456789abcdef0123456789abcdef" }],
 };
 const SCHLUESSEL = "44444444-4444-4444-8444-444444444444";
+const RATE_ID = "66666666-6666-4666-8666-666666666666";
 const SCOPE_RPC = "kautionen_pruefe_objektzugriff";
 
 const mockHasPermission = hasPermission as jest.Mock;
@@ -108,6 +110,12 @@ const ACTION_CASES: ActionCase[] = [
     name: "updateKautionVereinbarungAction",
     aktion: "bearbeiten",
     call: () => updateKautionVereinbarungAction({ tenantId: TENANT_ID, kautionId: KAUTION_ID, felder: { soll_betrag: "1200,00" } }),
+    okData: null,
+  },
+  {
+    name: "planeKautionRatenAction",
+    aktion: "bearbeiten",
+    call: () => planeKautionRatenAction({ kautionId: KAUTION_ID, raten: [{ faelligkeitsdatum: "2027-01-31", sollBetrag: "1500,00" }] }),
     okData: null,
   },
   {
@@ -932,7 +940,6 @@ describe("bucheKautionBewegungAction", () => {
 
     await bucheKautionBewegungAction({
       ...gueltig,
-      rateId: "x",
       dokumentId: "y",
       zinszeitraumVon: "2025-01-01",
       zinszeitraumBis: "2025-12-31",
@@ -942,6 +949,50 @@ describe("bucheKautionBewegungAction", () => {
 
     const details = (mockRpc.mock.calls[0][1] as { p_details: Record<string, unknown> }).p_details;
     expect(Object.keys(details)).toEqual(["idempotenz_schluessel"]);
+  });
+
+  it("assigns a deposit payment to a rate of the plan (details.rate_id, exact UUID)", async () => {
+    rpcOk(BEWEGUNG_ID);
+
+    await bucheKautionBewegungAction({ ...gueltig, rateId: RATE_ID });
+
+    expect(mockRpc).toHaveBeenCalledWith("kaution_buchen", {
+      p_kaution_id: KAUTION_ID,
+      p_bewegungsart: "einzahlung",
+      p_betrag: "333.33",
+      p_wertstellung: "2025-09-01",
+      p_details: { idempotenz_schluessel: SCHLUESSEL, rate_id: RATE_ID },
+    });
+  });
+
+  it("treats an empty or missing rate ID as not given (no rate_id key)", async () => {
+    rpcOk(BEWEGUNG_ID);
+    rpcOk(BEWEGUNG_ID);
+
+    await bucheKautionBewegungAction({ ...gueltig, rateId: "" });
+    await bucheKautionBewegungAction({ ...gueltig, rateId: undefined });
+
+    for (const call of mockRpc.mock.calls) {
+      expect(Object.keys((call[1] as { p_details: Record<string, unknown> }).p_details)).toEqual(["idempotenz_schluessel"]);
+    }
+  });
+
+  it.each([
+    ["a payout", { art: "auszahlung" as const, grund: "Auszahlung an den Mieter" }],
+    ["a deduction", { art: "abzug" as const, kategorie: "schaden" as const, grund: "Schaden am Türrahmen" }],
+  ])("rejects a rate for %s (KA004, only deposit payments can be assigned), no RPC", async (_label, abweichend) => {
+    const result = await bucheKautionBewegungAction({ ...gueltig, ...abweichend, rateId: RATE_ID });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed rate ID (KA004), no RPC", async () => {
+    const result = await bucheKautionBewegungAction({ ...gueltig, rateId: "x" });
+
+    expect(result.error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
   it("shows the strict-balance message of the database at the form (KA005)", async () => {
@@ -954,6 +1005,161 @@ describe("bucheKautionBewegungAction", () => {
       error: { code: "KA005", message: "Der Kontostand würde am 01.09.2025 um 0,01 € unter 0 fallen." },
     });
     expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("planeKautionRatenAction", () => {
+  const RATE_1 = { faelligkeitsdatum: "2027-01-31", sollBetrag: "333,33" };
+  const RATE_2 = { faelligkeitsdatum: "2027-02-28", sollBetrag: "333,33" };
+  const RATE_3 = { faelligkeitsdatum: "2027-03-31", sollBetrag: "333,34" };
+
+  it("sends the complete plan with exact decimal strings and due dates to kaution_raten_planen", async () => {
+    rpcOk();
+
+    const result = await planeKautionRatenAction({ kautionId: KAUTION_ID, raten: [RATE_1, RATE_2, RATE_3] });
+
+    expect(result).toEqual({ success: true, data: undefined });
+    expect(mockRpc).toHaveBeenCalledWith("kaution_raten_planen", {
+      p_kaution_id: KAUTION_ID,
+      p_raten: [
+        { faelligkeitsdatum: "2027-01-31", soll_betrag: "333.33" },
+        { faelligkeitsdatum: "2027-02-28", soll_betrag: "333.33" },
+        { faelligkeitsdatum: "2027-03-31", soll_betrag: "333.34" },
+      ],
+    });
+  });
+
+  it("an empty list removes the plan (p_raten is an empty array)", async () => {
+    rpcOk();
+
+    const result = await planeKautionRatenAction({ kautionId: KAUTION_ID, raten: [] });
+
+    expect(result.success).toBe(true);
+    expect(mockRpc).toHaveBeenCalledWith("kaution_raten_planen", { p_kaution_id: KAUTION_ID, p_raten: [] });
+  });
+
+  it("accepts a single rate and a plain amount that is exact to the cent", async () => {
+    rpcOk();
+
+    await planeKautionRatenAction({ kautionId: KAUTION_ID, raten: [{ faelligkeitsdatum: "2027-06-01", sollBetrag: "1500" }] });
+
+    expect(mockRpc).toHaveBeenCalledWith("kaution_raten_planen", {
+      p_kaution_id: KAUTION_ID,
+      p_raten: [{ faelligkeitsdatum: "2027-06-01", soll_betrag: "1500.00" }],
+    });
+  });
+
+  it("rejects more than three rates (KA004), no RPC", async () => {
+    const result = await planeKautionRatenAction({
+      kautionId: KAUTION_ID,
+      raten: [RATE_1, RATE_2, RATE_3, { faelligkeitsdatum: "2027-04-30", sollBetrag: "1,00" }],
+    });
+
+    expect(result.error?.code).toBe("KA004");
+    expect(result.error?.message).toBe("Ein Ratenplan hat höchstens 3 Raten.");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a date that is not a real calendar day", { faelligkeitsdatum: "2027-02-31", sollBetrag: "100,00" }],
+    ["a date in German notation", { faelligkeitsdatum: "31.01.2027", sollBetrag: "100,00" }],
+    ["a date before 1990", { faelligkeitsdatum: "1989-12-31", sollBetrag: "100,00" }],
+    ["a missing date", { sollBetrag: "100,00" }],
+    ["a target amount of 0", { faelligkeitsdatum: "2027-01-31", sollBetrag: "0" }],
+    ["an ambiguous thousands notation", { faelligkeitsdatum: "2027-01-31", sollBetrag: "1.500" }],
+    ["more than two decimal places", { faelligkeitsdatum: "2027-01-31", sollBetrag: "10,005" }],
+    ["a boolean as amount", { faelligkeitsdatum: "2027-01-31", sollBetrag: true }],
+    ["a missing amount", { faelligkeitsdatum: "2027-01-31" }],
+    ["a rate that is not an object", "Muster"],
+  ])("rejects %s (KA004), no RPC", async (_label, rate) => {
+    const result = await planeKautionRatenAction({ kautionId: KAUTION_ID, raten: [rate as never] });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects equal and descending due dates with a friendly message (KA004), no RPC", async () => {
+    const gleich = await planeKautionRatenAction({ kautionId: KAUTION_ID, raten: [RATE_1, { ...RATE_2, faelligkeitsdatum: RATE_1.faelligkeitsdatum }] });
+    const absteigend = await planeKautionRatenAction({ kautionId: KAUTION_ID, raten: [RATE_2, RATE_1] });
+
+    for (const result of [gleich, absteigend]) {
+      expect(result.error?.code).toBe("KA004");
+      expect(result.error?.message).toBe("Die Fälligkeitsdaten müssen in aufsteigender Reihenfolge liegen.");
+    }
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects a plan that is not a list and a malformed deposit ID, no RPC", async () => {
+    const keineListe = await planeKautionRatenAction({ kautionId: KAUTION_ID, raten: "Muster" as never });
+    const fehlendeListe = await planeKautionRatenAction({ kautionId: KAUTION_ID } as never);
+    const schlechteId = await planeKautionRatenAction({ kautionId: "x", raten: [RATE_1] });
+
+    expect(keineListe.error?.code).toBe("KA004");
+    expect(fehlendeListe.error?.code).toBe("KA004");
+    expect(schlechteId.error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("does not forward unknown keys (e.g. an organisation ID) to the RPC", async () => {
+    rpcOk();
+
+    await planeKautionRatenAction({
+      kautionId: KAUTION_ID,
+      raten: [{ ...RATE_1, organisationId: "x", rateId: "y" } as never],
+      organisationId: "z",
+    } as never);
+
+    const args = mockRpc.mock.calls[0][1] as { p_raten: Record<string, unknown>[] };
+    expect(Object.keys(args)).toEqual(["p_kaution_id", "p_raten"]);
+    expect(Object.keys(args.p_raten[0]).sort()).toEqual(["faelligkeitsdatum", "soll_betrag"]);
+  });
+
+  it("maps a locked plan (KA009) to a fixed German message, the database text is not passed on", async () => {
+    rpcError("KA009", "KAUT_GESPERRT: plan cannot be changed because payments are assigned");
+
+    const result = await planeKautionRatenAction({ kautionId: KAUTION_ID, raten: [] });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "KA009", message: "Der Ratenplan kann nicht mehr geändert werden, weil bereits Zahlungen zugeordnet sind." },
+    });
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("passes the German message of a database validation error (KA004) without the code prefix", async () => {
+    rpcError("KA004", "KAUT_EINGABE_UNGUELTIG: Ungültiger Betrag (soll_betrag).");
+
+    const result = await planeKautionRatenAction({ kautionId: KAUTION_ID, raten: [RATE_1] });
+
+    expect(result.error?.code).toBe("KA004");
+    expect(result.error?.message).not.toContain("KAUT_");
+  });
+
+  it("maps a missing right (42501) and an unknown database error to the usual messages", async () => {
+    rpcError("42501", "permission denied for function kaution_raten_planen");
+    const verweigert = await planeKautionRatenAction({ kautionId: KAUTION_ID, raten: [RATE_1] });
+
+    rpcError("XX000", "internal detail");
+    const unbekannt = await planeKautionRatenAction({ kautionId: KAUTION_ID, raten: [RATE_1] });
+
+    expect(verweigert.error).toEqual({ code: "42501", message: "Für diese Aktion fehlt die Berechtigung (Modul Kautionen)." });
+    expect(unbekannt).toEqual({ success: false, error: { message: KAUTION_FEHLER_FALLBACK_MESSAGE } });
+  });
+
+  it("logs only the action name, the result and the code (no amounts, dates, IDs or names)", async () => {
+    rpcError("KA009", "KAUT_GESPERRT: Zahlungen zugeordnet");
+
+    await planeKautionRatenAction({
+      kautionId: KAUTION_ID,
+      raten: [{ faelligkeitsdatum: "2027-01-31", sollBetrag: "123,45" }],
+    });
+
+    expect(mockLogAction).toHaveBeenCalledWith("planeKautionRaten", "failed", { code: "KA009" });
+    const logged = JSON.stringify(mockLogAction.mock.calls);
+    for (const secret of ["123", "2027-01-31", KAUTION_ID]) {
+      expect(logged).not.toContain(secret);
+    }
   });
 });
 

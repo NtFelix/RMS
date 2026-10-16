@@ -22,12 +22,17 @@ import {
   storniereKautionBewegungAction,
   updateKautionVereinbarungAction,
 } from "@/app/kautionen-actions";
-import type { KautionBewegung, KautionDetails, KautionRechte, KautionVorschlag } from "@/types/Kaution";
+import type { KautionBewegung, KautionDetails, KautionRate, KautionRechte, KautionVorschlag } from "@/types/Kaution";
+import { useKautionFlag } from "@/hooks/use-kaution-flag";
+import { standardKautionFlagKonfig, type KautionFunktion } from "@/lib/kautionen-flag";
+import { KAUTION_FRIST_STUFE_TEXTE } from "@/lib/kautionen-constants";
 
 expect.extend(toHaveNoViolations);
 
 jest.mock("@/hooks/use-modal-store", () => ({ useModalStore: jest.fn() }));
 jest.mock("@/hooks/use-toast", () => ({ toast: jest.fn(), useToast: jest.fn() }));
+// Feature flag: the tests choose the function flags (`setzeFunktionen`); phase 1 defaults unless a test says otherwise.
+jest.mock("@/hooks/use-kaution-flag", () => ({ useKautionFlag: jest.fn() }));
 const mockRouterPush = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockRouterPush, replace: jest.fn(), refresh: jest.fn() }),
@@ -65,6 +70,26 @@ const bucheMock = bucheKautionBewegungAction as jest.Mock;
 const stornoMock = storniereKautionBewegungAction as jest.Mock;
 const deleteMock = deleteKautionAction as jest.Mock;
 const toastMock = toast as unknown as jest.Mock;
+const flagMock = useKautionFlag as unknown as jest.Mock;
+
+const RATE_ID_1 = "88888888-8888-4888-8888-888888888881";
+const RATE_ID_2 = "88888888-8888-4888-8888-888888888882";
+
+/** Function flags of the test (all others off). The payload of the phase 1 defaults stays as it is. */
+function setzeFunktionen(funktionen: Partial<Record<KautionFunktion, boolean>> = {}) {
+  flagMock.mockReturnValue({
+    ...standardKautionFlagKonfig(true),
+    funktionen: { raten: false, dokumente: false, fristen: false, zinsen: false, abrechnung: false, ...funktionen },
+  });
+}
+
+/** Two rates of 750,00 € (sum 1.500,00 € = target amount of `baueDetails`): rate 1 paid, rate 2 open. */
+function baueRaten(): KautionRate[] {
+  return [
+    { rate_id: RATE_ID_1, rate_nr: 1, faelligkeitsdatum: "2026-02-28", soll_betrag: 750, gezahlt: 750, offen: 0, status: "bezahlt" },
+    { rate_id: RATE_ID_2, rate_nr: 2, faelligkeitsdatum: "2026-03-31", soll_betrag: 750, gezahlt: 0, offen: 750, status: "offen" },
+  ];
+}
 
 function bewegung(teil: Partial<KautionBewegung> & Pick<KautionBewegung, "id" | "bewegungsart" | "betrag" | "wertstellung">): KautionBewegung {
   return {
@@ -156,7 +181,7 @@ function mockLadeErgebnis(details: KautionDetails | null, rechte: KautionRechte 
 
 async function oeffneMitKaution(
   details: KautionDetails = baueDetails(),
-  optionen: { rechte?: KautionRechte; initialTab?: "uebersicht" | "kontoauszug" } = {}
+  optionen: { rechte?: KautionRechte; initialTab?: "uebersicht" | "kontoauszug" | "raten" } = {}
 ) {
   mockLadeErgebnis(details, optionen.rechte ?? ALLE_RECHTE);
   mockStore(optionen.initialTab ? { kautionInitialData: { tenant: { id: TENANT_ID, name: "Erika Mustermann" }, initialTab: optionen.initialTab } } : {});
@@ -174,6 +199,7 @@ async function wechsleZumKontoauszug(user: ReturnType<typeof userEvent.setup>) {
 beforeEach(() => {
   // Auch die Rückgabewerte zurücksetzen (ein Test mit nie antwortender Action darf nicht in den nächsten wirken).
   jest.resetAllMocks();
+  setzeFunktionen();
   mockStore();
 });
 
@@ -321,9 +347,120 @@ describe("KautionDialog: Zustände", () => {
   });
 });
 
+describe("KautionDialog: Funktionsflags (Raten, Fristen)", () => {
+  raeumeNachJedemTestAuf();
+
+  it("hat keinen Tab 'Raten' ohne das Funktionsflag 'raten' (Übersicht und Kontoauszug bleiben)", async () => {
+    setzeFunktionen({ raten: false });
+    await oeffneMitKaution(baueDetails({ raten: baueRaten() }));
+
+    expect(screen.queryByRole("tab", { name: "Raten" })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Übersicht" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Kontoauszug" })).toBeInTheDocument();
+  });
+
+  it("zeigt den Tab 'Raten' mit dem Funktionsflag und öffnet darin den Ratenplan", async () => {
+    setzeFunktionen({ raten: true });
+    const user = await oeffneMitKaution(baueDetails({ raten: baueRaten() }));
+
+    await user.click(screen.getByRole("tab", { name: "Raten" }));
+
+    expect(await screen.findByRole("table", { name: /Ratenplan der Kaution/ })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "Raten" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("öffnet direkt den Tab 'Raten', wenn er verlangt wird und das Flag an ist", async () => {
+    setzeFunktionen({ raten: true });
+    await oeffneMitKaution(baueDetails({ raten: baueRaten() }), { initialTab: "raten" });
+
+    expect(screen.getByRole("tab", { name: "Raten" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("table", { name: /Ratenplan der Kaution/ })).toBeVisible();
+  });
+
+  it("fällt auf die Übersicht zurück, wenn 'Raten' verlangt wird, das Flag aber aus ist", async () => {
+    setzeFunktionen({ raten: false });
+    await oeffneMitKaution(baueDetails({ raten: baueRaten() }), { initialTab: "raten" });
+
+    expect(screen.getByRole("tab", { name: "Übersicht" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("table", { name: /Ratenplan der Kaution/ })).not.toBeInTheDocument();
+  });
+
+  it("fällt auf die Übersicht zurück, sobald das Flag während des offenen Tabs 'Raten' ausgeschaltet wird", async () => {
+    setzeFunktionen({ raten: true });
+    mockLadeErgebnis(baueDetails({ raten: baueRaten() }), ALLE_RECHTE);
+    mockStore();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    const { rerender } = render(<KautionDialog />);
+    await screen.findByRole("tab", { name: "Übersicht" });
+    await user.click(screen.getByRole("tab", { name: "Raten" }));
+    expect(screen.getByRole("tab", { name: "Raten" })).toHaveAttribute("aria-selected", "true");
+
+    setzeFunktionen({ raten: false });
+    rerender(<KautionDialog />);
+
+    expect(await screen.findByRole("tab", { name: "Übersicht" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("tab", { name: "Raten" })).not.toBeInTheDocument();
+  });
+
+  it("zeigt den Fristen-Hinweis ohne das Funktionsflag 'fristen' nicht, auch wenn die Datenbank eine Frist liefert", async () => {
+    setzeFunktionen({ fristen: false });
+    await oeffneMitKaution(
+      baueDetails({ mietende: "2026-03-31", frist: { stufe: "zeitnah", gelb_ab: null, rot_ab: null, tage_seit_mietende: 200 } })
+    );
+
+    expect(screen.queryByText(KAUTION_FRIST_STUFE_TEXTE.zeitnah)).not.toBeInTheDocument();
+  });
+
+  it("zeigt den Fristen-Hinweis mit dem Funktionsflag 'fristen'", async () => {
+    setzeFunktionen({ fristen: true });
+    await oeffneMitKaution(
+      baueDetails({ mietende: "2026-03-31", frist: { stufe: "zeitnah", gelb_ab: null, rot_ab: null, tage_seit_mietende: 200 } })
+    );
+
+    expect(screen.getByText(KAUTION_FRIST_STUFE_TEXTE.zeitnah)).toBeInTheDocument();
+  });
+
+  it("'Zahlung erfassen' im Tab Raten öffnet im Kontoauszug die Einzahlung für diese Rate mit dem offenen Betrag", async () => {
+    setzeFunktionen({ raten: true });
+    bucheMock.mockResolvedValue({ success: true, data: { bewegungId: BEWEGUNG_EINZAHLUNG } });
+    const user = await oeffneMitKaution(baueDetails({ raten: baueRaten(), raten_summe: 1500 }));
+
+    await user.click(screen.getByRole("tab", { name: "Raten" }));
+    await user.click(screen.getByRole("button", { name: "Zahlung für Rate 2 erfassen" }));
+
+    expect(screen.getByRole("tab", { name: "Kontoauszug" })).toHaveAttribute("aria-selected", "true");
+    const formular = await screen.findByTestId("kaution-buchung-form");
+    expect(formular).toHaveAttribute("data-bewegungsart", "einzahlung");
+    expect(within(formular).getByLabelText("Betrag (€)")).toHaveValue("750,00");
+    expect(within(formular).getByTestId("kaution-buchung-rate")).toHaveTextContent("Rate 2");
+
+    await user.click(within(formular).getByRole("button", { name: "Buchen" }));
+
+    expect(bucheMock).toHaveBeenCalledWith(expect.objectContaining({ art: "einzahlung", betrag: "750,00", rateId: RATE_ID_2 }));
+  });
+
+  it("zeigt im Kontoauszug die Rate einer zugeordneten Buchung", async () => {
+    setzeFunktionen({ raten: true });
+    const zugeordnet = bewegung({
+      id: BEWEGUNG_EINZAHLUNG,
+      bewegungsart: "einzahlung",
+      betrag: 750,
+      wertstellung: "2026-03-05",
+      saldo_nach_buchung: 750,
+      rate_id: RATE_ID_2,
+    });
+    const user = await oeffneMitKaution(baueDetails({ raten: baueRaten(), kontoauszug: [zugeordnet] }));
+
+    const tabelle = await wechsleZumKontoauszug(user);
+
+    expect(within(tabelle).getByTestId("kaution-buchung-rate-badge")).toHaveTextContent("Rate 2");
+  });
+});
+
 describe("KautionDialog: Hinweise", () => {
   raeumeNachJedemTestAuf();
   it("zeigt den Fristen-Text neutral als Richtwert und nicht nur per Farbe (ab Phase 2)", async () => {
+    setzeFunktionen({ fristen: true });
     await oeffneMitKaution(
       baueDetails({
         mietende: "2026-03-31",

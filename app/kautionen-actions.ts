@@ -9,7 +9,7 @@
  *   scope (fail-closed, only where the tenant ID IS the object: details and create) -> input validation -> RPC
  *   call -> error mapping by SQLSTATE -> `revalidatePath('/mieter')` -> log.
  * - The ONLY way to read or change deposit data is the RPCs (`get_kaution_details`, `kaution_anlegen`,
- *   `kaution_aendern`, `kaution_buchen`, `kaution_storno`, `soft_delete_record`). There is no `.insert()`,
+ *   `kaution_aendern`, `kaution_buchen`, `kaution_storno`, `kaution_raten_planen`, `soft_delete_record`). There is no `.insert()`,
  *   `.update()` or `.delete()` on the deposit tables in this file, no calculation of balances, states or
  *   deadlines (they come from the database), and no organisation ID from the client.
  * - Amounts are parsed strictly (`lib/kautionen-money.ts`, no silent rounding) and sent as exact decimal strings.
@@ -18,7 +18,8 @@
  * - Expected errors are returned as `{ success: false, error: { message, code } }`, not thrown. The messages
  *   are German (formal address) and come from `lib/kautionen-errors.ts`.
  *
- * Phase 2-4 actions (installments, receipts, interest, settlement) live in their own files.
+ * Phase 2 (instalment plan: `planeKautionRatenAction`, optional rate of a deposit booking) is in this file.
+ * Further phase 2-4 actions (receipts, interest, settlement) live in their own files.
  *
  * Security relevant (money booking, module right, object scope): not production ready until the maintainer
  * has reviewed it. The database is authoritative: the RPCs check organisation, module right, object scope and
@@ -37,6 +38,7 @@ import type { LogAttributes } from "@/lib/otlp-utils";
 import {
   KAUTION_ARTEN_VERFUEGBAR,
   KAUTION_BEWEGUNGSARTEN_VERFUEGBAR,
+  KAUTION_RATEN_MAX_ANZAHL,
   KAUTION_TEXT_LIMITS,
   isKautionAbzugKategorie,
   isKautionArt,
@@ -115,6 +117,25 @@ export interface BucheKautionBewegungInput {
   empfaenger?: string;
   /** `crypto.randomUUID()`, generated once per opening of the form: a repeated request books nothing twice. */
   idempotenzSchluessel: string;
+  /** Optional rate of the instalment plan the deposit payment is assigned to. Only allowed for `einzahlung`. */
+  rateId?: string;
+}
+
+/** One rate of an instalment plan as the form sends it. The amount is the text as typed (strictly parsed). */
+export interface PlanRateInput {
+  /** Due date `YYYY-MM-DD`. */
+  faelligkeitsdatum: string;
+  /** Target amount of the rate, e.g. `"333,33"` or `"333.33"` (strict parsing, greater than 0). */
+  sollBetrag: string;
+}
+
+export interface PlaneKautionRatenInput {
+  kautionId: string;
+  /**
+   * The complete plan (0 to 3 rates, due-date order, strictly ascending). An empty list removes the plan. The rates
+   * replace the plan as a whole, they are not changed one by one.
+   */
+  raten: PlanRateInput[];
 }
 
 export interface StorniereKautionBewegungInput {
@@ -136,6 +157,12 @@ type Step<T> = { ok: true; data: T } | { ok: false; error: KautionActionError };
 // ---------------------------------------------------------------------------
 
 const MSG_UNGUELTIGE_EINGABE = "Die Eingabe ist ungültig.";
+
+/**
+ * Message for a locked plan (`KA009`). The database uses the generic lock code for deletions too; for the plan the
+ * text is fixed here, so no database text reaches the user unchecked.
+ */
+const MSG_RATENPLAN_GESPERRT = "Der Ratenplan kann nicht mehr geändert werden, weil bereits Zahlungen zugeordnet sind.";
 
 /** Start of the message `ensureAuth` throws for "not signed in" (`lib/auth-utils.ts`); other errors are not a login problem. */
 const NOT_SIGNED_IN_MESSAGE_PREFIX = "Nicht authentifiziert";
@@ -551,6 +578,57 @@ export async function updateKautionVereinbarungAction(input: UpdateKautionVerein
 }
 
 // ---------------------------------------------------------------------------
+// Instalment plan (phase 2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Replaces the instalment plan of a deposit as a whole (`kaution_raten_planen`); an empty list removes it. The rates
+ * are validated here (count, strict amounts, real dates, ascending order); the database checks the object scope and
+ * the lock (`KA009` once payments are assigned). The database does not require the rates to add up to the target
+ * amount: the form only warns about a difference.
+ */
+export async function planeKautionRatenAction(input: PlaneKautionRatenInput): Promise<KautionActionResult> {
+  const raw = asRecord(input);
+  return runKautionAction({
+    actionName: "planeKautionRaten",
+    mieterScope: false,
+    aktion: "bearbeiten",
+    run: async (supabase) => {
+      const kautionId = validateUuid(raw.kautionId, "Kautions-ID");
+      if (!kautionId.ok) return fail(invalid(kautionId.message));
+
+      if (!Array.isArray(raw.raten)) return fail(invalid("Der Ratenplan ist ungültig."));
+      if (raw.raten.length > KAUTION_RATEN_MAX_ANZAHL) {
+        return fail(invalid(`Ein Ratenplan hat höchstens ${KAUTION_RATEN_MAX_ANZAHL} Raten.`));
+      }
+
+      const raten: { faelligkeitsdatum: string; soll_betrag: string }[] = [];
+      for (const eintrag of raw.raten) {
+        const feld = asRecord(eintrag);
+        const datum = validateKautionDatum(feld.faelligkeitsdatum, "Das Fälligkeitsdatum");
+        if (!datum.ok) return fail(invalid(datum.message));
+        const betrag = parseBetrag(feld.sollBetrag, "Der Betrag der Rate");
+        if (!betrag.ok) return fail(betrag.error);
+
+        // Strictly ascending: ISO dates compare correctly as text.
+        const vorige = raten[raten.length - 1];
+        if (vorige && datum.value <= vorige.faelligkeitsdatum) {
+          return fail(invalid("Die Fälligkeitsdaten müssen in aufsteigender Reihenfolge liegen."));
+        }
+        raten.push({ faelligkeitsdatum: datum.value, soll_betrag: betrag.data });
+      }
+
+      const result = await callRpc(supabase, "kaution_raten_planen", { p_kaution_id: kautionId.value, p_raten: raten });
+      if (!result.ok) {
+        if (result.error.code === "KA009") return fail({ code: "KA009", message: MSG_RATENPLAN_GESPERRT });
+        return fail(result.error);
+      }
+      return { ok: true, data: undefined };
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Bookings
 // ---------------------------------------------------------------------------
 
@@ -573,6 +651,16 @@ export async function bucheKautionBewegungAction(input: BucheKautionBewegungInpu
       const art = raw.art;
       if (!isKautionBewegungsArt(art)) return fail(invalid("Die Buchungsart ist ungültig."));
       if (!KAUTION_BEWEGUNGSARTEN_VERFUEGBAR.includes(art)) return fail(mappedError("KA015"));
+
+      // Optional rate of the plan: a deposit payment only. Empty counts as "not given". The database checks that the
+      // rate belongs to this deposit (KA004 otherwise).
+      let rateId: string | null = null;
+      if (raw.rateId !== undefined && raw.rateId !== null && raw.rateId !== "") {
+        if (art !== "einzahlung") return fail(invalid("Eine Rate kann nur einer Einzahlung zugeordnet werden."));
+        const rate = validateUuid(raw.rateId, "Raten-ID");
+        if (!rate.ok) return fail(invalid(rate.message));
+        rateId = rate.value;
+      }
 
       const betrag = parseBetrag(raw.betrag, "Betrag");
       if (!betrag.ok) return fail(betrag.error);
@@ -610,6 +698,7 @@ export async function bucheKautionBewegungAction(input: BucheKautionBewegungInpu
 
       // Only the keys the RPC accepts (any other key is rejected by the database with KA004).
       const details: Record<string, unknown> = { idempotenz_schluessel: schluessel.value };
+      if (rateId !== null) details.rate_id = rateId;
       if (kategorie !== null) details.kategorie = kategorie;
       if (grund.value !== null) details.grund = grund.value;
       if (notiz.value !== null) details.interne_notiz = notiz.value;
