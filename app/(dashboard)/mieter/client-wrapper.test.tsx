@@ -11,6 +11,13 @@ jest.mock('@/hooks/use-modal-store');
 jest.mock('@/lib/kautionen-loeschen', () => ({
   starteLoeschenMitKautionen: jest.fn(async (_tabelle, _ids, handlers) => handlers.einfach()),
 }));
+// Kaution (GH-6): Feature Flag `advanced-kautionsmanagment`, standardmäßig an (einzelne Tests schalten ihn aus).
+let mockKautionFlagAktiv = true;
+let mockKautionFlagGeladen = true;
+jest.mock('@/hooks/use-kaution-flag', () => ({
+  useKautionenSichtbar: (hatModulrecht: boolean) => hatModulrecht && mockKautionFlagAktiv,
+  useKautionFlagGeladen: () => mockKautionFlagGeladen,
+}));
 const mockCompleteStep = jest.fn();
 jest.mock('@/hooks/use-onboarding-store', () => ({
   useOnboardingStore: Object.assign(
@@ -121,6 +128,8 @@ describe('MieterClientView - Layout Changes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCurrentTab = 'mieter';
+    mockKautionFlagAktiv = true;
+    mockKautionFlagGeladen = true;
     mockUseModalStore.mockReturnValue({
       openTenantModal: mockOpenTenantModal,
       openKautionModal: mockOpenKautionModal,
@@ -430,6 +439,40 @@ describe('MieterClientView - Layout Changes', () => {
 
       render(<MieterClientView {...depositProps} canViewKautionen />);
       expect(screen.getByRole('button', { name: 'Kaution' })).toBeInTheDocument();
+    });
+
+    it('hides the Kaution button and the deposit card with the module right but without the feature flag', () => {
+      mockKautionFlagAktiv = false;
+      const { unmount } = render(<MieterClientView {...depositProps} canViewKautionen />);
+      expect(screen.queryByRole('button', { name: 'Kaution' })).not.toBeInTheDocument();
+      unmount();
+
+      mockCurrentTab = 'overview';
+      render(<MieterClientView {...depositProps} canViewKautionen />);
+      expect(screen.getByText('KI-Bewerber Match-Score')).toBeInTheDocument();
+      expect(screen.queryByText('Kaution Status & Rückzahlungen')).not.toBeInTheDocument();
+    });
+
+    it('holds the card slot with a skeleton while the flag loads (no layout shift), only with the module right', () => {
+      mockKautionFlagAktiv = false;
+      mockKautionFlagGeladen = false;
+      mockCurrentTab = 'overview';
+      const { unmount } = render(<MieterClientView {...depositProps} canViewKautionen />);
+      expect(screen.getByRole('status', { name: 'Kautionsdaten werden geladen' })).toBeInTheDocument();
+      expect(screen.queryByText('Kaution Status & Rückzahlungen')).not.toBeInTheDocument();
+      unmount();
+
+      render(<MieterClientView {...depositProps} />);
+      expect(screen.queryByRole('status', { name: 'Kautionsdaten werden geladen' })).not.toBeInTheDocument();
+    });
+
+    it('shows neither skeleton nor card once the flag has loaded as off', () => {
+      mockKautionFlagAktiv = false;
+      mockKautionFlagGeladen = true;
+      mockCurrentTab = 'overview';
+      render(<MieterClientView {...depositProps} canViewKautionen />);
+      expect(screen.queryByRole('status', { name: 'Kautionsdaten werden geladen' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Kaution Status & Rückzahlungen')).not.toBeInTheDocument();
     });
 
     it('hides the deposit card of the overview without the module right', () => {
