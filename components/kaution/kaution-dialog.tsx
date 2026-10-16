@@ -15,6 +15,7 @@ import { KautionAnlegenForm } from "@/components/kaution/kaution-anlegen-form";
 import { formatBetrag } from "@/components/kaution/kaution-format";
 import { KautionFristBadge } from "@/components/kaution/kaution-frist-badge";
 import { KautionKontoauszugTab } from "@/components/kaution/kaution-kontoauszug-tab";
+import { KautionDokumenteTab } from "@/components/kaution/kaution-dokumente-tab";
 import type { KautionBuchungVorgabe } from "@/components/kaution/kaution-buchung-form";
 import { KautionRatenTab } from "@/components/kaution/kaution-raten-tab";
 import { KautionStatusBadge } from "@/components/kaution/kaution-status-badge";
@@ -35,7 +36,7 @@ import type { KautionDetails, KautionRate, KautionRechte, KautionVorschlag } fro
  *   state and deadlines come from the database. The server stays authoritative for every right, the rights
  *   here only enable/disable buttons (disabled instead of hidden, tooltip "Keine Berechtigung").
  * - States: loading (skeleton), error (alert + "Erneut laden"), no deposit (creation form with suggestion),
- *   deposit present (header + tabs "Übersicht" / "Kontoauszug", "Raten" only with the function flag `raten`).
+ *   deposit present (header + tabs "Übersicht" / "Kontoauszug", "Raten" only with the function flag `raten`, "Dokumente" only with `dokumente`).
  *   The frist badge shows only with the function flag `fristen`.
  * - Unsaved input: only the forms report it (`setKautionModalDirty`); closing then uses the confirmation
  *   dialog of the store. Both tabs stay mounted, so switching tabs never discards an open form.
@@ -46,12 +47,13 @@ import type { KautionDetails, KautionRate, KautionRechte, KautionVorschlag } fro
  * Security relevant (money booking, rights): not production ready until the maintainer has reviewed it.
  */
 
-type KautionTab = "uebersicht" | "kontoauszug" | "raten";
+type KautionTab = "uebersicht" | "kontoauszug" | "raten" | "dokumente";
 
-/** Start tab from the store. "dokumente" (later phase) falls back to the overview. "raten" is checked against its flag in the view. */
+/** Start tab from the store. "raten" and "dokumente" are checked against their flags in the view (fallback: overview). */
 function startTab(wunsch: string | undefined): KautionTab {
   if (wunsch === "kontoauszug") return "kontoauszug";
   if (wunsch === "raten") return "raten";
+  if (wunsch === "dokumente") return "dokumente";
   return "uebersicht";
 }
 
@@ -470,9 +472,10 @@ function KautionMitDetails({
 }: KautionMitDetailsProps) {
   const { funktionen } = useKautionFlag();
   const ratenAktiv = funktionen.raten;
+  const dokumenteAktiv = funktionen.dokumente;
   const fristAktiv = funktionen.fristen;
-  // Without its flag the "Raten" tab does not exist: the view falls back to the overview, the state follows (effect below).
-  const aktiverTab: KautionTab = tab === "raten" && !ratenAktiv ? "uebersicht" : tab;
+  // Without its flag the "Raten" or "Dokumente" tab does not exist: the view falls back to the overview, the state follows (effect below).
+  const aktiverTab: KautionTab = (tab === "raten" && !ratenAktiv) || (tab === "dokumente" && !dokumenteAktiv) ? "uebersicht" : tab;
   useEffect(() => {
     if (aktiverTab !== tab) onTabChange(aktiverTab);
   }, [aktiverTab, tab, onTabChange]);
@@ -499,6 +502,7 @@ function KautionMitDetails({
           <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
           <TabsTrigger value="kontoauszug">Kontoauszug</TabsTrigger>
           {ratenAktiv ? <TabsTrigger value="raten">Raten</TabsTrigger> : null}
+          {dokumenteAktiv ? <TabsTrigger value="dokumente">Dokumente</TabsTrigger> : null}
         </TabsList>
         {/* forceMount + hidden: an open form keeps its input when the user switches the tab. */}
         <TabsContent value="uebersicht" forceMount hidden={aktiverTab !== "uebersicht"}>
@@ -534,6 +538,11 @@ function KautionMitDetails({
               onRatenDirtyChange={onRatenDirtyChange}
               onZahlungErfassen={onZahlungErfassen}
             />
+          </TabsContent>
+        ) : null}
+        {dokumenteAktiv ? (
+          <TabsContent value="dokumente" forceMount hidden={aktiverTab !== "dokumente"}>
+            <KautionDokumenteTab details={details} rechte={rechte} onGeaendert={onGeaendert} onFehler={onFehler} />
           </TabsContent>
         ) : null}
       </Tabs>

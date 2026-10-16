@@ -10,6 +10,8 @@
 import { formatCurrency } from "@/utils/format";
 import { APP_TIME_ZONE, getTodayISOString } from "@/utils/date-calculations";
 import { centsToDecimalString, parseMoneyToCents } from "@/lib/kautionen-money";
+import { KAUTION_BEWEGUNGSART_LABELS } from "@/lib/kautionen-constants";
+import type { KautionBewegung } from "@/types/Kaution";
 
 const ISO_DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -38,6 +40,11 @@ export function formatDatum(value: string | null | undefined): string {
   const parsed = new Date(text);
   if (Number.isNaN(parsed.getTime())) return "–";
   return DATE_TIME_FORMAT.format(parsed);
+}
+
+/** Short description of a booking for lists and labels: "Einzahlung vom 05.01.2026 über 1.500,00 €" (no names, no notes). */
+export function bewegungBeschreibung(bewegung: KautionBewegung): string {
+  return `${KAUTION_BEWEGUNGSART_LABELS[bewegung.bewegungsart] ?? "Buchung"} vom ${formatDatum(bewegung.wertstellung)} über ${formatBetrag(bewegung.betrag)}`;
 }
 
 /** Today as `YYYY-MM-DD` in the app time zone (default value date, upper limit of a value date). */

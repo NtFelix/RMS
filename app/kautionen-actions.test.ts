@@ -18,6 +18,8 @@ import {
   bucheKautionBewegungAction,
   createKautionAction,
   deleteKautionAction,
+  entferneKautionBelegAction,
+  getKautionBelegUrlAction,
   getKautionDetailsAction,
   getKautionLoeschauswirkungAction,
   planeKautionRatenAction,
@@ -45,6 +47,10 @@ const LOESCH_AUSWIRKUNG = {
 const SCHLUESSEL = "44444444-4444-4444-8444-444444444444";
 const RATE_ID = "66666666-6666-4666-8666-666666666666";
 const SCOPE_RPC = "kautionen_pruefe_objektzugriff";
+const DOKUMENT_ID = "99999999-9999-4999-8999-999999999999";
+const MUSTER_PFAD = "user_muster/haus/wohnung/mieter";
+const BELEG_ROW = { dateipfad: MUSTER_PFAD, dateiname: "1765000000000_Muster-Beleg.pdf", mime_type: "application/pdf", dateigroesse: 2048 };
+const SIGNED_URL = "https://storage.example.invalid/documents/muster-beleg?token=muster";
 
 const mockHasPermission = hasPermission as jest.Mock;
 const mockEnsureAuth = ensureAuth as jest.Mock;
@@ -54,6 +60,7 @@ const mockRevalidatePath = revalidatePath as jest.Mock;
 // Supabase client mock: `rpc` for the actions (the scope helper has its own mock), `from` must never be used.
 const mockRpc = jest.fn();
 const mockScopeRpc = jest.fn();
+const mockCreateSignedUrl = jest.fn();
 const mockInsert = jest.fn();
 const mockUpdate = jest.fn();
 const mockDelete = jest.fn();
@@ -69,6 +76,11 @@ const mockFrom = jest.fn(() => ({
 const mockSupabase = {
   from: mockFrom,
   rpc: (name: string, args: unknown) => (name === SCOPE_RPC ? mockScopeRpc(args) : mockRpc(name, args)),
+  storage: {
+    from: (bucket: string) => ({
+      createSignedUrl: (...args: unknown[]) => mockCreateSignedUrl(bucket, ...args),
+    }),
+  },
 };
 
 function rpcOk(data: unknown = null) {
@@ -144,6 +156,18 @@ const ACTION_CASES: ActionCase[] = [
     call: () => deleteKautionAction({ tenantId: TENANT_ID, kautionId: KAUTION_ID }),
     okData: null,
   },
+  {
+    name: "entferneKautionBelegAction",
+    aktion: "bearbeiten",
+    call: () => entferneKautionBelegAction({ bewegungId: BEWEGUNG_ID }),
+    okData: null,
+  },
+  {
+    name: "getKautionBelegUrlAction",
+    aktion: "ansehen",
+    call: () => getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID }),
+    okData: BELEG_ROW,
+  },
 ];
 
 /** Queues the RPC responses an action needs for a successful run (the details action needs the details RPC). */
@@ -155,6 +179,8 @@ beforeEach(() => {
   mockRpc.mockReset();
   mockScopeRpc.mockReset();
   mockScopeRpc.mockResolvedValue({ data: null, error: null });
+  mockCreateSignedUrl.mockReset();
+  mockCreateSignedUrl.mockResolvedValue({ data: { signedUrl: SIGNED_URL }, error: null });
   mockSelect.mockReset();
   mockFrom.mockClear();
   mockInsert.mockReset();
@@ -1434,7 +1460,7 @@ describe("error mapping by SQLSTATE (spec 4.5)", () => {
 });
 
 describe("revalidation and logging", () => {
-  it.each(ACTION_CASES.filter((c) => c.name !== "getKautionDetailsAction" && c.name !== "getKautionLoeschauswirkungAction"))("$name: revalidates /mieter after success only", async (caseItem) => {
+  it.each(ACTION_CASES.filter((c) => !["getKautionDetailsAction", "getKautionLoeschauswirkungAction", "getKautionBelegUrlAction"].includes(c.name)))("$name: revalidates /mieter after success only", async (caseItem) => {
     queueSuccess(caseItem);
     const ok = await caseItem.call();
     expect(ok.success).toBe(true);
@@ -1511,5 +1537,103 @@ describe("revalidation and logging", () => {
     await deleteKautionAction({ tenantId: TENANT_ID, kautionId: KAUTION_ID });
     // The raw code of an unknown error is neither returned nor logged.
     expect(mockLogAction).toHaveBeenLastCalledWith("deleteKaution", "error", {});
+  });
+});
+
+describe("entferneKautionBelegAction", () => {
+  it("entfernt die Zuordnung: RPC mit p_dokument_id = null, die Datei bleibt unberührt", async () => {
+    rpcOk();
+
+    const result = await entferneKautionBelegAction({ bewegungId: BEWEGUNG_ID });
+
+    expect(result).toEqual({ success: true, data: undefined });
+    expect(mockRpc).toHaveBeenCalledWith("kaution_beleg_zuordnen", { p_bewegung_id: BEWEGUNG_ID, p_dokument_id: null });
+    expect(mockCreateSignedUrl).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/mieter");
+  });
+
+  it("rejects a malformed booking ID (KA004), no RPC", async () => {
+    const result = await entferneKautionBelegAction({ bewegungId: "x" });
+
+    expect(result.error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("maps a not-found booking (KA003) with the fixed message", async () => {
+    rpcError("KA003", "KAUT_NICHT_GEFUNDEN: Buchung fehlt");
+
+    const result = await entferneKautionBelegAction({ bewegungId: BEWEGUNG_ID });
+
+    expect(result.error).toEqual({ code: "KA003", message: "Der Datensatz wurde nicht gefunden (evtl. bereits geändert oder gelöscht)." });
+  });
+});
+
+describe("getKautionBelegUrlAction", () => {
+  it("liefert einen kurzlebigen Link: Bucket 'documents', Pfad aus Ordner und Dateiname, 300 Sekunden, Download unter dem Originalnamen", async () => {
+    rpcOk(BELEG_ROW);
+
+    const result = await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
+
+    expect(result).toEqual({ success: true, data: { url: SIGNED_URL } });
+    expect(mockRpc).toHaveBeenCalledWith("get_kaution_beleg", { p_dokument_id: DOKUMENT_ID });
+    expect(mockCreateSignedUrl).toHaveBeenCalledWith("documents", `${MUSTER_PFAD}/1765000000000_Muster-Beleg.pdf`, 300, {
+      download: "Muster-Beleg.pdf",
+    });
+  });
+
+  it("does not revalidate and logs nothing on success (read action)", async () => {
+    rpcOk(BELEG_ROW);
+
+    await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
+
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+    expect(mockLogAction).not.toHaveBeenCalled();
+  });
+
+  it("gibt KA003 zurück, wenn der Beleg nicht verknüpft oder nicht sichtbar ist (NULL)", async () => {
+    rpcOk(null);
+
+    const result = await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
+
+    expect(result.error?.code).toBe("KA003");
+    expect(mockCreateSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed document ID (KA004), no RPC and no link", async () => {
+    const result = await getKautionBelegUrlAction({ dokumentId: "../etc" });
+
+    expect(result.error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(mockCreateSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("gibt bei einem Speicherfehler nur die neutrale Meldung zurück, ohne Pfad oder Speicherdetails", async () => {
+    rpcOk(BELEG_ROW);
+    mockCreateSignedUrl.mockResolvedValueOnce({ data: null, error: { message: `Object not found: ${MUSTER_PFAD}` } });
+
+    const result = await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
+
+    expect(result).toEqual({ success: false, error: { message: KAUTION_FEHLER_FALLBACK_MESSAGE } });
+    expect(JSON.stringify(result)).not.toContain("user_muster");
+    expect(JSON.stringify(mockLogAction.mock.calls)).not.toContain("user_muster");
+    expect(mockLogAction).toHaveBeenCalledWith("getKautionBelegUrl", "error", {});
+  });
+
+  it("has no object scope pre-check: the database RPC decides the access", async () => {
+    rpcOk(BELEG_ROW);
+
+    await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
+
+    expect(mockScopeRpc).not.toHaveBeenCalled();
+  });
+
+  it("maps a missing right to 42501 without any RPC or storage call", async () => {
+    mockHasPermission.mockImplementation(async (_modul: string, aktion: string) => aktion !== "ansehen");
+
+    const result = await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
+
+    expect(result.error?.code).toBe("42501");
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(mockCreateSignedUrl).not.toHaveBeenCalled();
   });
 });

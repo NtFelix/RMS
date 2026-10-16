@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, ChevronRight, Minus, Plus, Scissors } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, ChevronRight, Minus, Paperclip, Plus, Scissors } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { KautionActionError } from "@/app/kautionen-actions";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,9 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import { KautionBuchungForm, type KautionBuchungVorgabe } from "@/components/kaution/kaution-buchung-form";
 import { KEINE_BERECHTIGUNG_TEXT } from "@/components/kaution/kaution-feld";
-import { formatBetrag, formatDatum } from "@/components/kaution/kaution-format";
+import { KautionBelegUpload } from "@/components/kaution/kaution-beleg-upload";
+import { oeffneKautionBeleg } from "@/components/kaution/kaution-beleg-oeffnen";
+import { bewegungBeschreibung, formatBetrag, formatDatum } from "@/components/kaution/kaution-format";
 import { KautionStornoDialog } from "@/components/kaution/kaution-storno-dialog";
 import {
   KAUTION_ABZUG_KATEGORIE_LABELS,
@@ -70,10 +72,6 @@ function hatDetails(bewegung: KautionBewegung): boolean {
   );
 }
 
-function bewegungBeschreibung(bewegung: KautionBewegung): string {
-  return `${KAUTION_BEWEGUNGSART_LABELS[bewegung.bewegungsart] ?? "Buchung"} vom ${formatDatum(bewegung.wertstellung)} über ${formatBetrag(bewegung.betrag)}`;
-}
-
 export function KautionKontoauszugTab({
   details,
   rechte,
@@ -84,7 +82,10 @@ export function KautionKontoauszugTab({
   onVerwerfenBestaetigen,
   zahlungsVorgabe = null,
 }: KautionKontoauszugTabProps) {
-  const { bewegungsarten } = useKautionFlag();
+  const { bewegungsarten, funktionen } = useKautionFlag();
+  // Receipts ("Belege") only with the function flag `dokumente`: without it the statement stays as it was.
+  const dokumenteAktiv = funktionen.dokumente;
+  const [belegOffen, setBelegOffen] = useState(false);
   const [aktiveBuchung, setAktiveBuchung] = useState<KautionBewegungsArt | null>(null);
   // Rate preset of the open booking form (only set while the payment form for a rate is open).
   const [vorgabe, setVorgabe] = useState<(KautionBuchungVorgabe & { nonce: number }) | null>(null);
@@ -204,6 +205,26 @@ export function KautionKontoauszugTab({
         </p>
       ) : null}
 
+      {dokumenteAktiv && rechte.bearbeiten ? (
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" aria-expanded={belegOffen} onClick={() => setBelegOffen((offen) => !offen)}>
+            <Paperclip aria-hidden="true" />
+            Beleg hinzufügen
+          </Button>
+        </div>
+      ) : null}
+
+      {dokumenteAktiv && rechte.bearbeiten && belegOffen ? (
+        <KautionBelegUpload
+          auswahl={kontoauszug
+            .filter((bewegung) => bewegung.storniert_am === null)
+            .map((bewegung) => ({ bewegungId: bewegung.id, label: bewegungBeschreibung(bewegung) }))}
+          onHochgeladen={onGeaendert}
+          onFehler={onFehler}
+          onAbbrechen={() => setBelegOffen(false)}
+        />
+      ) : null}
+
       {aktiveBuchung ? (
         <KautionBuchungForm
           // New key per type (and per rate request): every opening gets its own idempotency key and fresh input.
@@ -260,6 +281,7 @@ export function KautionKontoauszugTab({
                 const detailId = `kaution-details-${bewegung.id}`;
                 const kategorie = bewegung.kategorie ? KAUTION_ABZUG_KATEGORIE_LABELS[bewegung.kategorie] : null;
                 const beschreibung = bewegungBeschreibung(bewegung);
+                const belegId = bewegung.dokument_id;
 
                 return (
                   <Fragment key={bewegung.id}>
@@ -335,6 +357,18 @@ export function KautionKontoauszugTab({
                         )}
                       </TableCell>
                       <TableCell className="text-right">
+                        {dokumenteAktiv && belegId ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            aria-label={`Beleg zu ${beschreibung} öffnen`}
+                            onClick={() => void oeffneKautionBeleg(belegId, onFehler)}
+                          >
+                            <Paperclip aria-hidden="true" />
+                          </Button>
+                        ) : null}
                         {storniert ? null : (
                           <ButtonWithTooltip
                             type="button"

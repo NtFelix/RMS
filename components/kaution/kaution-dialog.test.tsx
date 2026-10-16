@@ -46,6 +46,8 @@ jest.mock("@/app/kautionen-actions", () => ({
   bucheKautionBewegungAction: jest.fn(),
   storniereKautionBewegungAction: jest.fn(),
   deleteKautionAction: jest.fn(),
+  getKautionBelegUrlAction: jest.fn(),
+  entferneKautionBelegAction: jest.fn(),
 }));
 
 const TENANT_ID = "11111111-1111-4111-8111-111111111111";
@@ -181,7 +183,7 @@ function mockLadeErgebnis(details: KautionDetails | null, rechte: KautionRechte 
 
 async function oeffneMitKaution(
   details: KautionDetails = baueDetails(),
-  optionen: { rechte?: KautionRechte; initialTab?: "uebersicht" | "kontoauszug" | "raten" } = {}
+  optionen: { rechte?: KautionRechte; initialTab?: "uebersicht" | "kontoauszug" | "raten" | "dokumente" } = {}
 ) {
   mockLadeErgebnis(details, optionen.rechte ?? ALLE_RECHTE);
   mockStore(optionen.initialTab ? { kautionInitialData: { tenant: { id: TENANT_ID, name: "Erika Mustermann" }, initialTab: optionen.initialTab } } : {});
@@ -1586,5 +1588,97 @@ describe("KautionDialog: Barrierefreiheit (jest-axe)", () => {
     render(<KautionDialog />);
     await screen.findByText("Für diesen Mieter ist noch keine Kaution angelegt.");
     await pruefe();
+  });
+});
+
+describe("KautionDialog: Funktionsflag 'dokumente' (Belege)", () => {
+  raeumeNachJedemTestAuf();
+
+  const DOKUMENT_ID = "99999999-9999-4999-8999-999999999999";
+
+  /** Deposit with one receipt on the deposit payment (synthetic file name). */
+  function detailsMitBeleg(): KautionDetails {
+    const details = baueDetails();
+    details.belege = [
+      { bewegung_id: BEWEGUNG_EINZAHLUNG, dokument_id: DOKUMENT_ID, dateiname: "1765000000000_Muster-Beleg.pdf", dateigroesse: 2048, mime_type: "application/pdf" },
+    ];
+    details.kontoauszug = details.kontoauszug.map((bewegung) =>
+      bewegung.id === BEWEGUNG_EINZAHLUNG ? { ...bewegung, dokument_id: DOKUMENT_ID } : bewegung
+    );
+    return details;
+  }
+
+  it("hat keinen Tab 'Dokumente' ohne das Funktionsflag 'dokumente'", async () => {
+    setzeFunktionen({ dokumente: false });
+    await oeffneMitKaution(detailsMitBeleg());
+
+    expect(screen.queryByRole("tab", { name: "Dokumente" })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Kontoauszug" })).toBeInTheDocument();
+  });
+
+  it("zeigt den Tab 'Dokumente' mit dem Funktionsflag und darin die Belege", async () => {
+    setzeFunktionen({ dokumente: true });
+    const user = await oeffneMitKaution(detailsMitBeleg());
+
+    await user.click(screen.getByRole("tab", { name: "Dokumente" }));
+
+    expect(await screen.findByTestId("kaution-belege-liste")).toBeInTheDocument();
+    expect(screen.getByText("Muster-Beleg.pdf")).toBeInTheDocument();
+  });
+
+  it("fällt ohne Flag für den verlangten Tab 'Dokumente' auf die Übersicht zurück", async () => {
+    setzeFunktionen({ dokumente: false });
+    await oeffneMitKaution(detailsMitBeleg(), { initialTab: "dokumente" });
+
+    expect(screen.getByRole("tab", { name: "Übersicht" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByTestId("kaution-belege-liste")).not.toBeInTheDocument();
+  });
+
+  it("öffnet den verlangten Tab 'Dokumente' direkt, wenn das Flag an ist", async () => {
+    setzeFunktionen({ dokumente: true });
+    await oeffneMitKaution(detailsMitBeleg(), { initialTab: "dokumente" });
+
+    expect(screen.getByRole("tab", { name: "Dokumente" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByTestId("kaution-belege-liste")).toBeInTheDocument();
+  });
+
+  it("zeigt im Kontoauszug ohne Flag keine Beleg-Knöpfe (die Ansicht bleibt wie bisher)", async () => {
+    setzeFunktionen({ dokumente: false });
+    const user = await oeffneMitKaution(detailsMitBeleg());
+    await wechsleZumKontoauszug(user);
+
+    expect(screen.queryByRole("button", { name: /Beleg zu .* öffnen/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Beleg hinzufügen" })).not.toBeInTheDocument();
+  });
+
+  it("zeigt im Kontoauszug mit Flag den Büroklammer-Knopf nur bei belegter Buchung und 'Beleg hinzufügen' mit Recht", async () => {
+    setzeFunktionen({ dokumente: true });
+    const user = await oeffneMitKaution(detailsMitBeleg());
+    await wechsleZumKontoauszug(user);
+
+    expect(screen.getByRole("button", { name: "Beleg zu Einzahlung vom 05.01.2026 über 1.500,00 € öffnen" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Beleg zu .* öffnen/ })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Beleg hinzufügen" })).toBeInTheDocument();
+  });
+
+  it("zeigt 'Beleg hinzufügen' im Kontoauszug ohne Recht 'bearbeiten' nicht", async () => {
+    setzeFunktionen({ dokumente: true });
+    const user = await oeffneMitKaution(detailsMitBeleg(), { rechte: NUR_ANSEHEN });
+    await wechsleZumKontoauszug(user);
+
+    expect(screen.queryByRole("button", { name: "Beleg hinzufügen" })).not.toBeInTheDocument();
+    // Öffnen bleibt mit Lesezugriff
+    expect(screen.getByRole("button", { name: /Beleg zu .* öffnen/ })).toBeInTheDocument();
+  });
+
+  it("öffnet 'Beleg hinzufügen' im Kontoauszug als Formular mit den Buchungen", async () => {
+    setzeFunktionen({ dokumente: true });
+    const user = await oeffneMitKaution(detailsMitBeleg());
+    await wechsleZumKontoauszug(user);
+
+    await user.click(screen.getByRole("button", { name: "Beleg hinzufügen" }));
+
+    expect(await screen.findByRole("button", { name: "Beleg hochladen" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /Buchung \(Pflicht\)/ })).toBeInTheDocument();
   });
 });

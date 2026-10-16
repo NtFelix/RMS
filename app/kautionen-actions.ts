@@ -48,6 +48,12 @@ import { KAUTION_FEHLER_FALLBACK_MESSAGE, mapKautionError, type KautionRpcError 
 import { centsToDecimalString, getMoneyInputError, parseMoneyInput } from "@/lib/kautionen-money";
 import { checkKautionScope } from "@/lib/kautionen-scope";
 import { chunkIds, mergeLoeschauswirkung } from "@/lib/kautionen-loeschauswirkung";
+import {
+  BELEG_DOWNLOAD_GUELTIG_SEKUNDEN,
+  BELEG_STORAGE_BUCKET,
+  anzeigeNameAusDateiname,
+  baueBelegPfad,
+} from "@/lib/kautionen-belege";
 import { validateKautionDatum, validateKautionText, validateUuid } from "@/lib/kautionen-validation";
 import type {
   KautionAbzugKategorie,
@@ -771,6 +777,81 @@ export async function deleteKautionAction(input: DeleteKautionInput): Promise<Ka
       const { error } = await supabase.rpc("soft_delete_record", { p_table_name: "Kautionen", p_record_id: kautionId.value });
       if (error) return fail(fromSoftDeleteError(error));
       return { ok: true, data: undefined };
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Receipts ("Belege", phase 2b)
+// ---------------------------------------------------------------------------
+
+export interface EntferneKautionBelegInput {
+  /** Booking whose receipt link is removed. The file itself stays in the document management. */
+  bewegungId: string;
+}
+
+export interface GetKautionBelegUrlInput {
+  /** Document ID (`Dokumente_Metadaten.id`) of the receipt. */
+  dokumentId: string;
+}
+
+/**
+ * Removes the link between a booking and its receipt (`kaution_beleg_zuordnen` with `p_dokument_id = NULL`). The
+ * document stays in the document management and can be linked again.
+ */
+export async function entferneKautionBelegAction(input: EntferneKautionBelegInput): Promise<KautionActionResult> {
+  const raw = asRecord(input);
+  return runKautionAction({
+    actionName: "entferneKautionBeleg",
+    mieterScope: false,
+    aktion: "bearbeiten",
+    run: async (supabase) => {
+      const bewegungId = validateUuid(raw.bewegungId, "Buchungs-ID");
+      if (!bewegungId.ok) return fail(invalid(bewegungId.message));
+
+      const result = await callRpc(supabase, "kaution_beleg_zuordnen", { p_bewegung_id: bewegungId.value, p_dokument_id: null });
+      if (!result.ok) return fail(result.error);
+      return { ok: true, data: undefined };
+    },
+  });
+}
+
+/**
+ * Short-lived download link of a receipt. The database returns the storage location only if the document is linked to a
+ * deposit booking that the user may see (`get_kaution_beleg`, otherwise `KA003`). The link downloads under the
+ * original name and is valid for `BELEG_DOWNLOAD_GUELTIG_SEKUNDEN` seconds. Nothing is revalidated (read action).
+ */
+export async function getKautionBelegUrlAction(input: GetKautionBelegUrlInput): Promise<KautionActionResult<{ url: string }>> {
+  const raw = asRecord(input);
+  return runKautionAction({
+    actionName: "getKautionBelegUrl",
+    mieterScope: false,
+    aktion: "ansehen",
+    revalidate: false,
+    logSuccess: false,
+    run: async (supabase) => {
+      const dokumentId = validateUuid(raw.dokumentId, "Dokument-ID");
+      if (!dokumentId.ok) return fail(invalid(dokumentId.message));
+
+      const result = await callRpc(supabase, "get_kaution_beleg", { p_dokument_id: dokumentId.value });
+      if (!result.ok) return fail(result.error);
+
+      // NULL (not linked, not visible): the same answer as for a missing record.
+      const beleg = asRecord(result.data);
+      if (typeof beleg.dateipfad !== "string" || beleg.dateipfad === "" || typeof beleg.dateiname !== "string" || beleg.dateiname === "") {
+        return fail(mappedError("KA003"));
+      }
+
+      const { data: signiert, error: signierFehler } = await supabase.storage
+        .from(BELEG_STORAGE_BUCKET)
+        .createSignedUrl(baueBelegPfad(beleg.dateipfad, beleg.dateiname), BELEG_DOWNLOAD_GUELTIG_SEKUNDEN, {
+          download: anzeigeNameAusDateiname(beleg.dateiname),
+        });
+      if (signierFehler || typeof signiert?.signedUrl !== "string") {
+        // Unclassified: the storage error itself is not passed on (no file names or paths in messages or logs).
+        return fail({ message: KAUTION_FEHLER_FALLBACK_MESSAGE });
+      }
+      return { ok: true, data: { url: signiert.signedUrl } };
     },
   });
 }
