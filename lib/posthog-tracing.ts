@@ -16,6 +16,7 @@ import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { diag, DiagLogLevel } from '@opentelemetry/api';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { MeterProvider } from '@opentelemetry/sdk-metrics';
 
 import { SERVICE_NAME, POSTHOG_API_KEY, getTracesEndpoint, getSdkResourceAttributes, registerShutdownHandler } from './otlp-utils';
 import { posthogLogger } from './posthog-logger';
@@ -101,6 +102,11 @@ export function initTracing(): void {
     },
   });
 
+  // Built-in HTTP metrics are not exported: give the instrumentation a meter provider without a reader,
+  // so this no longer depends on whether initMetrics() has registered the global provider yet.
+  const httpInstrumentation = new HttpInstrumentation();
+  httpInstrumentation.setMeterProvider(new MeterProvider());
+
   sdk = new NodeSDK({
     resource: resourceFromAttributes(getSdkResourceAttributes()),
     spanProcessors: [
@@ -112,7 +118,7 @@ export function initTracing(): void {
       }),
     ],
     instrumentations: [
-      new HttpInstrumentation(),
+      httpInstrumentation,
     ],
   });
 

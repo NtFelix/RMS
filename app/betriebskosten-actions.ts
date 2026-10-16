@@ -2605,7 +2605,7 @@ async function createAbrechnungCalculationActionImpl(
     });
 
     // First, get all necessary data using the optimized function
-    const modalDataResult = await getAbrechnungModalDataAction(nebenkostenId);
+    const modalDataResult = await getAbrechnungModalDataActionImpl(nebenkostenId);
 
     if (!modalDataResult.success || !modalDataResult.data) {
       return {
@@ -3040,10 +3040,34 @@ async function createAbrechnungCalculationOptimizedActionImpl(
 // Public entry points for the heaviest actions; each records `server_action.duration` in PostHog
 // Metrics. Actions that delegate to another one (e.g. the Optimized calculation's fallback) call
 // its Impl directly, so one user call records exactly one sample.
-export const getNebenkostenDetailsAction = withTiming('getNebenkostenDetailsAction', getNebenkostenDetailsActionImpl);
-export const fetchNebenkostenListOptimized = withTiming('fetchNebenkostenListOptimized', fetchNebenkostenListOptimizedImpl);
-export const getMeterModalDataAction = withTiming('getMeterModalDataAction', getMeterModalDataActionImpl);
-export const getAbrechnungModalDataAction = withTiming('getAbrechnungModalDataAction', getAbrechnungModalDataActionImpl);
-export const createAbrechnungCalculationAction = withTiming('createAbrechnungCalculationAction', createAbrechnungCalculationActionImpl);
-export const createAbrechnungCalculationOptimizedAction = withTiming('createAbrechnungCalculationOptimizedAction', createAbrechnungCalculationOptimizedActionImpl);
+// Exports stay async function declarations: a "use server" file may only export async functions.
+const timedGetNebenkostenDetailsAction = withTiming('getNebenkostenDetailsAction', getNebenkostenDetailsActionImpl);
+export async function getNebenkostenDetailsAction(...args: Parameters<typeof getNebenkostenDetailsActionImpl>) {
+  return timedGetNebenkostenDetailsAction(...args);
+}
+
+const timedFetchNebenkostenListOptimized = withTiming('fetchNebenkostenListOptimized', fetchNebenkostenListOptimizedImpl);
+export async function fetchNebenkostenListOptimized(...args: Parameters<typeof fetchNebenkostenListOptimizedImpl>) {
+  return timedFetchNebenkostenListOptimized(...args);
+}
+
+const timedGetMeterModalDataAction = withTiming('getMeterModalDataAction', getMeterModalDataActionImpl);
+export async function getMeterModalDataAction(...args: Parameters<typeof getMeterModalDataActionImpl>) {
+  return timedGetMeterModalDataAction(...args);
+}
+
+const timedGetAbrechnungModalDataAction = withTiming('getAbrechnungModalDataAction', getAbrechnungModalDataActionImpl);
+export async function getAbrechnungModalDataAction(...args: Parameters<typeof getAbrechnungModalDataActionImpl>) {
+  return timedGetAbrechnungModalDataAction(...args);
+}
+
+const timedCreateAbrechnungCalculationAction = withTiming('createAbrechnungCalculationAction', createAbrechnungCalculationActionImpl);
+export async function createAbrechnungCalculationAction(...args: Parameters<typeof createAbrechnungCalculationActionImpl>) {
+  return timedCreateAbrechnungCalculationAction(...args);
+}
+
+const timedCreateAbrechnungCalculationOptimizedAction = withTiming('createAbrechnungCalculationOptimizedAction', createAbrechnungCalculationOptimizedActionImpl);
+export async function createAbrechnungCalculationOptimizedAction(...args: Parameters<typeof createAbrechnungCalculationOptimizedActionImpl>) {
+  return timedCreateAbrechnungCalculationOptimizedAction(...args);
+}
 

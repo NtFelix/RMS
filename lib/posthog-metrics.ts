@@ -3,9 +3,10 @@
  *
  * Thin wrappers over the OpenTelemetry metrics API. They are safe no-ops until
  * `initMetrics()` (lib/posthog-metrics-init.ts, started from instrumentation.js)
- * registers a MeterProvider that exports to PostHog. This module imports only
- * `@opentelemetry/api`, so server actions and route handlers can use it without
- * pulling the OpenTelemetry SDK into their bundles.
+ * registers a MeterProvider that exports to PostHog. This module imports
+ * `@opentelemetry/api` and `./otlp-utils` (which reads the PostHog config at import
+ * time), but no OpenTelemetry SDK packages, so server actions and route handlers
+ * can use it without pulling the SDK into their bundles.
  *
  * Attribute values must be low-cardinality (route, status, plan) - never user IDs.
  *

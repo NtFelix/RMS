@@ -17,9 +17,7 @@ export async function register() {
 
   // Initialize PostHog observability (OpenTelemetry-based logging + tracing)
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    // Tracing must init first: HttpInstrumentation is created there (patching http before the
-    // metrics/logger modules load), and its meter is bound to the then-no-op global provider,
-    // which keeps built-in HTTP metrics out of the PostHog metrics export.
+    // Tracing first: HttpInstrumentation patches http when it is created, before the other modules load.
     const { initTracing } = await import('./lib/posthog-tracing');
     initTracing();
 

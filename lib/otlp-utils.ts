@@ -66,15 +66,27 @@ export function getSdkResourceAttributes(): Record<string, string> {
     };
 }
 
+const shutdownHooks: Array<() => Promise<void>> = [];
+let signalHandlersInstalled = false;
+
 /**
- * Run `shutdown` (flush + close an SDK) on SIGTERM/SIGINT.
+ * Run `shutdown` (flush + close an SDK) on SIGTERM/SIGINT. All registered SDKs are flushed first.
+ * A listener replaces Node's default exit, so the signal is re-raised afterwards, but only when no
+ * other listener (e.g. Next.js's own handler) is left to exit the process.
  */
 export function registerShutdownHandler(shutdown: () => Promise<void>): void {
-    const handleShutdown = () => {
-        shutdown().catch(() => {});
-    };
-    process.on('SIGTERM', handleShutdown);
-    process.on('SIGINT', handleShutdown);
+    shutdownHooks.push(shutdown);
+    if (signalHandlersInstalled) return;
+    signalHandlersInstalled = true;
+
+    for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+        process.once(signal, () => {
+            Promise.allSettled(shutdownHooks.map((hook) => hook()))
+                .finally(() => {
+                    if (process.listenerCount(signal) === 0) process.kill(process.pid, signal);
+                });
+        });
+    }
 }
 
 /**
