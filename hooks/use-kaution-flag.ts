@@ -1,7 +1,33 @@
 "use client";
 
-import { useFeatureFlagEnabled, useFeatureFlagPayload } from "posthog-js/react";
+import { useEffect, useState } from "react";
+import { useFeatureFlagEnabled, useFeatureFlagPayload, usePostHog } from "posthog-js/react";
 import { ermittleKautionFlagKonfig, KAUTION_FLAG_KEY, type KautionFlagKonfig } from "@/lib/kautionen-flag";
+
+/** After this time without delivered flags (blocked request, offline) the flag counts as loaded (= off). */
+export const KAUTION_FLAG_LADE_TIMEOUT_MS = 3000;
+
+/**
+ * `false` until PostHog has delivered the flags (or the timeout has passed). Lets a caller show a skeleton
+ * for the deposit UI instead of letting it pop in later (layout shift). On the server and in the first client render
+ * it is `false` as well, so server and client markup match.
+ */
+export function useKautionFlagGeladen(): boolean {
+  const posthog = usePostHog();
+  const [geladen, setGeladen] = useState(() => posthog?.featureFlags?.hasLoadedFlags === true);
+
+  useEffect(() => {
+    if (geladen) return;
+    const abbestellen = posthog?.onFeatureFlags?.(() => setGeladen(true));
+    const timer = setTimeout(() => setGeladen(true), KAUTION_FLAG_LADE_TIMEOUT_MS);
+    return () => {
+      abbestellen?.();
+      clearTimeout(timer);
+    };
+  }, [posthog, geladen]);
+
+  return geladen;
+}
 
 /** Flag state only (no payload subscription or parsing): the single definition of "flag is on". */
 function useKautionFlagAktiv(): boolean {
