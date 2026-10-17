@@ -8,6 +8,11 @@ import posthogProxyConfig from '@/lib/posthog-proxy'
 
 const { POSTHOG_PROXY_PATH, POSTHOG_UI_HOST } = posthogProxyConfig
 
+// GDPR: x-posthog-* tracing headers carry distinct/session IDs, so only send them (same origin) after opt-in.
+function setTracingHeaders(enabled: boolean) {
+  posthog.set_config({ tracing_headers: enabled ? [window.location.hostname] : [] });
+}
+
 // Initialize PostHog with configuration
 async function initializePostHog(nonce?: string) {
   if (typeof window === 'undefined' || posthog.__loaded) {
@@ -72,9 +77,8 @@ async function initializePostHog(nonce?: string) {
     ui_host: config.uiHost,
     capture_pageview: false, // We'll handle this manually
     capture_pageleave: false, // We'll handle this manually along with pageview
-    persistence: 'localStorage+cookie',
+    persistence: 'localStorage',
     enable_recording_console_log: false, // Disabled: don't capture console logs in session recordings
-    tracing_headers: typeof window !== 'undefined' && window.location.hostname ? [window.location.hostname] : [],
     // GDPR: Always opt-out by default, require explicit consent
     opt_out_capturing_by_default: true,
     nonce: nonce, // Add nonce for CSP
@@ -101,6 +105,9 @@ async function initializePostHog(nonce?: string) {
     // Ensure we're opted-out if consent wasn't granted
     posthog.opt_out_capturing();
   }
+
+  // Also covers returning visitors whose opt-in is already persisted (branch above not entered)
+  setTracingHeaders(consent === 'all' && !posthog.has_opted_out_capturing?.());
 }
 
 // Global initialization removed to support nonce passing from server
@@ -114,6 +121,7 @@ function PostHogPageView() {
   // Listen for consent-granted event to trigger tracking immediately
   useEffect(() => {
     const handleConsentGranted = () => {
+      setTracingHeaders(true);
       console.log('Consent granted event received, triggering tracking...');
       triggerConsent();
     };

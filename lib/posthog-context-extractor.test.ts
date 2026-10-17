@@ -10,7 +10,7 @@ describe('extractPostHogContextFromHeaders', () => {
     expect(extractPostHogContextFromHeaders({})).toEqual({});
   });
 
-  it('extracts distinctId, sessionId, and windowId from custom headers', () => {
+  it('extracts distinctId, sessionId, and windowId from tracing headers', () => {
     const headers = {
       'x-posthog-distinct-id': 'user-123',
       'x-posthog-session-id': 'session-abc',
@@ -24,70 +24,39 @@ describe('extractPostHogContextFromHeaders', () => {
     });
   });
 
-  it('handles case-insensitive header names', () => {
-    const headers = {
-      'X-POSTHOG-DISTINCT-ID': 'user-456',
-      'X-PostHog-Session-Id': 'session-def',
-    };
-
-    expect(extractPostHogContextFromHeaders(headers)).toEqual({
-      distinctId: 'user-456',
-      sessionId: 'session-def',
+  it('uses the first value of array-valued headers', () => {
+    expect(extractPostHogContextFromHeaders({ 'x-posthog-distinct-id': ['first', 'second'] })).toEqual({
+      distinctId: 'first',
     });
   });
 
-  it('falls back to cookie when headers are missing', () => {
-    const cookiePayload = JSON.stringify({
-      distinct_id: 'user-cookie-789',
-      $sesid: [1712345678000, 'session-cookie-999', 1712345678000],
-    });
-    const headers = {
-      cookie: `other_cookie=123; ph_phc_mytoken_posthog=${encodeURIComponent(cookiePayload)}; another_cookie=456`,
-    };
+  it('trims values and ignores empty or whitespace-only ones', () => {
+    expect(
+      extractPostHogContextFromHeaders({
+        'x-posthog-distinct-id': '  user-1  ',
+        'x-posthog-session-id': '   ',
+        'x-posthog-window-id': '',
+      })
+    ).toEqual({ distinctId: 'user-1' });
+  });
 
-    expect(extractPostHogContextFromHeaders(headers)).toEqual({
-      distinctId: 'user-cookie-789',
-      sessionId: 'session-cookie-999',
+  it('rejects over-long or unsafe values', () => {
+    expect(
+      extractPostHogContextFromHeaders({
+        'x-posthog-distinct-id': 'a'.repeat(201),
+        'x-posthog-session-id': 'bad value\n<script>',
+      })
+    ).toEqual({});
+  });
+
+  it('accepts email-style distinct ids', () => {
+    expect(extractPostHogContextFromHeaders({ 'x-posthog-distinct-id': 'a.b+c@example.com' })).toEqual({
+      distinctId: 'a.b+c@example.com',
     });
   });
 
-  it('handles cookie with string sessionId or $session_id', () => {
-    const cookiePayload = JSON.stringify({
-      distinct_id: 'user-direct-1',
-      $session_id: 'session-direct-1',
-    });
-    const headers = {
-      cookie: `ph_sample_posthog=${encodeURIComponent(cookiePayload)}`,
-    };
-
-    expect(extractPostHogContextFromHeaders(headers)).toEqual({
-      distinctId: 'user-direct-1',
-      sessionId: 'session-direct-1',
-    });
-  });
-
-  it('prefers headers over cookie values when both are present', () => {
-    const cookiePayload = JSON.stringify({
-      distinct_id: 'user-from-cookie',
-      $sesid: [1712345678000, 'session-from-cookie', 1712345678000],
-    });
-    const headers = {
-      'x-posthog-distinct-id': 'user-from-header',
-      'x-posthog-session-id': 'session-from-header',
-      cookie: `ph_sample_posthog=${encodeURIComponent(cookiePayload)}`,
-    };
-
-    expect(extractPostHogContextFromHeaders(headers)).toEqual({
-      distinctId: 'user-from-header',
-      sessionId: 'session-from-header',
-    });
-  });
-
-  it('handles corrupted cookie gracefully without throwing', () => {
-    const headers = {
-      cookie: 'ph_sample_posthog=not-json-content',
-    };
-
-    expect(extractPostHogContextFromHeaders(headers)).toEqual({});
+  it('ignores cookies (identity only comes from the tracing headers)', () => {
+    const cookie = `ph_phc_x_posthog=${encodeURIComponent(JSON.stringify({ distinct_id: 'from-cookie' }))}`;
+    expect(extractPostHogContextFromHeaders({ cookie })).toEqual({});
   });
 });

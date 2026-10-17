@@ -109,20 +109,11 @@ export function initTracing(): void {
   const httpInstrumentation = new HttpInstrumentation({
     requestHook: (span, request) => {
       try {
-        // IncomingMessage exposes `headers`; ClientRequest only `getHeaders()`.
-        const req = request as { headers?: Record<string, string | string[] | undefined>; getHeaders?: () => Record<string, string | string[] | undefined> };
-        const { distinctId, sessionId, windowId } = extractPostHogContextFromHeaders(req.headers ?? req.getHeaders?.());
-        const attributes = {
-          posthogDistinctId: distinctId,
-          distinct_id: distinctId,
-          sessionId,
-          $session_id: sessionId,
-          $window_id: windowId,
-          windowId,
-        };
-        for (const [key, value] of Object.entries(attributes)) {
-          if (value) span.setAttribute(key, value);
-        }
+        // Inbound requests only: outgoing ClientRequests carry no client tracing headers.
+        const headers = (request as { headers?: Record<string, string | string[] | undefined> }).headers;
+        const { distinctId, sessionId } = extractPostHogContextFromHeaders(headers);
+        if (distinctId) span.setAttribute('posthogDistinctId', distinctId);
+        if (sessionId) span.setAttribute('sessionId', sessionId);
       } catch {
         // Silently ignore hook errors to prevent breaking request handling
       }
