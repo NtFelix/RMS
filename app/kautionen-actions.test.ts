@@ -20,11 +20,13 @@ import {
   createKautionAction,
   deleteKautionAction,
   entferneKautionBelegAction,
+  getKautionAbrechnungAction,
   getKautionBelegUrlAction,
   getKautionDetailsAction,
   getKautionLoeschauswirkungAction,
   planeKautionRatenAction,
   planeKautionZinsstaffelAction,
+  setzeKautionEinbehaltAction,
   storniereKautionBewegungAction,
   updateKautionVereinbarungAction,
 } from "@/app/kautionen-actions";
@@ -53,6 +55,22 @@ const DOKUMENT_ID = "99999999-9999-4999-8999-999999999999";
 const MUSTER_PFAD = "user_muster/haus/wohnung/mieter";
 const BELEG_ROW = { dateipfad: MUSTER_PFAD, dateiname: "1765000000000_Muster-Beleg.pdf", mime_type: "application/pdf", dateigroesse: 2048 };
 const SIGNED_URL = "https://storage.example.invalid/documents/muster-beleg?token=muster";
+/** Synthetic settlement as `get_kaution_abrechnung` returns it (phase 4). */
+const ABRECHNUNG_FIXTURE = {
+  regelwerk_version: 1,
+  stichtag: "2026-03-15",
+  organisation: { name: "Muster Verwaltung" },
+  mieter: { name: "Muster Mieter", auszug: "2026-02-28" },
+  objekt: { haus: "Musterhaus", wohnung: "Whg 1" },
+  kaution: { kautionsart: "barkaution", soll_betrag: 1000, zinsmethode: "act_365", getrennt_angelegt: true },
+  konto: { summe_einzahlungen: 1000, summe_zinsgutschriften: 10, summe_auszahlungen: 500, summe_abzuege: 100, kontostand: 410 },
+  abzuege: [{ kategorie: "nebenkosten", anzahl: 1, summe: 100 }],
+  zinsen_offen: null,
+  betrag_inkl_zinsen: 410,
+  einbehalt: { grund: "Nebenkostenabrechnung offen", seit: "2026-03-01", liegedauer_tage: 14 },
+  bewegungen: [{ wertstellung: "2025-09-01", bewegungsart: "einzahlung", betrag: 1000, kategorie: null, grund: null, zinszeitraum_von: null, zinszeitraum_bis: null, saldo_nach_buchung: 1000 }],
+  storniert_anzahl: 0,
+};
 
 const mockHasPermission = hasPermission as jest.Mock;
 const mockEnsureAuth = ensureAuth as jest.Mock;
@@ -181,6 +199,18 @@ const ACTION_CASES: ActionCase[] = [
     aktion: "ansehen",
     call: () => getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID }),
     okData: BELEG_ROW,
+  },
+  {
+    name: "getKautionAbrechnungAction",
+    aktion: "ansehen",
+    call: () => getKautionAbrechnungAction({ tenantId: TENANT_ID }),
+    okData: ABRECHNUNG_FIXTURE,
+  },
+  {
+    name: "setzeKautionEinbehaltAction",
+    aktion: "bearbeiten",
+    call: () => setzeKautionEinbehaltAction({ kautionId: KAUTION_ID, grund: "Muster-Grund", seit: "2026-03-01" }),
+    okData: null,
   },
 ];
 
@@ -331,7 +361,7 @@ describe("cross-cutting: sign-in, module right, object scope", () => {
 
   // Object scope: only where the tenant IS the object (details, create). The other actions have no scope pre-check,
   // the RPCs decide (see the next describe block).
-  const SCOPE_CASES = ACTION_CASES.filter((caseItem) => caseItem.name === "getKautionDetailsAction" || caseItem.name === "createKautionAction");
+  const SCOPE_CASES = ACTION_CASES.filter((caseItem) => caseItem.name === "getKautionDetailsAction" || caseItem.name === "createKautionAction" || caseItem.name === "getKautionAbrechnungAction");
   const OHNE_SCOPE_CASES = ACTION_CASES.filter((caseItem) => !SCOPE_CASES.includes(caseItem));
 
   it.each(SCOPE_CASES)("$name: object scope is checked by the database helper with the tenant ID", async (caseItem) => {
@@ -393,6 +423,7 @@ describe("cross-cutting: sign-in, module right, object scope", () => {
   it.each(SCOPE_CASES)("$name: malformed tenant ID is rejected before any query", async ({ name }) => {
     const calls: Record<string, () => Promise<{ success: boolean; error?: { code?: string } }>> = {
       getKautionDetailsAction: () => getKautionDetailsAction("not-a-uuid"),
+      getKautionAbrechnungAction: () => getKautionAbrechnungAction({ tenantId: "not-a-uuid" }),
       createKautionAction: () => createKautionAction({ tenantId: "not-a-uuid", sollBetrag: "1500,00" }),
       updateKautionVereinbarungAction: () =>
         updateKautionVereinbarungAction({ tenantId: "not-a-uuid", kautionId: KAUTION_ID, felder: { soll_betrag: "1200,00" } }),
@@ -1738,7 +1769,7 @@ describe("error mapping by SQLSTATE (spec 4.5)", () => {
 });
 
 describe("revalidation and logging", () => {
-  it.each(ACTION_CASES.filter((c) => !["getKautionDetailsAction", "getKautionLoeschauswirkungAction", "getKautionBelegUrlAction", "berechneKautionZinsenAction"].includes(c.name)))("$name: revalidates /mieter after success only", async (caseItem) => {
+  it.each(ACTION_CASES.filter((c) => !["getKautionDetailsAction", "getKautionLoeschauswirkungAction", "getKautionBelegUrlAction", "berechneKautionZinsenAction", "getKautionAbrechnungAction"].includes(c.name)))("$name: revalidates /mieter after success only", async (caseItem) => {
     queueSuccess(caseItem);
     const ok = await caseItem.call();
     expect(ok.success).toBe(true);
@@ -2161,5 +2192,178 @@ describe("berechneKautionZinsenAction (phase 3, read only)", () => {
 
     expect(result.error?.code).toBe("KA004");
     expect(mockRpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("getKautionAbrechnungAction (phase 4, read only)", () => {
+  it("reads get_kaution_abrechnung with the tenant and the settlement date (NULL = database default) and returns the result unchanged", async () => {
+    rpcOk(ABRECHNUNG_FIXTURE);
+
+    const result = await getKautionAbrechnungAction({ tenantId: TENANT_ID });
+
+    expect(result).toEqual({ success: true, data: ABRECHNUNG_FIXTURE });
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith("get_kaution_abrechnung", { p_mieter_id: TENANT_ID, p_stichtag: null });
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("passes a valid settlement date to the database as given", async () => {
+    rpcOk(ABRECHNUNG_FIXTURE);
+
+    await getKautionAbrechnungAction({ tenantId: TENANT_ID, stichtag: "2026-03-15" });
+
+    expect(mockRpc).toHaveBeenCalledWith("get_kaution_abrechnung", { p_mieter_id: TENANT_ID, p_stichtag: "2026-03-15" });
+  });
+
+  it("rejects a malformed settlement date before the RPC (KA004)", async () => {
+    const result = await getKautionAbrechnungAction({ tenantId: TENANT_ID, stichtag: "2026-02-31" });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("KA004");
+    expect(result.error?.message).toBe("Stichtag: Bitte geben Sie ein gültiges Datum an (JJJJ-MM-TT).");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("a date in the future is decided by the database (KA013, fixed text)", async () => {
+    rpcError("KA013", "KA013: Stichtag liegt in der Zukunft.");
+
+    const result = await getKautionAbrechnungAction({ tenantId: TENANT_ID, stichtag: "2099-01-01" });
+
+    expect(result.error?.code).toBe("KA013");
+    expect(result.error?.message).toBe(
+      "Das Datum oder der Zeitraum ist ungültig (z. B. ein Datum in der Zukunft oder ein Ende vor dem Beginn)."
+    );
+  });
+
+  it("answers null when the database has no settlement (not visible or no account type)", async () => {
+    rpcOk(null);
+
+    const result = await getKautionAbrechnungAction({ tenantId: TENANT_ID });
+
+    expect(result).toEqual({ success: true, data: null });
+  });
+
+  it.each([
+    ["without konto", { ...ABRECHNUNG_FIXTURE, konto: undefined }],
+    ["with konto as array", { ...ABRECHNUNG_FIXTURE, konto: [] }],
+    ["with abzuege that is no array", { ...ABRECHNUNG_FIXTURE, abzuege: {} }],
+    ["with bewegungen that is no array", { ...ABRECHNUNG_FIXTURE, bewegungen: "keine" }],
+    ["without stichtag", { ...ABRECHNUNG_FIXTURE, stichtag: undefined }],
+    ["not an object", "Muster"],
+  ])("an unexpected shape (%s) is an unclassified error, never returned as data", async (_label, shape) => {
+    rpcOk(shape);
+
+    const result = await getKautionAbrechnungAction({ tenantId: TENANT_ID });
+
+    expect(result).toEqual({ success: false, error: { message: KAUTION_FEHLER_FALLBACK_MESSAGE } });
+  });
+
+  it("maps a database error of the read and logs the code only", async () => {
+    rpcError("42501", "KAUT_KEIN_RECHT: Modul fehlt");
+
+    const result = await getKautionAbrechnungAction({ tenantId: TENANT_ID });
+
+    expect(result.error).toEqual({ code: "42501", message: "Für diese Aktion fehlt die Berechtigung (Modul Kautionen)." });
+    expect(mockLogAction).toHaveBeenCalledWith("getKautionAbrechnung", "failed", { code: "42501" });
+  });
+
+  it("logs nothing on success and never a name, a figure or the tenant ID", async () => {
+    rpcOk(ABRECHNUNG_FIXTURE);
+    await getKautionAbrechnungAction({ tenantId: TENANT_ID });
+    expect(mockLogAction).not.toHaveBeenCalled();
+
+    rpcError("KA013", "KA013: x");
+    await getKautionAbrechnungAction({ tenantId: TENANT_ID, stichtag: "2099-01-01" });
+    const protokoll = JSON.stringify(mockLogAction.mock.calls);
+    expect(protokoll).not.toContain("Muster");
+    expect(protokoll).not.toContain(TENANT_ID);
+  });
+});
+
+describe("setzeKautionEinbehaltAction (phase 4)", () => {
+  const RPC = "kaution_einbehalt_setzen";
+
+  it("sets the hold with reason and date (trimmed) and revalidates /mieter", async () => {
+    rpcOk(null);
+
+    const result = await setzeKautionEinbehaltAction({ kautionId: KAUTION_ID, grund: "  Muster-Grund  ", seit: "2026-03-01" });
+
+    expect(result).toEqual({ success: true, data: undefined });
+    expect(mockRpc).toHaveBeenCalledWith(RPC, { p_kaution_id: KAUTION_ID, p_grund: "Muster-Grund", p_seit: "2026-03-01" });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/mieter");
+    expect(mockScopeRpc).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["null", null, null],
+    ["empty texts", "", ""],
+    ["blank texts", "   ", "  "],
+    ["missing values", undefined, undefined],
+  ])("removes the hold when both values are empty (%s)", async (_label, grund, seit) => {
+    rpcOk(null);
+
+    const result = await setzeKautionEinbehaltAction({
+      kautionId: KAUTION_ID,
+      grund: grund as string | null,
+      seit: seit as string | null,
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockRpc).toHaveBeenCalledWith(RPC, { p_kaution_id: KAUTION_ID, p_grund: null, p_seit: null });
+  });
+
+  it.each([
+    ["only the reason", "Muster-Grund", null],
+    ["only the date", null, "2026-03-01"],
+  ])("rejects %s (KA004, own message) without RPC", async (_label, grund, seit) => {
+    const result = await setzeKautionEinbehaltAction({ kautionId: KAUTION_ID, grund, seit });
+
+    expect(result.error).toEqual({
+      code: "KA004",
+      message: "Grund und Datum des Einbehalts müssen gemeinsam angegeben oder gemeinsam entfernt werden.",
+    });
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("checks the reason length (3 to 500 characters) and the date before the RPC", async () => {
+    expect((await setzeKautionEinbehaltAction({ kautionId: KAUTION_ID, grund: "ab", seit: "2026-03-01" })).error?.code).toBe("KA004");
+    expect((await setzeKautionEinbehaltAction({ kautionId: KAUTION_ID, grund: "x".repeat(501), seit: "2026-03-01" })).error?.code).toBe("KA004");
+    expect((await setzeKautionEinbehaltAction({ kautionId: KAUTION_ID, grund: "Muster-Grund", seit: "2026-02-31" })).error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid deposit ID before the RPC", async () => {
+    const result = await setzeKautionEinbehaltAction({ kautionId: "keine-id", grund: "Muster-Grund", seit: "2026-03-01" });
+
+    expect(result.error).toEqual({ code: "KA004", message: "Ungültige Kautions-ID." });
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("passes the database errors on: KA004 (no balance) with its message, KA013 and KA014 by code", async () => {
+    rpcError("KA004", "KA004: Es besteht kein Guthaben für einen Einbehalt.");
+    const ohneGuthaben = await setzeKautionEinbehaltAction({ kautionId: KAUTION_ID, grund: "Muster-Grund", seit: "2026-03-01" });
+    // The database text is passed on. `stripDbCodePrefix` does not strip codes with digits (`KA004:`), so the prefix may
+    // still be in the text; see the report of phase 4. The assertion only fixes the code and the database text.
+    expect(ohneGuthaben.error?.code).toBe("KA004");
+    expect(ohneGuthaben.error?.message).toContain("Es besteht kein Guthaben für einen Einbehalt.");
+
+    rpcError("KA013", "KA013: x");
+    const datum = await setzeKautionEinbehaltAction({ kautionId: KAUTION_ID, grund: "Muster-Grund", seit: "2026-03-01" });
+    expect(datum.error?.code).toBe("KA013");
+
+    rpcError("KA014", "KA014: Diese Kautionsart führt kein Konto.");
+    const ohneKonto = await setzeKautionEinbehaltAction({ kautionId: KAUTION_ID, grund: "Muster-Grund", seit: "2026-03-01" });
+    expect(ohneKonto.error?.code).toBe("KA014");
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("logs a failure with the code only (no reason, no date)", async () => {
+    rpcError("KA004", "KA004: Es besteht kein Guthaben für einen Einbehalt.");
+
+    await setzeKautionEinbehaltAction({ kautionId: KAUTION_ID, grund: "Muster-Grund", seit: "2026-03-01" });
+
+    expect(mockLogAction).toHaveBeenCalledWith("setzeKautionEinbehalt", "failed", { code: "KA004" });
+    expect(JSON.stringify(mockLogAction.mock.calls)).not.toContain("Muster-Grund");
   });
 });

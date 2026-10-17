@@ -10,6 +10,7 @@
  */
 
 import type {
+  KautionAbrechnungArt,
   KautionAbzugKategorie,
   KautionArt,
   KautionBewegungsArt,
@@ -183,6 +184,18 @@ export const KAUTION_ZINSSTAFFEL_MAX_ZEILEN = 20;
 export const KAUTION_ZINSSATZ_MAX_NACHKOMMASTELLEN = 4;
 
 // ---------------------------------------------------------------------------
+// Settlement (phase 4, display and early validation only, the database calculates)
+// ---------------------------------------------------------------------------
+
+/** Kinds of settlement, in the order of the assistant (interim first). */
+export const KAUTION_ABRECHNUNG_ARTEN = ["zwischen", "end"] as const satisfies readonly KautionAbrechnungArt[];
+
+export const KAUTION_ABRECHNUNG_ART_LABELS: Record<KautionAbrechnungArt, string> = {
+  zwischen: "Zwischenabrechnung",
+  end: "Endabrechnung",
+};
+
+// ---------------------------------------------------------------------------
 // Limits (mirror the database CHECK constraints)
 // ---------------------------------------------------------------------------
 
@@ -195,6 +208,8 @@ export const KAUTION_TEXT_LIMITS = {
   grund: { min: 3, max: 500 },
   /** Reason of a cancellation (mandatory). */
   stornoGrund: { min: 3, max: 500 },
+  /** Reason of an interest hold (`kaution_einbehalt_setzen`, mandatory when a hold is set). */
+  einbehaltGrund: { min: 3, max: 500 },
   interneNotiz: { max: 2000 },
   empfaenger: { max: 200 },
   /** IBAN with spaces removed (the longest IBAN has 34 characters). */
@@ -223,4 +238,8 @@ export function isKautionAbzugKategorie(value: unknown): value is KautionAbzugKa
 
 export function isKautionZinsmethode(value: unknown): value is KautionZinsmethode {
   return typeof value === "string" && (KAUTION_ZINSMETHODEN as readonly string[]).includes(value);
+}
+
+export function isKautionAbrechnungArt(value: unknown): value is KautionAbrechnungArt {
+  return typeof value === "string" && (KAUTION_ABRECHNUNG_ARTEN as readonly string[]).includes(value);
 }
