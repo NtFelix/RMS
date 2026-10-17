@@ -72,17 +72,14 @@ export const onRequestError = async (err, request, context) => {
     try {
       const { getPostHogServer } = require('./app/posthog-server')
       const posthog = await getPostHogServer()
-      let distinctId = null
-      if (request?.headers) {
-        try {
-          const { extractPostHogContextFromHeaders } = await import('./lib/posthog-context-extractor')
-          const context = extractPostHogContextFromHeaders(request.headers)
-          distinctId = context.distinctId || null
-        } catch (e) {
-          console.error('Error extracting PostHog context:', e)
-        }
+      let distinctId
+      try {
+        const { extractPostHogContextFromHeaders } = await import('./lib/posthog-context-extractor')
+        distinctId = extractPostHogContextFromHeaders(request?.headers).distinctId
+      } catch (e) {
+        console.error('Error extracting PostHog context:', e)
       }
-      await posthog.captureException(err, distinctId || undefined)
+      await posthog.captureException(err, distinctId)
     } catch (posthogError) {
       console.error('Failed to capture exception in PostHog:', posthogError);
     }

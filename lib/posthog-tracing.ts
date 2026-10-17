@@ -109,21 +109,19 @@ export function initTracing(): void {
   const httpInstrumentation = new HttpInstrumentation({
     requestHook: (span, request) => {
       try {
-        const rawHeaders =
-          (request as any)?.headers ||
-          (typeof (request as any)?.getHeaders === 'function' ? (request as any).getHeaders() : undefined);
-        const { distinctId, sessionId, windowId } = extractPostHogContextFromHeaders(rawHeaders);
-        if (distinctId) {
-          span.setAttribute('posthogDistinctId', distinctId);
-          span.setAttribute('distinct_id', distinctId);
-        }
-        if (sessionId) {
-          span.setAttribute('sessionId', sessionId);
-          span.setAttribute('$session_id', sessionId);
-        }
-        if (windowId) {
-          span.setAttribute('$window_id', windowId);
-          span.setAttribute('windowId', windowId);
+        // IncomingMessage exposes `headers`; ClientRequest only `getHeaders()`.
+        const req = request as { headers?: Record<string, string | string[] | undefined>; getHeaders?: () => Record<string, string | string[] | undefined> };
+        const { distinctId, sessionId, windowId } = extractPostHogContextFromHeaders(req.headers ?? req.getHeaders?.());
+        const attributes = {
+          posthogDistinctId: distinctId,
+          distinct_id: distinctId,
+          sessionId,
+          $session_id: sessionId,
+          $window_id: windowId,
+          windowId,
+        };
+        for (const [key, value] of Object.entries(attributes)) {
+          if (value) span.setAttribute(key, value);
         }
       } catch {
         // Silently ignore hook errors to prevent breaking request handling

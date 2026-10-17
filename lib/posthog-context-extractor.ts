@@ -22,67 +22,49 @@ export interface PostHogRequestContext {
   windowId?: string;
 }
 
+const clean = (v: unknown): string | undefined => {
+  const trimmed = typeof v === 'string' ? v.trim() : '';
+  return trimmed || undefined;
+};
+
+const POSTHOG_COOKIE_PATTERN = /(?:^|;\s*)ph_[^=;]+_posthog=([^;]+)/;
+
 /**
  * Extracts PostHog session and person context from HTTP headers or a cookie header.
  */
 export function extractPostHogContextFromHeaders(
   headers: Record<string, string | string[] | undefined> | undefined
 ): PostHogRequestContext {
-  if (!headers || typeof headers !== 'object') {
-    return {};
-  }
+  if (!headers) return {};
 
   const result: PostHogRequestContext = {};
+  let cookieHeader: string | undefined;
 
-  const lowercasedHeaders: Record<string, string | string[] | undefined> = {};
-  for (const [key, value] of Object.entries(headers)) {
-    lowercasedHeaders[key.toLowerCase()] = value;
+  // Single pass over the headers (names matched case-insensitively), no intermediate copy:
+  // runs for every HTTP request via the OpenTelemetry request hook.
+  for (const [key, raw] of Object.entries(headers)) {
+    const value = clean(Array.isArray(raw) ? raw[0] : raw);
+    if (!value) continue;
+    switch (key.toLowerCase()) {
+      // Custom PostHog tracing headers (injected by posthog-js when tracing_headers is enabled)
+      case 'x-posthog-distinct-id': result.distinctId = value; break;
+      case 'x-posthog-session-id': result.sessionId = value; break;
+      case 'x-posthog-window-id': result.windowId = value; break;
+      case 'cookie': cookieHeader = value; break;
+    }
   }
 
-  const getHeader = (name: string): string | undefined => {
-    const val = lowercasedHeaders[name.toLowerCase()];
-    if (Array.isArray(val)) return val[0];
-    return val;
-  };
-
-  // 1. Check custom PostHog tracing headers (injected by posthog-js when tracing_headers is enabled)
-  const distinctHeader = getHeader('x-posthog-distinct-id');
-  if (distinctHeader && typeof distinctHeader === 'string' && distinctHeader.trim()) {
-    result.distinctId = distinctHeader.trim();
-  }
-
-  const sessionHeader = getHeader('x-posthog-session-id');
-  if (sessionHeader && typeof sessionHeader === 'string' && sessionHeader.trim()) {
-    result.sessionId = sessionHeader.trim();
-  }
-
-  const windowHeader = getHeader('x-posthog-window-id');
-  if (windowHeader && typeof windowHeader === 'string' && windowHeader.trim()) {
-    result.windowId = windowHeader.trim();
-  }
-
-  // 2. Cookie fallback if distinctId or sessionId are not already provided via headers
-  const cookieHeader = getHeader('cookie');
-  if ((!result.distinctId || !result.sessionId) && cookieHeader && typeof cookieHeader === 'string') {
-    const match = cookieHeader.match(/ph_.*?_posthog=([^;]+)/);
-    if (match && match[1]) {
+  // Cookie fallback if distinctId or sessionId are not already provided via headers
+  if ((!result.distinctId || !result.sessionId) && cookieHeader?.includes('_posthog=')) {
+    const encoded = POSTHOG_COOKIE_PATTERN.exec(cookieHeader)?.[1];
+    if (encoded) {
       try {
-        const decoded = decodeURIComponent(match[1]);
-        const data = JSON.parse(decoded);
-
-        if (!result.distinctId && typeof data.distinct_id === 'string' && data.distinct_id.trim()) {
-          result.distinctId = data.distinct_id.trim();
-        }
-
-        if (!result.sessionId) {
-          if (Array.isArray(data.$sesid) && typeof data.$sesid[1] === 'string' && data.$sesid[1].trim()) {
-            result.sessionId = data.$sesid[1].trim();
-          } else if (typeof data.$session_id === 'string' && data.$session_id.trim()) {
-            result.sessionId = data.$session_id.trim();
-          } else if (typeof data.sessionId === 'string' && data.sessionId.trim()) {
-            result.sessionId = data.sessionId.trim();
-          }
-        }
+        const data = JSON.parse(decodeURIComponent(encoded));
+        result.distinctId ??= clean(data.distinct_id);
+        result.sessionId ??=
+          clean(Array.isArray(data.$sesid) ? data.$sesid[1] : undefined) ??
+          clean(data.$session_id) ??
+          clean(data.sessionId);
       } catch {
         // Silently ignore corrupted or unparseable cookies
       }
