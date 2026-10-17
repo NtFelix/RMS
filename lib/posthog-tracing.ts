@@ -20,6 +20,7 @@ import { MeterProvider } from '@opentelemetry/sdk-metrics';
 
 import { SERVICE_NAME, POSTHOG_API_KEY, getTracesEndpoint, getSdkResourceAttributes, registerShutdownHandler } from './otlp-utils';
 import { posthogLogger } from './posthog-logger';
+import '@supabase/supabase-js/tracing';
 
 const safeStringify = (val: unknown): string => {
   if (val instanceof Error) {
