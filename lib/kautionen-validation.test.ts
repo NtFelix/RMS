@@ -6,7 +6,9 @@ import {
   isUuid,
   validateKautionArtFelder,
   validateKautionDatum,
+  validateKautionEinbehalt,
   validateKautionGetrennt,
+  validateKautionStichtag,
   validateKautionIban,
   validateKautionText,
   validateKautionZinsmethode,
@@ -246,6 +248,64 @@ describe("kautionen-validation", () => {
     it("requires both dates to be valid", () => {
       expect(validateZinszeitraum(undefined, "2026-01-01").ok).toBe(false);
       expect(validateZinszeitraum("2025-01-01", "01.01.2026").ok).toBe(false);
+    });
+  });
+
+  describe("validateKautionEinbehalt (phase 4)", () => {
+    it("empty reason and empty date mean: remove the hold (null)", () => {
+      expect(validateKautionEinbehalt(null, null)).toEqual({ ok: true, value: null });
+      expect(validateKautionEinbehalt(undefined, undefined)).toEqual({ ok: true, value: null });
+      expect(validateKautionEinbehalt("   ", "")).toEqual({ ok: true, value: null });
+    });
+
+    it("accepts a reason of 3 to 500 characters with a valid date and trims the reason", () => {
+      expect(validateKautionEinbehalt("  Muster-Grund  ", "2026-03-01")).toEqual({
+        ok: true,
+        value: { grund: "Muster-Grund", seit: "2026-03-01" },
+      });
+      const genau500 = "x".repeat(500);
+      expect(validateKautionEinbehalt(genau500, "2026-03-01").ok).toBe(true);
+    });
+
+    it("rejects a reason shorter than 3 or longer than 500 characters", () => {
+      expect(validateKautionEinbehalt("ab", "2026-03-01").ok).toBe(false);
+      expect(validateKautionEinbehalt("x".repeat(501), "2026-03-01").ok).toBe(false);
+    });
+
+    it("rejects only one of the two values, with its own message", () => {
+      const nurGrund = validateKautionEinbehalt("Muster-Grund", null);
+      expect(nurGrund).toEqual({
+        ok: false,
+        message: "Grund und Datum des Einbehalts müssen gemeinsam angegeben oder gemeinsam entfernt werden.",
+      });
+      expect(validateKautionEinbehalt(null, "2026-03-01").ok).toBe(false);
+    });
+
+    it("rejects an invalid or pre-1990 date and does not decide about the future (database, KA013)", () => {
+      expect(validateKautionEinbehalt("Muster-Grund", "2026-02-31").ok).toBe(false);
+      expect(validateKautionEinbehalt("Muster-Grund", "1989-12-31").ok).toBe(false);
+      expect(validateKautionEinbehalt("Muster-Grund", "2099-01-01").ok).toBe(true);
+    });
+
+    it("never repeats the rejected value in the message", () => {
+      const result = validateKautionEinbehalt("x".repeat(600), "2026-03-01");
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.message).not.toContain("xxxxx");
+    });
+  });
+
+  describe("validateKautionStichtag (phase 4)", () => {
+    it("missing or null means the database default (null)", () => {
+      expect(validateKautionStichtag(undefined)).toEqual({ ok: true, value: null });
+      expect(validateKautionStichtag(null)).toEqual({ ok: true, value: null });
+    });
+
+    it("accepts a valid calendar date and rejects malformed or pre-1990 dates", () => {
+      expect(validateKautionStichtag("2026-03-15")).toEqual({ ok: true, value: "2026-03-15" });
+      expect(validateKautionStichtag("2026-02-30").ok).toBe(false);
+      expect(validateKautionStichtag("15.03.2026").ok).toBe(false);
+      expect(validateKautionStichtag("1989-01-01").ok).toBe(false);
+      expect(validateKautionStichtag("").ok).toBe(false);
     });
   });
 });

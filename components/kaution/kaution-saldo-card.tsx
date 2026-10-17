@@ -51,8 +51,8 @@ export function KautionSaldoCard({ details }: KautionSaldoCardProps) {
   }
 
   const istAltbestand = kaution.quelle === "migration_altbestand";
-  // Withheld amount (phase 4): only while there is still a balance.
-  const zeigeEinbehalt = Boolean(einbehalt) && konto.kontostand > 0;
+  // Hold (phase 4): only with the function flag `abrechnung`. The database sets `einbehalt` only while there is a balance.
+  const zeigeEinbehalt = funktionen.abrechnung && Boolean(einbehalt);
 
   return (
     <Card>
@@ -81,8 +81,8 @@ export function KautionSaldoCard({ details }: KautionSaldoCardProps) {
         ) : null}
 
         {zeigeEinbehalt && einbehalt ? (
-          <p className="text-sm">
-            Seit {formatDatum(einbehalt.seit)} einbehalten ({einbehalt.liegedauer_tage} Tage): {einbehalt.grund}
+          <p className="text-sm" data-testid="kaution-saldo-einbehalt">
+            Einbehalt: {einbehalt.grund}, seit {formatDatum(einbehalt.seit)}
           </p>
         ) : null}
 

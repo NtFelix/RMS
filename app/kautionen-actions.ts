@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * Server actions of the deposit management ("Kautionsmanagement", GH-6), phases 1 to 3.
+ * Server actions of the deposit management ("Kautionsmanagement", GH-6), phases 1 to 4.
  *
  * Principles (spec 4.1/4.5):
  * - Thin actions: sign-in check -> module right (`hasPermission('kautionen', <aktion>)` and, for every write
@@ -20,7 +20,8 @@
  *
  * Phase 2 (instalment plan: `planeKautionRatenAction`, optional rate of a deposit booking, receipts) and phase 3
  * (agreement fields incl. IBAN, interest schedule `planeKautionZinsstaffelAction`, interest proposal
- * `berechneKautionZinsenAction`, interest credit as a booking type) are in this file. Phase 4 (settlement) lives in its own file.
+ * `berechneKautionZinsenAction`, interest credit as a booking type) and phase 4 (settlement read `getKautionAbrechnungAction`,
+ * interest hold `setzeKautionEinbehaltAction`) are in this file. The PDF route calls the settlement read action.
  *
  * Security relevant (money booking, module right, object scope): not production ready until the maintainer
  * has reviewed it. The database is authoritative: the RPCs check organisation, module right, object scope and
@@ -60,8 +61,10 @@ import {
 import {
   validateKautionArtFelder,
   validateKautionDatum,
+  validateKautionEinbehalt,
   validateKautionGetrennt,
   validateKautionIban,
+  validateKautionStichtag,
   validateKautionText,
   validateKautionZinsmethode,
   validateUuid,
@@ -70,6 +73,7 @@ import {
   type ValidationResult,
 } from "@/lib/kautionen-validation";
 import type {
+  KautionAbrechnung,
   KautionAbzugKategorie,
   KautionArt,
   KautionBewegungsArt,
@@ -210,6 +214,20 @@ export interface StorniereKautionBewegungInput {
 export interface DeleteKautionInput {
   tenantId: string;
   kautionId: string;
+}
+
+export interface GetKautionAbrechnungInput {
+  tenantId: string;
+  /** Settlement date `YYYY-MM-DD` (not before 1990, not in the future: the database decides). Empty: today. */
+  stichtag?: string | null;
+}
+
+export interface SetzeKautionEinbehaltInput {
+  kautionId: string;
+  /** Reason, 3 to 500 characters. Removes the hold together with `seit: null`. */
+  grund: string | null;
+  /** Date `YYYY-MM-DD`. Removes the hold together with `grund: null`. */
+  seit: string | null;
 }
 
 type Step<T> = { ok: true; data: T } | { ok: false; error: KautionActionError };
@@ -430,6 +448,22 @@ function istZinsVorschlag(value: unknown): value is KautionZinsVorschlag {
     typeof feld.betrag_exakt === "string" &&
     Array.isArray(feld.staffel) &&
     Array.isArray(feld.segmente)
+  );
+}
+
+/**
+ * Form check of the settlement from the RPC (`KautionAbrechnung`, see `types/Kaution.ts`). Only the parts the view and
+ * the PDF read are checked; an unexpected shape is an unclassified error, never shown or sent to the worker.
+ */
+function istKautionAbrechnung(value: unknown): value is KautionAbrechnung {
+  const feld = asRecord(value);
+  return (
+    typeof feld.stichtag === "string" &&
+    typeof feld.konto === "object" &&
+    feld.konto !== null &&
+    !Array.isArray(feld.konto) &&
+    Array.isArray(feld.abzuege) &&
+    Array.isArray(feld.bewegungen)
   );
 }
 
@@ -1123,6 +1157,69 @@ export async function getKautionBelegUrlAction(input: GetKautionBelegUrlInput): 
         return fail({ message: KAUTION_FEHLER_FALLBACK_MESSAGE });
       }
       return { ok: true, data: { url: signiert.signedUrl } };
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Settlement (phase 4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Settlement figures of a tenant's deposit (`get_kaution_abrechnung`) for the settlement view and the PDF route. Read
+ * only: nothing is changed and nothing is logged on success. `data` is `null` when the database answers NULL (deposit not
+ * visible, or no account type); callers must not tell these cases apart. The settlement date defaults to today in the
+ * database. Amounts are computed there, never here.
+ */
+export async function getKautionAbrechnungAction(input: GetKautionAbrechnungInput): Promise<KautionActionResult<KautionAbrechnung | null>> {
+  const raw = asRecord(input);
+  return runKautionAction({
+    actionName: "getKautionAbrechnung",
+    tenantId: raw.tenantId,
+    mieterScope: true,
+    aktion: "ansehen",
+    revalidate: false,
+    logSuccess: false,
+    run: async (supabase, id) => {
+      const stichtag = validateKautionStichtag(raw.stichtag);
+      if (!stichtag.ok) return fail(invalid(stichtag.message));
+
+      const result = await callRpc(supabase, "get_kaution_abrechnung", { p_mieter_id: id, p_stichtag: stichtag.value });
+      if (!result.ok) return fail(result.error);
+      if (result.data === null || result.data === undefined) return { ok: true, data: null };
+      // Defensive: the shape is checked before it reaches the view or the worker.
+      if (!istKautionAbrechnung(result.data)) return fail({ message: KAUTION_FEHLER_FALLBACK_MESSAGE });
+      return { ok: true, data: result.data };
+    },
+  });
+}
+
+/**
+ * Sets or removes the interest hold ("Einbehalt") of a deposit (`kaution_einbehalt_setzen`). It is NOT a booking: it only
+ * documents reason and date; the amount still held is the balance. Both values empty removes the hold; only one of them
+ * is an error (`KA004`, own message). The database checks the object scope, the right to edit, the balance (`KA004`
+ * without balance), the date (`KA013`) and the deposit type (`KA014`).
+ */
+export async function setzeKautionEinbehaltAction(input: SetzeKautionEinbehaltInput): Promise<KautionActionResult> {
+  const raw = asRecord(input);
+  return runKautionAction({
+    actionName: "setzeKautionEinbehalt",
+    mieterScope: false,
+    aktion: "bearbeiten",
+    run: async (supabase) => {
+      const kautionId = validateUuid(raw.kautionId, "Kautions-ID");
+      if (!kautionId.ok) return fail(invalid(kautionId.message));
+
+      const einbehalt = validateKautionEinbehalt(raw.grund, raw.seit);
+      if (!einbehalt.ok) return fail(invalid(einbehalt.message));
+
+      const result = await callRpc(supabase, "kaution_einbehalt_setzen", {
+        p_kaution_id: kautionId.value,
+        p_grund: einbehalt.value?.grund ?? null,
+        p_seit: einbehalt.value?.seit ?? null,
+      });
+      if (!result.ok) return fail(result.error);
+      return { ok: true, data: undefined };
     },
   });
 }

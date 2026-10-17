@@ -199,3 +199,51 @@ export function validateZinszeitraum(von: unknown, bis: unknown): ValidationResu
   if (start.value >= ende.value) return { ok: false, message: "Das Ende des Zinszeitraums muss nach dem Beginn liegen." };
   return { ok: true, value: { von: start.value, bis: ende.value } };
 }
+
+// ---------------------------------------------------------------------------
+// Phase 4: interest hold and settlement date
+// ---------------------------------------------------------------------------
+
+/** `true` for missing, `null` or whitespace-only input. */
+function istLeer(value: unknown): boolean {
+  return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+}
+
+/**
+ * Interest hold ("Einbehalt", `kaution_einbehalt_setzen`): reason and date belong together. Both empty means "remove"
+ * (`null`); only one of them is an error. The reason has 3 to 500 characters, the date is a real calendar day not
+ * before 1990-01-01. A date in the future is NOT checked here: the database decides (`KA013`).
+ */
+export function validateKautionEinbehalt(grund: unknown, seit: unknown): ValidationResult<{ grund: string; seit: string } | null> {
+  const grundLeer = istLeer(grund);
+  const seitLeer = istLeer(seit);
+  if (grundLeer && seitLeer) return { ok: true, value: null };
+  if (grundLeer || seitLeer) {
+    return { ok: false, message: "Grund und Datum des Einbehalts müssen gemeinsam angegeben oder gemeinsam entfernt werden." };
+  }
+
+  const begruendung = validateKautionText(grund, {
+    label: "Der Grund des Einbehalts",
+    min: KAUTION_TEXT_LIMITS.einbehaltGrund.min,
+    max: KAUTION_TEXT_LIMITS.einbehaltGrund.max,
+    required: true,
+  });
+  if (!begruendung.ok) return { ok: false, message: begruendung.message };
+  if (begruendung.value === null) return { ok: false, message: "Der Grund des Einbehalts ist erforderlich." };
+
+  const datum = validateKautionDatum(seit, "Das Datum des Einbehalts");
+  if (!datum.ok) return { ok: false, message: datum.message };
+
+  return { ok: true, value: { grund: begruendung.value, seit: datum.value } };
+}
+
+/**
+ * Settlement date (`stichtag`, optional). Missing or `null` means "the database default" (today) and is returned as
+ * `null`. Otherwise a valid calendar date not before 1990-01-01; "not in the future" is checked by the database.
+ */
+export function validateKautionStichtag(value: unknown): ValidationResult<string | null> {
+  if (value === undefined || value === null) return { ok: true, value: null };
+  const datum = validateKautionDatum(value, "Stichtag");
+  if (!datum.ok) return { ok: false, message: datum.message };
+  return { ok: true, value: datum.value };
+}

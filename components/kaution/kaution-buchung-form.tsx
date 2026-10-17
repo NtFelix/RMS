@@ -83,6 +83,14 @@ export type KautionBuchungVorgabe =
       von: string;
       /** End of the interest period `YYYY-MM-DD` (exclusive, as the database gives it). */
       bis: string;
+    }
+  | {
+      /** Deduction from the settlement tab: only the type is preset, category and reason are entered in the form. */
+      art: "abzug";
+    }
+  | {
+      /** Payout from the settlement tab: only the type is preset, the amount is prefilled with the balance (see below). */
+      art: "auszahlung";
     };
 
 interface KautionBuchungFormProps {

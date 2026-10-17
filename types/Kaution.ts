@@ -41,7 +41,7 @@ export interface Kaution {
   getrennt_angelegt?: boolean | null;
   buerge_versicherer?: string | null;
   urkundennummer?: string | null;
-  // P4
+  // P4 (set by `kaution_einbehalt_setzen`; both NULL = no hold, not a booking)
   einbehalt_grund?: string | null;
   einbehalt_seit?: string | null;
 }
@@ -186,8 +186,63 @@ export interface KautionDetails {
   zins_aufgelaufen?: KautionZinsVorschlag | null;
   /** Balance plus the accrued interest proposal (`null` without a balance, for non-account types). */
   kontostand_inkl_zinsen?: number | null;
-  // P4
+  // P4: only set while a hold exists AND the balance is above 0 (`get_kaution_details`)
   einbehalt?: { grund: string; seit: string; liegedauer_tage: number } | null;
+}
+
+// ---------------------------------------------------------------------------
+// Settlement ("Abrechnung", phase 4): result of `get_kaution_abrechnung`, input of the PDF and the view
+// ---------------------------------------------------------------------------
+
+/** Kind of settlement: interim (`zwischen`) or final (`end`). It changes the PDF heading, not the figures. */
+export type KautionAbrechnungArt = "zwischen" | "end";
+
+/** Sum of the deductions of one category (only categories with bookings, order schaden, mietrueckstand, nebenkosten, sonstiges). */
+export interface KautionAbzugSumme {
+  kategorie: KautionAbzugKategorie;
+  anzahl: number;
+  summe: number;
+}
+
+/** One non-cancelled booking in account-statement order, with the running balance. No IBAN, notes or recipients. */
+export interface KautionAbrechnungBewegung {
+  wertstellung: string;
+  bewegungsart: KautionBewegungsArt;
+  betrag: number;
+  kategorie: KautionAbzugKategorie | null;
+  grund: string | null;
+  zinszeitraum_von: string | null;
+  zinszeitraum_bis: string | null;
+  saldo_nach_buchung: number;
+}
+
+/**
+ * Result of `get_kaution_abrechnung` (`regelwerk_version` 1). Amounts are computed by the database and only displayed.
+ * Names are `null` where the caller may not read them (RLS).
+ */
+export interface KautionAbrechnung {
+  regelwerk_version: 1;
+  /** Settlement date `YYYY-MM-DD` (payout date, at most today). */
+  stichtag: string;
+  organisation: { name: string | null };
+  mieter: { name: string | null; auszug: string | null };
+  objekt: { haus: string | null; wohnung: string | null };
+  kaution: { kautionsart: KautionArt; soll_betrag: number; zinsmethode: KautionZinsmethode; getrennt_angelegt: boolean | null };
+  konto: {
+    summe_einzahlungen: number;
+    summe_zinsgutschriften: number;
+    summe_auszahlungen: number;
+    summe_abzuege: number;
+    kontostand: number;
+  };
+  abzuege: KautionAbzugSumme[];
+  /** Interest not yet credited up to the settlement date, `null` if there is none. */
+  zinsen_offen: KautionZinsVorschlag | null;
+  /** Balance plus the open interest (if the proposal is possible). */
+  betrag_inkl_zinsen: number;
+  einbehalt: { grund: string; seit: string; liegedauer_tage: number } | null;
+  bewegungen: KautionAbrechnungBewegung[];
+  storniert_anzahl: number;
 }
 
 /** Module rights of the current user for `kautionen` (the server stays authoritative). */

@@ -21,6 +21,7 @@ import { KautionRatenTab } from "@/components/kaution/kaution-raten-tab";
 import { KautionStatusBadge } from "@/components/kaution/kaution-status-badge";
 import { KautionUebersichtTab } from "@/components/kaution/kaution-uebersicht-tab";
 import { KautionZinsenTab } from "@/components/kaution/kaution-zinsen-tab";
+import { KautionAbrechnungTab } from "@/components/kaution/kaution-abrechnung-tab";
 import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import {
   KAUTION_FEHLER_FALLBACK_MESSAGE,
@@ -38,7 +39,8 @@ import type { KautionDetails, KautionRate, KautionRechte, KautionVorschlag } fro
  *   state and deadlines come from the database. The server stays authoritative for every right, the rights
  *   here only enable/disable buttons (disabled instead of hidden, tooltip "Keine Berechtigung").
  * - States: loading (skeleton), error (alert + "Erneut laden"), no deposit (creation form with suggestion),
- *   deposit present (header + tabs "Übersicht" / "Kontoauszug", "Raten" only with the function flag `raten`, "Dokumente" only with `dokumente`).
+ *   deposit present (header + tabs "Übersicht" / "Kontoauszug", "Raten" only with the function flag `raten`, "Dokumente" only with `dokumente`,
+ *   "Abrechnung" only with `abrechnung`; the bank account tabs need a bank account type).
  *   The frist badge shows only with the function flag `fristen`.
  * - Unsaved input: only the forms report it (`setKautionModalDirty`); closing then uses the confirmation
  *   dialog of the store. Both tabs stay mounted, so switching tabs never discards an open form.
@@ -49,23 +51,24 @@ import type { KautionDetails, KautionRate, KautionRechte, KautionVorschlag } fro
  * Security relevant (money booking, rights): not production ready until the maintainer has reviewed it.
  */
 
-type KautionTab = "uebersicht" | "kontoauszug" | "zinsen" | "raten" | "dokumente";
+type KautionTab = "uebersicht" | "kontoauszug" | "zinsen" | "raten" | "dokumente" | "abrechnung";
 
 /**
- * Start tab from the store. "zinsen", "raten" and "dokumente" are checked against their flags and the deposit type in the
- * view (fallback: overview).
+ * Start tab from the store. "zinsen", "raten", "dokumente" and "abrechnung" are checked against their flags and the deposit
+ * type in the view (fallback: overview).
  */
 function startTab(wunsch: string | undefined): KautionTab {
   if (wunsch === "kontoauszug") return "kontoauszug";
   if (wunsch === "zinsen") return "zinsen";
   if (wunsch === "raten") return "raten";
   if (wunsch === "dokumente") return "dokumente";
+  if (wunsch === "abrechnung") return "abrechnung";
   return "uebersicht";
 }
 
 /**
  * Booking request of another tab: the statement opens the booking form for it (a rate payment from the Raten tab, an interest
- * credit from the Zinsen tab). `nonce`: new request each time.
+ * credit from the Zinsen tab, a deduction or payout from the Abrechnung tab). `nonce`: new request each time.
  */
 type ZahlungsVorgabe = KautionBuchungVorgabe & { nonce: number };
 
@@ -112,7 +115,16 @@ function useDirtyQuellen(setKautionModalDirty: (dirty: boolean) => void) {
   const meldeBuchungDirty = useCallback((dirty: boolean) => meldeDirty("buchung", dirty), [meldeDirty]);
   const meldeRatenDirty = useCallback((dirty: boolean) => meldeDirty("raten", dirty), [meldeDirty]);
   const meldeZinsenDirty = useCallback((dirty: boolean) => meldeDirty("zinsen", dirty), [meldeDirty]);
-  return { zuruecksetzen, meldeAnlegenDirty, meldeVereinbarungDirty, meldeBuchungDirty, meldeRatenDirty, meldeZinsenDirty };
+  const meldeEinbehaltDirty = useCallback((dirty: boolean) => meldeDirty("einbehalt", dirty), [meldeDirty]);
+  return {
+    zuruecksetzen,
+    meldeAnlegenDirty,
+    meldeVereinbarungDirty,
+    meldeBuchungDirty,
+    meldeRatenDirty,
+    meldeZinsenDirty,
+    meldeEinbehaltDirty,
+  };
 }
 
 export function KautionDialog() {
@@ -156,8 +168,15 @@ export function KautionDialog() {
   }, []);
 
   // --- Unsaved input -----------------------------------------------------------------------------------------
-  const { zuruecksetzen, meldeAnlegenDirty, meldeVereinbarungDirty, meldeBuchungDirty, meldeRatenDirty, meldeZinsenDirty } =
-    useDirtyQuellen(setKautionModalDirty);
+  const {
+    zuruecksetzen,
+    meldeAnlegenDirty,
+    meldeVereinbarungDirty,
+    meldeBuchungDirty,
+    meldeRatenDirty,
+    meldeZinsenDirty,
+    meldeEinbehaltDirty,
+  } = useDirtyQuellen(setKautionModalDirty);
 
   /** From the Raten tab: opens the payment form for the rate in the statement (the dialog switches the tab). */
   const oeffneZahlungFuerRate = useCallback((rate: KautionRate) => {
@@ -171,8 +190,11 @@ export function KautionDialog() {
     setTab("kontoauszug");
   }, []);
 
-  /** From the Zinsen tab: opens the interest credit form in the statement for the accrued period. */
-  const oeffneZinsgutschrift = useCallback((vorgabe: KautionBuchungVorgabe) => {
+  /**
+   * From the Zinsen tab (interest credit for the accrued period) and the Abrechnung tab (deduction, payout): opens the booking
+   * form in the statement with the preset.
+   */
+  const oeffneBuchungMitVorgabe = useCallback((vorgabe: KautionBuchungVorgabe) => {
     setZahlungsVorgabe((vorher) => ({ ...vorgabe, nonce: (vorher?.nonce ?? 0) + 1 }));
     setTab("kontoauszug");
   }, []);
@@ -340,7 +362,9 @@ export function KautionDialog() {
             onZinsenDirtyChange={meldeZinsenDirty}
             zahlungsVorgabe={zahlungsVorgabe}
             onZahlungErfassen={oeffneZahlungFuerRate}
-            onZinsgutschriftErfassen={oeffneZinsgutschrift}
+            onZinsgutschriftErfassen={oeffneBuchungMitVorgabe}
+            onBuchungErfassen={oeffneBuchungMitVorgabe}
+            onEinbehaltDirtyChange={meldeEinbehaltDirty}
           />
         ) : null}
       </DialogContent>
@@ -368,6 +392,8 @@ interface KautionInhaltProps {
   zahlungsVorgabe: ZahlungsVorgabe | null;
   onZahlungErfassen: (rate: KautionRate) => void;
   onZinsgutschriftErfassen: (vorgabe: KautionBuchungVorgabe) => void;
+  onBuchungErfassen: (vorgabe: KautionBuchungVorgabe) => void;
+  onEinbehaltDirtyChange: (dirty: boolean) => void;
 }
 
 /** Header and the content of the current phase (loading, error, creation form, deposit with tabs). */
@@ -391,6 +417,8 @@ function KautionInhalt({
   zahlungsVorgabe,
   onZahlungErfassen,
   onZinsgutschriftErfassen,
+  onBuchungErfassen,
+  onEinbehaltDirtyChange,
 }: KautionInhaltProps) {
   const details = ansicht.phase === "bereit" ? ansicht.details : null;
 
@@ -438,6 +466,8 @@ function KautionInhalt({
           zahlungsVorgabe={zahlungsVorgabe}
           onZahlungErfassen={onZahlungErfassen}
           onZinsgutschriftErfassen={onZinsgutschriftErfassen}
+          onBuchungErfassen={onBuchungErfassen}
+          onEinbehaltDirtyChange={onEinbehaltDirtyChange}
         />
       ) : null}
     </>
@@ -478,6 +508,8 @@ interface KautionMitDetailsProps {
   zahlungsVorgabe: ZahlungsVorgabe | null;
   onZahlungErfassen: (rate: KautionRate) => void;
   onZinsgutschriftErfassen: (vorgabe: KautionBuchungVorgabe) => void;
+  onBuchungErfassen: (vorgabe: KautionBuchungVorgabe) => void;
+  onEinbehaltDirtyChange: (dirty: boolean) => void;
 }
 
 /**
@@ -502,6 +534,8 @@ function KautionMitDetails({
   zahlungsVorgabe,
   onZahlungErfassen,
   onZinsgutschriftErfassen,
+  onBuchungErfassen,
+  onEinbehaltDirtyChange,
 }: KautionMitDetailsProps) {
   const { funktionen } = useKautionFlag();
   const hatKonto = kautionHatKonto(details.kaution.kautionsart);
@@ -509,13 +543,15 @@ function KautionMitDetails({
   const zinsenAktiv = hatKonto && funktionen.zinsen;
   const ratenAktiv = hatKonto && funktionen.raten;
   const dokumenteAktiv = hatKonto && funktionen.dokumente;
+  const abrechnungAktiv = hatKonto && funktionen.abrechnung;
   const fristAktiv = hatKonto && funktionen.fristen;
   // Without its flag or type the tab does not exist: the view falls back to the overview, the state follows (effect below).
   const aktiverTab: KautionTab =
     (tab === "kontoauszug" && !kontoauszugAktiv) ||
     (tab === "zinsen" && !zinsenAktiv) ||
     (tab === "raten" && !ratenAktiv) ||
-    (tab === "dokumente" && !dokumenteAktiv)
+    (tab === "dokumente" && !dokumenteAktiv) ||
+    (tab === "abrechnung" && !abrechnungAktiv)
       ? "uebersicht"
       : tab;
   useEffect(() => {
@@ -549,6 +585,7 @@ function KautionMitDetails({
           {zinsenAktiv ? <TabsTrigger value="zinsen">Zinsen</TabsTrigger> : null}
           {ratenAktiv ? <TabsTrigger value="raten">Raten</TabsTrigger> : null}
           {dokumenteAktiv ? <TabsTrigger value="dokumente">Dokumente</TabsTrigger> : null}
+          {abrechnungAktiv ? <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger> : null}
         </TabsList>
         {/* forceMount + hidden: an open form keeps its input when the user switches the tab. */}
         <TabsContent value="uebersicht" forceMount hidden={aktiverTab !== "uebersicht"}>
@@ -603,6 +640,19 @@ function KautionMitDetails({
         {dokumenteAktiv ? (
           <TabsContent value="dokumente" forceMount hidden={aktiverTab !== "dokumente"}>
             <KautionDokumenteTab details={details} rechte={rechte} onGeaendert={onGeaendert} onFehler={onFehler} />
+          </TabsContent>
+        ) : null}
+        {abrechnungAktiv ? (
+          <TabsContent value="abrechnung" forceMount hidden={aktiverTab !== "abrechnung"}>
+            <KautionAbrechnungTab
+              tenantId={tenantId}
+              details={details}
+              rechte={rechte}
+              onGeaendert={onGeaendert}
+              onFehler={onFehler}
+              onEinbehaltDirtyChange={onEinbehaltDirtyChange}
+              onBuchungErfassen={onBuchungErfassen}
+            />
           </TabsContent>
         ) : null}
       </Tabs>
