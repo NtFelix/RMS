@@ -20,12 +20,14 @@ import type { KautionBuchungVorgabe } from "@/components/kaution/kaution-buchung
 import { KautionRatenTab } from "@/components/kaution/kaution-raten-tab";
 import { KautionStatusBadge } from "@/components/kaution/kaution-status-badge";
 import { KautionUebersichtTab } from "@/components/kaution/kaution-uebersicht-tab";
+import { KautionZinsenTab } from "@/components/kaution/kaution-zinsen-tab";
 import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import {
   KAUTION_FEHLER_FALLBACK_MESSAGE,
   getKautionFehlerVerhalten,
   type KautionFehlerVerhalten,
 } from "@/lib/kautionen-errors";
+import { KAUTION_ART_LABELS, kautionHatKonto } from "@/lib/kautionen-constants";
 import type { KautionDetails, KautionRate, KautionRechte, KautionVorschlag } from "@/types/Kaution";
 
 /**
@@ -47,17 +49,24 @@ import type { KautionDetails, KautionRate, KautionRechte, KautionVorschlag } fro
  * Security relevant (money booking, rights): not production ready until the maintainer has reviewed it.
  */
 
-type KautionTab = "uebersicht" | "kontoauszug" | "raten" | "dokumente";
+type KautionTab = "uebersicht" | "kontoauszug" | "zinsen" | "raten" | "dokumente";
 
-/** Start tab from the store. "raten" and "dokumente" are checked against their flags in the view (fallback: overview). */
+/**
+ * Start tab from the store. "zinsen", "raten" and "dokumente" are checked against their flags and the deposit type in the
+ * view (fallback: overview).
+ */
 function startTab(wunsch: string | undefined): KautionTab {
   if (wunsch === "kontoauszug") return "kontoauszug";
+  if (wunsch === "zinsen") return "zinsen";
   if (wunsch === "raten") return "raten";
   if (wunsch === "dokumente") return "dokumente";
   return "uebersicht";
 }
 
-/** Payment request of the Raten tab: the statement opens the payment form for this rate (`nonce`: new request each time). */
+/**
+ * Booking request of another tab: the statement opens the booking form for it (a rate payment from the Raten tab, an interest
+ * credit from the Zinsen tab). `nonce`: new request each time.
+ */
 type ZahlungsVorgabe = KautionBuchungVorgabe & { nonce: number };
 
 type Ansicht =
@@ -102,7 +111,8 @@ function useDirtyQuellen(setKautionModalDirty: (dirty: boolean) => void) {
   const meldeVereinbarungDirty = useCallback((dirty: boolean) => meldeDirty("vereinbarung", dirty), [meldeDirty]);
   const meldeBuchungDirty = useCallback((dirty: boolean) => meldeDirty("buchung", dirty), [meldeDirty]);
   const meldeRatenDirty = useCallback((dirty: boolean) => meldeDirty("raten", dirty), [meldeDirty]);
-  return { zuruecksetzen, meldeAnlegenDirty, meldeVereinbarungDirty, meldeBuchungDirty, meldeRatenDirty };
+  const meldeZinsenDirty = useCallback((dirty: boolean) => meldeDirty("zinsen", dirty), [meldeDirty]);
+  return { zuruecksetzen, meldeAnlegenDirty, meldeVereinbarungDirty, meldeBuchungDirty, meldeRatenDirty, meldeZinsenDirty };
 }
 
 export function KautionDialog() {
@@ -146,17 +156,24 @@ export function KautionDialog() {
   }, []);
 
   // --- Unsaved input -----------------------------------------------------------------------------------------
-  const { zuruecksetzen, meldeAnlegenDirty, meldeVereinbarungDirty, meldeBuchungDirty, meldeRatenDirty } =
+  const { zuruecksetzen, meldeAnlegenDirty, meldeVereinbarungDirty, meldeBuchungDirty, meldeRatenDirty, meldeZinsenDirty } =
     useDirtyQuellen(setKautionModalDirty);
 
   /** From the Raten tab: opens the payment form for the rate in the statement (the dialog switches the tab). */
   const oeffneZahlungFuerRate = useCallback((rate: KautionRate) => {
     setZahlungsVorgabe((vorher) => ({
+      art: "einzahlung",
       rateId: rate.rate_id,
       rateNr: rate.rate_nr,
       betrag: rate.offen,
       nonce: (vorher?.nonce ?? 0) + 1,
     }));
+    setTab("kontoauszug");
+  }, []);
+
+  /** From the Zinsen tab: opens the interest credit form in the statement for the accrued period. */
+  const oeffneZinsgutschrift = useCallback((vorgabe: KautionBuchungVorgabe) => {
+    setZahlungsVorgabe((vorher) => ({ ...vorgabe, nonce: (vorher?.nonce ?? 0) + 1 }));
     setTab("kontoauszug");
   }, []);
 
@@ -320,8 +337,10 @@ export function KautionDialog() {
             onVereinbarungDirtyChange={meldeVereinbarungDirty}
             onBuchungDirtyChange={meldeBuchungDirty}
             onRatenDirtyChange={meldeRatenDirty}
+            onZinsenDirtyChange={meldeZinsenDirty}
             zahlungsVorgabe={zahlungsVorgabe}
             onZahlungErfassen={oeffneZahlungFuerRate}
+            onZinsgutschriftErfassen={oeffneZinsgutschrift}
           />
         ) : null}
       </DialogContent>
@@ -345,8 +364,10 @@ interface KautionInhaltProps {
   onVereinbarungDirtyChange: (dirty: boolean) => void;
   onBuchungDirtyChange: (dirty: boolean) => void;
   onRatenDirtyChange: (dirty: boolean) => void;
+  onZinsenDirtyChange: (dirty: boolean) => void;
   zahlungsVorgabe: ZahlungsVorgabe | null;
   onZahlungErfassen: (rate: KautionRate) => void;
+  onZinsgutschriftErfassen: (vorgabe: KautionBuchungVorgabe) => void;
 }
 
 /** Header and the content of the current phase (loading, error, creation form, deposit with tabs). */
@@ -366,8 +387,10 @@ function KautionInhalt({
   onVereinbarungDirtyChange,
   onBuchungDirtyChange,
   onRatenDirtyChange,
+  onZinsenDirtyChange,
   zahlungsVorgabe,
   onZahlungErfassen,
+  onZinsgutschriftErfassen,
 }: KautionInhaltProps) {
   const details = ansicht.phase === "bereit" ? ansicht.details : null;
 
@@ -411,8 +434,10 @@ function KautionInhalt({
           onVereinbarungDirtyChange={onVereinbarungDirtyChange}
           onBuchungDirtyChange={onBuchungDirtyChange}
           onRatenDirtyChange={onRatenDirtyChange}
+          onZinsenDirtyChange={onZinsenDirtyChange}
           zahlungsVorgabe={zahlungsVorgabe}
           onZahlungErfassen={onZahlungErfassen}
+          onZinsgutschriftErfassen={onZinsgutschriftErfassen}
         />
       ) : null}
     </>
@@ -449,11 +474,17 @@ interface KautionMitDetailsProps {
   onVereinbarungDirtyChange: (dirty: boolean) => void;
   onBuchungDirtyChange: (dirty: boolean) => void;
   onRatenDirtyChange: (dirty: boolean) => void;
+  onZinsenDirtyChange: (dirty: boolean) => void;
   zahlungsVorgabe: ZahlungsVorgabe | null;
   onZahlungErfassen: (rate: KautionRate) => void;
+  onZinsgutschriftErfassen: (vorgabe: KautionBuchungVorgabe) => void;
 }
 
-/** Deposit present: state/balance header and the tabs "Übersicht" / "Kontoauszug" (+ "Raten" with its flag). */
+/**
+ * Deposit present: state/balance header and the tabs. The bank account tabs ("Kontoauszug", "Zinsen", "Raten") exist only for
+ * bank account types; guarantee and insurance show the overview only (no bookings, no instalments, no interest: KA014, KA015).
+ * Each optional tab also needs its function flag.
+ */
 function KautionMitDetails({
   tenantId,
   details,
@@ -467,15 +498,26 @@ function KautionMitDetails({
   onVereinbarungDirtyChange,
   onBuchungDirtyChange,
   onRatenDirtyChange,
+  onZinsenDirtyChange,
   zahlungsVorgabe,
   onZahlungErfassen,
+  onZinsgutschriftErfassen,
 }: KautionMitDetailsProps) {
   const { funktionen } = useKautionFlag();
-  const ratenAktiv = funktionen.raten;
-  const dokumenteAktiv = funktionen.dokumente;
-  const fristAktiv = funktionen.fristen;
-  // Without its flag the "Raten" or "Dokumente" tab does not exist: the view falls back to the overview, the state follows (effect below).
-  const aktiverTab: KautionTab = (tab === "raten" && !ratenAktiv) || (tab === "dokumente" && !dokumenteAktiv) ? "uebersicht" : tab;
+  const hatKonto = kautionHatKonto(details.kaution.kautionsart);
+  const kontoauszugAktiv = hatKonto;
+  const zinsenAktiv = hatKonto && funktionen.zinsen;
+  const ratenAktiv = hatKonto && funktionen.raten;
+  const dokumenteAktiv = hatKonto && funktionen.dokumente;
+  const fristAktiv = hatKonto && funktionen.fristen;
+  // Without its flag or type the tab does not exist: the view falls back to the overview, the state follows (effect below).
+  const aktiverTab: KautionTab =
+    (tab === "kontoauszug" && !kontoauszugAktiv) ||
+    (tab === "zinsen" && !zinsenAktiv) ||
+    (tab === "raten" && !ratenAktiv) ||
+    (tab === "dokumente" && !dokumenteAktiv)
+      ? "uebersicht"
+      : tab;
   useEffect(() => {
     if (aktiverTab !== tab) onTabChange(aktiverTab);
   }, [aktiverTab, tab, onTabChange]);
@@ -486,12 +528,15 @@ function KautionMitDetails({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <KautionStatusBadge zustand={details.zustand} />
+            {hatKonto ? null : <span className="text-sm text-muted-foreground">{KAUTION_ART_LABELS[details.kaution.kautionsart]}</span>}
           </div>
-          {/* Live region: the balance is announced after every booking. */}
-          <div role="status" aria-live="polite" aria-atomic="true" className="text-sm" data-testid="kaution-kopf-kontostand">
-            <span className="text-muted-foreground">Kontostand: </span>
-            <span className="font-semibold tabular-nums">{formatBetrag(details.konto.kontostand)}</span>
-          </div>
+          {/* Live region: the balance is announced after every booking. Only for bank accounts. */}
+          {hatKonto ? (
+            <div role="status" aria-live="polite" aria-atomic="true" className="text-sm" data-testid="kaution-kopf-kontostand">
+              <span className="text-muted-foreground">Kontostand: </span>
+              <span className="font-semibold tabular-nums">{formatBetrag(details.konto.kontostand)}</span>
+            </div>
+          ) : null}
         </div>
         {/* Deadline hint: only with the function flag `fristen` and once the database delivers `frist`. Neutral wording. */}
         {fristAktiv && details.frist ? <KautionFristBadge stufe={details.frist.stufe} ausfuehrlich /> : null}
@@ -500,7 +545,8 @@ function KautionMitDetails({
       <Tabs value={aktiverTab} onValueChange={(wert) => onTabChange(startTab(wert))}>
         <TabsList>
           <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
-          <TabsTrigger value="kontoauszug">Kontoauszug</TabsTrigger>
+          {kontoauszugAktiv ? <TabsTrigger value="kontoauszug">Kontoauszug</TabsTrigger> : null}
+          {zinsenAktiv ? <TabsTrigger value="zinsen">Zinsen</TabsTrigger> : null}
           {ratenAktiv ? <TabsTrigger value="raten">Raten</TabsTrigger> : null}
           {dokumenteAktiv ? <TabsTrigger value="dokumente">Dokumente</TabsTrigger> : null}
         </TabsList>
@@ -516,18 +562,32 @@ function KautionMitDetails({
             onVereinbarungDirtyChange={onVereinbarungDirtyChange}
           />
         </TabsContent>
-        <TabsContent value="kontoauszug" forceMount hidden={aktiverTab !== "kontoauszug"}>
-          <KautionKontoauszugTab
-            details={details}
-            rechte={rechte}
-            tenantId={tenantId}
-            onGeaendert={onGeaendert}
-            onFehler={onFehler}
-            onBuchungDirtyChange={onBuchungDirtyChange}
-            onVerwerfenBestaetigen={onVerwerfenBestaetigen}
-            zahlungsVorgabe={zahlungsVorgabe}
-          />
-        </TabsContent>
+        {kontoauszugAktiv ? (
+          <TabsContent value="kontoauszug" forceMount hidden={aktiverTab !== "kontoauszug"}>
+            <KautionKontoauszugTab
+              details={details}
+              rechte={rechte}
+              tenantId={tenantId}
+              onGeaendert={onGeaendert}
+              onFehler={onFehler}
+              onBuchungDirtyChange={onBuchungDirtyChange}
+              onVerwerfenBestaetigen={onVerwerfenBestaetigen}
+              zahlungsVorgabe={zahlungsVorgabe}
+            />
+          </TabsContent>
+        ) : null}
+        {zinsenAktiv ? (
+          <TabsContent value="zinsen" forceMount hidden={aktiverTab !== "zinsen"}>
+            <KautionZinsenTab
+              details={details}
+              rechte={rechte}
+              onGeaendert={onGeaendert}
+              onFehler={onFehler}
+              onZinsstaffelDirtyChange={onZinsenDirtyChange}
+              onZinsgutschriftErfassen={onZinsgutschriftErfassen}
+            />
+          </TabsContent>
+        ) : null}
         {ratenAktiv ? (
           <TabsContent value="raten" forceMount hidden={aktiverTab !== "raten"}>
             <KautionRatenTab

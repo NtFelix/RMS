@@ -10,6 +10,7 @@ import {
   isValidMoneyInput,
   parseMoneyInput,
   parseMoneyToCents,
+  parseZinssatzProzent,
 } from "@/lib/kautionen-money";
 
 describe("kautionen-money", () => {
@@ -234,6 +235,57 @@ describe("kautionen-money", () => {
       expect(getMoneyInputError("1,005")).toBe("Beträge dürfen höchstens zwei Nachkommastellen haben.");
       expect(getMoneyInputError("100.000.000,00")).toBe("Der Betrag darf höchstens 99.999.999,99 € betragen.");
       expect(getMoneyInputError("0")).toBe("Der Betrag muss größer als 0 sein.");
+    });
+  });
+
+  describe("parseZinssatzProzent (interest rate in percent)", () => {
+    it.each([
+      ["1,5", "1.5"],
+      ["1.5", "1.5"],
+      ["1,50", "1.5"],
+      ["1.50", "1.5"],
+      ["2", "2"],
+      ["0", "0"],
+      ["0,00", "0"],
+      ["0,0001", "0.0001"],
+      ["0.0125", "0.0125"],
+      ["007,5", "7.5"],
+      ["100", "100"],
+      ["100,00", "100"],
+      ["99,9999", "99.9999"],
+      ["  1,25  ", "1.25"],
+      ["1,000", "1"],
+      ["1.0005", "1.0005"],
+    ])("parses %j to the exact decimal string %j", (input, expected) => {
+      expect(parseZinssatzProzent(input)).toBe(expected);
+    });
+
+    it.each([
+      ["above 100", "100,01"],
+      ["far above 100", "150"],
+      ["100 with decimals in the integer range", "100,5"],
+      ["more than 4 decimal places (never rounded)", "1,00005"],
+      ["negative", "-1"],
+      ["negative zero", "-0"],
+      ["a plus sign", "+1"],
+      ["empty", ""],
+      ["blank", "   "],
+      ["letters", "abc"],
+      ["a percent sign", "1,5 %"],
+      ["both separators", "1,5.0"],
+      ["two decimal separators", "1,5,0"],
+      ["thousands notation with point", "1.000"],
+      ["three decimals after a point (ambiguous like amounts)", "1.005"],
+      ["no digit before the separator", ",5"],
+      ["no digit after the separator", "1,"],
+      ["exponent", "1e2"],
+      ["four integer digits", "1000"],
+    ])("rejects %s", (_label, input) => {
+      expect(parseZinssatzProzent(input)).toBeNull();
+    });
+
+    it.each([null, undefined, 1.5, 0, {}, ["1,5"], BigInt(1)])("rejects the non-string %p (no floating point input)", (value) => {
+      expect(parseZinssatzProzent(value)).toBeNull();
     });
   });
 

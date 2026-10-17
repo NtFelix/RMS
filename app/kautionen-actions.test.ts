@@ -15,6 +15,7 @@ import { hasPermission } from "@/lib/permissions";
 import { logAction } from "@/lib/logging-middleware";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
 import {
+  berechneKautionZinsenAction,
   bucheKautionBewegungAction,
   createKautionAction,
   deleteKautionAction,
@@ -23,6 +24,7 @@ import {
   getKautionDetailsAction,
   getKautionLoeschauswirkungAction,
   planeKautionRatenAction,
+  planeKautionZinsstaffelAction,
   storniereKautionBewegungAction,
   updateKautionVereinbarungAction,
 } from "@/app/kautionen-actions";
@@ -128,6 +130,18 @@ const ACTION_CASES: ActionCase[] = [
     name: "planeKautionRatenAction",
     aktion: "bearbeiten",
     call: () => planeKautionRatenAction({ kautionId: KAUTION_ID, raten: [{ faelligkeitsdatum: "2027-01-31", sollBetrag: "1500,00" }] }),
+    okData: null,
+  },
+  {
+    name: "planeKautionZinsstaffelAction",
+    aktion: "bearbeiten",
+    call: () => planeKautionZinsstaffelAction({ kautionId: KAUTION_ID, staffel: [{ gueltigAb: "2025-01-01", zinssatzProzent: "1,5" }] }),
+    okData: null,
+  },
+  {
+    name: "berechneKautionZinsenAction",
+    aktion: "ansehen",
+    call: () => berechneKautionZinsenAction({ kautionId: KAUTION_ID }),
     okData: null,
   },
   {
@@ -681,13 +695,98 @@ describe("createKautionAction", () => {
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  it("phase 1: a deposit type other than barkaution is not available (KA015), an unknown one is invalid (KA004)", async () => {
-    const sparbuch = await createKautionAction({ tenantId: TENANT_ID, sollBetrag: "1500", kautionsart: "sparbuch" });
+  it.each(["barkaution", "sparbuch", "buergschaft", "versicherung"] as const)("phase 3: the deposit type %s is passed to the RPC", async (kautionsart) => {
+    rpcOk(KAUTION_ID);
+
+    const result = await createKautionAction({ tenantId: TENANT_ID, sollBetrag: "1500", kautionsart });
+
+    expect(result.success).toBe(true);
+    expect(mockRpc).toHaveBeenCalledWith("kaution_anlegen", { p_mieter_id: TENANT_ID, p_daten: { kautionsart, soll_betrag: "1500.00" } });
+  });
+
+  it("an unknown deposit type is invalid (KA004), no RPC", async () => {
     const unbekannt = await createKautionAction({ tenantId: TENANT_ID, sollBetrag: "1500", kautionsart: "gold" as never });
 
-    expect(sparbuch.error?.code).toBe("KA015");
     expect(unbekannt.error?.code).toBe("KA004");
     expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("phase 3: forwards the bank account fields normalised (IBAN without spaces, trimmed texts, exact flags and method)", async () => {
+    rpcOk(KAUTION_ID);
+
+    await createKautionAction({
+      tenantId: TENANT_ID,
+      kautionsart: "sparbuch",
+      sollBetrag: "1500",
+      iban: "de89 3704 0044 0532 0130 00",
+      bank: "  Muster Bank  ",
+      kontoinhaber: " Muster Kontoinhaber ",
+      getrenntAngelegt: true,
+      zinsmethode: "act_360",
+    });
+
+    expect(mockRpc).toHaveBeenCalledWith("kaution_anlegen", {
+      p_mieter_id: TENANT_ID,
+      p_daten: {
+        kautionsart: "sparbuch",
+        soll_betrag: "1500.00",
+        iban: "DE89370400440532013000",
+        bank: "Muster Bank",
+        kontoinhaber: "Muster Kontoinhaber",
+        getrennt_angelegt: true,
+        zinsmethode: "act_360",
+      },
+    });
+  });
+
+  it("phase 3: forwards guarantee and insurance fields for their type", async () => {
+    rpcOk(KAUTION_ID);
+
+    await createKautionAction({
+      tenantId: TENANT_ID,
+      kautionsart: "buergschaft",
+      sollBetrag: "2000",
+      buergeVersicherer: "Muster Bürgschaftsbank",
+      urkundennummer: "BU-0001",
+    });
+
+    expect(mockRpc).toHaveBeenCalledWith("kaution_anlegen", {
+      p_mieter_id: TENANT_ID,
+      p_daten: { kautionsart: "buergschaft", soll_betrag: "2000.00", buerge_versicherer: "Muster Bürgschaftsbank", urkundennummer: "BU-0001" },
+    });
+  });
+
+  it("phase 3: treats null and empty texts as not given (the keys are left out)", async () => {
+    rpcOk(KAUTION_ID);
+
+    await createKautionAction({ tenantId: TENANT_ID, sollBetrag: "1500", iban: null, bank: "   ", getrenntAngelegt: null, zinsmethode: undefined });
+
+    expect(mockRpc).toHaveBeenCalledWith("kaution_anlegen", { p_mieter_id: TENANT_ID, p_daten: { soll_betrag: "1500.00" } });
+  });
+
+  it.each([
+    ["an IBAN with a wrong check digit", { iban: "DE89370400440532013001" }],
+    ["an IBAN that is too short", { iban: "DE8937040044" }],
+    ["a bank name that is too long", { bank: "x".repeat(201) }],
+    ["an account holder that is too long", { kontoinhaber: "x".repeat(201) }],
+    ["a separate-account flag that is not a boolean", { getrenntAngelegt: "ja" }],
+    ["an interest method in the old spelling", { zinsmethode: "act/365" }],
+    ["a bank field on a guarantee", { kautionsart: "buergschaft", bank: "Muster Bank" }],
+    ["an insurance number on a bank account", { urkundennummer: "VS-0001" }],
+    ["a guarantor on a bank account", { buergeVersicherer: "Muster Versicherung" }],
+  ])("rejects %s (KA004), no RPC", async (_label, patch) => {
+    const result = await createKautionAction({ tenantId: TENANT_ID, sollBetrag: "1500", ...patch } as never);
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("does not echo a rejected IBAN in the message", async () => {
+    const result = await createKautionAction({ tenantId: TENANT_ID, sollBetrag: "1500", iban: "DE89370400440532013001" });
+
+    expect(result.error?.message).toBe("Bitte geben Sie eine gültige IBAN an.");
+    expect(JSON.stringify(mockLogAction.mock.calls)).not.toContain("DE8937");
   });
 
   it("rejects a note that is too long", async () => {
@@ -700,7 +799,7 @@ describe("createKautionAction", () => {
   it("does not forward unknown input fields (e.g. an organisation) to the RPC", async () => {
     rpcOk(KAUTION_ID);
 
-    await createKautionAction({ tenantId: TENANT_ID, sollBetrag: "1500", organisation_id: "foreign-org", iban: "x" } as never);
+    await createKautionAction({ tenantId: TENANT_ID, sollBetrag: "1500", organisation_id: "foreign-org", status: "verwahrt" } as never);
 
     const args = mockRpc.mock.calls[0][1] as { p_daten: Record<string, unknown> };
     expect(Object.keys(args.p_daten)).toEqual(["soll_betrag"]);
@@ -772,8 +871,13 @@ describe("updateKautionVereinbarungAction", () => {
 
   it.each([
     ["no field", {}],
-    ["an unknown field", { iban: "x" }],
-    ["a field of a later phase", { zinsmethode: "act/365" }],
+    ["an unknown field", { organisation_id: "x" }],
+    ["an interest method in the old spelling", { zinsmethode: "act/365" }],
+    ["an interest method that is null (cannot be cleared)", { zinsmethode: null }],
+    ["an invalid IBAN", { iban: "DE89370400440532013001" }],
+    ["a bank name that is too long", { bank: "x".repeat(201) }],
+    ["the same field twice under two spellings", { buerge_versicherer: "Muster", buergeVersicherer: "Muster" }],
+    ["a bank field together with the deposit type guarantee", { kautionsart: "buergschaft", iban: "DE89370400440532013000" }],
     ["a prototype key", JSON.parse('{"__proto__": "x"}')],
     ["the same field twice", { soll_betrag: "100", sollBetrag: "200" }],
     ["a target amount of 0", { soll_betrag: "0" }],
@@ -791,10 +895,62 @@ describe("updateKautionVereinbarungAction", () => {
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  it("phase 1: another deposit type is not available (KA015)", async () => {
+  it("phase 3: another deposit type is passed to the RPC", async () => {
+    rpcOk();
+
     const result = await updateKautionVereinbarungAction({ tenantId: TENANT_ID, kautionId: KAUTION_ID, felder: { kautionsart: "buergschaft" } });
 
-    expect(result.error?.code).toBe("KA015");
+    expect(result.success).toBe(true);
+    expect(mockRpc).toHaveBeenCalledWith("kaution_aendern", { p_kaution_id: KAUTION_ID, p_daten: { kautionsart: "buergschaft" } });
+  });
+
+  it("phase 3: forwards the agreement fields with exact keys, normalised IBAN and the camelCase aliases", async () => {
+    rpcOk();
+
+    await updateKautionVereinbarungAction({
+      tenantId: TENANT_ID,
+      kautionId: KAUTION_ID,
+      felder: { iban: "gb82 west 1234 5698 7654 32", bank: " Muster Bank ", getrenntAngelegt: true, zinsmethode: "30_360" },
+    });
+
+    expect(mockRpc).toHaveBeenCalledWith("kaution_aendern", {
+      p_kaution_id: KAUTION_ID,
+      p_daten: { iban: "GB82WEST12345698765432", bank: "Muster Bank", getrennt_angelegt: true, zinsmethode: "30_360" },
+    });
+  });
+
+  it("phase 3: null and empty texts clear the agreement fields, a null flag clears the separate-account confirmation", async () => {
+    rpcOk();
+
+    await updateKautionVereinbarungAction({
+      tenantId: TENANT_ID,
+      kautionId: KAUTION_ID,
+      felder: { iban: null, bank: "", kontoinhaber: null, getrennt_angelegt: null, buerge_versicherer: "", urkundennummer: null },
+    });
+
+    expect(mockRpc).toHaveBeenCalledWith("kaution_aendern", {
+      p_kaution_id: KAUTION_ID,
+      p_daten: { iban: null, bank: null, kontoinhaber: null, getrennt_angelegt: null, buerge_versicherer: null, urkundennummer: null },
+    });
+  });
+
+  it("phase 3: without `kautionsart` in the request the type fit is left to the database (fields are passed)", async () => {
+    rpcOk();
+
+    const result = await updateKautionVereinbarungAction({ tenantId: TENANT_ID, kautionId: KAUTION_ID, felder: { buergeVersicherer: "Muster Versicherung" } });
+
+    expect(result.success).toBe(true);
+    expect(mockRpc).toHaveBeenCalledWith("kaution_aendern", { p_kaution_id: KAUTION_ID, p_daten: { buerge_versicherer: "Muster Versicherung" } });
+  });
+
+  it("phase 3: a field that does not belong to the deposit type named in the request is rejected (KA004), no RPC", async () => {
+    const result = await updateKautionVereinbarungAction({
+      tenantId: TENANT_ID,
+      kautionId: KAUTION_ID,
+      felder: { kautionsart: "versicherung", iban: "DE89370400440532013000" },
+    });
+
+    expect(result.error?.code).toBe("KA004");
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
@@ -943,12 +1099,130 @@ describe("bucheKautionBewegungAction", () => {
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  it("phase 1: an interest credit is not available (KA015), no RPC", async () => {
-    const result = await bucheKautionBewegungAction({ ...gueltig, art: "zinsgutschrift" });
+  describe("interest credit (zinsgutschrift, phase 3)", () => {
+    const ZINS = {
+      ...gueltig,
+      art: "zinsgutschrift" as const,
+      betrag: "15,04",
+      wertstellung: "2026-01-02",
+      zinszeitraumVon: "2025-01-01",
+      zinszeitraumBis: "2026-01-01",
+    };
 
-    expect(result.success).toBe(false);
-    expect(result.error?.code).toBe("KA015");
-    expect(mockRpc).not.toHaveBeenCalled();
+    it("books the credit with the period as details (the server calculates the proposal itself)", async () => {
+      rpcOk(BEWEGUNG_ID);
+
+      const result = await bucheKautionBewegungAction(ZINS);
+
+      expect(result).toEqual({ success: true, data: { bewegungId: BEWEGUNG_ID } });
+      expect(mockRpc).toHaveBeenCalledWith("kaution_buchen", {
+        p_kaution_id: KAUTION_ID,
+        p_bewegungsart: "zinsgutschrift",
+        p_betrag: "15.04",
+        p_wertstellung: "2026-01-02",
+        p_details: { idempotenz_schluessel: SCHLUESSEL, zinszeitraum_von: "2025-01-01", zinszeitraum_bis: "2026-01-01" },
+      });
+    });
+
+    it("forwards an optional reason and note, but no category and no rate", async () => {
+      rpcOk(BEWEGUNG_ID);
+
+      await bucheKautionBewegungAction({ ...ZINS, grund: "Abweichung laut Bank", interneNotiz: "Muster-Notiz" });
+
+      expect(mockRpc).toHaveBeenCalledWith(
+        "kaution_buchen",
+        expect.objectContaining({
+          p_details: {
+            idempotenz_schluessel: SCHLUESSEL,
+            zinszeitraum_von: "2025-01-01",
+            zinszeitraum_bis: "2026-01-01",
+            grund: "Abweichung laut Bank",
+            interne_notiz: "Muster-Notiz",
+          },
+        })
+      );
+    });
+
+    it("never forwards the calculation basis, the manual flag or any other client value", async () => {
+      rpcOk(BEWEGUNG_ID);
+
+      await bucheKautionBewegungAction({
+        ...ZINS,
+        manuell: true,
+        methode: "manuell",
+        berechnungsgrundlage: { methode: "act_360", gebucht_betrag: 1 },
+        vorschlag_betrag: 1,
+      } as never);
+
+      const details = (mockRpc.mock.calls[0][1] as { p_details: Record<string, unknown> }).p_details;
+      expect(Object.keys(details).sort()).toEqual(["idempotenz_schluessel", "zinszeitraum_bis", "zinszeitraum_von"]);
+    });
+
+    it("the period is mandatory (KA004), no RPC", async () => {
+      const ohneVon = await bucheKautionBewegungAction({ ...ZINS, zinszeitraumVon: undefined } as never);
+      const ohneBis = await bucheKautionBewegungAction({ ...ZINS, zinszeitraumBis: undefined } as never);
+
+      for (const result of [ohneVon, ohneBis]) {
+        expect(result.success).toBe(false);
+        expect(result.error?.code).toBe("KA004");
+      }
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["an end before the start", { zinszeitraumVon: "2026-01-01", zinszeitraumBis: "2025-01-01" }],
+      ["an empty period (end equals start)", { zinszeitraumVon: "2025-01-01", zinszeitraumBis: "2025-01-01" }],
+      ["an impossible calendar day", { zinszeitraumBis: "2026-02-31" }],
+      ["a date in German notation", { zinszeitraumVon: "01.01.2025" }],
+      ["a start before 1990", { zinszeitraumVon: "1989-12-31" }],
+    ])("rejects a period with %s (KA004), no RPC", async (_label, patch) => {
+      const result = await bucheKautionBewegungAction({ ...ZINS, ...patch });
+
+      expect(result.error?.code).toBe("KA004");
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("a category is not allowed on an interest credit (KA004), no RPC", async () => {
+      const result = await bucheKautionBewegungAction({ ...ZINS, kategorie: "sonstiges" } as never);
+
+      expect(result.error?.code).toBe("KA004");
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("a rate is not allowed on an interest credit (KA004), no RPC", async () => {
+      const result = await bucheKautionBewegungAction({ ...ZINS, rateId: RATE_ID });
+
+      expect(result.error?.code).toBe("KA004");
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("the idempotency key stays mandatory (KA004), no RPC", async () => {
+      const result = await bucheKautionBewegungAction({ ...ZINS, idempotenzSchluessel: undefined } as never);
+
+      expect(result.error?.code).toBe("KA004");
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("maps the database rule of the period (KA013, fixed text, no database text)", async () => {
+      rpcError("KA013", "KAUT_DATUM_UNGUELTIG: Zeitraum endet nach der Wertstellung am 01.06.2025.");
+
+      const result = await bucheKautionBewegungAction(ZINS);
+
+      expect(result.error?.code).toBe("KA013");
+      expect(result.error?.message).toBe(
+        "Das Datum oder der Zeitraum ist ungültig (z. B. ein Datum in der Zukunft oder ein Ende vor dem Beginn)."
+      );
+      expect(JSON.stringify(result)).not.toContain("KAUT_DATUM");
+    });
+
+    it("a missing right is 42501 without any RPC (the interest credit needs the same right as other bookings)", async () => {
+      mockHasPermission.mockResolvedValueOnce(false);
+
+      const result = await bucheKautionBewegungAction(ZINS);
+
+      expect(result.error?.code).toBe("42501");
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
   });
 
   it("treats a blank category on a deposit as not given", async () => {
@@ -961,7 +1235,7 @@ describe("bucheKautionBewegungAction", () => {
     expect(details).not.toHaveProperty("kategorie");
   });
 
-  it("does not forward fields of later phases (installment, document, interest period) to the RPC", async () => {
+  it("does not forward the interest period to other booking types, nor manuell or berechnungsgrundlage (never)", async () => {
     rpcOk(BEWEGUNG_ID);
 
     await bucheKautionBewegungAction({
@@ -1415,7 +1689,11 @@ describe("error mapping by SQLSTATE (spec 4.5)", () => {
     ["KA007", "KAUT_ZINS_REIHENFOLGE: Die Zinsgutschrift liegt vor der letzten.", "Die Zinsgutschrift liegt vor der letzten."],
     ["KA009", "KAUT_GESPERRT: Gesperrt.", "Gesperrt."],
     ["KA011", "KAUT_RATENPLAN_GESPERRT: Gesperrt.", "Gesperrt."],
-    ["KA013", "KAUT_DATUM_UNGUELTIG: Die Wertstellung darf nicht in der Zukunft liegen.", "Die Wertstellung darf nicht in der Zukunft liegen."],
+    [
+      "KA013",
+      "KAUT_DATUM_UNGUELTIG: Die Wertstellung darf nicht in der Zukunft liegen.",
+      "Das Datum oder der Zeitraum ist ungültig (z. B. ein Datum in der Zukunft oder ein Ende vor dem Beginn).",
+    ],
     ["KA014", "KAUT_ART_OHNE_KONTO: Diese Kautionsart führt kein Konto.", "Diese Kautionsart führt kein Konto."],
     ["KA015", "KAUT_PHASE_NICHT_VERFUEGBAR: Noch nicht verfügbar.", "Noch nicht verfügbar."],
     ["23503", 'update or delete on table "Mieter" violates foreign key constraint', "Der Datensatz ist verknüpft und kann nicht gelöscht werden."],
@@ -1460,7 +1738,7 @@ describe("error mapping by SQLSTATE (spec 4.5)", () => {
 });
 
 describe("revalidation and logging", () => {
-  it.each(ACTION_CASES.filter((c) => !["getKautionDetailsAction", "getKautionLoeschauswirkungAction", "getKautionBelegUrlAction"].includes(c.name)))("$name: revalidates /mieter after success only", async (caseItem) => {
+  it.each(ACTION_CASES.filter((c) => !["getKautionDetailsAction", "getKautionLoeschauswirkungAction", "getKautionBelegUrlAction", "berechneKautionZinsenAction"].includes(c.name)))("$name: revalidates /mieter after success only", async (caseItem) => {
     queueSuccess(caseItem);
     const ok = await caseItem.call();
     expect(ok.success).toBe(true);
@@ -1635,5 +1913,253 @@ describe("getKautionBelegUrlAction", () => {
     expect(result.error?.code).toBe("42501");
     expect(mockRpc).not.toHaveBeenCalled();
     expect(mockCreateSignedUrl).not.toHaveBeenCalled();
+  });
+});
+
+describe("planeKautionZinsstaffelAction (phase 3)", () => {
+  const ZEILE_1 = { gueltigAb: "2025-01-01", zinssatzProzent: "1,5" };
+  const ZEILE_2 = { gueltigAb: "2025-07-01", zinssatzProzent: "2" };
+  const ZEILE_3 = { gueltigAb: "2026-01-01", zinssatzProzent: "0,0125" };
+
+  it("sends the complete schedule with exact decimal rates to kaution_zinsstaffel_setzen", async () => {
+    rpcOk();
+
+    const result = await planeKautionZinsstaffelAction({ kautionId: KAUTION_ID, staffel: [ZEILE_1, ZEILE_2, ZEILE_3] });
+
+    expect(result).toEqual({ success: true, data: undefined });
+    expect(mockRpc).toHaveBeenCalledWith("kaution_zinsstaffel_setzen", {
+      p_kaution_id: KAUTION_ID,
+      p_staffel: [
+        { gueltig_ab: "2025-01-01", zinssatz_prozent: "1.5" },
+        { gueltig_ab: "2025-07-01", zinssatz_prozent: "2" },
+        { gueltig_ab: "2026-01-01", zinssatz_prozent: "0.0125" },
+      ],
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/mieter");
+  });
+
+  it("an empty list removes the schedule (p_staffel is an empty array)", async () => {
+    rpcOk();
+
+    const result = await planeKautionZinsstaffelAction({ kautionId: KAUTION_ID, staffel: [] });
+
+    expect(result.success).toBe(true);
+    expect(mockRpc).toHaveBeenCalledWith("kaution_zinsstaffel_setzen", { p_kaution_id: KAUTION_ID, p_staffel: [] });
+  });
+
+  it("accepts 20 rows and rejects 21 (KA004), no RPC", async () => {
+    const zwanzig = Array.from({ length: 20 }, (_, i) => ({ gueltigAb: `${2000 + i}-01-01`, zinssatzProzent: "1" }));
+    rpcOk();
+
+    expect((await planeKautionZinsstaffelAction({ kautionId: KAUTION_ID, staffel: zwanzig })).success).toBe(true);
+
+    const zuViele = await planeKautionZinsstaffelAction({
+      kautionId: KAUTION_ID,
+      staffel: [...zwanzig, { gueltigAb: "2100-01-01", zinssatzProzent: "1" }],
+    });
+    expect(zuViele.error).toEqual({ code: "KA004", message: "Eine Zinsstaffel hat höchstens 20 Zeilen." });
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["equal dates", [ZEILE_1, { ...ZEILE_2, gueltigAb: ZEILE_1.gueltigAb }]],
+    ["descending dates", [ZEILE_2, ZEILE_1]],
+    ["an impossible calendar day", [{ gueltigAb: "2025-02-31", zinssatzProzent: "1" }]],
+    ["a date in German notation", [{ gueltigAb: "01.01.2025", zinssatzProzent: "1" }]],
+    ["a date before 1990", [{ gueltigAb: "1989-12-31", zinssatzProzent: "1" }]],
+    ["a missing date", [{ zinssatzProzent: "1" }]],
+    ["a rate above 100", [{ gueltigAb: "2025-01-01", zinssatzProzent: "100,01" }]],
+    ["a negative rate", [{ gueltigAb: "2025-01-01", zinssatzProzent: "-1" }]],
+    ["more than four decimal places", [{ gueltigAb: "2025-01-01", zinssatzProzent: "1,00005" }]],
+    ["a rate with a point as thousands separator", [{ gueltigAb: "2025-01-01", zinssatzProzent: "1.000" }]],
+    ["a rate that is a number (no floating point input)", [{ gueltigAb: "2025-01-01", zinssatzProzent: 1.5 }]],
+    ["a row that is not an object", ["Muster"]],
+  ])("rejects %s (KA004), no RPC", async (_label, staffel) => {
+    const result = await planeKautionZinsstaffelAction({ kautionId: KAUTION_ID, staffel: staffel as never });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects a schedule that is not a list and a malformed deposit ID, no RPC", async () => {
+    const keineListe = await planeKautionZinsstaffelAction({ kautionId: KAUTION_ID, staffel: "Muster" as never });
+    const fehlend = await planeKautionZinsstaffelAction({ kautionId: KAUTION_ID } as never);
+    const schlechteId = await planeKautionZinsstaffelAction({ kautionId: "x", staffel: [ZEILE_1] });
+
+    for (const result of [keineListe, fehlend, schlechteId]) expect(result.error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("does not forward unknown keys (e.g. a note or an organisation) to the RPC", async () => {
+    rpcOk();
+
+    await planeKautionZinsstaffelAction({
+      kautionId: KAUTION_ID,
+      staffel: [{ ...ZEILE_1, notiz: "Muster", id: "x" } as never],
+      organisationId: "z",
+    } as never);
+
+    const args = mockRpc.mock.calls[0][1] as { p_staffel: Record<string, unknown>[] };
+    expect(Object.keys(args.p_staffel[0]).sort()).toEqual(["gueltig_ab", "zinssatz_prozent"]);
+    expect(Object.keys(mockRpc.mock.calls[0][1])).toEqual(["p_kaution_id", "p_staffel"]);
+  });
+
+  it("maps a locked schedule (KA009) to the fixed German message, the database text is not passed on", async () => {
+    rpcError("KA009", "KAUT_GESPERRT: Zinsen für 2025 sind bereits gutgeschrieben.");
+
+    const result = await planeKautionZinsstaffelAction({ kautionId: KAUTION_ID, staffel: [ZEILE_1] });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "KA009", message: "Die Zinsstaffel kann für bereits gutgeschriebene Zeiträume nicht mehr geändert werden." },
+    });
+    expect(JSON.stringify(result)).not.toContain("KAUT_GESPERRT");
+    expect(mockLogAction).toHaveBeenCalledWith("planeKautionZinsstaffel", "failed", { code: "KA009" });
+  });
+
+  it("passes the database message of a guarantee or insurance (KA015) after removing the code prefix", async () => {
+    rpcError("KA015", "KAUT_PHASE_NICHT_VERFUEGBAR: Zinsstaffel ist für diese Kautionsart nicht verfügbar.");
+
+    const result = await planeKautionZinsstaffelAction({ kautionId: KAUTION_ID, staffel: [ZEILE_1] });
+
+    expect(result.error).toEqual({ code: "KA015", message: "Zinsstaffel ist für diese Kautionsart nicht verfügbar." });
+  });
+
+  it("maps an unknown database error to the generic message", async () => {
+    rpcError("XX000", "internal error", "Detail");
+
+    const result = await planeKautionZinsstaffelAction({ kautionId: KAUTION_ID, staffel: [ZEILE_1] });
+
+    expect(result).toEqual({ success: false, error: { message: KAUTION_FEHLER_FALLBACK_MESSAGE } });
+  });
+});
+
+describe("berechneKautionZinsenAction (phase 3, read only)", () => {
+  const VORSCHLAG = {
+    moeglich: true,
+    regelwerk_version: 1,
+    methode: "act_365",
+    von: "2025-01-01",
+    bis: "2026-01-01",
+    tage: 365,
+    betrag: 15.04,
+    betrag_exakt: "15.041095890411",
+    staffel: [{ gueltig_ab: "2025-01-01", zinssatz_prozent: 1 }],
+    segmente: [{ von: "2025-01-01", bis: "2026-01-01", tage: 365, zinssatz_prozent: 1, saldo: 1504, divisor: 365, zins: "4.1" }],
+  };
+  const OHNE_SATZ = {
+    moeglich: false,
+    grund: "KEIN_ZINSSATZ",
+    erster_tag_ohne_satz: "2025-01-01",
+    methode: "act_365",
+    von: "2025-01-01",
+    bis: "2026-01-01",
+    tage: 365,
+  };
+
+  it("returns the proposal of the database and asks for the period with the default null values", async () => {
+    rpcOk(VORSCHLAG);
+
+    const result = await berechneKautionZinsenAction({ kautionId: KAUTION_ID });
+
+    expect(result).toEqual({ success: true, data: VORSCHLAG });
+    expect(mockRpc).toHaveBeenCalledWith("kaution_zinsen_berechnen", { p_kaution_id: KAUTION_ID, p_von: null, p_bis: null });
+  });
+
+  it("passes an explicit period on (dates checked, database as the authority)", async () => {
+    rpcOk(VORSCHLAG);
+
+    await berechneKautionZinsenAction({ kautionId: KAUTION_ID, von: "2025-01-01", bis: "2026-01-01" });
+
+    expect(mockRpc).toHaveBeenCalledWith("kaution_zinsen_berechnen", { p_kaution_id: KAUTION_ID, p_von: "2025-01-01", p_bis: "2026-01-01" });
+  });
+
+  it("returns the 'no proposal' answer of the database (no interest rate for the start) as a result, not as an error", async () => {
+    rpcOk(OHNE_SATZ);
+
+    const result = await berechneKautionZinsenAction({ kautionId: KAUTION_ID });
+
+    expect(result).toEqual({ success: true, data: OHNE_SATZ });
+  });
+
+  it("returns null when the database returns null (not visible or not a bank account)", async () => {
+    rpcOk(null);
+
+    const result = await berechneKautionZinsenAction({ kautionId: KAUTION_ID });
+
+    expect(result).toEqual({ success: true, data: null });
+  });
+
+  it.each([
+    ["an object without the flag", { betrag: 1 }],
+    ["a flag that is not a boolean", { ...VORSCHLAG, moeglich: "ja" }],
+    ["an unknown method", { ...VORSCHLAG, methode: "act/365" }],
+    ["a proposal without amount", { ...VORSCHLAG, betrag: undefined }],
+    ["a proposal with a numeric exact amount", { ...VORSCHLAG, betrag_exakt: 15.04 }],
+    ["a proposal without segments", { ...VORSCHLAG, segmente: undefined }],
+    ["a list instead of an object", [VORSCHLAG]],
+  ])("treats an unexpected shape (%s) as an unclassified error, not as a proposal", async (_label, antwort) => {
+    rpcOk(antwort);
+
+    const result = await berechneKautionZinsenAction({ kautionId: KAUTION_ID });
+
+    expect(result).toEqual({ success: false, error: { message: KAUTION_FEHLER_FALLBACK_MESSAGE } });
+  });
+
+  it.each([
+    ["an impossible start date", { von: "2025-02-31" }],
+    ["a German end date", { bis: "01.01.2026" }],
+  ])("rejects %s (KA004), no RPC", async (_label, periode) => {
+    const result = await berechneKautionZinsenAction({ kautionId: KAUTION_ID, ...periode });
+
+    expect(result.error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("leaves the order of the period to the database (KA013), the action only checks the date format", async () => {
+    rpcError("KA013", "KAUT_DATUM_UNGUELTIG: Ende vor Beginn.");
+
+    const result = await berechneKautionZinsenAction({ kautionId: KAUTION_ID, von: "2026-01-01", bis: "2025-01-01" });
+
+    expect(mockRpc).toHaveBeenCalledWith("kaution_zinsen_berechnen", { p_kaution_id: KAUTION_ID, p_von: "2026-01-01", p_bis: "2025-01-01" });
+    expect(result.error?.code).toBe("KA013");
+  });
+
+  it("maps an invalid period from the database (KA013) to the fixed text", async () => {
+    rpcError("KA013", "KAUT_DATUM_UNGUELTIG: Der Zeitraum ist länger als 10 Jahre.");
+
+    const result = await berechneKautionZinsenAction({ kautionId: KAUTION_ID, von: "2000-01-01", bis: "2026-01-01" });
+
+    expect(result.error?.code).toBe("KA013");
+    expect(result.error?.message).toBe(
+      "Das Datum oder der Zeitraum ist ungültig (z. B. ein Datum in der Zukunft oder ein Ende vor dem Beginn)."
+    );
+  });
+
+  it("is a read action: it needs only `ansehen`, does not revalidate and logs nothing on success", async () => {
+    rpcOk(VORSCHLAG);
+
+    await berechneKautionZinsenAction({ kautionId: KAUTION_ID });
+
+    expect(mockHasPermission.mock.calls.map((call) => call[1])).toEqual(["ansehen"]);
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+    expect(mockLogAction).not.toHaveBeenCalled();
+  });
+
+  it("without `ansehen` it is 42501 and no RPC call", async () => {
+    mockHasPermission.mockResolvedValueOnce(false);
+
+    const result = await berechneKautionZinsenAction({ kautionId: KAUTION_ID });
+
+    expect(result.error?.code).toBe("42501");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed deposit ID (KA004), no RPC", async () => {
+    const result = await berechneKautionZinsenAction({ kautionId: "x" });
+
+    expect(result.error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });

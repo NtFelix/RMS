@@ -15,13 +15,22 @@ import { KautionBelegUpload } from "@/components/kaution/kaution-beleg-upload";
 import { oeffneKautionBeleg } from "@/components/kaution/kaution-beleg-oeffnen";
 import { bewegungBeschreibung, formatBetrag, formatDatum } from "@/components/kaution/kaution-format";
 import { KautionStornoDialog } from "@/components/kaution/kaution-storno-dialog";
+import { KautionZinsSegmenteTabelle } from "@/components/kaution/kaution-zins-segmente";
 import {
   KAUTION_ABZUG_KATEGORIE_LABELS,
   KAUTION_BEWEGUNGSART_LABELS,
   KAUTION_BUCHUNG_TITEL,
+  KAUTION_ZINSMETHODE_LABELS,
 } from "@/lib/kautionen-constants";
+import { endeEinschliessendSicher } from "@/lib/kautionen-zinsen";
 import { cn } from "@/lib/utils";
-import type { KautionBewegung, KautionBewegungsArt, KautionDetails, KautionRechte } from "@/types/Kaution";
+import type {
+  KautionBewegung,
+  KautionBewegungsArt,
+  KautionDetails,
+  KautionRechte,
+  KautionZinsGrundlage,
+} from "@/types/Kaution";
 
 /**
  * Tab "Kontoauszug": action bar, inline booking form ("Neue Buchung"), statement table and cancellation.
@@ -65,10 +74,15 @@ const BUCHUNG_ICONS: Record<KautionBewegungsArt, LucideIcon> = {
   abzug: Minus,
 };
 
-/** Details that fit into the expandable row (reason, note, recipient, cancellation). */
+/** Details that fit into the expandable row (reason, note, recipient, cancellation, calculation basis of an interest credit). */
 function hatDetails(bewegung: KautionBewegung): boolean {
   return Boolean(
-    bewegung.grund || bewegung.interne_notiz || bewegung.empfaenger || bewegung.storniert_am || bewegung.storno_grund
+    bewegung.grund ||
+      bewegung.interne_notiz ||
+      bewegung.empfaenger ||
+      bewegung.storniert_am ||
+      bewegung.storno_grund ||
+      bewegung.berechnungsgrundlage
   );
 }
 
@@ -83,6 +97,8 @@ export function KautionKontoauszugTab({
   zahlungsVorgabe = null,
 }: KautionKontoauszugTabProps) {
   const { bewegungsarten, funktionen } = useKautionFlag();
+  // Interest credits only with the function flag `zinsen` (the tab itself is only shown for bank accounts).
+  const buchungsarten = bewegungsarten.filter((art) => art !== "zinsgutschrift" || funktionen.zinsen);
   // Receipts ("Belege") only with the function flag `dokumente`: without it the statement stays as it was.
   const dokumenteAktiv = funktionen.dokumente;
   const [belegOffen, setBelegOffen] = useState(false);
@@ -161,7 +177,7 @@ export function KautionKontoauszugTab({
     bearbeiteterNonce.current = zahlungsVorgabe.nonce;
     const oeffne = () => {
       setVorgabe(zahlungsVorgabe);
-      setAktiveBuchung("einzahlung");
+      setAktiveBuchung(zahlungsVorgabe.art);
     };
     if (aktiveBuchung !== null && buchungHatEingaben.current) {
       onVerwerfenBestaetigen(oeffne);
@@ -173,7 +189,7 @@ export function KautionKontoauszugTab({
   return (
     <div className="space-y-4">
       <div role="group" aria-label="Buchung erfassen" className="flex flex-wrap gap-2">
-        {bewegungsarten.map((art) => {
+        {buchungsarten.map((art) => {
           const Icon = BUCHUNG_ICONS[art];
           return (
             <ButtonWithTooltip
@@ -228,7 +244,7 @@ export function KautionKontoauszugTab({
       {aktiveBuchung ? (
         <KautionBuchungForm
           // New key per type (and per rate request): every opening gets its own idempotency key and fresh input.
-          key={vorgabe ? `${aktiveBuchung}-rate-${vorgabe.nonce}` : aktiveBuchung}
+          key={vorgabe ? `${aktiveBuchung}-vorgabe-${vorgabe.nonce}` : aktiveBuchung}
           art={aktiveBuchung}
           tenantId={tenantId}
           kautionId={kaution.id}
@@ -327,6 +343,11 @@ export function KautionKontoauszugTab({
                             </Badge>
                           ) : null}
                         </div>
+                        {bewegung.bewegungsart === "zinsgutschrift" && bewegung.zinszeitraum_von ? (
+                          <p className={cn("text-xs text-muted-foreground", storniert && "line-through")} data-testid="kaution-zinszeitraum">
+                            Zinsen für {formatDatum(bewegung.zinszeitraum_von)} – {formatDatum(endeEinschliessendSicher(bewegung.zinszeitraum_bis))}
+                          </p>
+                        ) : null}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-right tabular-nums">
                         <span
@@ -399,6 +420,7 @@ export function KautionKontoauszugTab({
                             ) : null}
                             {bewegung.storno_grund ? <DetailEintrag label="Storno-Grund" wert={bewegung.storno_grund} /> : null}
                           </dl>
+                          {bewegung.berechnungsgrundlage ? <KautionBerechnungsgrundlage grundlage={bewegung.berechnungsgrundlage} /> : null}
                         </TableCell>
                       </TableRow>
                     ) : null}
@@ -428,6 +450,31 @@ function DetailEintrag({ label, wert }: { label: string; wert: string }) {
     <div className="min-w-0">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="whitespace-pre-wrap break-words text-sm">{wert}</dd>
+    </div>
+  );
+}
+
+/**
+ * "Berechnungsgrundlage" of an interest credit (server snapshot, never recalculated here): method, proposal against
+ * the booked amount, the deviation and the sections. A manual credit has no proposal and says so.
+ */
+function KautionBerechnungsgrundlage({ grundlage }: { grundlage: KautionZinsGrundlage }) {
+  const manuell = grundlage.manuell || grundlage.methode === "manuell";
+  return (
+    <div className="mt-3 space-y-2" data-testid="kaution-berechnungsgrundlage">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Berechnungsgrundlage</p>
+      {manuell ? <p className="text-sm">Manuell erfasst, kein Zinssatz hinterlegt.</p> : null}
+      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+        {!manuell && grundlage.methode !== "manuell" ? (
+          <DetailEintrag label="Zinsmethode" wert={KAUTION_ZINSMETHODE_LABELS[grundlage.methode]} />
+        ) : null}
+        {grundlage.vorschlag_betrag !== undefined ? (
+          <DetailEintrag label="Vorschlag" wert={formatBetrag(grundlage.vorschlag_betrag)} />
+        ) : null}
+        <DetailEintrag label="Gebucht" wert={formatBetrag(grundlage.gebucht_betrag)} />
+        {grundlage.abweichung !== undefined ? <DetailEintrag label="Abweichung" wert={formatBetrag(grundlage.abweichung)} /> : null}
+      </dl>
+      {grundlage.segmente && grundlage.segmente.length > 0 ? <KautionZinsSegmenteTabelle segmente={grundlage.segmente} /> : null}
     </div>
   );
 }

@@ -80,6 +80,15 @@ const FIXED = new Map<string, FixedEntry>([
     { message: "Der Datensatz wurde nicht gefunden (evtl. bereits geändert oder gelöscht).", verhalten: "neu_laden" },
   ],
   ["KA006", { message: "Die Buchung ist bereits storniert.", verhalten: "neu_laden" }],
+  // Fixed text on purpose: KA013 covers several rules (invalid period, future date, value date before the end of the
+  // period), and the database text is never shown to the user unchecked.
+  [
+    "KA013",
+    {
+      message: "Das Datum oder der Zeitraum ist ungültig (z. B. ein Datum in der Zukunft oder ein Ende vor dem Beginn).",
+      verhalten: "formular",
+    },
+  ],
   ["KA008", KA008_ENTRY],
   ["23503", { message: "Der Datensatz ist verknüpft und kann nicht gelöscht werden.", verhalten: "toast" }],
   [
@@ -101,9 +110,8 @@ const PASS_THROUGH = new Map<string, PassThroughEntry>([
   ["KA007", { fallback: "Die Zinsgutschrift verletzt die zeitliche Reihenfolge.", verhalten: "formular" }],
   ["KA009", { fallback: "Die Aktion ist gesperrt, weil die Daten verknüpft oder unveränderlich sind.", verhalten: "toast" }],
   ["KA011", { fallback: "Der Ratenplan lässt diese Änderung nicht zu.", verhalten: "formular" }],
-  ["KA013", { fallback: "Das Datum ist ungültig.", verhalten: "formular" }],
   ["KA014", { fallback: "Diese Kautionsart führt kein Konto.", verhalten: "formular" }],
-  ["KA015", { fallback: "Diese Funktion ist noch nicht verfügbar.", verhalten: "formular" }],
+  ["KA015", { fallback: "Diese Funktion steht für diese Kautionsart nicht zur Verfügung.", verhalten: "formular" }],
   ["KA016", { fallback: "Die Kautionen haben sich geändert. Bitte klicken Sie erneut auf „Löschen“, um die Übersicht zu sehen.", verhalten: "toast" }],
 ]);
 
