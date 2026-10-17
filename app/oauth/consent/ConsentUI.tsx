@@ -30,7 +30,8 @@ import {
     Globe,
     Search
 } from 'lucide-react';
-import { motion, type HTMLMotionProps } from 'framer-motion';
+import Image from 'next/image';
+import { LazyMotion, domMax, m, type HTMLMotionProps } from 'framer-motion';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 
@@ -161,7 +162,7 @@ function OriginProductLogos({ clientIcon, clientName }: { clientIcon: string | n
         <>
             <div className="flex items-center justify-center gap-24 relative mb-10 pt-6">
                 {/* Left Card - Origin App */}
-                <motion.div
+                <m.div
                     initial={{ x: -20, opacity: 0, rotate: -15 }}
                     animate={{ x: 0, opacity: 1, rotate: -8 }}
                     whileHover={{ rotate: -3, scale: 1.05 }}
@@ -177,11 +178,11 @@ function OriginProductLogos({ clientIcon, clientName }: { clientIcon: string | n
                     {!showIcon && <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10" />}
                     
                     {showIcon ? (
-                        <img src={clientIcon} alt={clientName} onError={() => setImageError(true)} className="w-10 h-10 object-contain drop-shadow-xs relative z-10" />
+                        <Image src={clientIcon} alt={clientName} width={40} height={40} unoptimized onError={() => setImageError(true)} className="w-10 h-10 object-contain drop-shadow-xs relative z-10" />
                     ) : (
                         <Terminal className="w-7 h-7 text-primary relative z-10" />
                     )}
-                </motion.div>
+                </m.div>
 
                 {/* SVG Connecting Path */}
                 <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-12 flex items-center justify-center pointer-events-none z-0">
@@ -199,7 +200,7 @@ function OriginProductLogos({ clientIcon, clientName }: { clientIcon: string | n
                 </div>
 
                 {/* Right Card - Mietevo Main Application */}
-                <motion.div
+                <m.div
                     initial={{ x: 20, opacity: 0, rotate: 15 }}
                     animate={{ x: 0, opacity: 1, rotate: 8 }}
                     whileHover={{ rotate: 3, scale: 1.05 }}
@@ -207,8 +208,8 @@ function OriginProductLogos({ clientIcon, clientName }: { clientIcon: string | n
                     className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10"
                 >
                     <div className="absolute inset-0 bg-linear-to-tr from-black/5 dark:from-black/20 to-transparent" />
-                    <img src={LOGO_URL} alt={BRAND_NAME} className="w-10 h-10 object-contain relative z-10 dark:brightness-110" />
-                </motion.div>
+                    <Image src={LOGO_URL} alt={BRAND_NAME} width={40} height={40} unoptimized className="w-10 h-10 object-contain relative z-10 dark:brightness-110" />
+                </m.div>
             </div>
         </>
     );
@@ -332,25 +333,27 @@ function FullScreenLayout({
     motionProps?: HTMLMotionProps<"div">;
 }) {
     return (
-        <div className={cn("min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans", className)}>
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+        <LazyMotion features={domMax}>
+            <div className={cn("min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans", className)}>
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
 
-            {showGlow && (
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 1.5, ease: "easeOut" }}
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] bg-primary/10 dark:bg-primary/20 blur-[100px] dark:blur-[120px] rounded-full pointer-events-none"
-                />
-            )}
+                {showGlow && (
+                    <m.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 1.5, ease: "easeOut" }}
+                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] bg-primary/10 dark:bg-primary/20 blur-[100px] dark:blur-[120px] rounded-full pointer-events-none"
+                    />
+                )}
 
-            <motion.div
-                {...motionProps}
-                className="relative z-10 w-full max-w-lg md:max-w-[530px]"
-            >
-                {children}
-            </motion.div>
-        </div>
+                <m.div
+                    {...motionProps}
+                    className="relative z-10 w-full max-w-lg md:max-w-[530px]"
+                >
+                    {children}
+                </m.div>
+            </div>
+        </LazyMotion>
     );
 }
 
@@ -1076,7 +1079,7 @@ export default function ConsentUI({
                                         {scopes.map((scope, index) => {
                                             const details = getScopeDetails(scope);
                                             return (
-                                                <motion.div
+                                                <m.div
                                                     initial={{ opacity: 0, x: -10 }}
                                                     animate={{ opacity: 1, x: 0 }}
                                                     transition={{ delay: 0.1 * index }}
@@ -1094,7 +1097,7 @@ export default function ConsentUI({
                                                             {details.description}
                                                         </p>
                                                     </div>
-                                                </motion.div>
+                                                </m.div>
                                             );
                                         })}
                                     </div>
@@ -1132,11 +1135,11 @@ export default function ConsentUI({
                             </Button>
                             <Button
                                 variant="outline"
-                                onClick={() => window.open('/einstellungen', '_blank')}
+                                onClick={() => window.open('/einstellungen/mcp', '_blank', 'noopener,noreferrer')}
                                 className="w-full h-12 rounded-xl text-base font-medium"
                             >
                                 <ShieldAlert className="w-4 h-4 mr-2" />
-                                Verwalten
+                                In MCP-Einstellungen verwalten
                             </Button>
                             <Button
                                 variant="ghost"
@@ -1200,7 +1203,7 @@ export default function ConsentUI({
                                             className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-full select-none z-0"
                                         >
                                             {/* Tab 1: Alle freigeben */}
-                                            <motion.button
+                                            <m.button
                                                 type="button"
                                                 onClick={() => {
                                                     setAllowAllOrgs(true);
@@ -1215,7 +1218,7 @@ export default function ConsentUI({
                                                 )}
                                             >
                                                 {allowAllOrgs && (
-                                                    <motion.div
+                                                    <m.div
                                                         layoutId="active-oauth-org-mode-pill"
                                                         className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
                                                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
@@ -1223,10 +1226,10 @@ export default function ConsentUI({
                                                 )}
                                                 <Globe className="size-4 shrink-0 transition-transform duration-300" />
                                                 <span>Alle freigeben</span>
-                                            </motion.button>
+                                            </m.button>
 
                                             {/* Tab 2: Auswahl anpassen / Dropdown Trigger */}
-                                            <motion.button
+                                            <m.button
                                                 type="button"
                                                 role="combobox"
                                                 aria-expanded={isOrgDropdownOpen && !allowAllOrgs}
@@ -1247,7 +1250,7 @@ export default function ConsentUI({
                                                 )}
                                             >
                                                 {!allowAllOrgs && (
-                                                    <motion.div
+                                                    <m.div
                                                         layoutId="active-oauth-org-mode-pill"
                                                         className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
                                                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
@@ -1264,7 +1267,7 @@ export default function ConsentUI({
                                                     "w-3.5 h-3.5 transition-transform duration-200 text-muted-foreground ml-0.5",
                                                     isOrgDropdownOpen && !allowAllOrgs && "rotate-180 text-foreground"
                                                 )} />
-                                            </motion.button>
+                                            </m.button>
                                         </div>
 
                                         {/* Floating Popover Dropdown */}
