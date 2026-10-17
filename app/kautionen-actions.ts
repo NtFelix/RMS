@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * Server actions of the deposit management ("Kautionsmanagement", GH-6), phase 1.
+ * Server actions of the deposit management ("Kautionsmanagement", GH-6), phases 1 to 3.
  *
  * Principles (spec 4.1/4.5):
  * - Thin actions: sign-in check -> module right (`hasPermission('kautionen', <aktion>)` and, for every write
@@ -18,8 +18,9 @@
  * - Expected errors are returned as `{ success: false, error: { message, code } }`, not thrown. The messages
  *   are German (formal address) and come from `lib/kautionen-errors.ts`.
  *
- * Phase 2 (instalment plan: `planeKautionRatenAction`, optional rate of a deposit booking) is in this file.
- * Further phase 2-4 actions (receipts, interest, settlement) live in their own files.
+ * Phase 2 (instalment plan: `planeKautionRatenAction`, optional rate of a deposit booking, receipts) and phase 3
+ * (agreement fields incl. IBAN, interest schedule `planeKautionZinsstaffelAction`, interest proposal
+ * `berechneKautionZinsenAction`, interest credit as a booking type) are in this file. Phase 4 (settlement) lives in its own file.
  *
  * Security relevant (money booking, module right, object scope): not production ready until the maintainer
  * has reviewed it. The database is authoritative: the RPCs check organisation, module right, object scope and
@@ -43,6 +44,8 @@ import {
   isKautionAbzugKategorie,
   isKautionArt,
   isKautionBewegungsArt,
+  isKautionZinsmethode,
+  type KautionVereinbarungsFeld,
 } from "@/lib/kautionen-constants";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE, mapKautionError, type KautionRpcError } from "@/lib/kautionen-errors";
 import { centsToDecimalString, getMoneyInputError, parseMoneyInput } from "@/lib/kautionen-money";
@@ -54,7 +57,18 @@ import {
   anzeigeNameAusDateiname,
   baueBelegPfad,
 } from "@/lib/kautionen-belege";
-import { validateKautionDatum, validateKautionText, validateUuid } from "@/lib/kautionen-validation";
+import {
+  validateKautionArtFelder,
+  validateKautionDatum,
+  validateKautionGetrennt,
+  validateKautionIban,
+  validateKautionText,
+  validateKautionZinsmethode,
+  validateUuid,
+  validateZinsstaffel,
+  validateZinszeitraum,
+  type ValidationResult,
+} from "@/lib/kautionen-validation";
 import type {
   KautionAbzugKategorie,
   KautionArt,
@@ -64,6 +78,7 @@ import type {
   KautionLoeschTabelle,
   KautionRechte,
   KautionVorschlag,
+  KautionZinsVorschlag,
 } from "@/types/Kaution";
 
 // ---------------------------------------------------------------------------
@@ -84,7 +99,7 @@ export type KautionActionResult<T = undefined> = { success: boolean; error?: Kau
 
 export interface CreateKautionInput {
   tenantId: string;
-  /** Phase 1: only `barkaution`; omitted = `barkaution`. */
+  /** Deposit type; omitted = `barkaution` (database default). */
   kautionsart?: KautionArt;
   /** Target amount, e.g. `"1500,00"` or `"1500.00"` (strict parsing, greater than 0). */
   sollBetrag: string;
@@ -94,15 +109,30 @@ export interface CreateKautionInput {
    */
   mieteBeiVertragsschluss?: string | null;
   interneNotiz?: string | null;
+  /** Phase 3 agreement fields (all optional, `null` or empty = not given). Bank fields only for bank account types. */
+  iban?: string | null;
+  bank?: string | null;
+  kontoinhaber?: string | null;
+  /** Guarantee or insurance only. */
+  buergeVersicherer?: string | null;
+  /** Guarantee or insurance only. */
+  urkundennummer?: string | null;
+  /** Bank account types only. */
+  getrenntAngelegt?: boolean | null;
+  /** Interest method, default `act_365` in the database. `null` is not accepted. */
+  zinsmethode?: string;
 }
 
 export interface UpdateKautionVereinbarungInput {
   tenantId: string;
   kautionId: string;
   /**
-   * Fields to change, database keys (`soll_betrag`, `miete_bei_vertragsschluss`, `interne_notiz`,
-   * `kautionsart`) or their camelCase aliases (`sollBetrag`, `mieteBeiVertragsschluss`, `interneNotiz`).
-   * Empty string or `null` clears `miete_bei_vertragsschluss` and `interne_notiz`.
+   * Fields to change, database keys (`soll_betrag`, `miete_bei_vertragsschluss`, `interne_notiz`, `kautionsart`,
+   * phase 3: `iban`, `bank`, `kontoinhaber`, `buerge_versicherer`, `urkundennummer`, `getrennt_angelegt`,
+   * `zinsmethode`) or their camelCase aliases (`sollBetrag`, `mieteBeiVertragsschluss`, `interneNotiz`,
+   * `buergeVersicherer`, `getrenntAngelegt`).
+   * Empty string or `null` clears `miete_bei_vertragsschluss`, `interne_notiz` and the text fields of phase 3.
+   * `zinsmethode` cannot be cleared (`null` is rejected).
    */
   felder: Record<string, string | number | boolean | null>;
 }
@@ -110,21 +140,47 @@ export interface UpdateKautionVereinbarungInput {
 export interface BucheKautionBewegungInput {
   tenantId: string;
   kautionId: string;
-  /** Phase 1: `einzahlung`, `auszahlung`, `abzug` (interest credits follow in phase 3). */
+  /** `einzahlung`, `zinsgutschrift`, `auszahlung`, `abzug`. */
   art: KautionBewegungsArt;
   betrag: string;
   /** Value date `YYYY-MM-DD`, not in the future. */
   wertstellung: string;
   /** Mandatory for `abzug`, not allowed otherwise. */
   kategorie?: KautionAbzugKategorie;
-  /** Mandatory (3 to 500 characters) for `auszahlung` and `abzug`. */
+  /** Mandatory (3 to 500 characters) for `auszahlung` and `abzug`; optional for `zinsgutschrift`. */
   grund?: string;
   interneNotiz?: string;
   empfaenger?: string;
+  /** Interest period `YYYY-MM-DD` (from, inclusive). Mandatory for `zinsgutschrift`, not forwarded for other types. */
+  zinszeitraumVon?: string;
+  /** Interest period `YYYY-MM-DD` (to, exclusive). Mandatory for `zinsgutschrift`, not forwarded for other types. */
+  zinszeitraumBis?: string;
   /** `crypto.randomUUID()`, generated once per opening of the form: a repeated request books nothing twice. */
   idempotenzSchluessel: string;
   /** Optional rate of the instalment plan the deposit payment is assigned to. Only allowed for `einzahlung`. */
   rateId?: string;
+}
+
+/** One row of the interest schedule as the form sends it. The rate is the text as typed (strictly parsed). */
+export interface ZinsstaffelEingabe {
+  /** Valid from `YYYY-MM-DD`, strictly ascending. */
+  gueltigAb: string;
+  /** Rate in percent, e.g. `"1,5"` or `"1.50"` (0 to 100, at most 4 decimal places). */
+  zinssatzProzent: string;
+}
+
+export interface PlaneKautionZinsstaffelInput {
+  kautionId: string;
+  /** The complete schedule (0 to 20 rows). An empty list removes it. It replaces the schedule as a whole. */
+  staffel: ZinsstaffelEingabe[];
+}
+
+export interface BerechneKautionZinsenInput {
+  kautionId: string;
+  /** Start of the period `YYYY-MM-DD` (inclusive). Empty: the database default (after the last credit, else first deposit). */
+  von?: string | null;
+  /** End of the period `YYYY-MM-DD` (exclusive). Empty: the database default (today). */
+  bis?: string | null;
 }
 
 /** One rate of an instalment plan as the form sends it. The amount is the text as typed (strictly parsed). */
@@ -169,6 +225,9 @@ const MSG_UNGUELTIGE_EINGABE = "Die Eingabe ist ungültig.";
  * text is fixed here, so no database text reaches the user unchecked.
  */
 const MSG_RATENPLAN_GESPERRT = "Der Ratenplan kann nicht mehr geändert werden, weil bereits Zahlungen zugeordnet sind.";
+
+/** Message for a locked interest schedule (`KA009`): rows for already credited periods cannot change. */
+const MSG_ZINSSTAFFEL_GESPERRT = "Die Zinsstaffel kann für bereits gutgeschriebene Zeiträume nicht mehr geändert werden.";
 
 /** Start of the message `ensureAuth` throws for "not signed in" (`lib/auth-utils.ts`); other errors are not a login problem. */
 const NOT_SIGNED_IN_MESSAGE_PREFIX = "Nicht authentifiziert";
@@ -356,6 +415,91 @@ function checkKautionsart(value: unknown): Step<KautionArt> {
   return { ok: true, data: value };
 }
 
+/**
+ * Form check of the interest proposal from the RPC (`KautionZinsVorschlag`, see `types/Kaution.ts`). Only the fields
+ * the app reads are checked; an unexpected shape is an unclassified error, never shown as a proposal.
+ */
+function istZinsVorschlag(value: unknown): value is KautionZinsVorschlag {
+  const feld = asRecord(value);
+  if (typeof feld.moeglich !== "boolean") return false;
+  if (typeof feld.von !== "string" || typeof feld.bis !== "string") return false;
+  if (!isKautionZinsmethode(feld.methode)) return false;
+  if (feld.moeglich === false) return feld.grund === "KEIN_ZINSSATZ";
+  return (
+    typeof feld.betrag === "number" &&
+    typeof feld.betrag_exakt === "string" &&
+    Array.isArray(feld.staffel) &&
+    Array.isArray(feld.segmente)
+  );
+}
+
+/** Agreement fields of phase 3 as the database keys (the names of `KautionVereinbarungsFeld`). */
+type PhaseDreiWert = string | boolean | null;
+
+/** Validated phase 3 agreement values for the RPC: `null` means "clear" (update only). */
+type PhaseDreiDaten = Partial<Record<KautionVereinbarungsFeld, PhaseDreiWert>>;
+
+/** Validation of one phase 3 agreement field with its own rule (the message names the field, never the value). */
+function pruefePhaseDreiFeld(feld: KautionVereinbarungsFeld, wert: unknown): ValidationResult<PhaseDreiWert> {
+  switch (feld) {
+    case "iban":
+      return validateKautionIban(wert);
+    case "zinsmethode":
+      return validateKautionZinsmethode(wert);
+    case "getrennt_angelegt":
+      return validateKautionGetrennt(wert);
+    case "bank":
+      return validateKautionText(wert, { label: "Die Bank", max: KAUTION_TEXT_LIMITS.bank.max });
+    case "kontoinhaber":
+      return validateKautionText(wert, { label: "Der Kontoinhaber", max: KAUTION_TEXT_LIMITS.kontoinhaber.max });
+    case "buerge_versicherer":
+      return validateKautionText(wert, { label: "Der Bürge bzw. Versicherer", max: KAUTION_TEXT_LIMITS.buergeVersicherer.max });
+    case "urkundennummer":
+      return validateKautionText(wert, { label: "Die Urkundennummer", max: KAUTION_TEXT_LIMITS.urkundennummer.max });
+  }
+}
+
+/**
+ * Validates the phase 3 agreement fields of one request. `werte` holds only the fields the caller received (database key
+ * -> raw client value). `anlegen`: `null` means "not given" and is left out. `aendern`: `null` or an empty text clears
+ * the field, `zinsmethode` cannot be cleared. `art` is the deposit type when this request knows it (create, or update
+ * with `kautionsart`): then every filled field must belong to that type (`KA004` otherwise). Without it the database
+ * decides.
+ */
+function pruefePhaseDreiFelder(
+  werte: ReadonlyMap<KautionVereinbarungsFeld, unknown>,
+  art: KautionArt | undefined,
+  modus: "anlegen" | "aendern"
+): Step<PhaseDreiDaten> {
+  const daten: PhaseDreiDaten = {};
+  for (const [feld, wert] of werte) {
+    if (wert === null && modus === "anlegen") continue;
+    const geprueft = pruefePhaseDreiFeld(feld, wert);
+    if (!geprueft.ok) return fail(invalid(geprueft.message));
+    daten[feld] = geprueft.value;
+  }
+
+  if (art !== undefined) {
+    const gefuellt = (Object.keys(daten) as KautionVereinbarungsFeld[]).filter((feld) => daten[feld] !== null);
+    const passt = validateKautionArtFelder(art, gefuellt);
+    if (!passt.ok) return fail(invalid(passt.message));
+  }
+  return { ok: true, data: daten };
+}
+
+/** Phase 3 agreement fields with their accepted input names (database key and camelCase alias). */
+const PHASE_DREI_FELDER = new Map<string, KautionVereinbarungsFeld>([
+  ["iban", "iban"],
+  ["bank", "bank"],
+  ["kontoinhaber", "kontoinhaber"],
+  ["buerge_versicherer", "buerge_versicherer"],
+  ["buergeVersicherer", "buerge_versicherer"],
+  ["urkundennummer", "urkundennummer"],
+  ["getrennt_angelegt", "getrennt_angelegt"],
+  ["getrenntAngelegt", "getrennt_angelegt"],
+  ["zinsmethode", "zinsmethode"],
+]);
+
 // ---------------------------------------------------------------------------
 // Read
 // ---------------------------------------------------------------------------
@@ -402,6 +546,51 @@ export async function getKautionDetailsAction(
       }
 
       return { ok: true, data: { details, rechte, vorschlag } };
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Interest proposal (phase 3, read only)
+// ---------------------------------------------------------------------------
+
+/**
+ * Interest proposal for a period (`kaution_zinsen_berechnen`), calculated by the database. Without a period the database
+ * uses its defaults (from the end of the last credit or the first deposit, to today). `null` when the deposit is not
+ * visible or is not a bank account type. Nothing is changed and nothing is logged on success.
+ */
+export async function berechneKautionZinsenAction(input: BerechneKautionZinsenInput): Promise<KautionActionResult<KautionZinsVorschlag | null>> {
+  const raw = asRecord(input);
+  return runKautionAction({
+    actionName: "berechneKautionZinsen",
+    mieterScope: false,
+    aktion: "ansehen",
+    revalidate: false,
+    logSuccess: false,
+    run: async (supabase) => {
+      const kautionId = validateUuid(raw.kautionId, "Kautions-ID");
+      if (!kautionId.ok) return fail(invalid(kautionId.message));
+
+      let von: string | null = null;
+      if (raw.von !== undefined && raw.von !== null) {
+        const datum = validateKautionDatum(raw.von, "Der Zinszeitraum (von)");
+        if (!datum.ok) return fail(invalid(datum.message));
+        von = datum.value;
+      }
+      let bis: string | null = null;
+      if (raw.bis !== undefined && raw.bis !== null) {
+        const datum = validateKautionDatum(raw.bis, "Der Zinszeitraum (bis)");
+        if (!datum.ok) return fail(invalid(datum.message));
+        bis = datum.value;
+      }
+
+      // An invalid period (order, future, more than 10 years) is decided by the database (KA013, fixed text).
+      const result = await callRpc(supabase, "kaution_zinsen_berechnen", { p_kaution_id: kautionId.value, p_von: von, p_bis: bis });
+      if (!result.ok) return fail(result.error);
+      if (result.data === null) return { ok: true, data: null };
+      // Defensive: the shape is checked before it reaches the UI.
+      if (!istZinsVorschlag(result.data)) return fail({ message: KAUTION_FEHLER_FALLBACK_MESSAGE });
+      return { ok: true, data: result.data };
     },
   });
 }
@@ -488,10 +677,13 @@ export async function createKautionAction(input: CreateKautionInput): Promise<Ka
     run: async (supabase, tenantId) => {
       const daten: Record<string, unknown> = {};
 
+      // Omitted = bar deposit (database default). The type is known here, so the agreement fields are checked against it.
+      let art: KautionArt = "barkaution";
       if (raw.kautionsart !== undefined && raw.kautionsart !== null) {
-        const art = checkKautionsart(raw.kautionsart);
-        if (!art.ok) return fail(art.error);
-        daten.kautionsart = art.data;
+        const gewaehlt = checkKautionsart(raw.kautionsart);
+        if (!gewaehlt.ok) return fail(gewaehlt.error);
+        art = gewaehlt.data;
+        daten.kautionsart = art;
       }
 
       const soll = parseBetrag(raw.sollBetrag, "Soll-Betrag");
@@ -511,6 +703,25 @@ export async function createKautionAction(input: CreateKautionInput): Promise<Ka
       const notiz = validateKautionText(raw.interneNotiz, { label: "Die interne Notiz", max: KAUTION_TEXT_LIMITS.interneNotiz.max });
       if (!notiz.ok) return fail(invalid(notiz.message));
       if (notiz.value !== null) daten.interne_notiz = notiz.value;
+
+      // Phase 3 agreement fields: only the whitelisted camelCase inputs, `null` = not given.
+      const werte = new Map<KautionVereinbarungsFeld, unknown>();
+      for (const [eingabe, feld] of [
+        ["iban", "iban"],
+        ["bank", "bank"],
+        ["kontoinhaber", "kontoinhaber"],
+        ["buergeVersicherer", "buerge_versicherer"],
+        ["urkundennummer", "urkundennummer"],
+        ["getrenntAngelegt", "getrennt_angelegt"],
+        ["zinsmethode", "zinsmethode"],
+      ] as const) {
+        if (raw[eingabe] !== undefined) werte.set(feld, raw[eingabe]);
+      }
+      const phaseDrei = pruefePhaseDreiFelder(werte, art, "anlegen");
+      if (!phaseDrei.ok) return fail(phaseDrei.error);
+      for (const [feld, wert] of Object.entries(phaseDrei.data)) {
+        if (wert !== null) daten[feld] = wert;
+      }
 
       const result = await callRpc(supabase, "kaution_anlegen", { p_mieter_id: tenantId, p_daten: daten });
       if (!result.ok) return fail(result.error);
@@ -547,9 +758,17 @@ export async function updateKautionVereinbarungAction(input: UpdateKautionVerein
       if (schluessel.length === 0) return fail(invalid("Keine Änderung angegeben."));
 
       const daten: Record<string, unknown> = {};
+      const phaseDreiWerte = new Map<KautionVereinbarungsFeld, unknown>();
       for (const key of schluessel) {
         const feld = VEREINBARUNG_FELDER.get(key);
-        if (!feld) return fail(invalid("Die Änderung enthält ein unbekanntes Feld."));
+        if (!feld) {
+          // Phase 3 agreement fields are validated together below (type fit needs the whole request).
+          const phaseDrei = PHASE_DREI_FELDER.get(key);
+          if (!phaseDrei) return fail(invalid("Die Änderung enthält ein unbekanntes Feld."));
+          if (phaseDreiWerte.has(phaseDrei)) return fail(invalid("Ein Feld wurde mehrfach angegeben."));
+          phaseDreiWerte.set(phaseDrei, felder[key]);
+          continue;
+        }
         if (Object.prototype.hasOwnProperty.call(daten, feld)) return fail(invalid("Ein Feld wurde mehrfach angegeben."));
         const value = felder[key];
 
@@ -575,6 +794,12 @@ export async function updateKautionVereinbarungAction(input: UpdateKautionVerein
           daten[feld] = art.data;
         }
       }
+
+      // Type fit only where the request names the type (`kautionsart`); otherwise the database decides.
+      const art = typeof daten.kautionsart === "string" ? (daten.kautionsart as KautionArt) : undefined;
+      const phaseDrei = pruefePhaseDreiFelder(phaseDreiWerte, art, "aendern");
+      if (!phaseDrei.ok) return fail(phaseDrei.error);
+      Object.assign(daten, phaseDrei.data);
 
       const result = await callRpc(supabase, "kaution_aendern", { p_kaution_id: kautionId.value, p_daten: daten });
       if (!result.ok) return fail(result.error);
@@ -635,6 +860,38 @@ export async function planeKautionRatenAction(input: PlaneKautionRatenInput): Pr
 }
 
 // ---------------------------------------------------------------------------
+// Interest schedule (phase 3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Replaces the interest schedule of a bank account deposit as a whole (`kaution_zinsstaffel_setzen`); an empty list
+ * removes it. The rows are validated here (count, real dates, strictly ascending, strict rates); the database checks the
+ * object scope and the lock: `KA009` once a credit covers the period (fixed text), `KA015` for guarantee and insurance.
+ */
+export async function planeKautionZinsstaffelAction(input: PlaneKautionZinsstaffelInput): Promise<KautionActionResult> {
+  const raw = asRecord(input);
+  return runKautionAction({
+    actionName: "planeKautionZinsstaffel",
+    mieterScope: false,
+    aktion: "bearbeiten",
+    run: async (supabase) => {
+      const kautionId = validateUuid(raw.kautionId, "Kautions-ID");
+      if (!kautionId.ok) return fail(invalid(kautionId.message));
+
+      const staffel = validateZinsstaffel(raw.staffel);
+      if (!staffel.ok) return fail(invalid(staffel.message));
+
+      const result = await callRpc(supabase, "kaution_zinsstaffel_setzen", { p_kaution_id: kautionId.value, p_staffel: staffel.value });
+      if (!result.ok) {
+        if (result.error.code === "KA009") return fail({ code: "KA009", message: MSG_ZINSSTAFFEL_GESPERRT });
+        return fail(result.error);
+      }
+      return { ok: true, data: undefined };
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Bookings
 // ---------------------------------------------------------------------------
 
@@ -674,6 +931,15 @@ export async function bucheKautionBewegungAction(input: BucheKautionBewegungInpu
       const wertstellung = validateKautionDatum(raw.wertstellung, "Wertstellung");
       if (!wertstellung.ok) return fail(invalid(wertstellung.message));
 
+      // Interest period: mandatory for an interest credit only. Other booking types never forward it (the database
+      // would reject it, and the client does not send it there anyway). The database checks the rest (KA013).
+      let zinszeitraum: { von: string; bis: string } | null = null;
+      if (art === "zinsgutschrift") {
+        const periode = validateZinszeitraum(raw.zinszeitraumVon, raw.zinszeitraumBis);
+        if (!periode.ok) return fail(invalid(periode.message));
+        zinszeitraum = periode.value;
+      }
+
       // The idempotency key is mandatory: without it a retry could book twice.
       const schluessel = validateUuid(raw.idempotenzSchluessel, "Kennung der Buchung");
       if (!schluessel.ok) return fail(invalid(schluessel.message));
@@ -702,8 +968,13 @@ export async function bucheKautionBewegungAction(input: BucheKautionBewegungInpu
       const empfaenger = validateKautionText(raw.empfaenger, { label: "Der Empfänger", max: KAUTION_TEXT_LIMITS.empfaenger.max });
       if (!empfaenger.ok) return fail(invalid(empfaenger.message));
 
-      // Only the keys the RPC accepts (any other key is rejected by the database with KA004).
+      // Only the keys the RPC accepts (any other key is rejected by the database with KA004). The server calculates the
+      // proposal and the calculation basis itself: neither is ever sent from here.
       const details: Record<string, unknown> = { idempotenz_schluessel: schluessel.value };
+      if (zinszeitraum !== null) {
+        details.zinszeitraum_von = zinszeitraum.von;
+        details.zinszeitraum_bis = zinszeitraum.bis;
+      }
       if (rateId !== null) details.rate_id = rateId;
       if (kategorie !== null) details.kategorie = kategorie;
       if (grund.value !== null) details.grund = grund.value;

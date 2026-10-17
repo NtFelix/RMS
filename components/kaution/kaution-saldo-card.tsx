@@ -23,8 +23,8 @@ interface Kennzahl {
 }
 
 export function KautionSaldoCard({ details }: KautionSaldoCardProps) {
-  const { kaution, konto, warnungen, einbehalt } = details;
-  const { bewegungsarten } = useKautionFlag();
+  const { kaution, konto, warnungen, einbehalt, kontostand_inkl_zinsen: kontostandInklZinsen } = details;
+  const { bewegungsarten, funktionen } = useKautionFlag();
 
   const kennzahlen: Kennzahl[] = [
     { label: "Soll-Betrag", wert: kaution.soll_betrag },
@@ -73,6 +73,12 @@ export function KautionSaldoCard({ details }: KautionSaldoCardProps) {
             ))}
           </dl>
         </div>
+
+        {funktionen.zinsen && typeof kontostandInklZinsen === "number" ? (
+          <p className="text-sm text-muted-foreground" data-testid="kaution-kontostand-inkl-zinsen">
+            Inklusive aufgelaufener Zinsen (Vorschlag, noch nicht gutgeschrieben): <span className="font-medium tabular-nums text-foreground">{formatBetrag(kontostandInklZinsen)}</span>
+          </p>
+        ) : null}
 
         {zeigeEinbehalt && einbehalt ? (
           <p className="text-sm">

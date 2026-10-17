@@ -16,6 +16,8 @@
  * reviewed by the maintainer. The database validates again and stays authoritative.
  */
 
+import { KAUTION_ZINSSATZ_MAX_NACHKOMMASTELLEN } from "@/lib/kautionen-constants";
+
 /** 99.999.999,99 € in cents. Mirrors the database limit. */
 export const KAUTION_MAX_BETRAG_CENTS = 9_999_999_999;
 
@@ -163,6 +165,36 @@ export function getMoneyInputError(input: string | number, options: MoneyInputOp
   if (!result.ok) return MONEY_INPUT_MESSAGES[result.fehler];
   if (result.cents === 0 && !options.allowZero) return MONEY_INPUT_MESSAGES.null;
   return null;
+}
+
+/** Interest rates in percent: 0 to 100 (inclusive). */
+const ZINSSATZ_MAX_GANZ = 100;
+/** Integer part (1+ digits), optional one decimal separator (comma or point) and the decimal digits. */
+const ZINSSATZ_PATTERN = /^(\d+)(?:([.,])(\d+))?$/;
+
+/**
+ * Strict interest rate in percent for the interest schedule: `"1,5"`, `"1.50"`, `"0"`, `"100"` -> exact decimal
+ * string for the RPC (`"1.5"`, `"1.5"`, `"0"`, `"100"`). Comma and point are accepted as decimal separator, like
+ * amounts, but only one of them and no thousands separator. A point followed by exactly three digits (`"1.000"`) is
+ * ambiguous (thousands or decimals) and rejected, as with amounts. The rate must be between 0 and 100 inclusive and may
+ * have at most `KAUTION_ZINSSATZ_MAX_NACHKOMMASTELLEN` decimal places; more places are rejected, never rounded.
+ * Trailing zeros are dropped (only the form of the string changes, the value does not). Returns `null` for anything
+ * else. Pure string handling, no floating point involved.
+ */
+export function parseZinssatzProzent(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const match = ZINSSATZ_PATTERN.exec(input.trim());
+  if (!match) return null;
+  const [, ganzRaw = "", separator, nachRaw = ""] = match;
+  if (nachRaw.length > KAUTION_ZINSSATZ_MAX_NACHKOMMASTELLEN) return null;
+  if (separator === "." && nachRaw.length === 3) return null;
+
+  const ganz = ganzRaw.replace(/^0+(?=\d)/, "");
+  const nach = nachRaw.replace(/0+$/, "");
+  // At most 3 integer digits, so `Number` is exact here; 100 is only allowed without decimals.
+  if (ganz.length > 3 || Number(ganz) > ZINSSATZ_MAX_GANZ) return null;
+  if (Number(ganz) === ZINSSATZ_MAX_GANZ && nach !== "") return null;
+  return nach === "" ? ganz : `${ganz}.${nach}`;
 }
 
 /**

@@ -9,8 +9,19 @@
  * Not a "use server" file (it exports non-async functions).
  */
 
-import { KAUTION_MIN_WERTSTELLUNG } from "@/lib/kautionen-constants";
+import {
+  KAUTION_MIN_WERTSTELLUNG,
+  KAUTION_TEXT_LIMITS,
+  KAUTION_VEREINBARUNGSFELDER_JE_ART,
+  KAUTION_ZINSSATZ_MAX_NACHKOMMASTELLEN,
+  KAUTION_ZINSSTAFFEL_MAX_ZEILEN,
+  isKautionZinsmethode,
+  type KautionVereinbarungsFeld,
+} from "@/lib/kautionen-constants";
+import { istGueltigeIban, normalisiereIban } from "@/lib/kautionen-iban";
+import { parseZinssatzProzent } from "@/lib/kautionen-money";
 import { UUID_REGEX } from "@/lib/supabase-env";
+import type { KautionArt, KautionZinsmethode } from "@/types/Kaution";
 
 export type ValidationResult<T> = { ok: true; value: T } | { ok: false; message: string };
 
@@ -83,4 +94,108 @@ export function validateKautionText(value: unknown, rule: TextRule): ValidationR
     return { ok: false, message: min > 0 ? `${label} muss zwischen ${min} und ${max} Zeichen lang sein.` : `${label} darf höchstens ${max} Zeichen lang sein.` };
   }
   return { ok: true, value: text };
+}
+
+// ---------------------------------------------------------------------------
+// Agreement fields of phase 3 (bank account, guarantee, insurance, interest)
+// ---------------------------------------------------------------------------
+
+/**
+ * IBAN of a bank account: spaces removed and upper-cased, then format and mod-97 check (`lib/kautionen-iban.ts`).
+ * Empty or missing means "not given" (`null`). The rejected value is never repeated in the message.
+ */
+export function validateKautionIban(value: unknown): ValidationResult<string | null> {
+  if (value === undefined || value === null) return { ok: true, value: null };
+  if (typeof value !== "string") return { ok: false, message: "Die IBAN ist ungültig." };
+
+  const iban = normalisiereIban(value);
+  if (iban === "") return { ok: true, value: null };
+  if (iban.length > KAUTION_TEXT_LIMITS.iban.max) {
+    return { ok: false, message: `Die IBAN darf höchstens ${KAUTION_TEXT_LIMITS.iban.max} Zeichen lang sein.` };
+  }
+  if (!istGueltigeIban(iban)) return { ok: false, message: "Bitte geben Sie eine gültige IBAN an." };
+  return { ok: true, value: iban };
+}
+
+/** Interest method: one of the three database values. `null` and missing are not accepted here (the caller omits the key). */
+export function validateKautionZinsmethode(value: unknown): ValidationResult<KautionZinsmethode> {
+  if (!isKautionZinsmethode(value)) return { ok: false, message: "Die Zinsmethode ist ungültig." };
+  return { ok: true, value };
+}
+
+/** Whether a separate account was confirmed (`getrennt_angelegt`). Missing or `null` is "not given". */
+export function validateKautionGetrennt(value: unknown): ValidationResult<boolean | null> {
+  if (value === undefined || value === null) return { ok: true, value: null };
+  if (typeof value !== "boolean") return { ok: false, message: "Die Angabe zur getrennten Anlage ist ungültig." };
+  return { ok: true, value };
+}
+
+/**
+ * Checks that every filled agreement field belongs to the deposit type (`KAUTION_VEREINBARUNGSFELDER_JE_ART`).
+ * `gefuellt` lists only the fields that carry a value; a field of another type is rejected (`KA004` at the database).
+ */
+export function validateKautionArtFelder(art: KautionArt, gefuellt: readonly string[]): ValidationResult<null> {
+  const erlaubt: readonly KautionVereinbarungsFeld[] = KAUTION_VEREINBARUNGSFELDER_JE_ART[art];
+  const fremd = gefuellt.some((feld) => !(erlaubt as readonly string[]).includes(feld));
+  if (fremd) return { ok: false, message: "Eine Angabe passt nicht zu dieser Kautionsart." };
+  return { ok: true, value: null };
+}
+
+/** Interest schedule row as the RPC takes it: exact decimal rate (`"1.5"`). */
+export interface ZinsstaffelZeile {
+  gueltig_ab: string;
+  zinssatz_prozent: string;
+}
+
+/**
+ * Interest schedule (`kaution_zinsstaffel_setzen`): 0 to 20 rows, each with a valid date (not before 1990) and a strict
+ * rate (0 to 100, at most 4 decimal places). Dates must be strictly ascending. Input rows use `gueltigAb` and
+ * `zinssatzProzent`. An empty list is allowed (it removes the schedule).
+ */
+export function validateZinsstaffel(value: unknown): ValidationResult<ZinsstaffelZeile[]> {
+  if (!Array.isArray(value)) return { ok: false, message: "Die Zinsstaffel ist ungültig." };
+  if (value.length > KAUTION_ZINSSTAFFEL_MAX_ZEILEN) {
+    return { ok: false, message: `Eine Zinsstaffel hat höchstens ${KAUTION_ZINSSTAFFEL_MAX_ZEILEN} Zeilen.` };
+  }
+
+  const zeilen: ZinsstaffelZeile[] = [];
+  for (const eintrag of value) {
+    if (typeof eintrag !== "object" || eintrag === null || Array.isArray(eintrag)) {
+      return { ok: false, message: "Die Zinsstaffel ist ungültig." };
+    }
+    const feld = eintrag as Record<string, unknown>;
+
+    const datum = validateKautionDatum(feld.gueltigAb, "Das Gültigkeitsdatum");
+    if (!datum.ok) return { ok: false, message: datum.message };
+
+    const satz = parseZinssatzProzent(feld.zinssatzProzent);
+    if (satz === null) {
+      return {
+        ok: false,
+        message: `Der Zinssatz muss zwischen 0 und 100 liegen und höchstens ${KAUTION_ZINSSATZ_MAX_NACHKOMMASTELLEN} Nachkommastellen haben.`,
+      };
+    }
+
+    // ISO date strings compare correctly as text.
+    const vorige = zeilen[zeilen.length - 1];
+    if (vorige && datum.value <= vorige.gueltig_ab) {
+      return { ok: false, message: "Die Gültigkeitsdaten der Zinsstaffel müssen in aufsteigender Reihenfolge liegen." };
+    }
+    zeilen.push({ gueltig_ab: datum.value, zinssatz_prozent: satz });
+  }
+  return { ok: true, value: zeilen };
+}
+
+/**
+ * Interest period of an interest credit (`zinszeitraum_von` inclusive, `zinszeitraum_bis` exclusive). Both dates must be
+ * valid, the end must be after the start. The database checks the rest (`KA013`: not in the future, not before the last
+ * credit, at most 10 years).
+ */
+export function validateZinszeitraum(von: unknown, bis: unknown): ValidationResult<{ von: string; bis: string }> {
+  const start = validateKautionDatum(von, "Der Zinszeitraum (von)");
+  if (!start.ok) return { ok: false, message: start.message };
+  const ende = validateKautionDatum(bis, "Der Zinszeitraum (bis)");
+  if (!ende.ok) return { ok: false, message: ende.message };
+  if (start.value >= ende.value) return { ok: false, message: "Das Ende des Zinszeitraums muss nach dem Beginn liegen." };
+  return { ok: true, value: { von: start.value, bis: ende.value } };
 }
