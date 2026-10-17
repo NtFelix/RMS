@@ -53,6 +53,18 @@ import type { KautionAbzugKategorie, KautionBewegungsArt } from "@/types/Kaution
  * collects input, the action and the RPC validate and book.
  */
 
+/**
+ * Preset of a deposit payment for one rate of the plan ("Zahlung erfassen" in the Raten tab): the payment is assigned to
+ * the rate and prefilled with the open amount of that rate. Only for `einzahlung`.
+ */
+export interface KautionBuchungVorgabe {
+  rateId: string;
+  /** Rate number 1..3, shown to the user. */
+  rateNr: number;
+  /** Open amount of the rate (display number from the database, prefilled as text). */
+  betrag: number;
+}
+
 interface KautionBuchungFormProps {
   art: KautionBewegungsArt;
   tenantId: string;
@@ -60,6 +72,8 @@ interface KautionBuchungFormProps {
   /** Balance as displayed by the database: starting value of a payout. */
   kontostand: number;
   darfBuchen: boolean;
+  /** Set when the payment is booked for a rate: the rate is assigned and the amount is prefilled. */
+  vorgabe?: KautionBuchungVorgabe | null;
   /** Called after a successful booking (the dialog reloads the statement). */
   onGebucht: () => void | Promise<void>;
   onFehler: (error: KautionActionError) => boolean;
@@ -88,6 +102,7 @@ export function KautionBuchungForm({
   kautionId,
   kontostand,
   darfBuchen,
+  vorgabe = null,
   onGebucht,
   onFehler,
   onAbbrechen,
@@ -96,9 +111,14 @@ export function KautionBuchungForm({
   const basisId = useId();
   const mussGrundHaben = art === "auszahlung" || art === "abzug";
 
-  // Start values: the payout is prefilled with the available rest (nothing to pay out at a balance of 0 or less).
+  // Start values: a rate prefills its open amount, the payout is prefilled with the available rest (nothing to pay out
+  // at a balance of 0 or less).
   const [start] = useState(() => ({
-    betrag: art === "auszahlung" && kontostand > 0 ? betragZuEingabe(kontostand) : "",
+    betrag: vorgabe
+      ? betragZuEingabe(vorgabe.betrag)
+      : art === "auszahlung" && kontostand > 0
+        ? betragZuEingabe(kontostand)
+        : "",
     heute: heuteIso(),
   }));
   // Only read in the submit handler, never rendered: a ref avoids a re-render on every change.
@@ -194,6 +214,7 @@ export function KautionBuchungForm({
       grund: grundPruefung.value ?? undefined,
       interneNotiz: notizPruefung.value ?? undefined,
       empfaenger: empfaengerPruefung.value ?? undefined,
+      rateId: vorgabe?.rateId,
     };
     const eingabeText = JSON.stringify(eingabe);
     const vorher = letzterVersuch.current;
@@ -243,6 +264,12 @@ export function KautionBuchungForm({
             </h3>
           </div>
 
+          {vorgabe ? (
+            <p className="text-sm" data-testid="kaution-buchung-rate">
+              Die Zahlung wird der Rate {vorgabe.rateNr} zugeordnet.
+            </p>
+          ) : null}
+
           <fieldset disabled={gesperrt} className="grid gap-4 sm:grid-cols-2">
             <legend className="sr-only">Angaben zur Buchung</legend>
 
@@ -252,9 +279,11 @@ export function KautionBuchungForm({
               pflicht
               fehler={fehler.betrag}
               hinweis={
-                art === "auszahlung" && start.betrag !== ""
-                  ? `Vorbelegt mit dem verfügbaren Rest (Kontostand ${formatBetrag(kontostand)}). Sie können den Betrag ändern.`
-                  : undefined
+                vorgabe && start.betrag !== ""
+                  ? `Vorbelegt mit dem offenen Betrag der Rate ${vorgabe.rateNr}. Sie können den Betrag ändern.`
+                  : art === "auszahlung" && start.betrag !== ""
+                    ? `Vorbelegt mit dem verfügbaren Rest (Kontostand ${formatBetrag(kontostand)}). Sie können den Betrag ändern.`
+                    : undefined
               }
             >
               {(props) => (
