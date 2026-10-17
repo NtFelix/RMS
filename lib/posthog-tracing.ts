@@ -20,6 +20,7 @@ import { MeterProvider } from '@opentelemetry/sdk-metrics';
 
 import { SERVICE_NAME, POSTHOG_API_KEY, getTracesEndpoint, getSdkResourceAttributes, registerShutdownHandler } from './otlp-utils';
 import { posthogLogger } from './posthog-logger';
+import { extractPostHogContextFromHeaders } from './posthog-context-extractor';
 import '@supabase/supabase-js/tracing';
 
 const safeStringify = (val: unknown): string => {
@@ -105,7 +106,30 @@ export function initTracing(): void {
 
   // Built-in HTTP metrics are not exported: give the instrumentation a meter provider without a reader,
   // so this no longer depends on whether initMetrics() has registered the global provider yet.
-  const httpInstrumentation = new HttpInstrumentation();
+  const httpInstrumentation = new HttpInstrumentation({
+    requestHook: (span, request) => {
+      try {
+        const rawHeaders =
+          (request as any)?.headers ||
+          (typeof (request as any)?.getHeaders === 'function' ? (request as any).getHeaders() : undefined);
+        const { distinctId, sessionId, windowId } = extractPostHogContextFromHeaders(rawHeaders);
+        if (distinctId) {
+          span.setAttribute('posthogDistinctId', distinctId);
+          span.setAttribute('distinct_id', distinctId);
+        }
+        if (sessionId) {
+          span.setAttribute('sessionId', sessionId);
+          span.setAttribute('$session_id', sessionId);
+        }
+        if (windowId) {
+          span.setAttribute('$window_id', windowId);
+          span.setAttribute('windowId', windowId);
+        }
+      } catch {
+        // Silently ignore hook errors to prevent breaking request handling
+      }
+    },
+  });
   httpInstrumentation.setMeterProvider(new MeterProvider());
 
   sdk = new NodeSDK({
