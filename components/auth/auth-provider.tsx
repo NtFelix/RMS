@@ -6,6 +6,8 @@ import { createContext, useContext, useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import type { User } from "@supabase/supabase-js"
+import posthog from "posthog-js"
+import { resetSupportIdentity } from "@/lib/posthog-support"
 
 type AuthContextType = {
   user: User | null
@@ -43,6 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session.user)
         router.refresh()
       } else if (event === "SIGNED_OUT") {
+        // Drop the previous user's support identity/widget session so the next login starts clean.
+        resetSupportIdentity(posthog)
         setUser(null)
         router.refresh()
       }

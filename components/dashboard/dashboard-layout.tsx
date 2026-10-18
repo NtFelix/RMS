@@ -124,7 +124,7 @@ export function DashboardLayout({
           </div>
         </main>
 
-        {mounted && isMobile && <MobileBottomNavigation />}
+        {mounted && isMobile && <MobileBottomNavigation sidebarData={sidebarData} />}
         <SupportLauncher />
       </div>
     </TaskDndProvider>

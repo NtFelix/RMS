@@ -126,6 +126,8 @@ const SheetContent = React.forwardRef<
           // or data-scroll-locked on document.body when opened from menus or when focus restore fails.
           if (typeof document !== "undefined") {
             setTimeout(() => {
+              // Never strip locks that belong to another dialog/sheet that is still open.
+              if (document.querySelector('[role="dialog"][data-state="open"]')) return;
               if (document.body.style.pointerEvents === "none") {
                 document.body.style.pointerEvents = "";
               }

@@ -232,7 +232,8 @@ export function UserSettings({
           </CustomDropdownItem>
         )}
         {supportButtonEnabled && (
-          <CustomDropdownItem onClick={() => openSupport()}>
+          // Defer so the dropdown finishes dismissing before the support sheet mounts (avoids conflicting DismissableLayers).
+          <CustomDropdownItem onClick={() => setTimeout(openSupport, 0)}>
             <MessageCircle className="mr-2 size-4" />
             <span>Support</span>
             {supportUnreadCount > 0 && (

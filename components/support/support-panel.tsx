@@ -13,6 +13,7 @@ import {
   loadConversationsBundle,
   ensureConversationsReady,
   SUPPORT_POLL_INTERVAL_MS,
+  SUPPORT_CLOSED_POLL_INTERVAL_MS,
   MAX_SUPPORT_MESSAGE_LENGTH,
   WARN_SUPPORT_MESSAGE_LENGTH,
   type SupportMessage,
@@ -509,37 +510,6 @@ export function SupportPanel() {
   const [ticketsLoading, setTicketsLoading] = useState(false)
   const [ticketsError, setTicketsError] = useState<string | null>(null)
   
-  // Safeguard: Radix UI DismissableLayer / react-remove-scroll can leak pointer-events: none
-  // or scroll lock when Sheet closes, especially if opened from a dropdown menu.
-  useEffect(() => {
-    if (!isOpen) {
-      const cleanupBodyLocks = () => {
-        if (typeof document !== 'undefined') {
-          if (document.body.style.pointerEvents === 'none') {
-            document.body.style.pointerEvents = ''
-          }
-          if (document.body.hasAttribute('data-scroll-locked')) {
-            document.body.removeAttribute('data-scroll-locked')
-          }
-          if (document.body.style.overflow === 'hidden') {
-            document.body.style.overflow = ''
-          }
-        }
-      }
-
-      cleanupBodyLocks()
-      const t1 = setTimeout(cleanupBodyLocks, 50)
-      const t2 = setTimeout(cleanupBodyLocks, 300)
-      const t3 = setTimeout(cleanupBodyLocks, 600)
-
-      return () => {
-        clearTimeout(t1)
-        clearTimeout(t2)
-        clearTimeout(t3)
-      }
-    }
-  }, [isOpen])
-  
   // View mode: 'inbox' (list of all tickets) | 'chat' (active conversation or new ticket draft)
   const [viewMode, setViewMode] = useState<'inbox' | 'chat'>('chat')
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
@@ -779,6 +749,8 @@ export function SupportPanel() {
       if (!isBackground) setMessages([])
       return
     }
+    // Optimistic tickets do not exist on the server yet.
+    if (ticketId.startsWith('temp-ticket-')) return
 
     if (!isBackground && (!messagesCacheRef.current[ticketId] || messagesCacheRef.current[ticketId].length === 0)) {
       setMessagesLoading(true)
@@ -893,10 +865,13 @@ export function SupportPanel() {
 
       const existingIds = new Set(tickets.map((t) => t.id))
       const newTickets = response.results.filter((t) => !existingIds.has(t.id))
-      const merged = [...tickets, ...newTickets]
-      setTickets(merged)
-      const totalUnread = merged.reduce((total, ticket) => total + (ticket.unread_count || 0), 0)
-      setUnreadCount(totalUnread)
+      setTickets((prev) => {
+        const prevIds = new Set(prev.map((t) => t.id))
+        return [...prev, ...newTickets.filter((t) => !prevIds.has(t.id))]
+      })
+      setUnreadCount(
+        [...tickets, ...newTickets].reduce((total, ticket) => total + (ticket.unread_count || 0), 0),
+      )
     } catch (error) {
       setTicketsError(getSupportErrorMessage(error))
     } finally {
@@ -957,11 +932,16 @@ export function SupportPanel() {
 
   useEffect(() => {
     if (!isAvailable) return
-    const ticketsTimer = window.setInterval(() => {
-      void refreshTicketsRef.current(true)
-    }, SUPPORT_POLL_INTERVAL_MS)
+    // Poll at full speed only while the panel is open; keep the unread badge fresh with a slow, visibility-gated poll otherwise.
+    const ticketsTimer = window.setInterval(
+      () => {
+        if (!isOpen && document.hidden) return
+        void refreshTicketsRef.current(true)
+      },
+      isOpen ? SUPPORT_POLL_INTERVAL_MS : SUPPORT_CLOSED_POLL_INTERVAL_MS,
+    )
     return () => window.clearInterval(ticketsTimer)
-  }, [isAvailable])
+  }, [isAvailable, isOpen])
 
   useEffect(() => {
     if (!isOpen || !isAvailable || !visibleTicketId || viewMode !== 'chat') {
@@ -1046,7 +1026,8 @@ export function SupportPanel() {
       }
 
       const targetTicketId = visibleTicketId || selectedTicketId || currentTicketId
-      const isNew = isComposingNewTicket || !targetTicketId
+      // A temp id means the first message of a new ticket never reached the server (e.g. retry after failure).
+      const isNew = isComposingNewTicket || !targetTicketId || targetTicketId.startsWith('temp-ticket-')
       const tempMsgId = failedMsgIdToReplace || `temp-msg-${Date.now()}`
       const tempTicketId = targetTicketId || `temp-ticket-${Date.now()}`
       const nowIso = new Date().toISOString()
@@ -1090,13 +1071,13 @@ export function SupportPanel() {
           message_count: 1,
           unread_count: 0,
         }
-        setTickets([optimisticTicket, ...tickets.filter((t) => t.id !== tempTicketId)])
+        setTickets((prev) => [optimisticTicket, ...prev.filter((t) => t.id !== tempTicketId)])
         setSelectedTicketId(tempTicketId)
         setCurrentTicketId(tempTicketId)
         setIsComposingNewTicket(false)
       } else if (selectedTicketId) {
-        setTickets(
-          tickets.map((t) =>
+        setTickets((prev) =>
+          prev.map((t) =>
             t.id === selectedTicketId
               ? { ...t, last_message: message, last_message_at: nowIso, message_count: t.message_count + 1 }
               : t,
@@ -1136,8 +1117,8 @@ export function SupportPanel() {
           return updated
         })
 
-        setTickets(
-          tickets.map((t) =>
+        setTickets((prev) =>
+          prev.map((t) =>
             t.id === tempTicketId || t.id === realTicketId
               ? {
                   ...t,
@@ -1249,20 +1230,7 @@ export function SupportPanel() {
     <Sheet open={isOpen} onOpenChange={(open) => (open ? undefined : closeSupport())}>
       <SheetContent
         side={isMobile ? "bottom" : "right"}
-        onCloseAutoFocus={(e) => {
-          e.preventDefault()
-          if (typeof document !== 'undefined') {
-            if (document.body.style.pointerEvents === 'none') {
-              document.body.style.pointerEvents = ''
-            }
-            if (document.body.hasAttribute('data-scroll-locked')) {
-              document.body.removeAttribute('data-scroll-locked')
-            }
-            if (document.body.style.overflow === 'hidden') {
-              document.body.style.overflow = ''
-            }
-          }
-        }}
+        onCloseAutoFocus={(e) => e.preventDefault()}
         className={cn(
           "flex h-[100dvh] w-full flex-col gap-0 border-zinc-200/80 bg-background p-0 shadow-2xl dark:border-zinc-800/80 focus:outline-hidden",
           isMobile ? "h-[92vh] max-h-[92vh] max-w-none rounded-t-3xl" : "sm:w-[500px] md:w-[540px] lg:w-[580px] sm:max-w-[92vw]",

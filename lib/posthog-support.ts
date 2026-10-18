@@ -2,6 +2,7 @@ import type { PostHog } from 'posthog-js'
 import type { User } from '@supabase/supabase-js'
 
 export const SUPPORT_POLL_INTERVAL_MS = 10_000
+export const SUPPORT_CLOSED_POLL_INTERVAL_MS = 60_000
 
 export interface SupportIdentityResponse {
   distinctId: string
@@ -81,46 +82,44 @@ export interface SupportConversationsClient {
   restoreFromUrlToken?: () => Promise<RestoreResult | null>
 }
 
+const TOO_LONG_MESSAGE =
+  'Die Nachricht ist zu lang (maximal 10.000 Zeichen erlaubt). Bitte kürzen Sie Ihren Text.'
+
+const RATE_LIMIT_PATTERN = /too many requests|rate.?limit/i
+const TOO_LONG_PATTERN =
+  /too (large|long)|invalid request data|exceeds?\b.*\b10[.,]?000|10[.,]?000\s*(characters|zeichen)/i
+
+function getErrorStatus(error: unknown): number | undefined {
+  const status = (error as { status?: unknown } | null)?.status
+  return typeof status === 'number' ? status : undefined
+}
+
+export function isRateLimitedError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  return (
+    getErrorStatus(error) === 429 ||
+    (error as { kind?: unknown }).kind === 'rate_limit' ||
+    RATE_LIMIT_PATTERN.test(error.message)
+  )
+}
+
 export function getSupportErrorMessage(error: unknown): string {
   if (typeof error === 'string') {
-    if (
-      error.includes('10000') ||
-      error.toLowerCase().includes('character') ||
-      error.toLowerCase().includes('too large') ||
-      error.toLowerCase().includes('invalid request data')
-    ) {
-      return 'Die Nachricht ist zu lang (maximal 10.000 Zeichen erlaubt). Bitte kürzen Sie Ihren Text.'
-    }
-    return error
+    return TOO_LONG_PATTERN.test(error) ? TOO_LONG_MESSAGE : error
   }
   if (error instanceof TypeError && error.message === 'Failed to fetch') {
     return 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.'
   }
   if (error instanceof Error) {
-    const msg = error.message
-    const lower = msg.toLowerCase()
-    if (lower.includes('too many requests') || lower.includes('429') || (error as any).kind === 'rate_limit') {
+    if (isRateLimitedError(error)) {
       return 'Zu viele Anfragen. Bitte warten Sie einen Moment, bevor Sie es erneut versuchen.'
     }
-    if (
-      msg.includes('10000') ||
-      lower.includes('character') ||
-      lower.includes('too large') ||
-      lower.includes('invalid request data') ||
-      msg.includes('413')
-    ) {
-      return 'Die Nachricht ist zu lang (maximal 10.000 Zeichen erlaubt). Bitte kürzen Sie Ihren Text.'
+    if (getErrorStatus(error) === 413 || TOO_LONG_PATTERN.test(error.message)) {
+      return TOO_LONG_MESSAGE
     }
-    return msg
+    return error.message
   }
   return 'Die Nachricht konnte nicht gesendet werden. Bitte überprüfen Sie Ihre Eingabe und versuchen Sie es erneut.'
-}
-
-export function isRateLimitedError(error: unknown): boolean {
-  if (error instanceof Error) {
-    return error.message.includes('Too many requests') || error.message.includes('429')
-  }
-  return false
 }
 
 const supportIdentityCache = new Map<string, Promise<SupportIdentityResponse | null>>()
@@ -160,16 +159,21 @@ export async function loadConversationsBundle(): Promise<void> {
   ]
 
   conversationsBundlePromise = (async () => {
+    // Load as a regular <script> (reusing the page CSP nonce) instead of eval-ing fetched text.
+    const nonce = document.querySelector<HTMLScriptElement>('script[nonce]')?.nonce || undefined
     for (const src of sources) {
       try {
-        const res = await fetch(src)
-        if (res.ok) {
-          const code = await res.text()
-          const fn = new Function(code)
-          fn()
-          if ((window as any).__PosthogExtensions__?.initConversations) {
-            return
-          }
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script')
+          script.src = src
+          script.async = true
+          if (nonce) script.nonce = nonce
+          script.onload = () => resolve()
+          script.onerror = () => reject(new Error(`Script load failed: ${src}`))
+          document.head.appendChild(script)
+        })
+        if ((window as any).__PosthogExtensions__?.initConversations) {
+          return
         }
       } catch (err) {
         console.warn(`[Support] Failed loading conversations bundle from ${src}:`, err)
@@ -185,6 +189,11 @@ export async function loadConversationsBundle(): Promise<void> {
 
 export async function ensureConversationsReady(posthog: PostHog | null | undefined): Promise<boolean> {
   if (!posthog || typeof window === 'undefined') return false
+
+  // Never initialise conversations when the user has not consented to / has opted out of PostHog.
+  if (posthog.has_opted_out_capturing?.() || !posthog.has_opted_in_capturing?.()) {
+    return false
+  }
 
   const conv = (posthog as any)?.conversations
   if (conv?.isAvailable?.()) {
@@ -225,6 +234,9 @@ export async function ensureConversationsReady(posthog: PostHog | null | undefin
     }
 
     if (remoteConfig && initConversations && conv) {
+      if (!remoteConfig.enabled) {
+        return false
+      }
       conv._remoteConfig = remoteConfig
       conv._isConversationsEnabled = true
       conv._conversationsManager = initConversations(remoteConfig, posthog)
@@ -294,4 +306,9 @@ export async function syncSupportIdentity(
   }
 
   return identity
+}
+
+export function resetSupportIdentity(posthog: PostHog | null | undefined) {
+  supportIdentityCache.clear()
+  posthog?.reset?.()
 }
