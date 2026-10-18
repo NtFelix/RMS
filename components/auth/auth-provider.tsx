@@ -22,18 +22,19 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [authState, setAuthState] = useState<AuthContextType>({
+    user: null,
+    isLoading: true,
+  })
   const router = useRouter()
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     const getUser = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      setUser(user)
-      setIsLoading(false)
+      setAuthState({ user, isLoading: false })
     }
 
     getUser()
@@ -42,12 +43,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        setUser(session.user)
+        setAuthState({ user: session.user, isLoading: false })
         router.refresh()
       } else if (event === "SIGNED_OUT") {
         // Drop the previous user's support identity/widget session so the next login starts clean.
         resetSupportIdentity(posthog)
-        setUser(null)
+        setAuthState({ user: null, isLoading: false })
         router.refresh()
       }
     })
@@ -57,5 +58,5 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabase, router])
 
-  return <AuthContext.Provider value={{ user, isLoading }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={authState}>{children}</AuthContext.Provider>
 }
