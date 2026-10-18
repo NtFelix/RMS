@@ -887,7 +887,7 @@ export function SupportPanel() {
         [...tickets, ...newTickets].reduce((total, ticket) => total + (ticket.unread_count || 0), 0),
       )
     } catch (error) {
-      setTicketsError(getSupportErrorMessage(error))
+      console.warn('[Support] Failed to load more tickets:', error)
     } finally {
       setLoadingMoreTickets(false)
     }
@@ -900,19 +900,16 @@ export function SupportPanel() {
 
     void posthog.conversations.restoreFromUrlToken().then((result) => {
       if (result?.status === 'success' && result.migrated_ticket_ids && result.migrated_ticket_ids.length > 0) {
-        setRestoreResult(result as RestoreResult)
         void refreshTicketsRef.current()
       }
     }).catch((error) => {
-      setRestoreError(getSupportErrorMessage(error))
+      console.warn('[Support] Failed to restore conversations from URL token:', error)
     })
   }, [isAvailable, posthog])
 
   useEffect(() => {
     if (!isAvailable) return
-    void refreshTicketsRef.current().then(() => {
-      setIdentityReady(true)
-    })
+    void refreshTicketsRef.current()
   }, [isAvailable])
 
   // Immediately refresh tickets and active messages whenever support panel is opened!
