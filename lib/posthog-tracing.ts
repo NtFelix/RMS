@@ -16,9 +16,12 @@ import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { diag, DiagLogLevel } from '@opentelemetry/api';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { MeterProvider } from '@opentelemetry/sdk-metrics';
 
-import { SERVICE_NAME, POSTHOG_API_KEY, POSTHOG_HOST } from './otlp-utils';
+import { SERVICE_NAME, POSTHOG_API_KEY, getTracesEndpoint, getSdkResourceAttributes, registerShutdownHandler } from './otlp-utils';
 import { posthogLogger } from './posthog-logger';
+import { extractPostHogContextFromHeaders } from './posthog-context-extractor';
+import '@supabase/supabase-js/tracing';
 
 const safeStringify = (val: unknown): string => {
   if (val instanceof Error) {
@@ -67,11 +70,6 @@ const createPostHogDiagLogger = () => {
 
 diag.setLogger(createPostHogDiagLogger(), DiagLogLevel.INFO);
 
-function getTracesEndpoint(): string {
-  const host = POSTHOG_HOST.replace(/\/$/, '');
-  return `${host}/i/v1/traces`;
-}
-
 let sdk: NodeSDK | null = null;
 
 export function initTracing(): void {
@@ -106,12 +104,25 @@ export function initTracing(): void {
     },
   });
 
+  // Built-in HTTP metrics are not exported: give the instrumentation a meter provider without a reader,
+  // so this no longer depends on whether initMetrics() has registered the global provider yet.
+  const httpInstrumentation = new HttpInstrumentation({
+    requestHook: (span, request) => {
+      try {
+        // Inbound requests only: outgoing ClientRequests carry no client tracing headers.
+        const headers = (request as { headers?: Record<string, string | string[] | undefined> }).headers;
+        const { distinctId, sessionId } = extractPostHogContextFromHeaders(headers);
+        if (distinctId) span.setAttribute('posthogDistinctId', distinctId);
+        if (sessionId) span.setAttribute('sessionId', sessionId);
+      } catch {
+        // Silently ignore hook errors to prevent breaking request handling
+      }
+    },
+  });
+  httpInstrumentation.setMeterProvider(new MeterProvider());
+
   sdk = new NodeSDK({
-    resource: resourceFromAttributes({
-      'service.name': SERVICE_NAME,
-      'deployment.environment': process.env.NODE_ENV || 'development',
-      'service.version': process.env.npm_package_version || '1.0.0',
-    }),
+    resource: resourceFromAttributes(getSdkResourceAttributes()),
     spanProcessors: [
       new BatchSpanProcessor(exporter, {
         scheduledDelayMillis: 1000,
@@ -121,7 +132,7 @@ export function initTracing(): void {
       }),
     ],
     instrumentations: [
-      new HttpInstrumentation(),
+      httpInstrumentation,
     ],
   });
 
@@ -129,12 +140,7 @@ export function initTracing(): void {
 
   console.log('[PostHog Tracing] ✅ Initialized — exporting traces to', endpoint);
 
-  const handleShutdown = () => {
-    shutdownTracing().catch(() => {});
-  };
-
-  process.on('SIGTERM', handleShutdown);
-  process.on('SIGINT', handleShutdown);
+  registerShutdownHandler(shutdownTracing);
 }
 
 export async function shutdownTracing(): Promise<void> {

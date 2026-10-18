@@ -64,6 +64,8 @@ export const POSTHOG_FEATURE_FLAGS = {
   DARK_MODE: 'dark-mode',
   AI_DOCUMENTATION_MODE: 'ai-documentation-mode',
   MIETEVO_AI_AGENT: 'mietevo-ai-agent',
+  // Kautionsmanagement (GH-6): boolesches Flag mit JSON-Payload, siehe lib/kautionen-flag.ts
+  ADVANCED_KAUTIONSMANAGEMENT: 'advanced-kautionsmanagment',
   // Sidebar features
   SUPPORT_BUTTON: 'support-button',
   NOTIFICATION_CENTER: 'notification-center',

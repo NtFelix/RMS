@@ -7,6 +7,7 @@ import { Suspense, useEffect, useState } from "react"
 import { CommandMenu } from "@/components/search/command-menu"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useModalStore } from "@/hooks/use-modal-store" // Added
+import { KautionDialogGate } from "@/components/kaution/kaution-dialog-gate"
 import dynamic from 'next/dynamic'
 
 // Importing server action from its new location
@@ -157,7 +158,9 @@ export default function DashboardInnerLayout({
         {/* AblesungenModal - Manages meter readings for all meter types */}
         <AblesungenModal />
         {/* KautionDialog - Kautionsmanagement (GH-6); lädt seine Daten selbst über die Server Actions in app/kautionen-actions.ts */}
-        <KautionDialog />
+        <KautionDialogGate>
+          <KautionDialog />
+        </KautionDialogGate>
         {/* Übersicht "Kautionen werden mitgelöscht": erscheint beim Löschen von Haus/Wohnung/Mieter mit gebuchter Kaution (lib/kautionen-loeschen.ts) */}
         {loeschUebersichtGeladen && <KautionLoeschUebersichtSheet />}
         {/* HausOverviewModal - Displays Haus overview with all Wohnungen */}

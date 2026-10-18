@@ -18,8 +18,11 @@ jest.mock('@/hooks/use-onboarding-store', () => ({
   useOnboardingStore: { getState: () => ({ completeStep: jest.fn() }) },
 }));
 
+// Nur das Kaution-Flag ist steuerbar, alle anderen Flags bleiben aus.
+let mockKautionFlagAktiv = false;
 jest.mock('posthog-js/react', () => ({
-  useFeatureFlagEnabled: () => false,
+  useFeatureFlagEnabled: (flag: string) => flag === 'advanced-kautionsmanagment' && mockKautionFlagAktiv,
+  useFeatureFlagPayload: () => undefined,
 }));
 
 // Stabiles Router-Objekt, damit router.refresh() prüfbar ist
@@ -69,6 +72,7 @@ describe('TenantEditModal - Löschen mit Kautionen-Übersicht', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockKautionFlagAktiv = false;
     mockUseModalStore.mockReturnValue({
       isTenantModalOpen: true,
       closeTenantModal,
@@ -123,5 +127,19 @@ describe('TenantEditModal - Löschen mit Kautionen-Übersicht', () => {
     expect(mockDeleteTenant).not.toHaveBeenCalled();
     expect(closeTenantModal).not.toHaveBeenCalled();
     expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  // Kaution (GH-6): Der Menüeintrag im Modal braucht Modulrecht UND das Feature Flag `advanced-kautionsmanagment`.
+  describe.each([
+    { recht: true, flag: true, sichtbar: true },
+    { recht: true, flag: false, sichtbar: false },
+    { recht: false, flag: true, sichtbar: false },
+  ])('Kaution-Eintrag (Modulrecht $recht, Flag $flag)', ({ recht, flag, sichtbar }) => {
+    it(`ist ${sichtbar ? 'sichtbar' : 'ausgeblendet'}`, () => {
+      mockKautionFlagAktiv = flag;
+      mockUseModalStore.mockReturnValue({ ...mockUseModalStore(), canViewKautionen: recht });
+      render(<TenantEditModal serverAction={jest.fn()} />);
+      expect(screen.queryByRole('button', { name: /Kaution/ }) !== null).toBe(sichtbar);
+    });
   });
 });

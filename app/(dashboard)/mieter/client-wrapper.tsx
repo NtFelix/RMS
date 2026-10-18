@@ -99,6 +99,8 @@ interface MieterClientViewProps {
 
 // This is the new main client component, previously MieterPageClientComponent in page.tsx
 import { useFeatureFlagEnabled } from "posthog-js/react";
+import { useKautionFlagGeladen, useKautionenSichtbar } from "@/hooks/use-kaution-flag";
+import { KautionKarteSkeleton } from "@/components/kaution/kaution-karte-skeleton";
 
 const VALID_MIETER_TABS_DEFAULT = ["mieter", "overview"] as const;
 const VALID_MIETER_TABS_WITH_BEWERBER = ["mieter", "overview", "bewerber"] as const;
@@ -110,9 +112,14 @@ export default function MieterClientView({
   canCreate = true,
   canEdit = true,
   canDelete = true,
-  canViewKautionen = false,
+  canViewKautionen: kautionsrecht = false,
 }: MieterClientViewProps) {
   const router = useRouter()
+  // Kaution (GH-6): Modulrecht UND Feature Flag `advanced-kautionsmanagment` (siehe lib/kautionen-flag.ts).
+  const canViewKautionen = useKautionenSichtbar(kautionsrecht);
+  // Solange das Flag lädt, hält ein Skeleton den Platz der Kautionskarte frei (kein Layout-Sprung).
+  const kautionFlagGeladen = useKautionFlagGeladen();
+  const kautionKarteLaedt = kautionsrecht && !kautionFlagGeladen && !canViewKautionen;
   const rawFlag = useFeatureFlagEnabled('applicants-tab');
   const showApplicantsTab = !!rawFlag;
   const validTabs = showApplicantsTab ? VALID_MIETER_TABS_WITH_BEWERBER : VALID_MIETER_TABS_DEFAULT;
@@ -1053,6 +1060,7 @@ export default function MieterClientView({
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Enhanced Deposits Details Card: nur mit Modulrecht `kautionen: ansehen` (ohne Recht ist `kaution` ohnehin
                   leer, die Karte würde "Keine Kautionsdaten erfasst" melden, was irreführend wäre) */}
+              {kautionKarteLaedt && <KautionKarteSkeleton />}
               {canViewKautionen && (
               <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
                 <div>
@@ -1248,7 +1256,7 @@ export default function MieterClientView({
               )}
 
               {/* Applicant Fit Distribution / Score Funnel Card */}
-              <Card className={cn(canViewKautionen ? "lg:col-span-5" : "lg:col-span-12", "bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between")}>
+              <Card className={cn(canViewKautionen || kautionKarteLaedt ? "lg:col-span-5" : "lg:col-span-12", "bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between")}>
                 <div>
                   <CardHeader className="px-0 pt-0">
                     <CardTitle className="text-base font-semibold">

@@ -36,12 +36,64 @@ export const POSTHOG_API_KEY = (() => {
 })();
 export const POSTHOG_HOST = resolvePostHogHost();
 
+function getOtlpEndpoint(signal: 'logs' | 'traces' | 'metrics'): string {
+    const host = POSTHOG_HOST.replace(/\/$/, ''); // Remove trailing slash
+    return `${host}/i/v1/${signal}`;
+}
+
 /**
  * Get the PostHog logs endpoint from the configured host
  */
 export function getLogsEndpoint(): string {
-    const host = POSTHOG_HOST.replace(/\/$/, ''); // Remove trailing slash
-    return `${host}/i/v1/logs`;
+    return getOtlpEndpoint('logs');
+}
+
+/**
+ * Get the PostHog traces endpoint from the configured host
+ */
+export function getTracesEndpoint(): string {
+    return getOtlpEndpoint('traces');
+}
+
+/**
+ * Resource attributes shared by the trace and metric SDKs, so both describe the same service.
+ */
+export function getSdkResourceAttributes(): Record<string, string> {
+    return {
+        'service.name': SERVICE_NAME,
+        'deployment.environment': process.env.NODE_ENV || 'development',
+        'service.version': process.env.npm_package_version || '1.0.0',
+    };
+}
+
+const shutdownHooks: Array<() => Promise<void>> = [];
+let signalHandlersInstalled = false;
+
+/**
+ * Run `shutdown` (flush + close an SDK) on SIGTERM/SIGINT. All registered SDKs are flushed first.
+ * A listener replaces Node's default exit, so the signal is re-raised afterwards, but only when no
+ * other listener (e.g. Next.js's own handler) is left to exit the process.
+ */
+export function registerShutdownHandler(shutdown: () => Promise<void>): void {
+    shutdownHooks.push(shutdown);
+    if (signalHandlersInstalled) return;
+    signalHandlersInstalled = true;
+
+    for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+        process.once(signal, () => {
+            Promise.allSettled(shutdownHooks.map((hook) => hook()))
+                .finally(() => {
+                    if (process.listenerCount(signal) === 0) process.kill(process.pid, signal);
+                });
+        });
+    }
+}
+
+/**
+ * Get the PostHog metrics endpoint from the configured host
+ */
+export function getMetricsEndpoint(): string {
+    return getOtlpEndpoint('metrics');
 }
 
 /**
@@ -90,9 +142,10 @@ export function formatAttributeValue(value: unknown): Record<string, unknown> {
  * Build the resource attributes section for OTLP payload
  */
 export function buildResourceAttributes() {
+    const shared = getSdkResourceAttributes();
     return [
-        { key: 'service.name', value: { stringValue: SERVICE_NAME } },
-        { key: 'deployment.environment', value: { stringValue: process.env.NODE_ENV || 'development' } },
+        { key: 'service.name', value: { stringValue: shared['service.name'] } },
+        { key: 'deployment.environment', value: { stringValue: shared['deployment.environment'] } },
         { key: 'telemetry.sdk.name', value: { stringValue: 'posthog-logger' } },
         { key: 'telemetry.sdk.version', value: { stringValue: '1.0.0' } },
     ];

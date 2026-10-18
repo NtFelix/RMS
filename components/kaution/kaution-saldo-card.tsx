@@ -1,7 +1,9 @@
+"use client";
+
 import { Info, TriangleAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
-import { KAUTION_BEWEGUNGSARTEN_VERFUEGBAR } from "@/lib/kautionen-constants";
+import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import { formatBetrag, formatDatum } from "@/components/kaution/kaution-format";
 import type { KautionDetails } from "@/types/Kaution";
 
@@ -22,13 +24,14 @@ interface Kennzahl {
 
 export function KautionSaldoCard({ details }: KautionSaldoCardProps) {
   const { kaution, konto, warnungen, einbehalt } = details;
+  const { bewegungsarten } = useKautionFlag();
 
   const kennzahlen: Kennzahl[] = [
     { label: "Soll-Betrag", wert: kaution.soll_betrag },
     { label: "Insgesamt eingezahlt", wert: konto.summe_einzahlungen },
   ];
   // Interest credits: phase 3. Shown as soon as they can be booked or exist.
-  if (KAUTION_BEWEGUNGSARTEN_VERFUEGBAR.includes("zinsgutschrift") || konto.summe_zinsgutschriften > 0) {
+  if (bewegungsarten.includes("zinsgutschrift") || konto.summe_zinsgutschriften > 0) {
     kennzahlen.push({ label: "Zinsgutschriften", wert: konto.summe_zinsgutschriften });
   }
   kennzahlen.push(

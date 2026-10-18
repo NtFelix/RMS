@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { betragZuEingabe } from "@/components/kaution/kaution-format";
 import { KautionBetragInput, KautionFeld, KautionFormularFehler, useDirtyMelder } from "@/components/kaution/kaution-feld";
-import { KAUTION_ART_LABELS, KAUTION_ARTEN_VERFUEGBAR, KAUTION_TEXT_LIMITS } from "@/lib/kautionen-constants";
+import { useKautionFlag } from "@/hooks/use-kaution-flag";
+import { KAUTION_ART_LABELS, KAUTION_TEXT_LIMITS } from "@/lib/kautionen-constants";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
 import { getMoneyInputError, parseMoneyToCents } from "@/lib/kautionen-money";
 import { validateKautionText } from "@/lib/kautionen-validation";
@@ -55,6 +56,7 @@ export function KautionVereinbarungForm({
   onDirtyChange,
 }: KautionVereinbarungFormProps) {
   const basisId = useId();
+  const { arten } = useKautionFlag();
 
   // Start values (what the database currently holds). Compared with the input to send only changes.
   const [start] = useState(() => ({
@@ -80,7 +82,7 @@ export function KautionVereinbarungForm({
   const isDirty = artGeaendert || sollGeaendert || mieteGeaendert || notizGeaendert;
   useDirtyMelder(isDirty, onDirtyChange);
 
-  const mehrereArten = KAUTION_ARTEN_VERFUEGBAR.length > 1;
+  const mehrereArten = arten.length > 1;
   const gesperrt = !darfBearbeiten || isSubmitting;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -146,7 +148,7 @@ export function KautionVereinbarungForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {KAUTION_ARTEN_VERFUEGBAR.map((verfuegbar) => (
+                  {arten.map((verfuegbar) => (
                     <SelectItem key={verfuegbar} value={verfuegbar}>
                       {KAUTION_ART_LABELS[verfuegbar]}
                     </SelectItem>
