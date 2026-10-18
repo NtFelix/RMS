@@ -281,17 +281,19 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
       </Button>
 
       {/* Backdrop */}
-      <div
-        role="button"
-        tabIndex={-1}
+      <button
+        type="button"
         aria-label="Menü schließen"
         className={cn(
-          "fixed inset-0 z-30 bg-background/80 backdrop-blur-xs transition-all duration-100 md:hidden",
+          "fixed inset-0 z-30 bg-background/80 backdrop-blur-xs transition-opacity duration-100 md:hidden border-none cursor-default",
           isOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         onClick={() => setIsOpen(false)}
         onKeyDown={(e) => {
-          if (e.key === "Escape" || e.key === "Enter") setIsOpen(false)
+          if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            setIsOpen(false)
+          }
         }}
       />
 

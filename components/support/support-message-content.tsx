@@ -50,7 +50,7 @@ const SupportImageElement = memo(function SupportImageElement({
       <button
         type="button"
         onClick={() => onOpenImage?.({ src, alt })}
-        className="relative block max-w-full rounded-xl overflow-hidden border border-border/70 bg-muted/40 shadow-xs hover:border-primary/50 transition-all cursor-zoom-in text-left group"
+        className="relative block max-w-full rounded-xl overflow-hidden border border-border/70 bg-muted/40 shadow-xs hover:border-primary/50 transition-colors cursor-zoom-in text-left group"
       >
         {loading && (
           <span className="flex items-center justify-center gap-2 p-6 bg-muted/30 text-muted-foreground text-xs min-h-[100px] min-w-[160px]">
@@ -69,13 +69,13 @@ const SupportImageElement = memo(function SupportImageElement({
             setError(true)
           }}
           className={cn(
-            "max-w-full max-h-80 w-auto h-auto object-contain rounded-xl block transition-all duration-300 group-hover:scale-[1.01]",
+            "max-w-full max-h-80 w-auto h-auto object-contain rounded-xl block transition-transform duration-300 group-hover:scale-[1.01]",
             loading ? "hidden" : "block",
           )}
         />
 
         {!loading && !error && (
-          <span className="absolute inset-0 bg-black/0 group-hover:bg-black/25 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 backdrop-blur-[1px]">
+          <span className="absolute inset-0 bg-black/0 group-hover:bg-black/25 flex items-center justify-center transition-opacity opacity-0 group-hover:opacity-100 backdrop-blur-[1px]">
             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/75 text-white text-[11px] font-medium shadow-lg">
               <Eye className="size-3.5" />
               <span>Vergrößern</span>

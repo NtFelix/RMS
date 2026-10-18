@@ -15,34 +15,35 @@ function buildTargetUrl(request: Request, pathname: string): URL {
   return targetUrl
 }
 
+const ALLOWED_HEADERS = new Set([
+  'accept',
+  'accept-encoding',
+  'accept-language',
+  'authorization',
+  'cache-control',
+  'content-type',
+  'content-length',
+  'if-none-match',
+  'if-modified-since',
+  'origin',
+  'pragma',
+  'referer',
+  'user-agent',
+  'x-conversations-token',
+  'x-widget-session-id',
+  'x-posthog-token',
+  'x-requested-with',
+])
+
 async function proxy(request: Request, paramsPromise: Promise<{ path: string[] }>) {
   const { path } = await paramsPromise
   const pathname = path?.join('/') ?? ''
   const targetUrl = buildTargetUrl(request, pathname)
 
-  const allowedHeaders = [
-    'accept',
-    'accept-encoding',
-    'accept-language',
-    'authorization',
-    'cache-control',
-    'content-type',
-    'content-length',
-    'if-none-match',
-    'if-modified-since',
-    'origin',
-    'pragma',
-    'referer',
-    'user-agent',
-    'x-conversations-token',
-    'x-widget-session-id',
-    'x-posthog-token',
-    'x-requested-with',
-  ]
   const headers = new Headers()
   for (const [key, value] of request.headers.entries()) {
     const lowerKey = key.toLowerCase()
-    if (allowedHeaders.includes(lowerKey) || lowerKey.startsWith('x-')) {
+    if (ALLOWED_HEADERS.has(lowerKey) || lowerKey.startsWith('x-')) {
       headers.set(key, value)
     }
   }

@@ -48,6 +48,9 @@ function SupportImageLightboxModal({ image, onClose }: { image: LightboxImageDat
   const handleDownload = async () => {
     try {
       const response = await fetch(image.src)
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
@@ -111,6 +114,7 @@ function SupportImageLightboxModal({ image, onClose }: { image: LightboxImageDat
                 disabled={zoom <= 0.5}
                 className="size-7 text-zinc-300 hover:text-white hover:bg-zinc-700/80 rounded-md cursor-pointer"
                 title="Verkleinern (-)"
+                aria-label="Verkleinern"
               >
                 <ZoomOut className="size-3.5" />
               </Button>
@@ -121,6 +125,7 @@ function SupportImageLightboxModal({ image, onClose }: { image: LightboxImageDat
                 onClick={handleResetZoom}
                 className="h-7 px-2 text-[11px] font-mono text-zinc-300 hover:text-white hover:bg-zinc-700/80 rounded-md cursor-pointer"
                 title="Zoom zurücksetzen (0)"
+                aria-label="Zoom zurücksetzen"
               >
                 {Math.round(zoom * 100)}%
               </Button>
@@ -132,6 +137,7 @@ function SupportImageLightboxModal({ image, onClose }: { image: LightboxImageDat
                 disabled={zoom >= 3}
                 className="size-7 text-zinc-300 hover:text-white hover:bg-zinc-700/80 rounded-md cursor-pointer"
                 title="Vergrößern (+)"
+                aria-label="Vergrößern"
               >
                 <ZoomIn className="size-3.5" />
               </Button>
@@ -144,6 +150,7 @@ function SupportImageLightboxModal({ image, onClose }: { image: LightboxImageDat
               onClick={handleCopyLink}
               className="size-7 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg cursor-pointer"
               title={copied ? "Kopiert!" : "Bild-Link kopieren"}
+              aria-label="Bild-Link kopieren"
             >
               {copied ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
             </Button>
@@ -155,6 +162,7 @@ function SupportImageLightboxModal({ image, onClose }: { image: LightboxImageDat
               onClick={handleDownload}
               className="size-7 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg cursor-pointer"
               title="Herunterladen"
+              aria-label="Bild herunterladen"
             >
               <Download className="size-3.5" />
             </Button>
@@ -167,7 +175,7 @@ function SupportImageLightboxModal({ image, onClose }: { image: LightboxImageDat
               className="size-7 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg cursor-pointer"
               title="In neuem Tab öffnen"
             >
-              <a href={image.src} target="_blank" rel="noopener noreferrer">
+              <a href={image.src} target="_blank" rel="noopener noreferrer" aria-label="In neuem Tab öffnen">
                 <ExternalLink className="size-3.5" />
               </a>
             </Button>
@@ -181,6 +189,7 @@ function SupportImageLightboxModal({ image, onClose }: { image: LightboxImageDat
               onClick={onClose}
               className="size-7 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg cursor-pointer"
               title="Schließen (ESC)"
+              aria-label="Schließen"
             >
               <X className="size-4" />
             </Button>

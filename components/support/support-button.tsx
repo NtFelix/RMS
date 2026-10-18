@@ -135,7 +135,7 @@ export function SupportButton({ className }: SupportButtonProps) {
                 setPopoverOpen(false)
                 openSupport()
               }}
-              className="flex items-center justify-center w-full py-2 rounded-xl bg-white hover:bg-zinc-100 dark:bg-zinc-900/60 dark:hover:bg-zinc-900 border border-zinc-200/40 dark:border-zinc-800/40 text-xs font-medium text-zinc-700 dark:text-zinc-200 transition-all duration-200 cursor-pointer"
+              className="flex items-center justify-center w-full py-2 rounded-xl bg-white hover:bg-zinc-100 dark:bg-zinc-900/60 dark:hover:bg-zinc-900 border border-zinc-200/40 dark:border-zinc-800/40 text-xs font-medium text-zinc-700 dark:text-zinc-200 transition-colors duration-200 cursor-pointer"
             >
               {tickets.length > 0 ? 'Alle Anfragen anzeigen' : 'Support-Chat öffnen'}
             </button>

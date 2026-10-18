@@ -356,8 +356,11 @@ const SupportComposer = memo(function SupportComposer({
             size="icon"
             onClick={onClearMessageError}
             className="size-5 rounded-md hover:bg-destructive/20 text-destructive shrink-0 cursor-pointer"
+            aria-label="Fehlermeldung schließen"
+            title="Fehlermeldung schließen"
           >
             <X className="size-3" />
+            <span className="sr-only">Fehlermeldung schließen</span>
           </Button>
         </div>
       )}
@@ -486,11 +489,12 @@ const SupportComposer = memo(function SupportComposer({
 export function SupportPanel() {
   const posthog = usePostHog()
   const { user } = useAuth()
-  const posthogExposedRef = useRef(false)
-  if (!posthogExposedRef.current && typeof window !== 'undefined') {
-    posthogExposedRef.current = true
-    ;(window as any).__posthog = posthog
-  }
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      ;(window as any).__posthog = posthog
+    }
+  }, [posthog])
 
   const {
     isOpen,
@@ -508,7 +512,6 @@ export function SupportPanel() {
   } = useSupportStore()
 
   const [ticketsLoading, setTicketsLoading] = useState(false)
-  const [ticketsError, setTicketsError] = useState<string | null>(null)
   
   // View mode: 'inbox' (list of all tickets) | 'chat' (active conversation or new ticket draft)
   const [viewMode, setViewMode] = useState<'inbox' | 'chat'>('chat')
@@ -518,18 +521,16 @@ export function SupportPanel() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
   const selectedTicketIdRef = useRef(selectedTicketId)
-  selectedTicketIdRef.current = selectedTicketId
+  useEffect(() => {
+    selectedTicketIdRef.current = selectedTicketId
+  }, [selectedTicketId])
 
   const [messages, setMessages] = useState<SupportMessage[]>([])
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [messageError, setMessageError] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [isSending, setIsSending] = useState(false)
-  const [identityReady, setIdentityReady] = useState(false)
   const [availabilityTimedOut, setAvailabilityTimedOut] = useState(false)
-  const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null)
-  const [restoreError, setRestoreError] = useState<string | null>(null)
-  const [restoreEmailSent, setRestoreEmailSent] = useState(false)
   const [isComposingNewTicket, setIsComposingNewTicket] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
@@ -584,6 +585,7 @@ export function SupportPanel() {
 
   // Sync external store selections (e.g. from the dropdown popover)
   useEffect(() => {
+    let focusTimer: ReturnType<typeof setTimeout> | undefined
     if (storeIsComposingNew) {
       setIsComposingNewTicket(true)
       setSelectedTicketId(null)
@@ -592,8 +594,10 @@ export function SupportPanel() {
       setDraft('')
       setViewMode('chat')
       setStoreIsComposingNew(false)
-      setTimeout(() => textareaRef.current?.focus(), 150)
-      return
+      focusTimer = setTimeout(() => textareaRef.current?.focus(), 150)
+      return () => {
+        if (focusTimer) clearTimeout(focusTimer)
+      }
     }
 
     if (storeSelectedTicketId) {
@@ -607,12 +611,17 @@ export function SupportPanel() {
       }
       setStoreSelectedTicketId(null)
     }
+
+    return () => {
+      if (focusTimer) clearTimeout(focusTimer)
+    }
   }, [storeSelectedTicketId, storeIsComposingNew, setStoreIsComposingNew, setStoreSelectedTicketId])
 
   // Robust, fast conversations initialization
   useEffect(() => {
     let cancelled = false
     let attempts = 0
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
     const maxAttempts = 12
 
     const checkAndInit = async () => {
@@ -621,7 +630,6 @@ export function SupportPanel() {
       if (posthog?.conversations?.isAvailable?.()) {
         setIsAvailable(true)
         setAvailabilityTimedOut(false)
-        setTicketsError(null)
         return
       }
 
@@ -631,13 +639,12 @@ export function SupportPanel() {
       if (ready) {
         setIsAvailable(true)
         setAvailabilityTimedOut(false)
-        setTicketsError(null)
         return
       }
 
       attempts++
       if (attempts < maxAttempts) {
-        setTimeout(checkAndInit, 350)
+        retryTimer = setTimeout(checkAndInit, 350)
       } else {
         setAvailabilityTimedOut(true)
       }
@@ -647,6 +654,7 @@ export function SupportPanel() {
 
     return () => {
       cancelled = true
+      if (retryTimer) clearTimeout(retryTimer)
     }
   }, [posthog, setIsAvailable])
 
@@ -665,7 +673,6 @@ export function SupportPanel() {
     if (!isAvailable) return
 
     if (!user?.id) {
-      setIdentityReady(true)
       void refreshTicketsRef.current(false)
       return
     }
@@ -676,12 +683,10 @@ export function SupportPanel() {
     void syncSupportIdentity(posthog, user.id)
       .then((identity) => {
         if (identity) {
-          setIdentityReady(true)
           void refreshTicketsRef.current(false)
         }
       })
       .catch(() => {
-        setIdentityReady(true)
         void refreshTicketsRef.current(false)
       })
   }, [isAvailable, posthog, user?.id])
@@ -736,7 +741,7 @@ export function SupportPanel() {
         }
       }
     } catch (error) {
-      setTicketsError(getSupportErrorMessage(error))
+      console.warn('[Support] Failed to refresh tickets:', error)
     } finally {
       if (!isBackground) {
         setTicketsLoading(false)
@@ -778,6 +783,7 @@ export function SupportPanel() {
       }
 
       const newMessages = (response.messages || []) as SupportMessage[]
+      messagesCacheRef.current[ticketId] = newMessages
       setMessages((prev) => {
         if (prev.length === newMessages.length) {
           const identical = prev.every((m, i) => {
@@ -791,7 +797,6 @@ export function SupportPanel() {
           })
           if (identical) return prev
         }
-        messagesCacheRef.current[ticketId] = newMessages
         return newMessages
       })
 
@@ -818,9 +823,11 @@ export function SupportPanel() {
   }, [isAvailable, posthog, setTickets, user?.id])
 
   const refreshTicketsRef = useRef(refreshTickets)
-  refreshTicketsRef.current = refreshTickets
   const refreshMessagesRef = useRef(refreshMessages)
-  refreshMessagesRef.current = refreshMessages
+  useEffect(() => {
+    refreshTicketsRef.current = refreshTickets
+    refreshMessagesRef.current = refreshMessages
+  }, [refreshTickets, refreshMessages])
 
   const loadOlderMessages = useCallback(async () => {
     if (!posthog || !isAvailable || !visibleTicketId || !messageCursorRef.current) {
@@ -835,18 +842,25 @@ export function SupportPanel() {
         return
       }
 
+      const newRawMessages = response.messages
       setMessages((prev) => {
         const existingIds = new Set(prev.map((m) => m.id))
-        const newMessages = response.messages.filter((m) => !existingIds.has(m.id))
-        const merged = [...newMessages, ...prev]
-        const oldest = merged.reduce((a, b) => a.created_at < b.created_at ? a : b)
+        const newFiltered = newRawMessages.filter((m) => !existingIds.has(m.id))
+        return [...newFiltered, ...prev]
+      })
+
+      if (response.messages.length > 0) {
+        const cached = (visibleTicketId && messagesCacheRef.current[visibleTicketId]) || []
+        const existingIds = new Set(cached.map((m) => m.id))
+        const newFiltered = response.messages.filter((m) => !existingIds.has(m.id))
+        const merged = [...newFiltered, ...cached]
+        const oldest = merged.reduce((a, b) => (a.created_at < b.created_at ? a : b))
         messageCursorRef.current = oldest.created_at
-        setHasMoreMessages(response.has_more)
         if (visibleTicketId) {
           messagesCacheRef.current[visibleTicketId] = merged
         }
-        return merged
-      })
+      }
+      setHasMoreMessages(response.has_more)
     } catch (error) {
       setMessageError(getSupportErrorMessage(error))
     } finally {
@@ -981,7 +995,7 @@ export function SupportPanel() {
     }
   }
 
-  const handleStartNewTicket = () => {
+  const handleStartNewTicket = useCallback(() => {
     setIsComposingNewTicket(true)
     setSelectedTicketId(null)
     setCurrentTicketId(null)
@@ -995,7 +1009,7 @@ export function SupportPanel() {
     setTimeout(() => {
       textareaRef.current?.focus()
     }, 100)
-  }
+  }, [])
 
   const sendMessageContent = useCallback(
     async (content: string, failedMsgIdToReplace?: string) => {
@@ -1055,10 +1069,13 @@ export function SupportPanel() {
       // 1. Instant optimistic message in chat
       setMessages((prev) => {
         const filtered = prev.filter((msg) => msg.id !== tempMsgId)
-        const next = [...filtered, optimisticMessage]
-        messagesCacheRef.current[tempTicketId] = next
-        return next
+        return [...filtered, optimisticMessage]
       })
+      const cachedBefore = messagesCacheRef.current[tempTicketId] || []
+      messagesCacheRef.current[tempTicketId] = [
+        ...cachedBefore.filter((msg) => msg.id !== tempMsgId),
+        optimisticMessage,
+      ]
 
       // 2. Instant optimistic ticket in ticket list
       if (isNew) {
@@ -1107,15 +1124,19 @@ export function SupportPanel() {
         const realCreatedAt = response.created_at || nowIso
 
         // Replace temp IDs with real server IDs
-        setMessages((prev) => {
-          const updated = prev.map((m) =>
+        setMessages((prev) =>
+          prev.map((m) =>
             m.id === tempMsgId
               ? { ...m, id: realMsgId, created_at: realCreatedAt, status: 'sent' as const, error: undefined }
               : m,
-          )
-          messagesCacheRef.current[realTicketId] = updated
-          return updated
-        })
+          ),
+        )
+        const cachedToUpdate = messagesCacheRef.current[realTicketId] || messagesCacheRef.current[tempTicketId] || []
+        messagesCacheRef.current[realTicketId] = cachedToUpdate.map((m) =>
+          m.id === tempMsgId
+            ? { ...m, id: realMsgId, created_at: realCreatedAt, status: 'sent' as const, error: undefined }
+            : m,
+        )
 
         setTickets((prev) =>
           prev.map((t) =>
@@ -1146,15 +1167,19 @@ export function SupportPanel() {
         setMessageError(errorMsg)
 
         // Mark message as failed in UI so user can retry or edit
-        setMessages((prev) => {
-          const updated = prev.map((m) =>
+        setMessages((prev) =>
+          prev.map((m) =>
             m.id === tempMsgId
               ? { ...m, status: 'failed' as const, error: errorMsg }
               : m,
-          )
-          messagesCacheRef.current[tempTicketId] = updated
-          return updated
-        })
+          ),
+        )
+        const cachedFailed = messagesCacheRef.current[tempTicketId] || []
+        messagesCacheRef.current[tempTicketId] = cachedFailed.map((m) =>
+          m.id === tempMsgId
+            ? { ...m, status: 'failed' as const, error: errorMsg }
+            : m,
+        )
       } finally {
         setIsSending(false)
       }
@@ -1184,11 +1209,11 @@ export function SupportPanel() {
     void sendMessageContent(draft)
   }, [draft, sendMessageContent])
 
-  const handleRetryMessage = (failedMsg: SupportMessage) => {
+  const handleRetryMessage = useCallback((failedMsg: SupportMessage) => {
     void sendMessageContent(failedMsg.content, failedMsg.id)
-  }
+  }, [sendMessageContent])
 
-  const handleEditFailedMessage = (failedMsg: SupportMessage) => {
+  const handleEditFailedMessage = useCallback((failedMsg: SupportMessage) => {
     setDraft(failedMsg.content)
     setMessages((prev) => prev.filter((m) => m.id !== failedMsg.id))
     setMessageError(null)
@@ -1201,7 +1226,7 @@ export function SupportPanel() {
         }
       }, 50)
     }
-  }
+  }, [])
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -1573,7 +1598,7 @@ export function SupportPanel() {
                   <Button
                     type="button"
                     onClick={handleStartNewTicket}
-                    className="w-full gap-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm h-11 shadow-sm hover:scale-[1.005] active:scale-[0.995] transition-all cursor-pointer"
+                    className="w-full gap-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm h-11 shadow-sm hover:scale-[1.005] active:scale-[0.995] transition-transform cursor-pointer"
                     aria-label="Neues Ticket erstellen"
                   >
                     <Plus className="size-4" />
