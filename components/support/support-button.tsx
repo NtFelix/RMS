@@ -1,17 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import { useShallow } from "zustand/react/shallow"
 import { MessageCircle, Plus } from "lucide-react"
 import { useSupportStore } from "@/hooks/use-support-store"
 import { formatRelativeTime } from "@/lib/format-relative-time"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
-interface SupportButtonProps {
-  className?: string
-}
-
-export function SupportButton({ className }: SupportButtonProps) {
+export function SupportButton() {
   const [popoverOpen, setPopoverOpen] = useState(false)
   const {
     openSupport,
@@ -20,7 +17,16 @@ export function SupportButton({ className }: SupportButtonProps) {
     unreadCount,
     isAvailable,
     tickets,
-  } = useSupportStore()
+  } = useSupportStore(
+    useShallow((state) => ({
+      openSupport: state.openSupport,
+      openSupportWithTicket: state.openSupportWithTicket,
+      openSupportNewTicket: state.openSupportNewTicket,
+      unreadCount: state.unreadCount,
+      isAvailable: state.isAvailable,
+      tickets: state.tickets,
+    })),
+  )
 
   const hasUnread = unreadCount > 0
 
@@ -29,10 +35,7 @@ export function SupportButton({ className }: SupportButtonProps) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={cn(
-            "relative inline-flex size-11 items-center justify-center rounded-2xl border border-zinc-200/80 bg-white text-zinc-600 shadow-lg shadow-zinc-950/5 transition-all duration-200 hover:scale-105 hover:text-zinc-950 dark:border-zinc-800/80 dark:bg-[#181818] dark:text-zinc-300 dark:hover:text-zinc-50 cursor-pointer",
-            className,
-          )}
+          className="relative inline-flex size-11 items-center justify-center rounded-2xl border border-zinc-200/80 bg-white text-zinc-600 shadow-lg shadow-zinc-950/5 transition-all duration-200 hover:scale-105 hover:text-zinc-950 dark:border-zinc-800/80 dark:bg-[#181818] dark:text-zinc-300 dark:hover:text-zinc-50 cursor-pointer"
           aria-label="Support öffnen"
           title="Support öffnen"
         >

@@ -11,10 +11,6 @@ import { trackLogout } from "@/lib/posthog-auth-events"
 import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
 import { useSupportStore } from "@/hooks/use-support-store"
 
-const layoutTransition = {
-  duration: 0
-} as const;
-
 const triggerVariants = {
   expanded: {
     width: "100%",
@@ -79,7 +75,8 @@ export function UserSettings({
   const { openTemplatesModal, openTrashBinModal } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
   const supportButtonEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
-  const { openSupport, unreadCount: supportUnreadCount } = useSupportStore()
+  const openSupport = useSupportStore((state) => state.openSupport)
+  const supportUnreadCount = useSupportStore((state) => state.unreadCount)
 
 
   // Use custom hooks for data fetching
@@ -163,7 +160,6 @@ export function UserSettings({
             aria-label="User menu"
           >
             <m.div 
-              layout={false}
               className="relative shrink-0"
             >
               <Avatar className="size-10 border border-zinc-200/40 dark:border-zinc-800/40 shadow-xs">

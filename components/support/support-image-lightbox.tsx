@@ -5,7 +5,6 @@ import {
   X,
   ZoomIn,
   ZoomOut,
-  RotateCcw,
   Download,
   ExternalLink,
   Copy,

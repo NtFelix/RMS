@@ -6,7 +6,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { 
   BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, 
-  Menu, X, Folder, Mail, Search, MessageCircle, Bell, Network, Bot, ChevronDown, Check, Plus
+  Menu, X, Folder, Mail, Search, Bell, Network, Bot, ChevronDown, Check
 } from "lucide-react"
 import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES, POSTHOG_FEATURE_FLAGS, TABLET_BREAKPOINT } from "@/lib/constants"

@@ -8,7 +8,6 @@ interface SupportState {
   tickets: SupportTicket[]
   selectedTicketId: string | null
   isComposingNew: boolean
-  setOpen: (isOpen: boolean) => void
   openSupport: () => void
   openSupportWithTicket: (ticketId: string) => void
   openSupportNewTicket: () => void
@@ -27,7 +26,6 @@ export const useSupportStore = create<SupportState>((set) => ({
   tickets: [],
   selectedTicketId: null,
   isComposingNew: false,
-  setOpen: (isOpen) => set({ isOpen }),
   openSupport: () => set({ isOpen: true }),
   openSupportWithTicket: (ticketId) => set({ isOpen: true, selectedTicketId: ticketId, isComposingNew: false }),
   openSupportNewTicket: () => set({ isOpen: true, selectedTicketId: null, isComposingNew: true }),

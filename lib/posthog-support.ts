@@ -141,6 +141,20 @@ export function buildSupportTraits(user: User | null | undefined) {
   }
 }
 
+/**
+ * Points the SDK's active-ticket pointer at the given ticket (minified posthog-js internals `vp`/`Nf`).
+ * Kept in one place so a posthog-js upgrade only needs fixing here.
+ */
+export function setActiveSdkTicket(posthog: PostHog | null | undefined, ticketId: string) {
+  const conversations = posthog?.conversations as any
+  if (typeof conversations?.vp === 'function') {
+    conversations.vp(ticketId)
+  }
+  if (conversations?.Nf !== undefined) {
+    conversations.Nf = ticketId
+  }
+}
+
 let conversationsBundlePromise: Promise<void> | null = null
 
 export async function loadConversationsBundle(): Promise<void> {

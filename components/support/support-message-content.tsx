@@ -5,13 +5,14 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { ExternalLink, Eye, AlertCircle, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import type { LightboxImageData } from "./support-image-lightbox"
 
 const REMARK_PLUGINS = [remarkGfm]
 
 interface SupportMessageContentProps {
   content: string
   isCustomer: boolean
-  onOpenImage?: (data: { src: string; alt?: string }) => void
+  onOpenImage?: (data: LightboxImageData) => void
 }
 
 const SupportImageElement = memo(function SupportImageElement({
@@ -21,7 +22,7 @@ const SupportImageElement = memo(function SupportImageElement({
 }: {
   src?: string
   alt?: string
-  onOpenImage?: (data: { src: string; alt?: string }) => void
+  onOpenImage?: (data: LightboxImageData) => void
 }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)

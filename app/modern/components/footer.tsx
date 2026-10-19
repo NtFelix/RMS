@@ -161,6 +161,33 @@ export default function Footer() {
               .filter(([, links]) => links.length > 0)
               .map(([category, links]) => {
                 const isAccordionOpen = openMobileCategory === category
+                const footerCategory = categoryMap[category]
+                const linkItems = links.map((link) => {
+                  const specialLink = specialLinks[link]
+                  return (
+                    <li key={link}>
+                      {specialLink ? (
+                        <Link
+                          href={specialLink.href}
+                          target={specialLink.target}
+                          rel={specialLink.rel}
+                          className="text-muted-foreground hover:text-foreground transition-colors text-sm hover:underline"
+                          onClick={() => trackFooterLinkClicked(specialLink.text, footerCategory, specialLink.href)}
+                        >
+                          {specialLink.text}
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground transition-colors text-sm text-left hover:underline"
+                          onClick={() => trackFooterLinkClicked(link, footerCategory, "#")}
+                        >
+                          {link}
+                        </button>
+                      )}
+                    </li>
+                  )
+                })
                 return (
                   <div key={category} className="border-b border-border/40 md:border-b-0 pb-4 md:pb-0">
                     <button
@@ -189,33 +216,7 @@ export default function Footer() {
                             transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
                             className="space-y-3 overflow-hidden"
                           >
-                            {links.map((link) => {
-                              const specialLink = specialLinks[link]
-                              const footerCategory = categoryMap[category]
-                              return (
-                                <li key={link}>
-                                  {specialLink ? (
-                                    <Link
-                                      href={specialLink.href}
-                                      target={specialLink.target}
-                                      rel={specialLink.rel}
-                                      className="text-muted-foreground hover:text-foreground transition-colors text-sm hover:underline"
-                                      onClick={() => trackFooterLinkClicked(specialLink.text, footerCategory, specialLink.href)}
-                                    >
-                                      {specialLink.text}
-                                    </Link>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      className="text-muted-foreground hover:text-foreground transition-colors text-sm text-left hover:underline"
-                                      onClick={() => trackFooterLinkClicked(link, footerCategory, "#")}
-                                    >
-                                      {link}
-                                    </button>
-                                  )}
-                                </li>
-                              )
-                            })}
+                            {linkItems}
                           </motion.ul>
                         )}
                       </AnimatePresence>
@@ -223,33 +224,7 @@ export default function Footer() {
 
                     {/* Desktop always visible view */}
                     <ul className="hidden md:block space-y-3 mt-4">
-                      {links.map((link) => {
-                        const specialLink = specialLinks[link]
-                        const footerCategory = categoryMap[category]
-                        return (
-                          <li key={link}>
-                            {specialLink ? (
-                              <Link
-                                href={specialLink.href}
-                                target={specialLink.target}
-                                rel={specialLink.rel}
-                                className="text-muted-foreground hover:text-foreground transition-colors text-sm hover:underline"
-                                onClick={() => trackFooterLinkClicked(specialLink.text, footerCategory, specialLink.href)}
-                              >
-                                {specialLink.text}
-                              </Link>
-                            ) : (
-                              <button
-                                type="button"
-                                className="text-muted-foreground hover:text-foreground transition-colors text-sm text-left hover:underline"
-                                onClick={() => trackFooterLinkClicked(link, footerCategory, "#")}
-                              >
-                                {link}
-                              </button>
-                            )}
-                          </li>
-                        )
-                      })}
+                      {linkItems}
                     </ul>
                   </div>
                 )

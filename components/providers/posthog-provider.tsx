@@ -95,16 +95,9 @@ async function initializePostHog(nonce?: string) {
     },
     // Ensure feature flags are loaded
     loaded: function (posthogInstance: any) {
-      if (typeof window !== 'undefined') {
-        (window as any).posthog = posthogInstance;
-      }
       posthogInstance.reloadFeatureFlags?.();
     }
   } as any);
-
-  if (typeof window !== 'undefined') {
-    (window as any).posthog = posthog;
-  }
 
   // Apply stored consent on load - respects user choice on ALL pages
   const consent = localStorage.getItem('cookieConsent');

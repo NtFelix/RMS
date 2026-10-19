@@ -5,20 +5,19 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, mem
 import { usePostHog } from "posthog-js/react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useSupportStore } from "@/hooks/use-support-store"
+import { useMediaQuery } from "@/hooks/use-media-query"
 import {
   syncSupportIdentity,
   buildSupportTraits,
   getSupportErrorMessage,
-  isRateLimitedError,
-  loadConversationsBundle,
   ensureConversationsReady,
+  setActiveSdkTicket,
   SUPPORT_POLL_INTERVAL_MS,
   SUPPORT_CLOSED_POLL_INTERVAL_MS,
   MAX_SUPPORT_MESSAGE_LENGTH,
   WARN_SUPPORT_MESSAGE_LENGTH,
   type SupportMessage,
   type SupportTicket,
-  type RestoreResult,
 } from "@/lib/posthog-support"
 import { getUserDisplayData } from "@/lib/utils/user"
 import { formatRelativeTime } from "@/lib/format-relative-time"
@@ -26,8 +25,6 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { SearchInput } from "@/components/ui/search-input"
 import {
   Select,
@@ -36,26 +33,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import {
-  MessageCircle,
   MessageSquarePlus,
-  Send,
   Loader2,
   RefreshCcw,
   Headphones,
-  CheckCircle2,
   Plus,
   ArrowLeft,
   ChevronRight,
   Bot,
-  Search,
   Filter,
-  Check,
-  Clock,
-  Sparkles,
   Inbox,
   ArrowUp,
   AlertCircle,
@@ -137,14 +126,6 @@ function formatTicketTitle(ticket: SupportTicket): string {
     return clean.length > 42 ? `${clean.slice(0, 40)}…` : clean
   }
   return `Ticket #${ticket.id.slice(-6)}`
-}
-
-function getTicketPreview(ticket: SupportTicket): string {
-  if (ticket.last_message) {
-    const clean = ticket.last_message.replace(/\s+/g, ' ').trim()
-    return clean.length > 80 ? `${clean.slice(0, 78)}…` : clean
-  }
-  return 'Keine weiteren Details vorhanden.'
 }
 
 async function loadSupportTickets(
@@ -490,16 +471,9 @@ export function SupportPanel() {
   const posthog = usePostHog()
   const { user } = useAuth()
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      ;(window as any).__posthog = posthog
-    }
-  }, [posthog])
-
   const {
     isOpen,
     closeSupport,
-    unreadCount,
     setUnreadCount,
     isAvailable,
     setIsAvailable,
@@ -511,6 +485,7 @@ export function SupportPanel() {
     setIsComposingNew: setStoreIsComposingNew,
   } = useSupportStore()
 
+  const isMobile = useMediaQuery("(max-width: 639px)")
   const [ticketsLoading, setTicketsLoading] = useState(false)
   
   // View mode: 'inbox' (list of all tickets) | 'chat' (active conversation or new ticket draft)
@@ -532,7 +507,6 @@ export function SupportPanel() {
   const [isSending, setIsSending] = useState(false)
   const [availabilityTimedOut, setAvailabilityTimedOut] = useState(false)
   const [isComposingNewTicket, setIsComposingNewTicket] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
   const [totalTicketsCount, setTotalTicketsCount] = useState(0)
@@ -557,9 +531,8 @@ export function SupportPanel() {
     return statusKey === 'resolved' || statusKey === 'closed'
   }, [isComposingNewTicket, visibleTicket])
 
-  const canReplyToSelection = isComposingNewTicket || !isTicketClosed
   const userDisplay = getUserDisplayData(user)
-  const supportTraits = buildSupportTraits(user)
+  const supportTraits = useMemo(() => buildSupportTraits(user), [user])
   const prevMessageCountRef = useRef(0)
   const prevTicketIdRef = useRef<string | null>(null)
   const lastMessageSentTimeRef = useRef<number>(0)
@@ -659,23 +632,7 @@ export function SupportPanel() {
   }, [posthog, setIsAvailable])
 
   useEffect(() => {
-    const updateViewport = () => {
-      setIsMobile(window.innerWidth < 640)
-    }
-    updateViewport()
-    window.addEventListener('resize', updateViewport, { passive: true })
-    return () => {
-      window.removeEventListener('resize', updateViewport)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!isAvailable) return
-
-    if (!user?.id) {
-      void refreshTicketsRef.current(false)
-      return
-    }
+    if (!isAvailable || !user?.id) return
 
     if (lastIdentityUserId.current === user.id) return
 
@@ -974,12 +931,7 @@ export function SupportPanel() {
       textareaRef.current.style.height = 'auto'
     }
 
-    if (typeof (posthog?.conversations as any)?.vp === 'function') {
-      (posthog.conversations as any).vp(ticket.id)
-    }
-    if ((posthog?.conversations as any)?.Nf !== undefined) {
-      (posthog.conversations as any).Nf = ticket.id
-    }
+    setActiveSdkTicket(posthog, ticket.id)
     
     // Instant display from cache if available (0ms delay)
     const cached = messagesCacheRef.current[ticket.id]
@@ -1029,7 +981,7 @@ export function SupportPanel() {
       if (
         !posthog ||
         !isAvailable ||
-        !canReplyToSelection ||
+        isTicketClosed ||
         typeof posthog.conversations?.sendMessage !== 'function'
       ) {
         setMessageError('Der Support-Dienst ist momentan nicht bereit. Bitte versuchen Sie es in wenigen Sekunden erneut.')
@@ -1045,12 +997,7 @@ export function SupportPanel() {
 
       // Ensure PostHog's active ticket is set to the target ticket before sending
       if (!isNew && targetTicketId) {
-        if (typeof (posthog.conversations as any)?.vp === 'function') {
-          (posthog.conversations as any).vp(targetTicketId)
-        }
-        if ((posthog.conversations as any)?.Nf !== undefined) {
-          (posthog.conversations as any).Nf = targetTicketId
-        }
+        setActiveSdkTicket(posthog, targetTicketId)
       }
 
       const optimisticMessage: SupportMessage = {
@@ -1182,10 +1129,10 @@ export function SupportPanel() {
       }
     },
     [
-      canReplyToSelection,
       currentTicketId,
       isAvailable,
       isComposingNewTicket,
+      isTicketClosed,
       posthog,
       refreshMessages,
       refreshTickets,
@@ -1224,13 +1171,6 @@ export function SupportPanel() {
       }, 50)
     }
   }, [])
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      handleSendMessage()
-    }
-  }
 
   const filteredTickets = useMemo(() => {
     return tickets.filter((ticket) => {
@@ -1508,7 +1448,6 @@ export function SupportPanel() {
                       <>
                         {filteredTickets.map((ticket) => {
                           const isCurrent = ticket.id === currentTicketId
-                          const isResolved = ticket.status === 'resolved' || ticket.status === 'closed'
                           const unread = ticket.unread_count || 0
 
                           return (
