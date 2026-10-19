@@ -17,15 +17,20 @@ interface SupportState {
   setTickets: (tickets: SupportTicket[] | ((prev: SupportTicket[]) => SupportTicket[])) => void
   setSelectedTicketId: (ticketId: string | null) => void
   setIsComposingNew: (isComposing: boolean) => void
+  reset: () => void
 }
 
-export const useSupportStore = create<SupportState>((set) => ({
+const initialSupportState = {
   isOpen: false,
   unreadCount: 0,
   isAvailable: false,
-  tickets: [],
-  selectedTicketId: null,
+  tickets: [] as SupportTicket[],
+  selectedTicketId: null as string | null,
   isComposingNew: false,
+}
+
+export const useSupportStore = create<SupportState>((set) => ({
+  ...initialSupportState,
   openSupport: () => set({ isOpen: true }),
   openSupportWithTicket: (ticketId) => set({ isOpen: true, selectedTicketId: ticketId, isComposingNew: false }),
   openSupportNewTicket: () => set({ isOpen: true, selectedTicketId: null, isComposingNew: true }),
@@ -38,4 +43,5 @@ export const useSupportStore = create<SupportState>((set) => ({
     })),
   setSelectedTicketId: (selectedTicketId) => set({ selectedTicketId }),
   setIsComposingNew: (isComposingNew) => set({ isComposingNew }),
+  reset: () => set(initialSupportState),
 }))

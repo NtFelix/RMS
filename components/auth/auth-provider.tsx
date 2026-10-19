@@ -8,6 +8,7 @@ import { createClient } from "@/utils/supabase/client"
 import type { User } from "@supabase/supabase-js"
 import posthog from "posthog-js"
 import { resetSupportIdentity } from "@/lib/posthog-support"
+import { useSupportStore } from "@/hooks/use-support-store"
 
 type AuthContextType = {
   user: User | null
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (event === "SIGNED_OUT") {
         // Drop the previous user's support identity/widget session so the next login starts clean.
         resetSupportIdentity(posthog)
+        useSupportStore.getState().reset()
         setAuthState({ user: null, isLoading: false })
         router.refresh()
       }

@@ -107,7 +107,7 @@ export const SupportMessageContent = memo(function SupportMessageContent({
         onOpenImage={onOpenImage}
       />
     ),
-    a: ({ href, children, ...props }: any) => (
+    a: ({ href, title, children }: any) => (
       <a
         href={href}
         target="_blank"
@@ -118,7 +118,7 @@ export const SupportMessageContent = memo(function SupportMessageContent({
             ? "text-primary-foreground decoration-primary-foreground/60"
             : "text-primary decoration-primary/60",
         )}
-        {...props}
+        title={title}
       >
         <span>{children}</span>
         <ExternalLink className="size-2.5 inline-block shrink-0 opacity-75" />
@@ -137,7 +137,8 @@ export const SupportMessageContent = memo(function SupportMessageContent({
     strong: ({ children }: any) => <strong className="font-bold">{children}</strong>,
     em: ({ children }: any) => <em className="italic">{children}</em>,
     code: ({ children, className }: any) => {
-      const isBlock = className?.includes("language-")
+      // Fenced blocks without a language tag have no className, so also detect them by their newline.
+      const isBlock = className?.includes("language-") || String(children).includes("\n")
       if (isBlock) {
         return (
           <div className="my-2 p-2.5 rounded-xl bg-zinc-950 text-zinc-100 font-mono text-[11px] overflow-x-auto border border-zinc-800">

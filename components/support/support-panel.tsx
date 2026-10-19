@@ -128,6 +128,28 @@ function formatTicketTitle(ticket: SupportTicket): string {
   return `Ticket #${ticket.id.slice(-6)}`
 }
 
+const SUPPORT_TICKETS_PAGE_SIZE = 25
+const SUPPORT_SENT_GRACE_MS = 30_000
+
+/**
+ * Merges a fresh server page into the locally held messages without losing local-only state:
+ * unsent/failed optimistic messages, just-sent messages the server hasn't ingested yet, and older
+ * pages the user already loaded.
+ */
+function mergeServerMessages(prev: SupportMessage[], server: SupportMessage[]): SupportMessage[] {
+  const serverIds = new Set(server.map((m) => m.id))
+  // Without server messages nothing counts as "older", so only local-only messages survive.
+  const oldestServer = server.length > 0 ? server.reduce((a, b) => (a.created_at < b.created_at ? a : b)).created_at : ''
+  const now = Date.now()
+  const kept = prev.filter((m) => {
+    if (serverIds.has(m.id)) return false
+    if (m.status === 'sending' || m.status === 'failed') return true
+    if (m.status === 'sent') return now - new Date(m.created_at).getTime() < SUPPORT_SENT_GRACE_MS
+    return m.created_at < oldestServer
+  })
+  return kept.length === 0 ? server : [...kept, ...server]
+}
+
 async function loadSupportTickets(
   posthog: ReturnType<typeof usePostHog>,
   options?: { limit?: number; offset?: number },
@@ -506,6 +528,7 @@ export function SupportPanel() {
   const [draft, setDraft] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [availabilityTimedOut, setAvailabilityTimedOut] = useState(false)
+  const [initAttempt, setInitAttempt] = useState(0)
   const [isComposingNewTicket, setIsComposingNewTicket] = useState(false)
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
@@ -533,6 +556,12 @@ export function SupportPanel() {
 
   const userDisplay = getUserDisplayData(user)
   const supportTraits = useMemo(() => buildSupportTraits(user), [user])
+  const isOpenRef = useRef(isOpen)
+  const visibleTicketIdRef = useRef(visibleTicketId)
+  useEffect(() => {
+    isOpenRef.current = isOpen
+    visibleTicketIdRef.current = visibleTicketId
+  }, [isOpen, visibleTicketId])
   const prevMessageCountRef = useRef(0)
   const prevTicketIdRef = useRef<string | null>(null)
   const lastMessageSentTimeRef = useRef<number>(0)
@@ -629,7 +658,14 @@ export function SupportPanel() {
       cancelled = true
       if (retryTimer) clearTimeout(retryTimer)
     }
-  }, [posthog, setIsAvailable])
+  }, [posthog, setIsAvailable, initAttempt])
+
+  // Initialization can only succeed once analytics consent exists, so retry when it is granted later.
+  useEffect(() => {
+    const retryInit = () => setInitAttempt((attempt) => attempt + 1)
+    window.addEventListener('posthog-consent-granted', retryInit)
+    return () => window.removeEventListener('posthog-consent-granted', retryInit)
+  }, [])
 
   useEffect(() => {
     if (!isAvailable || !user?.id) return
@@ -655,12 +691,21 @@ export function SupportPanel() {
       setTicketsLoading(true)
     }
     try {
-      const response = await loadSupportTickets(posthog, { limit: 25, offset: 0 })
+      const response = await loadSupportTickets(posthog, { limit: SUPPORT_TICKETS_PAGE_SIZE, offset: 0 })
       if (!response) return
 
-      const normalizedTickets = response.results.toSorted((a, b) => {
+      const firstPage = response.results.toSorted((a, b) => {
         return new Date(b.last_message_at || b.created_at).getTime() - new Date(a.last_message_at || a.created_at).getTime()
       })
+
+      // Keep optimistic tickets and pages the user loaded via "load more"; the poll only refreshes page one.
+      const firstPageIds = new Set(firstPage.map((t) => t.id))
+      const optimisticTickets = tickets.filter((t) => t.id.startsWith('temp-ticket-'))
+      const loadedMoreTickets =
+        tickets.length > SUPPORT_TICKETS_PAGE_SIZE
+          ? tickets.filter((t) => !t.id.startsWith('temp-ticket-') && !firstPageIds.has(t.id))
+          : []
+      const normalizedTickets = [...optimisticTickets, ...firstPage, ...loadedMoreTickets]
 
       const isIdentical =
         tickets.length === normalizedTickets.length &&
@@ -740,30 +785,48 @@ export function SupportPanel() {
       }
 
       const newMessages = (response.messages || []) as SupportMessage[]
-      messagesCacheRef.current[ticketId] = newMessages
-      setMessages((prev) => {
-        if (prev.length === newMessages.length) {
-          const identical = prev.every((m, i) => {
-            const n = newMessages[i]
-            return (
-              m.id === n?.id &&
-              m.content === n?.content &&
-              m.status === n?.status &&
-              m.error === n?.error
-            )
-          })
-          if (identical) return prev
-        }
-        return newMessages
-      })
+      const mergedCache = mergeServerMessages(messagesCacheRef.current[ticketId] || [], newMessages)
+      messagesCacheRef.current[ticketId] = mergedCache
 
-      setHasMoreMessages(response.has_more)
-      if (response.messages.length > 0) {
-        const oldest = response.messages.reduce((a, b) => a.created_at < b.created_at ? a : b)
-        messageCursorRef.current = oldest.created_at
+      // The user may have switched tickets while this request was in flight; don't overwrite their view.
+      const isStillVisible = visibleTicketIdRef.current === ticketId
+      if (isStillVisible) {
+        setMessages((prev) => {
+          const merged = mergeServerMessages(prev, newMessages)
+          if (prev.length === merged.length) {
+            const identical = prev.every((m, i) => {
+              const n = merged[i]
+              return (
+                m.id === n?.id &&
+                m.content === n?.content &&
+                m.status === n?.status &&
+                m.error === n?.error
+              )
+            })
+            if (identical) return prev
+          }
+          return merged
+        })
+
+        // Paging follows the oldest server message held locally, so polls never rewind "load older" progress.
+        const serverIds = new Set(newMessages.map((m) => m.id))
+        const olderLoaded = mergedCache.some((m) => !m.status && !serverIds.has(m.id))
+        const serverOrigin = mergedCache.filter((m) => !m.status)
+        if (serverOrigin.length > 0) {
+          messageCursorRef.current = serverOrigin.reduce((a, b) => (a.created_at < b.created_at ? a : b)).created_at
+        }
+        if (!olderLoaded) {
+          setHasMoreMessages(response.has_more)
+        }
       }
 
-      if (response.unread_count > 0 && typeof posthog.conversations?.markAsRead === 'function') {
+      // Messages only count as read once the user can actually see them.
+      if (
+        isStillVisible &&
+        isOpenRef.current &&
+        response.unread_count > 0 &&
+        typeof posthog.conversations?.markAsRead === 'function'
+      ) {
         await posthog.conversations.markAsRead(ticketId)
       }
     } catch (error) {
@@ -1322,7 +1385,7 @@ export function SupportPanel() {
                   variant="outline"
                   onClick={() => {
                     setAvailabilityTimedOut(false)
-                    void refreshTickets()
+                    setInitAttempt((attempt) => attempt + 1)
                   }}
                   className="gap-2 rounded-xl text-xs font-medium"
                 >
@@ -1387,7 +1450,7 @@ export function SupportPanel() {
                       </span>
                       {searchQuery && (
                         <Badge variant="outline" className="text-xs font-normal gap-1 bg-muted/40 py-0.5 px-2.5 h-6">
-                          <span>Suche: "{searchQuery}"</span>
+                          <span>Suche: &bdquo;{searchQuery}&ldquo;</span>
                         </Badge>
                       )}
                       {statusFilter !== 'all' && (

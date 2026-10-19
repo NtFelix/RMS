@@ -87,7 +87,7 @@ const TOO_LONG_MESSAGE =
 
 const RATE_LIMIT_PATTERN = /too many requests|rate.?limit/i
 const TOO_LONG_PATTERN =
-  /too (large|long)|invalid request data|exceeds?\b.*\b10[.,]?000|10[.,]?000\s*(characters|zeichen)/i
+  /too (large|long)|exceeds?\b.*\b10[.,]?000|10[.,]?000\s*(characters|zeichen)/i
 
 function getErrorStatus(error: unknown): number | undefined {
   const status = (error as { status?: unknown } | null)?.status

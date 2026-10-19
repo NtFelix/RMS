@@ -42,8 +42,7 @@ async function proxy(request: Request, paramsPromise: Promise<{ path: string[] }
 
   const headers = new Headers()
   for (const [key, value] of request.headers.entries()) {
-    const lowerKey = key.toLowerCase()
-    if (ALLOWED_HEADERS.has(lowerKey) || lowerKey.startsWith('x-')) {
+    if (ALLOWED_HEADERS.has(key.toLowerCase())) {
       headers.set(key, value)
     }
   }
