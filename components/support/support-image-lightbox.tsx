@@ -89,7 +89,7 @@ function SupportImageLightboxModal({ image, onClose }: { image: LightboxImageDat
         <DialogTitle className="sr-only">{fileName}</DialogTitle>
 
         {/* Top Header Controls */}
-        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-800/80 bg-zinc-900/60 z-20">
+        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-800/80 bg-zinc-900/60 z-20 rounded-t-2xl">
           <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
             <div className="flex size-7 items-center justify-center rounded-lg bg-zinc-800 text-zinc-300">
               <ImageIcon className="size-4" />
@@ -196,7 +196,7 @@ function SupportImageLightboxModal({ image, onClose }: { image: LightboxImageDat
         </div>
 
         {/* Image Preview Canvas */}
-        <div className="flex-1 relative overflow-auto flex items-center justify-center p-4 bg-radial from-zinc-900 to-zinc-950 select-none">
+        <div className="flex-1 relative overflow-auto flex items-center justify-center p-4 bg-radial from-zinc-900 to-zinc-950 select-none rounded-b-2xl">
           {imageLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-950/60 z-10">
               <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
