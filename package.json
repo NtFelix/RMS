@@ -123,7 +123,8 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.7",
-    "@eslint/js": "^9.39.5",
+    "@eslint/js": "^10.0.1",
+    "@next/eslint-plugin-next": "^16.4.2",
     "@playwright/test": "1.61.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "6.9.1",
@@ -136,8 +137,10 @@
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
     "critters": "^0.0.25",
-    "eslint": "9.39.2",
+    "eslint": "10.13.0",
     "eslint-config-next": "^16.4.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "identity-obj-proxy": "3.0.0",
     "jest": "30.2.0",
     "jest-axe": "10.0.0",
@@ -148,10 +151,20 @@
     "ts-jest": "29.4.12",
     "ts-node": "^10.9.2",
     "typescript": "^6",
+    "typescript-eslint": "^8.65.0",
     "whatwg-fetch": "3.6.20"
   },
   "overrides": {
     "test-exclude": "7.0.1",
+    "eslint-plugin-import": {
+      "eslint": "$eslint"
+    },
+    "eslint-plugin-jsx-a11y": {
+      "eslint": "$eslint"
+    },
+    "eslint-plugin-react": {
+      "eslint": "$eslint"
+    },
     "@posthog/cli": {
       "axios": "1.15.2",
       "minimatch": "10.2.5",
