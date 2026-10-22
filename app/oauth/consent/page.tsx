@@ -1,6 +1,8 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import ConsentUI from './ConsentUI';
 import {
@@ -9,10 +11,6 @@ import {
     type AuthorizationDetails,
     type UserMcpOrganisationItem
 } from './actions';
-
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
 
 export const metadata: Metadata = {
     title: 'OAuth Autorisierung | Mietevo',
@@ -32,7 +30,33 @@ interface PageProps {
     }>;
 }
 
-export default async function ConsentPage({ searchParams }: PageProps) {
+// Static fallback shown while ConsentContent resolves. Mirrors the loading state of ConsentUI
+// (same centred container and card). Contains no request or user data.
+function ConsentFallback() {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 font-sans">
+            <div className="w-full max-w-lg md:max-w-[530px]">
+                <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
+                    <CardContent className="flex flex-col items-center justify-center py-16">
+                        <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+                        <p className="text-muted-foreground">Laden...</p>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    );
+}
+
+// Static shell: searchParams is passed down un-awaited so the shell is not blocked by request data.
+export default function ConsentPage({ searchParams }: PageProps) {
+    return (
+        <Suspense fallback={<ConsentFallback />}>
+            <ConsentContent searchParams={searchParams} />
+        </Suspense>
+    );
+}
+
+async function ConsentContent({ searchParams }: PageProps) {
     const params = await searchParams;
     const authorizationId = params.authorization_id;
     const error = params.error;
