@@ -42,31 +42,28 @@ export async function softDeleteEntryAction(
   revalidatePathsForTable(tableName);
 }
 
+/**
+ * Pro Tabelle die Seiten, deren Daten von ihr abhängen. Ihre Reihenfolge bestimmt die Revalidierung.
+ */
+const TABLE_REVALIDATION_PATHS: Record<string, readonly string[]> = {
+  Haeuser: ['/haeuser', '/wohnungen', '/mieter'],
+  Wohnungen: ['/wohnungen', '/mieter'],
+  Mieter: ['/mieter', '/wohnungen'],
+  Kautionen: ['/mieter'],
+  Finanzen: ['/finanzen'],
+  Aufgaben: ['/todos'],
+  Zaehler: ['/wohnungen'],
+  Zaehler_Ablesungen: ['/wohnungen'],
+  Nebenkosten: ['/betriebskosten'],
+  Dokumente_Metadaten: ['/dateien'],
+  Rechnungen: ['/finanzen'],
+};
+
 export function revalidatePathsForTable(tableName: string) {
-  if (tableName === 'Haeuser') {
-    revalidatePath('/haeuser');
-    revalidatePath('/wohnungen');
-    revalidatePath('/mieter');
-  } else if (tableName === 'Wohnungen') {
-    revalidatePath('/wohnungen');
-    revalidatePath('/mieter');
-  } else if (tableName === 'Mieter') {
-    revalidatePath('/mieter');
-    revalidatePath('/wohnungen');
-  } else if (tableName === 'Kautionen') {
-    revalidatePath('/mieter');
-  } else if (tableName === 'Finanzen') {
-    revalidatePath('/finanzen');
-  } else if (tableName === 'Aufgaben') {
-    revalidatePath('/todos');
-  } else if (tableName === 'Zaehler' || tableName === 'Zaehler_Ablesungen') {
-    revalidatePath('/wohnungen');
-  } else if (tableName === 'Nebenkosten') {
-    revalidatePath('/betriebskosten');
-  } else if (tableName === 'Dokumente_Metadaten') {
-    revalidatePath('/dateien');
-  } else if (tableName === 'Rechnungen') {
-    revalidatePath('/finanzen');
+  // Object.hasOwn: Namen wie 'constructor' oder '__proto__' treffen keine geerbten Eigenschaften.
+  const paths = Object.hasOwn(TABLE_REVALIDATION_PATHS, tableName) ? TABLE_REVALIDATION_PATHS[tableName] : [];
+  for (const path of paths) {
+    revalidatePath(path);
   }
   revalidatePath('/dashboard');
 }

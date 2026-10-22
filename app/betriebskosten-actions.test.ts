@@ -132,7 +132,7 @@ describe('betriebskosten-actions', () => {
       expect(mockSupabase.insert).toHaveBeenCalledWith([
         mockFormData
       ]);
-      expect(revalidatePath).toHaveBeenCalledWith('/dashboard/betriebskosten');
+      expect(revalidatePath).toHaveBeenCalledWith('/betriebskosten');
     });
 
     it('trims cost names before inserting', async () => {
@@ -290,7 +290,7 @@ describe('betriebskosten-actions', () => {
       });
       expect(mockSupabase.update).toHaveBeenCalledWith({ wasserkosten: 50 });
       expect(mockSupabase.eq).toHaveBeenCalledWith('id', 'nb1');
-      expect(revalidatePath).toHaveBeenCalledWith('/dashboard/betriebskosten');
+      expect(revalidatePath).toHaveBeenCalledWith('/betriebskosten');
     });
 
     it('rejects cost items without their Berechnungsart on update', async () => {
