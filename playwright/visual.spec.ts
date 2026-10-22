@@ -139,7 +139,9 @@ for (const theme of themes) {
 
       test(`Dashboard Page: ${pathStr}`, async ({ page }, testInfo) => {
         await page.goto(pathStr);
-        await page.waitForLoadState('networkidle');
+        // Dashboard pages keep background requests open (e.g. slow external APIs); a request that never
+        // settles must not fail the test, the waits for main content below decide when the page is ready
+        await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
         await disableAnimations(page);
 
         // Force the theme using classList.toggle
@@ -154,8 +156,8 @@ for (const theme of themes) {
         // Scroll the page to trigger all animations
         await triggerScrollAnimations(page);
 
-        await page.waitForLoadState('networkidle');
-        
+        await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+
         // Instead of a hard timeout, wait for main content or chart containers
         // This is much faster and more reliable
         await page.locator('main').waitFor({ state: 'visible' });
