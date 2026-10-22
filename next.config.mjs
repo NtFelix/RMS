@@ -67,10 +67,13 @@ const nextConfig = {
     ],
   },
   cacheComponents: true,
-  // Explicit so `next build` stops warning. `false` keeps today's prefetching; switch to `true`
-  // once the routes no longer opt out via `instant = false` (Phase 6 of the Cache Components migration).
-  partialPrefetching: false,
+  // Part of the Cache Components model (default in Next.js 17): each <Link> prefetches the route's static
+  // App Shell instead of the whole page. Revert to `false` to get the previous prefetching behaviour.
+  partialPrefetching: true,
   experimental: {
+    // Only for the test build that runs e2e/instant-navigation.spec.ts (EXPOSE_TESTING_API=1 next build).
+    // Off by default: it exposes a testing hook in the production bundle.
+    exposeTestingApiInProductionBuild: process.env.EXPOSE_TESTING_API === '1',
     scrollRestoration: true,
     optimizePackageImports: [
       'recharts',
