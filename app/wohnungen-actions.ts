@@ -224,9 +224,6 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
 
     revalidatePath('/wohnungen');
     revalidatePath('/');
-    if (payload.haus_id) {
-      revalidatePath(`/haeuser/${payload.haus_id}`);
-    }
 
     logAction(actionName, 'success', {
       apartment_id: dbResponse.data.id,

@@ -213,4 +213,28 @@ describe('revalidatePathsForTable', () => {
     expect(mockRevalidatePath).toHaveBeenCalledWith('/dashboard');
     expect(mockRevalidatePath).toHaveBeenCalledTimes(2);
   });
+
+  it.each([
+    ['Haeuser', ['/haeuser', '/wohnungen', '/mieter']],
+    ['Wohnungen', ['/wohnungen', '/mieter']],
+    ['Mieter', ['/mieter', '/wohnungen']],
+    ['Kautionen', ['/mieter']],
+    ['Finanzen', ['/finanzen']],
+    ['Aufgaben', ['/todos']],
+    ['Zaehler', ['/wohnungen']],
+    ['Zaehler_Ablesungen', ['/wohnungen']],
+    ['Nebenkosten', ['/betriebskosten']],
+    ['Dokumente_Metadaten', ['/dateien']],
+    ['Rechnungen', ['/finanzen']],
+  ])('%s: revalidiert die Seiten in fester Reihenfolge, danach das Dashboard', (tabelle, pfade) => {
+    revalidatePathsForTable(tabelle);
+
+    expect(mockRevalidatePath.mock.calls).toEqual([...pfade, '/dashboard'].map((pfad) => [pfad]));
+  });
+
+  it.each(['Unbekannt', 'constructor', '__proto__'])('%s: revalidiert nur das Dashboard', (tabelle) => {
+    revalidatePathsForTable(tabelle);
+
+    expect(mockRevalidatePath.mock.calls).toEqual([['/dashboard']]);
+  });
 });
