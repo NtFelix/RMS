@@ -295,6 +295,7 @@ export async function syncSupportIdentity(
       })
 
       if (!response.ok) {
+        await response.body?.cancel()
         return null
       }
 
