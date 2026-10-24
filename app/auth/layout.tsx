@@ -1,7 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Suspense } from "react"
-import { AuthNonceSync, AuthRedirectGate } from "./auth-request-gates"
+import { AuthRequestGate } from "./auth-request-gates"
 
 // Auth layout metadata - common settings for all auth pages
 export const metadata: Metadata = {
@@ -23,10 +23,7 @@ export default function AuthLayout({
   return (
     <div className="min-h-screen bg-background">
       <Suspense fallback={null}>
-        <AuthNonceSync />
-      </Suspense>
-      <Suspense fallback={null}>
-        <AuthRedirectGate />
+        <AuthRequestGate />
       </Suspense>
       {children}
     </div>
