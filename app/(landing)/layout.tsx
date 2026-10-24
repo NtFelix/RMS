@@ -6,9 +6,11 @@ import { HomePageJsonLd } from '@/components/seo/json-ld';
 
 import { Suspense } from 'react';
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
+// Marketing pages must stay fully static: the build fails if request-time data (cookies, headers,
+// uncached fetches) sneaks into any route under this layout. Remove or relax only on purpose.
+// Note: `instant = false` in app/layout.tsx takes precedence, so this validation only takes
+// effect once that root opt-out is removed.
+export const ensureStatic = 'navigation';
 
 export default function LandingLayout({
   children,
