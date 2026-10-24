@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, ChevronRight, Minus, Plus, Scissors } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, ChevronRight, Minus, Paperclip, Plus, Scissors } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { KautionActionError } from "@/app/kautionen-actions";
 import { Badge } from "@/components/ui/badge";
@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useKautionFlag } from "@/hooks/use-kaution-flag";
-import { KautionBuchungForm } from "@/components/kaution/kaution-buchung-form";
+import { KautionBuchungForm, type KautionBuchungVorgabe } from "@/components/kaution/kaution-buchung-form";
 import { KEINE_BERECHTIGUNG_TEXT } from "@/components/kaution/kaution-feld";
-import { formatBetrag, formatDatum } from "@/components/kaution/kaution-format";
+import { KautionBelegUpload } from "@/components/kaution/kaution-beleg-upload";
+import { oeffneKautionBeleg } from "@/components/kaution/kaution-beleg-oeffnen";
+import { bewegungBeschreibung, formatBetrag, formatDatum } from "@/components/kaution/kaution-format";
 import { KautionStornoDialog } from "@/components/kaution/kaution-storno-dialog";
 import {
   KAUTION_ABZUG_KATEGORIE_LABELS,
@@ -49,6 +51,11 @@ interface KautionKontoauszugTabProps {
    * agreed (the dialog uses the confirmation dialog of the modal store).
    */
   onVerwerfenBestaetigen: (onBestaetigt: () => void) => void;
+  /**
+   * Request from the Raten tab: a deposit payment for one rate. Every new request carries a new `nonce`; the booking
+   * form then opens with the rate assigned (after the same confirmation as switching the booking type).
+   */
+  zahlungsVorgabe?: (KautionBuchungVorgabe & { nonce: number }) | null;
 }
 
 const BUCHUNG_ICONS: Record<KautionBewegungsArt, LucideIcon> = {
@@ -65,10 +72,6 @@ function hatDetails(bewegung: KautionBewegung): boolean {
   );
 }
 
-function bewegungBeschreibung(bewegung: KautionBewegung): string {
-  return `${KAUTION_BEWEGUNGSART_LABELS[bewegung.bewegungsart] ?? "Buchung"} vom ${formatDatum(bewegung.wertstellung)} über ${formatBetrag(bewegung.betrag)}`;
-}
-
 export function KautionKontoauszugTab({
   details,
   rechte,
@@ -77,9 +80,17 @@ export function KautionKontoauszugTab({
   onFehler,
   onBuchungDirtyChange,
   onVerwerfenBestaetigen,
+  zahlungsVorgabe = null,
 }: KautionKontoauszugTabProps) {
-  const { bewegungsarten } = useKautionFlag();
+  const { bewegungsarten, funktionen } = useKautionFlag();
+  // Receipts ("Belege") only with the function flag `dokumente`: without it the statement stays as it was.
+  const dokumenteAktiv = funktionen.dokumente;
+  const [belegOffen, setBelegOffen] = useState(false);
   const [aktiveBuchung, setAktiveBuchung] = useState<KautionBewegungsArt | null>(null);
+  // Rate preset of the open booking form (only set while the payment form for a rate is open).
+  const [vorgabe, setVorgabe] = useState<(KautionBuchungVorgabe & { nonce: number }) | null>(null);
+  // Last request of the Raten tab that was handled (a request is handled once).
+  const bearbeiteterNonce = useRef<number | null>(null);
   const [offeneZeilen, setOffeneZeilen] = useState<ReadonlySet<string>>(() => new Set());
   const [stornoZiel, setStornoZiel] = useState<KautionBewegung | null>(null);
   // After closing the booking form the focus goes back to the button that opened it (the form disappears
@@ -88,6 +99,9 @@ export function KautionKontoauszugTab({
   const [fokusZurueck, setFokusZurueck] = useState<KautionBewegungsArt | null>(null);
 
   const { kontoauszug, konto, kaution } = details;
+
+  /** Rate number of a booking's rate, `null` if the plan does not (or not yet) list it. */
+  const rateNrZu = (rateId: string): number | null => details.raten?.find((rate) => rate.rate_id === rateId)?.rate_nr ?? null;
 
   useEffect(() => {
     if (fokusZurueck === null || aktiveBuchung !== null) return;
@@ -107,12 +121,14 @@ export function KautionKontoauszugTab({
   const handleGebucht = useCallback(async () => {
     setFokusZurueck(aktiveBuchung);
     setAktiveBuchung(null);
+    setVorgabe(null);
     await onGeaendert();
   }, [aktiveBuchung, onGeaendert]);
 
   const handleBuchungAbbrechen = useCallback(() => {
     setFokusZurueck(aktiveBuchung);
     setAktiveBuchung(null);
+    setVorgabe(null);
   }, [aktiveBuchung]);
 
   // Does the open booking form hold unsaved input? Only read when another type is chosen: a ref is enough.
@@ -129,11 +145,30 @@ export function KautionKontoauszugTab({
     if (art === aktiveBuchung) return;
     if (aktiveBuchung !== null && buchungHatEingaben.current) {
       // The form is replaced (`key`): ask before the input is discarded.
-      onVerwerfenBestaetigen(() => setAktiveBuchung(art));
+      onVerwerfenBestaetigen(() => {
+        setVorgabe(null);
+        setAktiveBuchung(art);
+      });
       return;
     }
+    setVorgabe(null);
     setAktiveBuchung(art);
   };
+
+  // Request of the Raten tab: opens the payment form for the rate (once per request, same confirmation as above).
+  useEffect(() => {
+    if (!zahlungsVorgabe || bearbeiteterNonce.current === zahlungsVorgabe.nonce) return;
+    bearbeiteterNonce.current = zahlungsVorgabe.nonce;
+    const oeffne = () => {
+      setVorgabe(zahlungsVorgabe);
+      setAktiveBuchung("einzahlung");
+    };
+    if (aktiveBuchung !== null && buchungHatEingaben.current) {
+      onVerwerfenBestaetigen(oeffne);
+    } else {
+      oeffne();
+    }
+  }, [zahlungsVorgabe, aktiveBuchung, onVerwerfenBestaetigen]);
 
   return (
     <div className="space-y-4">
@@ -170,15 +205,36 @@ export function KautionKontoauszugTab({
         </p>
       ) : null}
 
+      {dokumenteAktiv && rechte.bearbeiten ? (
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" aria-expanded={belegOffen} onClick={() => setBelegOffen((offen) => !offen)}>
+            <Paperclip aria-hidden="true" />
+            Beleg hinzufügen
+          </Button>
+        </div>
+      ) : null}
+
+      {dokumenteAktiv && rechte.bearbeiten && belegOffen ? (
+        <KautionBelegUpload
+          auswahl={kontoauszug
+            .filter((bewegung) => bewegung.storniert_am === null)
+            .map((bewegung) => ({ bewegungId: bewegung.id, label: bewegungBeschreibung(bewegung) }))}
+          onHochgeladen={onGeaendert}
+          onFehler={onFehler}
+          onAbbrechen={() => setBelegOffen(false)}
+        />
+      ) : null}
+
       {aktiveBuchung ? (
         <KautionBuchungForm
-          // New key per type: every opening gets its own idempotency key and fresh input.
-          key={aktiveBuchung}
+          // New key per type (and per rate request): every opening gets its own idempotency key and fresh input.
+          key={vorgabe ? `${aktiveBuchung}-rate-${vorgabe.nonce}` : aktiveBuchung}
           art={aktiveBuchung}
           tenantId={tenantId}
           kautionId={kaution.id}
           kontostand={konto.kontostand}
           darfBuchen={rechte.erstellen}
+          vorgabe={vorgabe}
           onGebucht={handleGebucht}
           onFehler={onFehler}
           onAbbrechen={handleBuchungAbbrechen}
@@ -225,6 +281,7 @@ export function KautionKontoauszugTab({
                 const detailId = `kaution-details-${bewegung.id}`;
                 const kategorie = bewegung.kategorie ? KAUTION_ABZUG_KATEGORIE_LABELS[bewegung.kategorie] : null;
                 const beschreibung = bewegungBeschreibung(bewegung);
+                const belegId = bewegung.dokument_id;
 
                 return (
                   <Fragment key={bewegung.id}>
@@ -264,6 +321,11 @@ export function KautionKontoauszugTab({
                               Altbestand
                             </Badge>
                           ) : null}
+                          {bewegung.rate_id ? (
+                            <Badge variant="secondary" className="font-normal" data-testid="kaution-buchung-rate-badge">
+                              {rateNrZu(bewegung.rate_id) !== null ? `Rate ${rateNrZu(bewegung.rate_id)}` : "Ratenzuordnung"}
+                            </Badge>
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-right tabular-nums">
@@ -295,6 +357,18 @@ export function KautionKontoauszugTab({
                         )}
                       </TableCell>
                       <TableCell className="text-right">
+                        {dokumenteAktiv && belegId ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            aria-label={`Beleg zu ${beschreibung} öffnen`}
+                            onClick={() => void oeffneKautionBeleg(belegId, onFehler)}
+                          >
+                            <Paperclip aria-hidden="true" />
+                          </Button>
+                        ) : null}
                         {storniert ? null : (
                           <ButtonWithTooltip
                             type="button"
