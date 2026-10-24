@@ -153,12 +153,16 @@ export async function requireActiveSubscription() {
   return { supabase, user, profile }
 }
 
-export async function redirectAuthenticatedAuthRoute() {
-  const requestHeaders = await headers()
+// Auth routes that must stay reachable for signed-in users: the login page handles its own
+// redirect, and the password-recovery link signs the user in before landing on update-password.
+const AUTH_ROUTES_OPEN_TO_AUTHENTICATED = [ROUTES.LOGIN, ROUTES.UPDATE_PASSWORD]
+
+export async function redirectAuthenticatedAuthRoute(requestHeaders?: Headers) {
+  requestHeaders ??= await headers()
   const pathname = requestHeaders.get("x-current-pathname")
   const search = requestHeaders.get("x-current-search")
 
-  if (!pathname || pathname.startsWith(ROUTES.LOGIN)) {
+  if (!pathname || AUTH_ROUTES_OPEN_TO_AUTHENTICATED.some((route) => pathname.startsWith(route))) {
     return
   }
 
