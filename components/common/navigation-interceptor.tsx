@@ -184,13 +184,23 @@ export function NavigationInterceptor({
     
     // Check for rapid navigation attempts
     const now = Date.now()
-    if (lastNavigationAttempt.current && 
+    if (lastNavigationAttempt.current &&
         lastNavigationAttempt.current.path === path &&
         now - lastNavigationAttempt.current.timestamp < 1000) {
-      
-      // Increment retry count and potentially block
-      lastNavigationAttempt.current.retryCount++
-      if (lastNavigationAttempt.current.retryCount > 3) {
+
+      // Increment retry count and potentially block.
+      // Build a fresh object instead of mutating retryCount in place: the
+      // stored attempt can be a read-only (immer-frozen) object, and an
+      // in-place `retryCount++` throws "Cannot assign to read only property
+      // 'retryCount'" in V8 / "Attempted to assign to readonly property." in
+      // WebKit. Same copy-instead-of-mutate pattern as the navigation
+      // controller's retry path (commit 66aa4ccb).
+      const nextRetryCount = lastNavigationAttempt.current.retryCount + 1
+      lastNavigationAttempt.current = {
+        ...lastNavigationAttempt.current,
+        retryCount: nextRetryCount,
+      }
+      if (nextRetryCount > 3) {
         console.warn('Too many rapid navigation attempts, blocking:', path)
         return
       }
