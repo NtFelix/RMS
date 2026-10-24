@@ -1,8 +1,9 @@
 /** @jest-environment node */
 
 /**
- * Tests für das Dashboard-Layout (Server Component), soweit sie das Kautionsmanagement (GH-6) betreffen:
- * Das Modulrecht `kautionen: ansehen` wird serverseitig im Layout ermittelt und als Prop `canViewKautionen`
+ * Tests für das Dashboard-Layout: `layout.tsx` ist eine statische Shell (Suspense um `DashboardGate`), die
+ * Request-Arbeit liegt in `DashboardGate`. Der erste Block betrifft das Kautionsmanagement (GH-6):
+ * Das Modulrecht `kautionen: ansehen` wird serverseitig im Gate ermittelt und als Prop `canViewKautionen`
  * an `KautionenRechtSync` gegeben (neben dem Client-Layout). Es hängt damit nicht von der Seite ab, die zuerst geladen wurde (z. B. /mieter),
  * und wird mit dem Layout neu berechnet. Alle Daten sind synthetische Platzhalter.
  */
@@ -14,6 +15,7 @@ import { requireActiveSubscription } from "@/lib/server/route-access";
 import { headers } from "next/headers";
 import DashboardRootLayout from "./layout";
 import { DashboardGate } from "./dashboard-gate";
+import { DashboardShellFallback } from "./dashboard-shell-fallback";
 import { KautionenRechtSync } from "@/components/kaution/kautionen-recht-sync";
 import DashboardInnerLayout from "./layout-inner";
 
@@ -59,7 +61,7 @@ beforeEach(() => {
   mockGetSidebarUserData.mockResolvedValue(SIDEBAR_DATA);
 });
 
-describe("DashboardRootLayout - Modulrecht Kautionen (GH-6)", () => {
+describe("DashboardGate - Modulrecht Kautionen (GH-6)", () => {
   it("ermittelt kautionen:ansehen serverseitig und gibt es als canViewKautionen an KautionenRechtSync", async () => {
     mockHasPermission.mockResolvedValue(true);
 
@@ -98,9 +100,14 @@ describe("DashboardRootLayout (static shell)", () => {
   it("rendert nur eine Suspense-Grenze um DashboardGate und reicht children unverändert weiter, ohne Request-Arbeit", () => {
     const child = <div />;
 
-    const element = DashboardRootLayout({ children: child }) as React.ReactElement<{ children: React.ReactElement<{ children: React.ReactNode }> }>;
+    const element = DashboardRootLayout({ children: child }) as React.ReactElement<{
+      fallback: React.ReactElement;
+      children: React.ReactElement<{ children: React.ReactNode }>;
+    }>;
 
     expect(element.type).toBe(Suspense);
+    // The fallback is part of the prerendered shell of every dashboard route: it must be the neutral one
+    expect(element.props.fallback.type).toBe(DashboardShellFallback);
     const gate = element.props.children;
     expect(gate.type).toBe(DashboardGate);
     expect(gate.props.children).toBe(child);

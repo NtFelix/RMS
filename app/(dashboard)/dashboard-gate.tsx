@@ -3,9 +3,13 @@
 // the CSP nonce. `layout.tsx` stays a static shell and wraps this component in a
 // Suspense boundary, so the 26 dashboard routes can be prerendered.
 //
-// `children` are only rendered after `requireActiveSubscription()` has resolved,
-// because the gate returns them inside its own output. A redirect or throw from
-// the gate means `children` are never rendered.
+// The gate returns `children` inside its own output, so a redirect or throw from
+// `requireActiveSubscription()` means they are not rendered by this tree. Do not rely on that
+// for access control, though: pages, server actions and API routes must check authentication
+// and permissions themselves (plus RLS in the database).
+//
+// The redirect now streams after the static shell (HTTP 200 plus a client-side redirect)
+// instead of being a 307 sent before any HTML, as the previous async layout did.
 //
 // The gate runs only when the layout renders (not on every soft navigation),
 // the same as the previous async layout.

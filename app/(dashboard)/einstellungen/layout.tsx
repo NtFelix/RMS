@@ -7,6 +7,8 @@ import { SettingsLayoutGate } from "./settings-layout-gate";
 export const metadata: Metadata = privateNoindexMetadata;
 
 // Static fallback: no data, no nav entries (those depend on permissions).
+// Keep the outer container classes in sync with SettingsLayoutClient; the sidebar width and the
+// skeleton heights are approximations, so adjust them there if the real layout changes.
 function SettingsLayoutFallback() {
   return (
     <div className="flex h-full gap-3 p-4">

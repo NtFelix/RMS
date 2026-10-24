@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import { DashboardGate } from "./dashboard-gate"
-import Loading from "./loading"
+import { DashboardShellFallback } from "./dashboard-shell-fallback"
 import { privateNoindexMetadata } from "@/lib/seo"
 
 export const metadata: Metadata = privateNoindexMetadata
@@ -14,7 +14,7 @@ export default function DashboardRootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<DashboardShellFallback />}>
       <DashboardGate>{children}</DashboardGate>
     </Suspense>
   )
