@@ -70,8 +70,8 @@ const nextConfig = {
     ],
   },
   cacheComponents: true,
-  // Explicit so `next build` stops warning. `false` keeps today's prefetching; switch to `true`
-  // once the routes no longer opt out via `instant = false` (Phase 6 of the Cache Components migration).
+  // Explicit so `next build` stops warning. `false` keeps today's prefetching. Partial prefetching
+  // needs routes without an `instant = false` opt-out, which no route has any more.
   partialPrefetching: false,
   experimental: {
     scrollRestoration: true,
