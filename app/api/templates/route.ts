@@ -107,6 +107,14 @@ export async function POST(request: Request) {
       validationErrors.push('Kontext-Anforderungen müssen ein Array sein.');
     }
 
+    if (
+      templateData.vorauszahlung_satz !== undefined &&
+      templateData.vorauszahlung_satz !== null &&
+      (typeof templateData.vorauszahlung_satz !== 'object' || Array.isArray(templateData.vorauszahlung_satz))
+    ) {
+      validationErrors.push('Der Satz zur Vorauszahlungserhöhung muss ein gültiges JSON-Objekt sein.');
+    }
+
     if (validationErrors.length > 0) {
       return NextResponse.json({
         error: 'Validierungsfehler in den Eingabedaten.',
@@ -121,6 +129,8 @@ export async function POST(request: Request) {
       inhalt: templateData.inhalt,
       kategorie: templateData.kategorie,
       kontext_anforderungen: templateData.kontext_anforderungen || [],
+      // Only sent by Betriebskostenabrechnung templates; left out otherwise so other saves never touch the column
+      ...(templateData.vorauszahlung_satz !== undefined && { vorauszahlung_satz: templateData.vorauszahlung_satz }),
     };
 
 
