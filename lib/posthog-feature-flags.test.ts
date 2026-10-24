@@ -55,6 +55,16 @@ describe('getFeatureFlagsForSEO', () => {
         expect(fetchMock).not.toHaveBeenCalled()
     })
 
+    it('warns about a missing API key only once per process', async () => {
+        const { getFeatureFlagsForSEO } = loadModule(undefined)
+
+        await getFeatureFlagsForSEO()
+        await getFeatureFlagsForSEO()
+        await getFeatureFlagsForSEO()
+
+        expect(warnSpy).toHaveBeenCalledTimes(1)
+    })
+
     it('maps PostHog flags to booleans and tags the cache entry', async () => {
         const { getFeatureFlagsForSEO } = loadModule('phc_test_key')
         const cache = require('next/cache')

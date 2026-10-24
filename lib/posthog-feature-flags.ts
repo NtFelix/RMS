@@ -29,7 +29,12 @@ const DEFAULT_FLAGS: FeatureFlagResult = {
 
 // Last successfully fetched flags of this server instance. Used as stale-on-error fallback so a
 // transient PostHog failure doesn't flip an enabled feature to noindex / out of the sitemap.
+// Per-process on purpose: a `use cache` function cannot read its previous cache entry, so a fresh
+// instance whose first fetch fails still falls back to all-false until the next retry (minutes).
 let lastKnownFlags: FeatureFlagResult | null = null
+
+// Logged once per process: the check runs on every metadata/sitemap call, not just once per cache entry
+let warnedMissingKey = false
 
 // Cached for minutes only so the failure is retried soon instead of being pinned for hours
 function fallbackFlags(): FeatureFlagResult {
@@ -58,7 +63,7 @@ async function fetchFeatureFlagsForSEO(): Promise<FeatureFlagResult> {
             },
             body: JSON.stringify({
                 api_key: POSTHOG_API_KEY,
-                // Use a fixed distinct_id for build-time evaluation
+                // Use a fixed distinct_id for evaluation (at build time and on every cache revalidation)
                 // This gets the "default" feature flag state for new users
                 distinct_id: 'seo-build-time-check',
                 groups: {},
@@ -105,7 +110,10 @@ async function fetchFeatureFlagsForSEO(): Promise<FeatureFlagResult> {
  */
 export async function getFeatureFlagsForSEO(): Promise<FeatureFlagResult> {
     if (!POSTHOG_API_KEY) {
-        console.warn('[SEO] PostHog API key not configured - feature-flag-controlled pages will not be indexed')
+        if (!warnedMissingKey) {
+            warnedMissingKey = true
+            console.warn('[SEO] PostHog API key not configured - feature-flag-controlled pages will not be indexed')
+        }
         return { ...DEFAULT_FLAGS }
     }
 
