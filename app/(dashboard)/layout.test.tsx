@@ -7,10 +7,13 @@
  * und wird mit dem Layout neu berechnet. Alle Daten sind synthetische Platzhalter.
  */
 
-import React from "react";
+import React, { Suspense } from "react";
 import { hasPermission } from "@/lib/permissions";
 import { getSidebarUserData } from "@/lib/server/user-data";
+import { requireActiveSubscription } from "@/lib/server/route-access";
+import { headers } from "next/headers";
 import DashboardRootLayout from "./layout";
+import { DashboardGate } from "./dashboard-gate";
 import { KautionenRechtSync } from "@/components/kaution/kautionen-recht-sync";
 import DashboardInnerLayout from "./layout-inner";
 
@@ -39,9 +42,9 @@ const mockGetSidebarUserData = getSidebarUserData as jest.Mock;
 
 const SIDEBAR_DATA = { user: { id: "user-1" }, modulePermissions: null };
 
-/** Rendert das Layout und gibt die Props einer Kindkomponente zurück. */
+/** Rendert den Gate (dort laufen Auth, Sidebar-Daten und Rechte) und gibt die Props einer Kindkomponente zurück. */
 async function childProps(type: unknown): Promise<Record<string, unknown>> {
-  const element = (await DashboardRootLayout({ children: null })) as React.ReactElement<{ children: React.ReactElement[] }>;
+  const element = (await DashboardGate({ children: null })) as React.ReactElement<{ children: React.ReactElement[] }>;
   const children = React.Children.toArray(element.props.children) as React.ReactElement[];
   const child = children.find((candidate) => candidate.type === type);
   expect(child).toBeDefined();
@@ -88,5 +91,41 @@ describe("DashboardRootLayout - Modulrecht Kautionen (GH-6)", () => {
 
     expect(mockGetSidebarUserData).toHaveBeenCalledTimes(1);
     expect(mockGetSidebarUserData).toHaveBeenCalledWith({ marker: "supabase" }, { id: "user-1" }, { stripe_subscription_status: "active", stripe_price_id: null });
+  });
+});
+
+describe("DashboardRootLayout (static shell)", () => {
+  it("rendert nur eine Suspense-Grenze um DashboardGate und reicht children unverändert weiter, ohne Request-Arbeit", () => {
+    const child = <div />;
+
+    const element = DashboardRootLayout({ children: child }) as React.ReactElement<{ children: React.ReactElement<{ children: React.ReactNode }> }>;
+
+    expect(element.type).toBe(Suspense);
+    const gate = element.props.children;
+    expect(gate.type).toBe(DashboardGate);
+    expect(gate.props.children).toBe(child);
+    expect(requireActiveSubscription).not.toHaveBeenCalled();
+  });
+
+  it("bricht ab, wenn das Gate umleitet: nachgelagerte Arbeit und Kinder laufen nicht", async () => {
+    (requireActiveSubscription as jest.Mock).mockRejectedValueOnce(new Error("NEXT_REDIRECT: /login"));
+
+    await expect(DashboardGate({ children: null })).rejects.toThrow();
+
+    expect(requireActiveSubscription).toHaveBeenCalledTimes(1);
+    expect(mockGetSidebarUserData).not.toHaveBeenCalled();
+    expect(mockHasPermission).not.toHaveBeenCalled();
+    expect(headers).not.toHaveBeenCalled();
+  });
+
+  it("reicht children unverändert an DashboardInnerLayout weiter", async () => {
+    const child = <span data-testid="page" />;
+
+    const element = (await DashboardGate({ children: child })) as React.ReactElement<{ children: React.ReactElement[] }>;
+    const children = React.Children.toArray(element.props.children) as React.ReactElement[];
+    const inner = children.find((candidate) => candidate.type === DashboardInnerLayout) as React.ReactElement<{ children: unknown }>;
+
+    expect(inner).toBeDefined();
+    expect(inner.props.children).toBe(child);
   });
 });
