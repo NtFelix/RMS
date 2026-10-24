@@ -114,11 +114,14 @@ export async function requireActiveSubscription() {
     return { supabase, user, profile: null }
   }
 
+  // maybeSingle() returns null for a missing profiles row instead of a
+  // PGRST116 error, so a genuine query failure still throws below while a
+  // missing row falls through to the /subscription-locked redirect.
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("stripe_subscription_status, stripe_price_id")
     .eq("id", user.id)
-    .single()
+    .maybeSingle()
 
   if (profileError) {
     console.error("Error fetching profile for subscription check:", profileError)
