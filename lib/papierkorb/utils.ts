@@ -43,27 +43,38 @@ export async function softDeleteEntryAction(
 }
 
 /**
- * Pro Tabelle die Seiten, deren Daten von ihr abhängen. Ihre Reihenfolge bestimmt die Revalidierung.
+ * Ziel einer Revalidierung: ein konkreter Pfad oder ein Routenmuster mit Typ, z. B. für Catch-all-Routen,
+ * die `revalidatePath('/dateien')` allein nicht erreicht.
  */
-const TABLE_REVALIDATION_PATHS: Record<string, readonly string[]> = {
-  Haeuser: ['/haeuser', '/wohnungen', '/mieter'],
+type RevalidationTarget = string | readonly [pattern: string, type: 'page' | 'layout'];
+
+/**
+ * Pro Tabelle die Seiten, deren Daten von ihr abhängen. Ihre Reihenfolge bestimmt die Revalidierung.
+ * `/betriebskosten` steht bei allen Tabellen, deren Actions diese Seite ebenfalls revalidieren.
+ */
+const TABLE_REVALIDATION_PATHS: Record<string, readonly RevalidationTarget[]> = {
+  Haeuser: ['/haeuser', '/wohnungen', '/mieter', '/betriebskosten'],
   Wohnungen: ['/wohnungen', '/mieter'],
   Mieter: ['/mieter', '/wohnungen'],
   Kautionen: ['/mieter'],
   Finanzen: ['/finanzen'],
   Aufgaben: ['/todos'],
-  Zaehler: ['/wohnungen'],
-  Zaehler_Ablesungen: ['/wohnungen'],
+  Zaehler: ['/wohnungen', '/betriebskosten'],
+  Zaehler_Ablesungen: ['/wohnungen', '/betriebskosten'],
   Nebenkosten: ['/betriebskosten'],
-  Dokumente_Metadaten: ['/dateien'],
-  Rechnungen: ['/finanzen'],
+  Dokumente_Metadaten: ['/dateien', ['/dateien/[...slug]', 'page']],
+  Rechnungen: ['/finanzen', '/betriebskosten'],
 };
 
 export function revalidatePathsForTable(tableName: string) {
   // Object.hasOwn: Namen wie 'constructor' oder '__proto__' treffen keine geerbten Eigenschaften.
   const paths = Object.hasOwn(TABLE_REVALIDATION_PATHS, tableName) ? TABLE_REVALIDATION_PATHS[tableName] : [];
-  for (const path of paths) {
-    revalidatePath(path);
+  for (const target of paths) {
+    if (typeof target === 'string') {
+      revalidatePath(target);
+    } else {
+      revalidatePath(target[0], target[1]);
+    }
   }
   revalidatePath('/dashboard');
 }

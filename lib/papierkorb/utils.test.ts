@@ -215,21 +215,30 @@ describe('revalidatePathsForTable', () => {
   });
 
   it.each([
-    ['Haeuser', ['/haeuser', '/wohnungen', '/mieter']],
+    ['Haeuser', ['/haeuser', '/wohnungen', '/mieter', '/betriebskosten']],
     ['Wohnungen', ['/wohnungen', '/mieter']],
     ['Mieter', ['/mieter', '/wohnungen']],
     ['Kautionen', ['/mieter']],
     ['Finanzen', ['/finanzen']],
     ['Aufgaben', ['/todos']],
-    ['Zaehler', ['/wohnungen']],
-    ['Zaehler_Ablesungen', ['/wohnungen']],
+    ['Zaehler', ['/wohnungen', '/betriebskosten']],
+    ['Zaehler_Ablesungen', ['/wohnungen', '/betriebskosten']],
     ['Nebenkosten', ['/betriebskosten']],
-    ['Dokumente_Metadaten', ['/dateien']],
-    ['Rechnungen', ['/finanzen']],
+    ['Rechnungen', ['/finanzen', '/betriebskosten']],
   ])('%s: revalidiert die Seiten in fester Reihenfolge, danach das Dashboard', (tabelle, pfade) => {
     revalidatePathsForTable(tabelle);
 
     expect(mockRevalidatePath.mock.calls).toEqual([...pfade, '/dashboard'].map((pfad) => [pfad]));
+  });
+
+  it('Dokumente_Metadaten: revalidiert auch die Unterordner-Seiten der Catch-all-Route', () => {
+    revalidatePathsForTable('Dokumente_Metadaten');
+
+    expect(mockRevalidatePath.mock.calls).toEqual([
+      ['/dateien'],
+      ['/dateien/[...slug]', 'page'],
+      ['/dashboard'],
+    ]);
   });
 
   it.each(['Unbekannt', 'constructor', '__proto__'])('%s: revalidiert nur das Dashboard', (tabelle) => {

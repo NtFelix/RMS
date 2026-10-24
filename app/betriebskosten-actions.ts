@@ -462,9 +462,7 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
     return { success: false, message: error.message, data: null };
   }
 
-  // Consider revalidating paths where Rechnungen might be displayed directly
-  // For now, revalidating the main betriebskosten path as a general measure,
-  // though direct display of individual Rechnungen might be on a different page.
+  // Rechnungen belong to the Betriebskosten flow, so revalidate its page
   revalidatePath("/betriebskosten");
 
 
