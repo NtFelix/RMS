@@ -1,18 +1,14 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import ConsentUI from './ConsentUI';
+import ConsentUI, { ConsentLoading } from './ConsentUI';
 import {
     getAuthorizationDetailsAction,
     getUserMcpOrganisationsAction,
     type AuthorizationDetails,
     type UserMcpOrganisationItem
 } from './actions';
-
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
 
 export const metadata: Metadata = {
     title: 'OAuth Autorisierung | Mietevo',
@@ -32,7 +28,16 @@ interface PageProps {
     }>;
 }
 
-export default async function ConsentPage({ searchParams }: PageProps) {
+// Static shell: searchParams is passed down un-awaited so the shell is not blocked by request data.
+export default function ConsentPage({ searchParams }: PageProps) {
+    return (
+        <Suspense fallback={<ConsentLoading />}>
+            <ConsentContent searchParams={searchParams} />
+        </Suspense>
+    );
+}
+
+async function ConsentContent({ searchParams }: PageProps) {
     const params = await searchParams;
     const authorizationId = params.authorization_id;
     const error = params.error;
