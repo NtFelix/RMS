@@ -41,6 +41,9 @@ const nextConfig = {
   output: 'standalone',
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
+    // Inlined at build time: the footer must not call `new Date()` while rendering, which would move it out
+    // of the prerendered HTML (the year is as fresh as the deployment).
+    NEXT_PUBLIC_BUILD_YEAR: String(new Date().getFullYear()),
   },
   outputFileTracingRoot: projectRoot,
   reactStrictMode: true,

@@ -237,7 +237,7 @@ export default function Footer() {
           {/* Bottom Bar: Copyright on left, legal links on right */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground relative z-10">
             <div className="flex items-center gap-4 flex-wrap justify-center md:justify-start">
-              <span>© {new Date().getFullYear()} {BRAND_NAME}. Alle Rechte vorbehalten.</span>
+              <span>© {process.env.NEXT_PUBLIC_BUILD_YEAR ?? new Date().getFullYear()} {BRAND_NAME}. Alle Rechte vorbehalten.</span>
             </div>
             
             {/* Inline right-aligned legal links with analytics tracking restored */}
