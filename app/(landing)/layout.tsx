@@ -8,7 +8,9 @@ import { Suspense } from 'react';
 
 // Marketing pages must stay fully static: the build fails if request-time data (cookies, headers,
 // uncached fetches) sneaks into any route under this layout. Remove or relax only on purpose.
-export const ensureStatic = 'navigation'
+// Note: `instant = false` in app/layout.tsx takes precedence, so this validation only takes
+// effect once that root opt-out is removed.
+export const ensureStatic = 'navigation';
 
 export default function LandingLayout({
   children,
