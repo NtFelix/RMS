@@ -20,6 +20,8 @@ function loadModule(key: string | undefined): typeof import('./posthog-feature-f
     return require('./posthog-feature-flags')
 }
 
+const ORIGINAL_FETCH = global.fetch
+
 describe('getFeatureFlagsForSEO', () => {
     let fetchMock: jest.Mock
     let warnSpy: jest.SpyInstance
@@ -36,6 +38,7 @@ describe('getFeatureFlagsForSEO', () => {
 
     afterEach(() => {
         jest.restoreAllMocks()
+        global.fetch = ORIGINAL_FETCH
         if (ORIGINAL_KEY === undefined) {
             delete process.env.NEXT_PUBLIC_POSTHOG_KEY
         } else {
@@ -74,6 +77,15 @@ describe('getFeatureFlagsForSEO', () => {
         expect(cache.cacheLife).toHaveBeenCalledWith('hours')
     })
 
+    it('passes an abort signal so a hanging PostHog request cannot stall prerendering', async () => {
+        const { getFeatureFlagsForSEO } = loadModule('phc_test_key')
+        fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ featureFlags: {} }) })
+
+        await getFeatureFlagsForSEO()
+
+        expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal)
+    })
+
     it('returns all-false defaults instead of throwing when fetch rejects', async () => {
         const { getFeatureFlagsForSEO } = loadModule('phc_test_key')
         const cache = require('next/cache')
@@ -81,9 +93,56 @@ describe('getFeatureFlagsForSEO', () => {
 
         await expect(getFeatureFlagsForSEO()).resolves.toEqual({ showLoesungen: false, showProdukte: false })
         expect(warnSpy).toHaveBeenCalled()
+        expect(cache.cacheTag).toHaveBeenCalledWith('posthog:flags:seo')
         // The fallback must only be cached briefly, never for hours
         expect(cache.cacheLife).toHaveBeenCalledWith('minutes')
         expect(cache.cacheLife).not.toHaveBeenCalledWith('hours')
+    })
+
+    it('returns all-false defaults when the response body cannot be parsed', async () => {
+        const { getFeatureFlagsForSEO } = loadModule('phc_test_key')
+        const cache = require('next/cache')
+        fetchMock.mockResolvedValue({
+            ok: true,
+            status: 200,
+            json: async () => {
+                throw new SyntaxError('Unexpected token')
+            },
+        })
+
+        await expect(getFeatureFlagsForSEO()).resolves.toEqual({ showLoesungen: false, showProdukte: false })
+        expect(cache.cacheLife).toHaveBeenCalledWith('minutes')
+        expect(cache.cacheLife).not.toHaveBeenCalledWith('hours')
+    })
+
+    it('treats a response without featureFlags as all flags disabled', async () => {
+        const { getFeatureFlagsForSEO } = loadModule('phc_test_key')
+        fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({}) })
+
+        await expect(getFeatureFlagsForSEO()).resolves.toEqual({ showLoesungen: false, showProdukte: false })
+    })
+
+    it('keeps the last known flags when a later request fails', async () => {
+        const { getFeatureFlagsForSEO } = loadModule('phc_test_key')
+        const cache = require('next/cache')
+        fetchMock.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => ({
+                featureFlags: {
+                    [POSTHOG_FEATURE_FLAGS.SHOW_LOESUNGEN_DROPDOWN]: true,
+                    [POSTHOG_FEATURE_FLAGS.SHOW_PRODUKTE_DROPDOWN]: true,
+                },
+            }),
+        })
+        await getFeatureFlagsForSEO()
+
+        fetchMock.mockRejectedValueOnce(new TypeError('network down'))
+        await expect(getFeatureFlagsForSEO()).resolves.toEqual({ showLoesungen: true, showProdukte: true })
+        expect(cache.cacheLife).toHaveBeenLastCalledWith('minutes')
+
+        fetchMock.mockResolvedValueOnce({ ok: false, status: 503, json: async () => ({}) })
+        await expect(getFeatureFlagsForSEO()).resolves.toEqual({ showLoesungen: true, showProdukte: true })
     })
 
     it('returns all-false defaults when the response is not ok', async () => {
@@ -97,6 +156,7 @@ describe('getFeatureFlagsForSEO', () => {
 
         await expect(getFeatureFlagsForSEO()).resolves.toEqual({ showLoesungen: false, showProdukte: false })
         expect(warnSpy).toHaveBeenCalled()
+        expect(cache.cacheTag).toHaveBeenCalledWith('posthog:flags:seo')
         expect(cache.cacheLife).toHaveBeenCalledWith('minutes')
         expect(cache.cacheLife).not.toHaveBeenCalledWith('hours')
     })
