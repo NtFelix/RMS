@@ -28,13 +28,19 @@ test.describe('Instant navigation: public routes', () => {
     );
   });
 
-  test('client navigation from the landing page to the pricing page shows the skeleton instantly', async ({ page }) => {
+  test('client navigation from the landing page to the pricing page shows the skeleton instantly', async ({ page, baseURL }) => {
     await page.goto('/');
-    await instant(page, async () => {
-      await page.locator('a[href="/preise"]:visible').first().click();
-      await page.waitForURL((url) => url.pathname === '/preise');
-      await expect(page.getByText('Am beliebtesten')).toBeVisible();
-    });
+    await instant(
+      page,
+      async () => {
+        await page.locator('nav a[href="/preise"]:visible').first().click();
+        await page.waitForURL((url) => url.pathname === '/preise');
+        // The skeleton marker, not the "Am beliebtesten" badge: that also shows in the loaded plans
+        // and is absent in the waitlist and error states, which depend on PostHog and Stripe.
+        await expect(page.getByTestId('pricing-skeleton')).toBeVisible();
+      },
+      { baseURL },
+    );
   });
 
   test('pricing page skeleton is part of the shell on a page load', async ({ page, baseURL }) => {
@@ -42,7 +48,7 @@ test.describe('Instant navigation: public routes', () => {
       page,
       async () => {
         await page.goto('/preise');
-        await expect(page.getByText('Am beliebtesten')).toBeVisible();
+        await expect(page.getByTestId('pricing-skeleton')).toBeVisible();
       },
       { baseURL },
     );

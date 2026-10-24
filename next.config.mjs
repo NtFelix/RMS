@@ -36,6 +36,19 @@ will not resolve to uploaded sourcemaps for this deployment.
 `);
 }
 
+const exposeTestingApi = process.env.EXPOSE_TESTING_API === '1';
+
+if (exposeTestingApi) {
+  console.warn(`
+============================================================
+EXPOSE_TESTING_API=1: INSTANT-NAVIGATION TEST HOOK IS COMPILED IN
+============================================================
+This build exposes a testing API in the production bundle.
+Use it only for e2e/instant-navigation.spec.ts, never deploy it.
+============================================================
+`);
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
@@ -76,7 +89,7 @@ const nextConfig = {
   experimental: {
     // Only for the test build that runs e2e/instant-navigation.spec.ts (EXPOSE_TESTING_API=1 next build).
     // Off by default: it exposes a testing hook in the production bundle.
-    exposeTestingApiInProductionBuild: process.env.EXPOSE_TESTING_API === '1',
+    exposeTestingApiInProductionBuild: exposeTestingApi,
     scrollRestoration: true,
     optimizePackageImports: [
       'recharts',
