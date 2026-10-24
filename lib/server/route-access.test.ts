@@ -42,7 +42,27 @@ describe("redirectAuthenticatedAuthRoute", () => {
     expect(redirect).toHaveBeenLastCalledWith(ROUTES.HOME)
   })
 
-  it.each(["/auth/login", "/auth/update-password"])(
+  it.each(["//evil.example", "/\\evil.example", "///evil.example"])(
+    "ignores the protocol-relative redirect target %s",
+    async (target) => {
+      await redirectAuthenticatedAuthRoute(
+        requestHeaders("/auth/register", `?redirect=${encodeURIComponent(target)}`),
+      )
+
+      expect(redirect).toHaveBeenLastCalledWith(ROUTES.HOME)
+    },
+  )
+
+  it.each(["/auth/login-x", "/auth/update-password-foo"])(
+    "redirects authenticated users on the look-alike path %s",
+    async (pathname) => {
+      await redirectAuthenticatedAuthRoute(requestHeaders(pathname))
+
+      expect(redirect).toHaveBeenCalledWith(ROUTES.HOME)
+    },
+  )
+
+  it.each(["/auth/login", "/auth/login/sub", "/auth/update-password"])(
     "leaves %s reachable for authenticated users",
     async (pathname) => {
       await redirectAuthenticatedAuthRoute(requestHeaders(pathname))
