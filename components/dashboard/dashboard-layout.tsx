@@ -3,6 +3,13 @@
 import type React from "react"
 import { useSyncExternalStore } from "react"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
+import { DashboardLayoutSkeleton } from "@/components/dashboard/dashboard-layout-skeleton"
+import {
+  DASHBOARD_CARD_CLASS,
+  DASHBOARD_MAIN_CLASS,
+  DASHBOARD_ROOT_CLASS,
+  DASHBOARD_SIDEBAR_CLASS,
+} from "@/components/dashboard/dashboard-layout-classes"
 import MobileBottomNavigation from "@/components/common/mobile-bottom-navigation"
 import { cn } from "@/lib/utils"
 import type { SidebarUserData } from "@/lib/server/user-data"
@@ -35,63 +42,17 @@ export function DashboardLayout({
   const isPushMode = mounted && isOpen && displayMode === 'push' && !isMobile
   const isCollapsed = isTabletCollapsed || preference === 'collapsed'
 
-  // Render CSS-only fallback during hydration to prevent mismatches
+  // Render the CSS-only skeleton during hydration to prevent mismatches (same markup as the Suspense fallback)
   if (!mounted) {
-    return (
-      <div className="flex min-h-screen bg-background">
-        {/* CSS-only fallback layout with enhanced responsive behavior */}
-        <div className="desktop-sidebar-responsive hydration-safe-desktop w-64 prevent-layout-shift h-screen sticky top-0">
-          <div className="flex h-full flex-col">
-            {/* Sidebar placeholder with basic structure */}
-            <div className="flex h-14 items-center border-b px-4">
-              <div className="h-8 w-32 bg-muted rounded animate-pulse" />
-            </div>
-            <div className="flex-1 p-4 space-y-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-10 bg-muted rounded animate-pulse" />
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-1 flex-col">
-
-        <main className="flex flex-1 flex-col min-h-0 p-4 responsive-transition prevent-layout-shift">
-            <div className="flex-1 rounded-2xl border shadow-xs mb-0">
-              <div className="p-6">
-                <div className="flex flex-col gap-4">
-                  <div className="h-8 bg-muted rounded animate-pulse" />
-                  <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
-                  <div className="h-4 bg-muted rounded animate-pulse w-1/2" />
-                </div>
-              </div>
-            </div>
-          </main>
-        </div>
-        {/* Mobile navigation placeholder with enhanced CSS-only responsive behavior */}
-        <nav
-          className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border mobile-nav-responsive hydration-safe-mobile prevent-layout-shift"
-          aria-label="Main mobile navigation"
-        >
-          {/* Main navigation items placeholder */}
-          <div className="flex items-center justify-around px-2 py-2 h-16">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1">
-                <div className="size-5 mb-1 bg-muted rounded animate-pulse" />
-                <div className="w-8 h-3 bg-muted rounded animate-pulse" />
-              </div>
-            ))}
-          </div>
-        </nav>
-      </div>
-    )
+    return <DashboardLayoutSkeleton />
   }
 
   return (
     <TaskDndProvider>
-      <div className="flex min-h-screen bg-background w-full max-w-full">
+      <div className={DASHBOARD_ROOT_CLASS}>
         {/* Desktop sidebar */}
         <div
-          className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift overflow-hidden h-screen sticky top-0"
+          className={DASHBOARD_SIDEBAR_CLASS}
           style={{
             width: isCollapsed ? "4.5rem" : "16rem"
           }}
@@ -100,24 +61,14 @@ export function DashboardLayout({
         </div>
 
         <main className={cn(
-          "flex flex-1 flex-col min-h-0 overflow-hidden",
-          // Enhanced responsive padding with CSS-only fallbacks
-          "main-content-responsive",
-          "responsive-transition",
-          // Responsive padding: 0px on left, 12px on top, bottom, right
-          "py-3 pr-3 pl-0",
+          DASHBOARD_MAIN_CLASS,
           // JavaScript-enhanced responsive padding
           isMobile ? "pb-20 pt-3 px-3" : "py-3 pr-3 pl-0",
           // Push mode: shift content by adding right margin matching sidebar width
           isPushMode && "md:mr-[450px]"
         )}>
           <div className={cn(
-            "flex-1 border shadow-xs bg-white dark:bg-[#181818] relative overflow-y-auto overflow-x-hidden",
-            "rounded-[2rem] md:rounded-[2.5rem]",
-            "responsive-transition",
-            "prevent-layout-shift",
-            "mobile-smooth-scroll",
-            "mb-0",
+            DASHBOARD_CARD_CLASS,
             isMobile && "pb-20"
           )}>
             {children}

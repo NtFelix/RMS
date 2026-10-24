@@ -15,7 +15,7 @@ import { requireActiveSubscription } from "@/lib/server/route-access";
 import { headers } from "next/headers";
 import DashboardRootLayout from "./layout";
 import { DashboardGate } from "./dashboard-gate";
-import { DashboardShellFallback } from "./dashboard-shell-fallback";
+import { DashboardLayoutSkeleton } from "@/components/dashboard/dashboard-layout-skeleton";
 import { KautionenRechtSync } from "@/components/kaution/kautionen-recht-sync";
 import DashboardInnerLayout from "./layout-inner";
 
@@ -106,8 +106,8 @@ describe("DashboardRootLayout (static shell)", () => {
     }>;
 
     expect(element.type).toBe(Suspense);
-    // The fallback is part of the prerendered shell of every dashboard route: it must be the neutral one
-    expect(element.props.fallback.type).toBe(DashboardShellFallback);
+    // The fallback is part of the prerendered shell of every dashboard route: it must be the shell skeleton
+    expect(element.props.fallback.type).toBe(DashboardLayoutSkeleton);
     const gate = element.props.children;
     expect(gate.type).toBe(DashboardGate);
     expect(gate.props.children).toBe(child);

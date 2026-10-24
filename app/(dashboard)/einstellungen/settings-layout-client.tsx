@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import { SettingsSidebar } from "@/components/settings/sidebar"
+import { SETTINGS_CONTENT_CLASS, SETTINGS_LAYOUT_CLASS } from "@/components/settings/settings-layout-classes"
 import type { Tab } from "@/types/settings"
 import {
   User as UserIcon,
@@ -53,9 +54,9 @@ export function SettingsLayoutClient({
   )
 
   return (
-    <div className="flex h-full gap-3 p-4">
+    <div className={SETTINGS_LAYOUT_CLASS}>
       <SettingsSidebar tabs={tabs} />
-      <div className="flex-1 overflow-y-auto min-w-0 p-4">
+      <div className={SETTINGS_CONTENT_CLASS}>
         {children}
       </div>
     </div>
