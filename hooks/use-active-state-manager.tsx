@@ -152,10 +152,23 @@ export function useActiveStateManager() {
  */
 export function useSidebarActiveState() {
   const store = useSyncPathnameWithStore()
-  
+  const pathname = usePathname()
+
+  // The store only learns about a new route in an effect, one render after usePathname() changed. Reading it for
+  // the highlight would paint the old item for a frame (and no item at all on the first paint, as it starts empty),
+  // which shows as flicker in the sidebar. So the highlight is derived from the pathname in the same render.
+  const isRouteActive = useCallback(
+    (route: string) => pathname === route || pathname.startsWith(`${route}/`),
+    [pathname]
+  )
+  const getActiveStateClasses = useCallback(
+    (route: string) => (isRouteActive(route) ? "bg-accent text-accent-foreground" : "text-muted-foreground"),
+    [isRouteActive]
+  )
+
   return {
-    isRouteActive: store.isRouteActive,
-    getActiveStateClasses: store.getActiveStateClasses,
+    isRouteActive,
+    getActiveStateClasses,
     currentRoute: store.activeState.currentRoute,
     isCloudStorageActive: store.activeState.isCloudStorageActive
   }
