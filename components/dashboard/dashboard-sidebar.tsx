@@ -4,12 +4,14 @@ import type React from "react"
 import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { 
-  BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, 
-  Menu, X, Folder, Mail, Search, Bell, Network, Bot, ChevronDown, Check
-} from "lucide-react"
+import { Menu, X, Bell, ChevronDown, Check } from "lucide-react"
 import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES, POSTHOG_FEATURE_FLAGS, TABLET_BREAKPOINT } from "@/lib/constants"
+import {
+  sidebarNavGroups,
+  SIDEBAR_MODULE_MAP,
+  type SidebarNavItemType,
+} from "@/components/dashboard/sidebar-nav-config"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { UserSettings, type OrganisationItem } from "@/components/common/user-settings"
@@ -31,111 +33,6 @@ import {
   CustomDropdownSeparator,
 } from "@/components/ui/custom-dropdown"
 
-type SidebarNavItemType = {
-  title: string;
-  href: string;
-  icon: React.ElementType;
-};
-
-type SidebarNavGroupType = {
-  label: string;
-  items: SidebarNavItemType[];
-};
-
-const sidebarNavGroups: SidebarNavGroupType[] = [
-  {
-    label: "Allgemein",
-    items: [
-      {
-        title: "Dashboard",
-        href: ROUTES.HOME,
-        icon: BarChart3,
-      },
-      {
-        title: "Suche",
-        href: ROUTES.SEARCH,
-        icon: Search,
-      },
-      {
-        title: "Organisationen",
-        href: "/organisation",
-        icon: Network,
-      },
-    ]
-  },
-  {
-    label: "Objekte",
-    items: [
-      {
-        title: "Häuser",
-        href: "/haeuser",
-        icon: Building2,
-      },
-      {
-        title: "Wohnungen",
-        href: "/wohnungen",
-        icon: Home,
-      },
-      {
-        title: "Mieter",
-        href: "/mieter",
-        icon: Users,
-      },
-    ]
-  },
-  {
-    label: "Finanzen",
-    items: [
-      {
-        title: "Finanzen",
-        href: "/finanzen",
-        icon: Wallet,
-      },
-      {
-        title: "Betriebskosten",
-        href: "/betriebskosten",
-        icon: FileSpreadsheet,
-      },
-    ]
-  },
-  {
-    label: "Tools",
-    items: [
-      {
-        title: "Aufgaben",
-        href: "/todos",
-        icon: CheckSquare,
-      },
-      {
-        title: "Dokumente",
-        href: "/dateien",
-        icon: Folder,
-      },
-      {
-        title: "E-Mails",
-        href: "/mails",
-        icon: Mail,
-      },
-      {
-        title: "KI-Agenten",
-        href: "/agenten",
-        icon: Bot,
-      },
-    ]
-  }
-];
-
-const SIDEBAR_MODULE_MAP: Record<string, string> = {
-  '/haeuser': 'haeuser',
-  '/wohnungen': 'wohnungen',
-  '/mieter': 'mieter',
-  '/finanzen': 'finanzen',
-  '/betriebskosten': 'betriebskosten',
-  '/todos': 'aufgaben',
-  '/dateien': 'dokumente',
-  '/organisation': 'organisation',
-  '/agenten': 'agenten',
-};
 
 const layoutTransition = {
   duration: 0

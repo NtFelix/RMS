@@ -34,10 +34,20 @@ describe('DashboardLayoutSkeleton', () => {
     expect(container.querySelector('nav.mobile-nav-responsive')).toBeInTheDocument();
   });
 
-  it('renders one placeholder per navigation entry of the default shell', () => {
+  it('shows the real entries of the default shell, without the feature-flagged ones', () => {
+    render(<DashboardLayoutSkeleton />);
+
+    ['Dashboard', 'Suche', 'Organisationen', 'Häuser', 'Wohnungen', 'Mieter', 'Finanzen', 'Betriebskosten', 'Aufgaben'].forEach(
+      (title) => expect(screen.getByText(title)).toBeInTheDocument(),
+    );
+    ['Dokumente', 'E-Mails', 'KI-Agenten'].forEach((title) => expect(screen.queryByText(title)).not.toBeInTheDocument());
+  });
+
+  it('collapses to icons at the tablet breakpoint with CSS only', () => {
     const { container } = render(<DashboardLayoutSkeleton />);
     const sidebar = container.firstElementChild?.children[0] as HTMLElement;
 
-    expect(sidebar.querySelectorAll('.h-10.rounded-xl')).toHaveLength(9);
+    expect(sidebar).toHaveClass('w-64', 'max-lg:w-[4.5rem]');
+    expect(screen.getByText('Mieter')).toHaveClass('max-lg:hidden');
   });
 });
