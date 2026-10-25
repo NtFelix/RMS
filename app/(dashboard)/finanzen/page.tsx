@@ -99,11 +99,11 @@ function determineInitialYear(
 }
 
 import { Suspense } from "react";
-import { TableSkeleton } from "@/components/common/table-skeleton";
+import { FinanzenSkeleton } from "./skeleton";
 
 export default function FinanzenPage() {
   return (
-    <Suspense fallback={<TableSkeleton />}>
+    <Suspense fallback={<FinanzenSkeleton />}>
       <FinanzenContent />
     </Suspense>
   );

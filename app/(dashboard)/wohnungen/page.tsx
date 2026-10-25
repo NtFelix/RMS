@@ -13,12 +13,12 @@ import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 
 import { Suspense } from "react";
-import { TableSkeleton } from "@/components/common/table-skeleton";
+import { WohnungenSkeleton } from "./skeleton";
 
 // Server Component: Fetches data and passes it to the Client Component
 export default function WohnungenPage() {
   return (
-    <Suspense fallback={<TableSkeleton />}>
+    <Suspense fallback={<WohnungenSkeleton />}>
       <WohnungenContent />
     </Suspense>
   );

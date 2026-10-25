@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber } from "@/utils/format";
 import * as React from "react";
 
@@ -9,6 +10,7 @@ export interface StatCardProps {
   description?: string;
   unit?: string;       // e.g. "€", "€/m²", "m²", ""
   decimals?: boolean;  // default false; if true, format with 2 decimals, else integer
+  loading?: boolean;   // render a placeholder of the same height instead of the value (loading skeletons)
   className?: string;
 }
 
@@ -19,6 +21,7 @@ export function StatCard({
   description,
   unit = "",
   decimals = false,
+  loading = false,
   className = "",
 }: StatCardProps) {
   // Determine display value
@@ -39,7 +42,9 @@ export function StatCard({
         {icon}
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{displayValue}</div>
+        <div className="text-2xl font-bold">
+          {loading ? <Skeleton className="h-8 w-20" /> : displayValue}
+        </div>
         {description ? (
           <CardDescription>{description}</CardDescription>
         ) : null}

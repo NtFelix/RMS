@@ -13,6 +13,12 @@ interface PageSkeletonProps {
   tabCount?: number
   tabWidth?: string
   tabContainerWidth?: string
+  /** Accessible name; when set the skeleton announces itself as a busy status region. */
+  label?: string
+  /** Vertical rhythm of the page. Override only where the real page nests its content in another flex column. */
+  gapClassName?: string
+  /** The real card header hides its description below `sm`; mirror that so the header has the same height. */
+  hideDescriptionOnMobile?: boolean
 }
 
 export function PageSkeleton({
@@ -26,11 +32,17 @@ export function PageSkeleton({
   tabCount = 0,
   tabWidth = "w-24",
   tabContainerWidth,
+  label,
+  gapClassName = "gap-6 sm:gap-8",
+  hideDescriptionOnMobile = false,
 }: PageSkeletonProps) {
   const isFullWidthTabs = tabCount >= 3
 
   return (
-    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 animate-in fade-in duration-500">
+    <div
+      className={`flex flex-col ${gapClassName} p-4 sm:p-8 animate-in fade-in duration-500`}
+      {...(label ? { role: "status", "aria-busy": true, "aria-label": label } : {})}
+    >
       {tabCount > 0 && (
         <div
           className={`flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full ${
@@ -91,8 +103,8 @@ export function PageSkeleton({
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <Skeleton className={`h-6 ${headerTitleWidth} mb-2`} />
-              <Skeleton className={`h-4 ${headerDescriptionWidth}`} />
+              <Skeleton className={`h-6 ${headerTitleWidth} ${hideDescriptionOnMobile ? "sm:mb-2" : "mb-2"}`} />
+              <Skeleton className={`h-4 ${headerDescriptionWidth} ${hideDescriptionOnMobile ? "hidden sm:block" : ""}`} />
             </div>
             <Skeleton className={`h-10 ${buttonWidth} rounded-full shrink-0`} />
           </div>

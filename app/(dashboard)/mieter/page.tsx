@@ -13,11 +13,11 @@ import type { Wohnung } from "@/types/Wohnung";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 
 import { Suspense } from "react";
-import { TableSkeleton } from "@/components/common/table-skeleton";
+import { MieterSkeleton } from "./skeleton";
 
 export default function MieterPage() {
   return (
-    <Suspense fallback={<TableSkeleton />}>
+    <Suspense fallback={<MieterSkeleton />}>
       <MieterContent />
     </Suspense>
   );

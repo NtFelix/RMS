@@ -8,11 +8,11 @@ import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 
 import { Suspense } from "react";
-import { TableSkeleton } from "@/components/common/table-skeleton";
+import { HaeuserSkeleton } from "./skeleton";
 
 export default function HaeuserPage() {
   return (
-    <Suspense fallback={<TableSkeleton />}>
+    <Suspense fallback={<HaeuserSkeleton />}>
       <HaeuserContent />
     </Suspense>
   );
