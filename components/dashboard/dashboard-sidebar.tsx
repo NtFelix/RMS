@@ -604,7 +604,9 @@ function SidebarNavLink({
         }
       }}
       className={cn(
-        "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 rounded-xl isolate",
+        // Colour changes are animated for the hover only: a transition on the active state made the previous entry fade out
+        // (and the new one fade in) over 200ms, which looked like both being active for a moment after a navigation.
+        "group flex items-center h-10 text-sm font-medium data-[active=false]:hover:transition-colors data-[active=false]:hover:duration-200 relative cursor-pointer active:scale-98 hover:z-10 rounded-xl isolate",
         isCollapsed && !isMobile ? "w-10 h-10 justify-center items-center px-0 mx-auto" : "w-full px-3 justify-start",
         !isActive && "hover:bg-accent/10 dark:hover:bg-accent/15",
         getActiveStateClasses(item.href),

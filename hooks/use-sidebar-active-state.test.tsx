@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { usePathname } from 'next/navigation'
 import { useActiveStateStore, useSidebarActiveState } from '@/hooks/use-active-state-manager'
 
@@ -54,5 +54,32 @@ describe('useSidebarActiveState', () => {
     expect(result.current.isRouteActive('/dat')).toBe(false)
     expect(result.current.getActiveStateClasses('/dateien')).toBe('bg-accent text-accent-foreground')
     expect(result.current.getActiveStateClasses('/mieter')).toBe('text-muted-foreground')
+  })
+
+  it('does not re-render when the store is written, as it happens after every navigation', () => {
+    mockUsePathname.mockReturnValue('/mieter')
+    let renders = 0
+    renderHook(() => {
+      renders += 1
+      return useSidebarActiveState()
+    })
+    const rendersAfterMount = renders
+
+    act(() => {
+      useActiveStateStore.getState().updateActiveDirectory('/dateien/some-folder')
+      useActiveStateStore.getState().updateActiveRoute('/haeuser')
+    })
+
+    expect(renders).toBe(rendersAfterMount)
+  })
+
+  it('keeps the store in sync with the pathname and derives the route fields from it', () => {
+    mockUsePathname.mockReturnValue('/dateien/some-folder')
+
+    const { result } = renderHook(() => useSidebarActiveState())
+
+    expect(result.current.currentRoute).toBe('/dateien/some-folder')
+    expect(result.current.isCloudStorageActive).toBe(true)
+    expect(useActiveStateStore.getState().activeState.currentRoute).toBe('/dateien/some-folder')
   })
 })

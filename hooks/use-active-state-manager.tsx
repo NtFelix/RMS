@@ -151,12 +151,19 @@ export function useActiveStateManager() {
  * Hook specifically for sidebar navigation active states
  */
 export function useSidebarActiveState() {
-  const store = useSyncPathnameWithStore()
   const pathname = usePathname()
+  // Select only the (stable) action: subscribing to the whole store would re-render the sidebar again each time
+  // the store is written, which happens after every navigation.
+  const updateActiveRoute = useActiveStateStore((state) => state.updateActiveRoute)
 
-  // The store only learns about a new route in an effect, one render after usePathname() changed. Reading it for
+  // Keep the store in sync for the consumers that still read the route from it.
+  useEffect(() => {
+    updateActiveRoute(pathname)
+  }, [pathname, updateActiveRoute])
+
+  // The store only learns about a new route in that effect, one render after usePathname() changed. Reading it for
   // the highlight would paint the old item for a frame (and no item at all on the first paint, as it starts empty),
-  // which shows as flicker in the sidebar. So the highlight is derived from the pathname in the same render.
+  // which shows as flicker in the sidebar. So everything here is derived from the pathname in the same render.
   const isRouteActive = useCallback(
     (route: string) => pathname === route || pathname.startsWith(`${route}/`),
     [pathname]
@@ -169,8 +176,8 @@ export function useSidebarActiveState() {
   return {
     isRouteActive,
     getActiveStateClasses,
-    currentRoute: store.activeState.currentRoute,
-    isCloudStorageActive: store.activeState.isCloudStorageActive
+    currentRoute: pathname,
+    isCloudStorageActive: pathname.startsWith('/dateien')
   }
 }
 
