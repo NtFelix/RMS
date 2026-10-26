@@ -13,7 +13,7 @@ export function PillToggleSkeleton({ count, tabWidth = "w-24", containerWidth }:
   return (
     <div
       className={`flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full ${
-        containerWidth ?? (fullWidth ? "sm:w-[300px] overflow-hidden" : "sm:w-fit max-w-[400px]")
+        containerWidth || (fullWidth ? "sm:w-[300px] overflow-hidden" : "sm:w-fit max-w-[400px]")
       }`}
     >
       {Array.from({ length: count }).map((_, i) => (

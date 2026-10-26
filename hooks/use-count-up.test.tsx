@@ -132,6 +132,23 @@ describe('useCountUp', () => {
     expect(again.result.current).toBeLessThan(100)
   })
 
+  it('does not count without a numeric target', () => {
+    mockReducedMotion(false)
+    const advance = installFakeFrames()
+    const { result, rerender } = renderHook(({ target }: { target: number | undefined }) => useCountUp(target, { duration: 1000 }), {
+      initialProps: { target: undefined as number | undefined },
+    })
+    advance(0)
+    advance(2000)
+    expect(result.current).toBe(0)
+    expect(window.requestAnimationFrame).not.toHaveBeenCalled()
+
+    rerender({ target: 10 })
+    advance(0)
+    advance(1000)
+    expect(result.current).toBe(10)
+  })
+
   it('cancels the pending frame on unmount', () => {
     mockReducedMotion(false)
     installFakeFrames()

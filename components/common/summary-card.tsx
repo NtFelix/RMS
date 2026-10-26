@@ -88,6 +88,8 @@ const CardWrapper = ({ children, hoverDetails, title, formatHoverValue }: CardWr
   return <>{children}</>;
 };
 
+// SummaryCardPlaceholder and the Finanzen skeleton rely on this class string for the card height, so a change
+// here changes the skeleton too.
 const SUMMARY_CARD_CLASS = cn(
   // Main-Style-Äquivalent: abgeleitet von main, ohne Opacity-Loading (Skeleton übernimmt)
   "relative overflow-hidden rounded-3xl shadow-xs transition-opacity duration-200",

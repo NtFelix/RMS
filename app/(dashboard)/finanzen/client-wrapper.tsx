@@ -672,9 +672,13 @@ export default function FinanzenClientWrapper({
   const averageMonthlyExpenses = summaryData?.averageMonthlyExpenses ?? 0;
   const averageMonthlyCashflow = summaryData?.averageMonthlyCashflow ?? 0;
   const yearlyProjection = summaryData?.yearlyProjection ?? 0;
-  // Same order as YEARLY_SUMMARY_CARDS / FILTERED_SUMMARY_CARDS
-  const yearlyValues = [averageMonthlyIncome, averageMonthlyExpenses, averageMonthlyCashflow, yearlyProjection];
-  const filteredValues = [filteredIncome, filteredExpenses, totalBalance];
+  const yearlyValues = {
+    income: averageMonthlyIncome,
+    expenses: averageMonthlyExpenses,
+    cashflow: averageMonthlyCashflow,
+    projection: yearlyProjection,
+  };
+  const filteredValues = { filteredIncome, filteredExpenses, balance: totalBalance };
 
   const handleEdit = useCallback((finance: Finanz) => {
     useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
@@ -877,11 +881,11 @@ export default function FinanzenClientWrapper({
 
           {/* Summary Cards for Current Year */}
           <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
-            {YEARLY_SUMMARY_CARDS.map((card, i) =>
+            {YEARLY_SUMMARY_CARDS.map(({ id, ...card }) =>
               isSummaryLoading && hasInitialData ? (
-                <SummaryCardPlaceholder key={card.title} {...card} />
+                <SummaryCardPlaceholder key={id} {...card} />
               ) : (
-                <SummaryCard key={card.title} {...card} value={yearlyValues[i]} isLoading={isSummaryLoading} />
+                <SummaryCard key={id} {...card} value={yearlyValues[id]} isLoading={isSummaryLoading} />
               )
             )}
           </div>
@@ -896,11 +900,11 @@ export default function FinanzenClientWrapper({
 
           {/* Filtered Summary Cards */}
           <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3 sm:gap-4">
-            {FILTERED_SUMMARY_CARDS.map((card, i) =>
+            {FILTERED_SUMMARY_CARDS.map(({ id, ...card }) =>
               balanceLoading ? (
-                <SummaryCardPlaceholder key={card.title} {...card} />
+                <SummaryCardPlaceholder key={id} {...card} />
               ) : (
-                <SummaryCard key={card.title} {...card} value={filteredValues[i]} isLoading={false} />
+                <SummaryCard key={id} {...card} value={filteredValues[id]} isLoading={false} />
               )
             )}
           </div>

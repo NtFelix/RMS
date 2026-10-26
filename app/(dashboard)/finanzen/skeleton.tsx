@@ -22,8 +22,8 @@ export function FinanzenSkeleton() {
 
       {/* Summary Cards for the current year */}
       <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
-        {YEARLY_SUMMARY_CARDS.map((card) => (
-          <SummaryCardPlaceholder key={card.title} {...card} />
+        {YEARLY_SUMMARY_CARDS.map(({ id, ...card }) => (
+          <SummaryCardPlaceholder key={id} {...card} />
         ))}
       </div>
 
@@ -55,8 +55,8 @@ export function FinanzenSkeleton() {
 
       {/* Summary Cards for the active filters */}
       <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3 sm:gap-4">
-        {FILTERED_SUMMARY_CARDS.map((card) => (
-          <SummaryCardPlaceholder key={card.title} {...card} />
+        {FILTERED_SUMMARY_CARDS.map(({ id, ...card }) => (
+          <SummaryCardPlaceholder key={id} {...card} />
         ))}
       </div>
 
