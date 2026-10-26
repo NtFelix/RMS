@@ -26,11 +26,15 @@ function CountUpInteger({ value, enabled }: { value: number; enabled: boolean })
 }
 
 function CountUpPair({ text, enabled }: { text: string; enabled: boolean }) {
+  // Keyed by the offset of each part in the text, which stays with the part (an array index would not).
+  let offset = 0;
   return (
     <>
-      {text.split(/(\d+)/).map((part, i) =>
-        i % 2 === 1 ? <CountUpInteger key={i} value={Number(part)} enabled={enabled} /> : part
-      )}
+      {text.split(/(\d+)/).map((part, i) => {
+        const key = offset;
+        offset += part.length;
+        return i % 2 === 1 ? <CountUpInteger key={key} value={Number(part)} enabled={enabled} /> : part;
+      })}
     </>
   );
 }
