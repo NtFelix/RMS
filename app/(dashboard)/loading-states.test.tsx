@@ -13,6 +13,7 @@ import { WohnungenSkeleton } from './wohnungen/skeleton';
 import { FinanzenSkeleton } from './finanzen/skeleton';
 import { STAT_CARD_ROW_CLASS } from '@/components/skeletons/stat-cards-skeleton';
 import { StatCard } from '@/components/common/stat-card';
+import { SummaryCard, SummaryCardPlaceholder } from '@/components/common/summary-card';
 
 // Routes whose page awaits request data before rendering must not fall back to the dashboard home skeleton
 // ((dashboard)/loading.tsx), so each of them has a loading state that mirrors its own layout.
@@ -70,5 +71,34 @@ describe('list route skeletons', () => {
     const { container } = render(<StatCard title="Mieter gesamt" value="" icon={null} loading />);
 
     expect(container.querySelector('.text-2xl .animate-pulse')).toBeInTheDocument();
+  });
+});
+
+// Finanzen opens on the "Finanzen" tab, whose summary cards are SummaryCards: the skeleton shows their static
+// title and description right away and only holds the number back.
+describe('finanzen skeleton', () => {
+  it('announces itself and shows all summary cards with their static texts', () => {
+    render(<FinanzenSkeleton />);
+
+    expect(screen.getByRole('status', { name: 'Finanzen werden geladen' })).toHaveAttribute('aria-busy', 'true');
+    [
+      'Ø Monatliche Einnahmen',
+      'Ø Monatliche Ausgaben',
+      'Ø Monatlicher Cashflow',
+      'Jahresprognose',
+      'Gefilterte Einnahmen',
+      'Gefilterte Ausgaben',
+      'Aktueller Saldo',
+    ].forEach((title) => expect(screen.getByText(title)).toBeInTheDocument());
+    expect(screen.getByText('Geschätzter Jahresgewinn')).toBeInTheDocument();
+  });
+
+  it('SummaryCardPlaceholder has the same card classes as SummaryCard and holds only the value back', () => {
+    const { container: real } = render(<SummaryCard title="Saldo" value={5} icon={null} description="Text" />);
+    const { container: placeholder } = render(<SummaryCardPlaceholder title="Saldo" icon={null} description="Text" />);
+
+    expect(placeholder.firstElementChild?.className).toBe(real.firstElementChild?.className);
+    expect(placeholder.querySelector('.text-2xl .animate-pulse')).toBeInTheDocument();
+    expect(placeholder.textContent).toBe('SaldoText');
   });
 });

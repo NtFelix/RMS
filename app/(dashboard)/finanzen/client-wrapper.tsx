@@ -30,8 +30,7 @@ const FinanceTable = dynamic(
 );
 
 import { FinanceBulkActionBar } from "@/components/finance/finance-bulk-action-bar";
-import { SummaryCardSkeleton } from "@/components/skeletons/summary-card-skeleton";
-import { SummaryCard } from "@/components/common/summary-card";
+import { SummaryCard, SummaryCardPlaceholder } from "@/components/common/summary-card";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/common/stat-card";
@@ -876,20 +875,24 @@ export default function FinanzenClientWrapper({
           <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
             {isSummaryLoading && hasInitialData ? (
               <>
-                <SummaryCardSkeleton
+                <SummaryCardPlaceholder
                   title="Ø Monatliche Einnahmen"
+                  description="Durchschnittliche monatliche Einnahmen"
                   icon={<ArrowUpCircle className="size-4 text-green-500" />}
                 />
-                <SummaryCardSkeleton
+                <SummaryCardPlaceholder
                   title="Ø Monatliche Ausgaben"
+                  description="Durchschnittliche monatliche Ausgaben"
                   icon={<ArrowDownCircle className="size-4 text-red-500" />}
                 />
-                <SummaryCardSkeleton
+                <SummaryCardPlaceholder
                   title="Ø Monatlicher Cashflow"
+                  description="Durchschnittlicher monatlicher Überschuss"
                   icon={<Wallet className="size-4 text-muted-foreground" />}
                 />
-                <SummaryCardSkeleton
+                <SummaryCardPlaceholder
                   title="Jahresprognose"
+                  description="Geschätzter Jahresgewinn"
                   icon={<BarChart3 className="size-4 text-muted-foreground" />}
                 />
               </>
@@ -939,16 +942,19 @@ export default function FinanzenClientWrapper({
           <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3 sm:gap-4">
             {balanceLoading ? (
               <>
-                <SummaryCardSkeleton
+                <SummaryCardPlaceholder
                   title="Gefilterte Einnahmen"
+                  description="Einnahmen basierend auf aktuellen Filtern"
                   icon={<ArrowUpCircle className="size-4 text-green-500" />}
                 />
-                <SummaryCardSkeleton
+                <SummaryCardPlaceholder
                   title="Gefilterte Ausgaben"
+                  description="Ausgaben basierend auf aktuellen Filtern"
                   icon={<ArrowDownCircle className="size-4 text-red-500" />}
                 />
-                <SummaryCardSkeleton
+                <SummaryCardPlaceholder
                   title="Aktueller Saldo"
+                  description="Gesamtsaldo aller Transaktionen"
                   icon={<Wallet className="size-4 text-muted-foreground" />}
                 />
               </>
