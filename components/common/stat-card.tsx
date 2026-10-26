@@ -21,11 +21,11 @@ export interface StatCardProps {
 // "3 / 5" style values: every integer counts up on its own; the separators stay put.
 const COUNTABLE_PAIR = /^\d+(\s*\/\s*\d+)+$/;
 
-function CountUpInteger({ value, enabled }: { value: number; enabled: boolean }) {
-  return <>{formatNumber(useCountUp(value, { enabled }), 0)}</>;
+function CountUpInteger({ value, enabled, memoryKey }: { value: number; enabled: boolean; memoryKey: string }) {
+  return <>{formatNumber(useCountUp(value, { enabled, memoryKey }), 0)}</>;
 }
 
-function CountUpPair({ text, enabled }: { text: string; enabled: boolean }) {
+function CountUpPair({ text, enabled, memoryKey }: { text: string; enabled: boolean; memoryKey: string }) {
   // Keyed by the offset of each part in the text, which stays with the part (an array index would not).
   let offset = 0;
   return (
@@ -33,7 +33,7 @@ function CountUpPair({ text, enabled }: { text: string; enabled: boolean }) {
       {text.split(/(\d+)/).map((part, i) => {
         const key = offset;
         offset += part.length;
-        return i % 2 === 1 ? <CountUpInteger key={key} value={Number(part)} enabled={enabled} /> : part;
+        return i % 2 === 1 ? <CountUpInteger key={key} value={Number(part)} enabled={enabled} memoryKey={`${memoryKey}:${key}`} /> : part;
       })}
     </>
   );
@@ -53,6 +53,7 @@ export function StatCard({
   const counting = animate && !loading;
   const animatedNumber = useCountUp(typeof value === "number" ? value : 0, {
     enabled: counting && typeof value === "number",
+    memoryKey: `stat-card:${title}`,
   });
 
   // Determine display value
@@ -62,7 +63,7 @@ export function StatCard({
     const trimmedUnit = unit.trim();
     displayValue = formatNumber(counting ? animatedNumber : value, decimalPlaces) + (trimmedUnit ? ` ${trimmedUnit}` : "");
   } else if (counting && COUNTABLE_PAIR.test(value)) {
-    displayValue = <CountUpPair text={value} enabled />;
+    displayValue = <CountUpPair text={value} enabled memoryKey={`stat-card:${title}`} />;
   } else {
     // value is a string, render as-is and ignore unit
     displayValue = value;

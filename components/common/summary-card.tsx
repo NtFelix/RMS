@@ -117,6 +117,7 @@ export function SummaryCard({
   // Called before the loading return to keep the hook order stable; it only starts once the value is shown.
   const animatedValue = useCountUp(typeof value === "number" ? value : 0, {
     enabled: !isLoading && typeof value === "number",
+    memoryKey: `summary-card:${title}`,
   });
 
   if (isLoading) {

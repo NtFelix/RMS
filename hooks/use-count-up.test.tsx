@@ -91,6 +91,47 @@ describe('useCountUp', () => {
     expect(result.current).toBe(42)
   })
 
+  it('counts faster the second time the same memoryKey is shown', () => {
+    mockReducedMotion(false)
+    const advance = installFakeFrames()
+
+    const first = renderHook(() => useCountUp(100, { memoryKey: 'repeat-test' }))
+    advance(0)
+    advance(450)
+    expect(first.result.current).toBeLessThan(100) // first visit: 900 ms, not done at 450 ms
+    advance(500)
+    expect(first.result.current).toBe(100)
+    first.unmount()
+
+    const second = renderHook(() => useCountUp(100, { memoryKey: 'repeat-test' }))
+    advance(0)
+    advance(450)
+    expect(second.result.current).toBe(100) // repeat visit: done after 450 ms
+  })
+
+  it('keeps the full length for a memoryKey it has not seen', () => {
+    mockReducedMotion(false)
+    const advance = installFakeFrames()
+    const { result } = renderHook(() => useCountUp(100, { memoryKey: 'unseen-key' }))
+    advance(0)
+    advance(450)
+    expect(result.current).toBeLessThan(100)
+  })
+
+  it('does not remember a count that was interrupted before it finished', () => {
+    mockReducedMotion(false)
+    const advance = installFakeFrames()
+    const interrupted = renderHook(() => useCountUp(100, { memoryKey: 'interrupted-key' }))
+    advance(0)
+    advance(300)
+    interrupted.unmount()
+
+    const again = renderHook(() => useCountUp(100, { memoryKey: 'interrupted-key' }))
+    advance(0)
+    advance(450)
+    expect(again.result.current).toBeLessThan(100)
+  })
+
   it('cancels the pending frame on unmount', () => {
     mockReducedMotion(false)
     installFakeFrames()
