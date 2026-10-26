@@ -170,13 +170,6 @@ describe('StatCard count-up', () => {
     expect(screen.getByText('3,5 Jahre')).toBeInTheDocument()
   })
 
-  it('shows the final value at once with animate={false}', () => {
-    mockReducedMotion(false)
-    installFakeFrames()
-    render(<StatCard title="Miete" value={7} icon={null} animate={false} />)
-    expect(screen.getByText('7')).toBeInTheDocument()
-  })
-
   it('renders no number while loading and counts once the data is there', () => {
     mockReducedMotion(false)
     const advance = installFakeFrames()

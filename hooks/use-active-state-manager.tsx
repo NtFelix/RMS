@@ -6,6 +6,9 @@ import { useEffect, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 import type { BreadcrumbItem } from './use-cloud-storage-store'
 
+const isPathActive = (pathname: string, route: string) => pathname === route || pathname.startsWith(`${route}/`)
+const routeClasses = (active: boolean) => (active ? "bg-accent text-accent-foreground" : "text-muted-foreground")
+
 export interface ActiveStateInfo {
   currentRoute: string
   currentDirectory: string
@@ -79,8 +82,7 @@ export const useActiveStateStore = create<ActiveStateManager>()(
     
     isRouteActive: (route: string) => {
       const { activeState } = get()
-      return activeState.currentRoute === route || 
-             activeState.currentRoute.startsWith(`${route}/`)
+      return isPathActive(activeState.currentRoute, route)
     },
     
     isDirectoryActive: (path: string) => {
@@ -93,10 +95,7 @@ export const useActiveStateStore = create<ActiveStateManager>()(
     },
     
     getActiveStateClasses: (route: string) => {
-      const isActive = get().isRouteActive(route)
-      return isActive 
-        ? "bg-accent text-accent-foreground" 
-        : "text-muted-foreground"
+      return routeClasses(get().isRouteActive(route))
     },
     
     getDirectoryActiveClasses: (path: string) => {
@@ -164,14 +163,8 @@ export function useSidebarActiveState() {
   // The store only learns about a new route in that effect, one render after usePathname() changed. Reading it for
   // the highlight would paint the old item for a frame (and no item at all on the first paint, as it starts empty),
   // which shows as flicker in the sidebar. So everything here is derived from the pathname in the same render.
-  const isRouteActive = useCallback(
-    (route: string) => pathname === route || pathname.startsWith(`${route}/`),
-    [pathname]
-  )
-  const getActiveStateClasses = useCallback(
-    (route: string) => (isRouteActive(route) ? "bg-accent text-accent-foreground" : "text-muted-foreground"),
-    [isRouteActive]
-  )
+  const isRouteActive = useCallback((route: string) => isPathActive(pathname, route), [pathname])
+  const getActiveStateClasses = useCallback((route: string) => routeClasses(isRouteActive(route)), [isRouteActive])
 
   return {
     isRouteActive,

@@ -88,7 +88,6 @@ const CardWrapper = ({ children, hoverDetails, title, formatHoverValue }: CardWr
   return <>{children}</>;
 };
 
-// Shared by SummaryCard and SummaryCardPlaceholder so the placeholder has the exact geometry of the real card.
 const SUMMARY_CARD_CLASS = cn(
   // Main-Style-Äquivalent: abgeleitet von main, ohne Opacity-Loading (Skeleton übernimmt)
   "relative overflow-hidden rounded-3xl shadow-xs transition-opacity duration-200",
@@ -115,8 +114,8 @@ export function SummaryCard({
   }, [hoverDetails?.isCurrency, valueFormatter]);
 
   // Called before the loading return to keep the hook order stable; it only starts once the value is shown.
-  const animatedValue = useCountUp(typeof value === "number" ? value : 0, {
-    enabled: !isLoading && typeof value === "number",
+  const animatedValue = useCountUp(typeof value === "number" ? value : undefined, {
+    enabled: !isLoading,
     memoryKey: `summary-card:${title}`,
   });
 

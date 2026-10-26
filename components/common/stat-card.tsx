@@ -14,18 +14,17 @@ export interface StatCardProps {
   unit?: string;       // e.g. "€", "€/m²", "m²", ""
   decimals?: boolean;  // default false; if true, format with 2 decimals, else integer
   loading?: boolean;   // render a placeholder of the same height instead of the value (loading skeletons)
-  animate?: boolean;   // default true; count numeric values up when they appear or change
   className?: string;
 }
 
 // "3 / 5" style values: every integer counts up on its own; the separators stay put.
 const COUNTABLE_PAIR = /^\d+(\s*\/\s*\d+)+$/;
 
-function CountUpInteger({ value, enabled, memoryKey }: { value: number; enabled: boolean; memoryKey: string }) {
-  return <>{formatNumber(useCountUp(value, { enabled, memoryKey }), 0)}</>;
+function CountUpInteger({ value, memoryKey }: { value: number; memoryKey: string }) {
+  return <>{formatNumber(useCountUp(value, { memoryKey }), 0)}</>;
 }
 
-function CountUpPair({ text, enabled, memoryKey }: { text: string; enabled: boolean; memoryKey: string }) {
+function CountUpPair({ text, memoryKey }: { text: string; memoryKey: string }) {
   // Keyed by the offset of each part in the text, which stays with the part (an array index would not).
   let offset = 0;
   return (
@@ -33,7 +32,7 @@ function CountUpPair({ text, enabled, memoryKey }: { text: string; enabled: bool
       {text.split(/(\d+)/).map((part, i) => {
         const key = offset;
         offset += part.length;
-        return i % 2 === 1 ? <CountUpInteger key={key} value={Number(part)} enabled={enabled} memoryKey={`${memoryKey}:${key}`} /> : part;
+        return i % 2 === 1 ? <CountUpInteger key={key} value={Number(part)} memoryKey={`${memoryKey}:${key}`} /> : part;
       })}
     </>
   );
@@ -47,12 +46,10 @@ export function StatCard({
   unit = "",
   decimals = false,
   loading = false,
-  animate = true,
   className = "",
 }: StatCardProps) {
-  const counting = animate && !loading;
-  const animatedNumber = useCountUp(typeof value === "number" ? value : 0, {
-    enabled: counting && typeof value === "number",
+  const animatedNumber = useCountUp(typeof value === "number" ? value : undefined, {
+    enabled: !loading,
     memoryKey: `stat-card:${title}`,
   });
 
@@ -61,9 +58,9 @@ export function StatCard({
   if (typeof value === "number") {
     const decimalPlaces = decimals ? 2 : 0;
     const trimmedUnit = unit.trim();
-    displayValue = formatNumber(counting ? animatedNumber : value, decimalPlaces) + (trimmedUnit ? ` ${trimmedUnit}` : "");
-  } else if (counting && COUNTABLE_PAIR.test(value)) {
-    displayValue = <CountUpPair text={value} enabled memoryKey={`stat-card:${title}`} />;
+    displayValue = formatNumber(animatedNumber, decimalPlaces) + (trimmedUnit ? ` ${trimmedUnit}` : "");
+  } else if (COUNTABLE_PAIR.test(value)) {
+    displayValue = <CountUpPair text={value} memoryKey={`stat-card:${title}`} />;
   } else {
     // value is a string, render as-is and ignore unit
     displayValue = value;

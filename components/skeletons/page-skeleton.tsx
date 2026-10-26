@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ReactNode } from "react"
+import { PillToggleSkeleton } from "@/components/skeletons/pill-toggle-skeleton"
 
 interface PageSkeletonProps {
   children?: ReactNode
@@ -36,32 +37,12 @@ export function PageSkeleton({
   gapClassName = "gap-6 sm:gap-8",
   hideDescriptionOnMobile = false,
 }: PageSkeletonProps) {
-  const isFullWidthTabs = tabCount >= 3
-
   return (
     <div
       className={`flex flex-col ${gapClassName} p-4 sm:p-8 animate-in fade-in duration-500`}
       {...(label ? { role: "status", "aria-busy": true, "aria-label": label } : {})}
     >
-      {tabCount > 0 && (
-        <div
-          className={`flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full ${
-            tabContainerWidth 
-              ? tabContainerWidth
-              : isFullWidthTabs
-                ? "sm:w-[300px] overflow-hidden"
-                : "sm:w-fit max-w-[400px]"
-          }`}
-        >
-          {Array.from({ length: tabCount }).map((_, i) =>
-            isFullWidthTabs ? (
-              <Skeleton key={i} className="h-9 flex-1 rounded-full" />
-            ) : (
-              <Skeleton key={i} className={`h-9 ${tabWidth} rounded-full`} />
-            )
-          )}
-        </div>
-      )}
+      {tabCount > 0 && <PillToggleSkeleton count={tabCount} tabWidth={tabWidth} containerWidth={tabContainerWidth} />}
 
       {/* Children (e.g., Stats Cards) */}
       {children}

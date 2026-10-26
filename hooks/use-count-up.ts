@@ -27,20 +27,19 @@ interface CountUpOptions {
   enabled?: boolean
 }
 
-// Counts from the last displayed value to `target`: from 0 when the number first appears (page switch, the
-// skeleton is replaced), from the old value when it changes later (a filter, a tab). The first render is
-// 0 on server and client alike, which keeps hydration stable; users who prefer reduced motion get the final
-// value straight away. Seen again (same `memoryKey`), the count is twice as fast: the second visit should
-// not make the user wait as long as the first one.
+// Counts from the last displayed value to `target`: from 0 when the number first appears (page switch), from
+// the old value when it changes later. The first render is 0 on server and client alike (stable hydration);
+// reduced motion jumps to the final value. A `memoryKey` that already counted up once counts twice as fast.
+// Without a numeric `target` nothing runs and the hook returns 0.
 export function useCountUp(
-  target: number,
+  target: number | undefined,
   { duration, memoryKey, enabled = true }: CountUpOptions = {}
 ): number {
   const [value, setValue] = useState(0)
   const fromRef = useRef(0)
 
   useIsomorphicLayoutEffect(() => {
-    if (!enabled) {
+    if (!enabled || target === undefined) {
       fromRef.current = 0
       setValue(0)
       return

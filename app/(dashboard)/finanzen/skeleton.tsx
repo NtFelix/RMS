@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PillToggleSkeleton } from "@/components/skeletons/pill-toggle-skeleton"
 import { SummaryCardPlaceholder } from "@/components/common/summary-card"
-import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react"
+import { FILTERED_SUMMARY_CARDS, YEARLY_SUMMARY_CARDS } from "./summary-cards"
 
 const CARD_CLASS = "bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]"
 
@@ -17,34 +18,13 @@ export function FinanzenSkeleton() {
       aria-busy="true"
       aria-label="Finanzen werden geladen"
     >
-      {/* Tab Toggle Skeleton */}
-      <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px]">
-        <Skeleton className="h-9 w-28 rounded-full" />
-        <Skeleton className="h-9 w-28 rounded-full" />
-      </div>
+      <PillToggleSkeleton count={2} tabWidth="w-28" />
 
       {/* Summary Cards for the current year */}
       <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
-        <SummaryCardPlaceholder
-          title="Ø Monatliche Einnahmen"
-          description="Durchschnittliche monatliche Einnahmen"
-          icon={<ArrowUpCircle className="size-4 text-green-500" />}
-        />
-        <SummaryCardPlaceholder
-          title="Ø Monatliche Ausgaben"
-          description="Durchschnittliche monatliche Ausgaben"
-          icon={<ArrowDownCircle className="size-4 text-red-500" />}
-        />
-        <SummaryCardPlaceholder
-          title="Ø Monatlicher Cashflow"
-          description="Durchschnittlicher monatlicher Überschuss"
-          icon={<Wallet className="size-4 text-muted-foreground" />}
-        />
-        <SummaryCardPlaceholder
-          title="Jahresprognose"
-          description="Geschätzter Jahresgewinn"
-          icon={<BarChart3 className="size-4 text-muted-foreground" />}
-        />
+        {YEARLY_SUMMARY_CARDS.map((card) => (
+          <SummaryCardPlaceholder key={card.title} {...card} />
+        ))}
       </div>
 
       {/* Chart Skeleton */}
@@ -75,21 +55,9 @@ export function FinanzenSkeleton() {
 
       {/* Summary Cards for the active filters */}
       <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3 sm:gap-4">
-        <SummaryCardPlaceholder
-          title="Gefilterte Einnahmen"
-          description="Einnahmen basierend auf aktuellen Filtern"
-          icon={<ArrowUpCircle className="size-4 text-green-500" />}
-        />
-        <SummaryCardPlaceholder
-          title="Gefilterte Ausgaben"
-          description="Ausgaben basierend auf aktuellen Filtern"
-          icon={<ArrowDownCircle className="size-4 text-red-500" />}
-        />
-        <SummaryCardPlaceholder
-          title="Aktueller Saldo"
-          description="Gesamtsaldo aller Transaktionen"
-          icon={<Wallet className="size-4 text-muted-foreground" />}
-        />
+        {FILTERED_SUMMARY_CARDS.map((card) => (
+          <SummaryCardPlaceholder key={card.title} {...card} />
+        ))}
       </div>
 
       {/* Transactions Table Skeleton */}
