@@ -312,6 +312,16 @@ export function formatLocalDateToIso(date: Date): string {
 }
 
 /**
+ * Local calendar date (no time zone shift) of a YYYY-MM-DD string, e.g. for a date picker; undefined when it doesn't parse.
+ * Counterpart of formatLocalDateToIso.
+ */
+export function isoToLocalDate(iso: string): Date | undefined {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return undefined;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+/**
  * Whether a date (German or ISO, optionally with a time part) falls on or between two
  * period dates, compared as calendar days. A time component on the last day stays inside.
  */

@@ -19,7 +19,7 @@ import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
 import { parseMoneyToCents } from "@/lib/kautionen-money";
 import { endeEinschliessendSicher } from "@/lib/kautionen-zinsen";
 import { validateKautionDatum } from "@/lib/kautionen-validation";
-import { formatLocalDateToIso } from "@/utils/date-calculations";
+import { formatLocalDateToIso, isoToLocalDate } from "@/utils/date-calculations";
 import type { KautionAbrechnung, KautionDetails, KautionRechte } from "@/types/Kaution";
 
 /**
@@ -62,13 +62,6 @@ interface Berechnung {
   abrechnung: KautionAbrechnung | null;
 }
 
-/** Local calendar date for the date picker (no time zone shift). */
-function isoZuLokalemDatum(iso: string): Date | undefined {
-  const treffer = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!treffer) return undefined;
-  return new Date(Number(treffer[1]), Number(treffer[2]) - 1, Number(treffer[3]));
-}
-
 export function KautionAbrechnungTab({
   tenantId,
   details,
@@ -82,7 +75,7 @@ export function KautionAbrechnungTab({
   const { funktionen } = useKautionFlag();
   const [stichtagStart] = useState(() => heuteIso());
   const [stichtag, setStichtag] = useState(stichtagStart);
-  const [stichtagKalender, setStichtagKalender] = useState<Date | undefined>(() => isoZuLokalemDatum(stichtagStart));
+  const [stichtagKalender, setStichtagKalender] = useState<Date | undefined>(() => isoToLocalDate(stichtagStart));
   const [stichtagFehler, setStichtagFehler] = useState<string | undefined>(undefined);
   const [berechnung, setBerechnung] = useState<Berechnung | null>(null);
   const [berechnungLaeuft, setBerechnungLaeuft] = useState(false);
@@ -207,7 +200,7 @@ export function KautionAbrechnungTab({
           </Alert>
         ) : null}
 
-        {!veraltet && aktuell && abrechnung === null ? (
+        {aktuell && abrechnung === null ? (
           <Alert role="note" className="border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200 [&>svg]:text-amber-600">
             <AlertDescription>Für diese Kaution ist keine Abrechnung verfügbar.</AlertDescription>
           </Alert>

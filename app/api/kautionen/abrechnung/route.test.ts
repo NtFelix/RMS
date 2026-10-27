@@ -67,7 +67,7 @@ const mockSupabase = {
 
 const mockFetch = jest.fn();
 
-/** Request as far as the route uses it (`headers.get`, `text`). */
+/** Request as far as the route uses it (`headers.get`, `body` as a stream of the text). */
 function anfrage(
   body: unknown,
   kopf: { contentType?: string | null; secFetchSite?: string | null; contentLength?: string | null } = {},
@@ -81,7 +81,12 @@ function anfrage(
   };
   return {
     headers: { get: (name: string) => werte[name.toLowerCase()] ?? null },
-    text: jest.fn(async () => text),
+    body: new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(text));
+        controller.close();
+      },
+    }),
   } as unknown as NextRequest;
 }
 
@@ -186,7 +191,7 @@ describe("Anfrageform und Eingaben", () => {
     const response = await POST(anfrageObj);
 
     expect(response.status).toBe(413);
-    expect((anfrageObj as unknown as { text: jest.Mock }).text).not.toHaveBeenCalled();
+    expect(anfrageObj.body?.locked).toBe(false); // not read
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
@@ -206,7 +211,6 @@ describe("Anfrageform und Eingaben", () => {
     const response = await POST(anfrageObj);
 
     expect(response.status).toBe(413);
-    expect((anfrageObj as unknown as { text: jest.Mock }).text).not.toHaveBeenCalled();
     expect(mockRpc).not.toHaveBeenCalled();
     expect(mockFetch).not.toHaveBeenCalled();
   });

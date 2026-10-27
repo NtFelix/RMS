@@ -94,10 +94,7 @@ async function verwerfeAntwort(antwort: Response): Promise<void> {
  */
 async function leseAnfrageText(request: NextRequest): Promise<string | null> {
   const strom = request.body;
-  if (!strom || typeof strom.getReader !== "function") {
-    const text = await request.text();
-    return new TextEncoder().encode(text).byteLength > KAUTION_ABRECHNUNG_MAX_ANFRAGE_BYTES ? null : text;
-  }
+  if (!strom) return "";
   const leser = strom.getReader();
   const teile: Uint8Array[] = [];
   let gesamt = 0;

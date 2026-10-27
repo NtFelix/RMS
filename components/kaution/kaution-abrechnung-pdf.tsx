@@ -5,7 +5,7 @@ import { FileDown } from "lucide-react";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { KEINE_BERECHTIGUNG_TEXT, KautionFormularFehler } from "@/components/kaution/kaution-feld";
 import { ladeKautionAbrechnungPdf } from "@/components/kaution/kaution-abrechnung-download";
-import { KAUTION_ABRECHNUNG_ART_LABELS } from "@/lib/kautionen-constants";
+import { KAUTION_ABRECHNUNG_ARTEN, KAUTION_ABRECHNUNG_ART_LABELS } from "@/lib/kautionen-constants";
 import type { KautionAbrechnungArt } from "@/types/Kaution";
 
 /**
@@ -26,8 +26,6 @@ interface KautionAbrechnungPdfProps {
   /** The tab "Dokumente" exists (function flag `dokumente`): only then the note about the receipt makes sense. */
   dokumenteAktiv: boolean;
 }
-
-const ARTEN: KautionAbrechnungArt[] = ["zwischen", "end"];
 
 export function KautionAbrechnungPdf({ tenantId, stichtag, darfAnsehen, dokumenteAktiv }: KautionAbrechnungPdfProps) {
   const basisId = useId();
@@ -64,7 +62,7 @@ export function KautionAbrechnungPdf({ tenantId, stichtag, darfAnsehen, dokument
       </p>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        {ARTEN.map((art) => (
+        {KAUTION_ABRECHNUNG_ARTEN.map((art) => (
           <ButtonWithTooltip
             key={art}
             type="button"

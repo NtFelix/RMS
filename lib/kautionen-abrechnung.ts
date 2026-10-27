@@ -11,6 +11,7 @@
  * Not a "use server" file.
  */
 
+import { WORKER_KAUTION_ABRECHNUNG_TEMPLATE } from "@/lib/constants/worker";
 import { isKautionAbrechnungArt } from "@/lib/kautionen-constants";
 import { validateKautionDatum, validateKautionStichtag, validateUuid, type ValidationResult } from "@/lib/kautionen-validation";
 import type { KautionAbrechnung, KautionAbrechnungArt } from "@/types/Kaution";
@@ -25,7 +26,7 @@ export const KAUTION_ABRECHNUNG_MAX_PDF_BYTES = 10 * 1024 * 1024;
 export const KAUTION_ABRECHNUNG_WORKER_FRIST_MS = 30_000;
 
 /** Template name the worker uses for the settlement PDF. */
-export const KAUTION_ABRECHNUNG_WORKER_TEMPLATE = "kaution-abrechnung";
+export const KAUTION_ABRECHNUNG_WORKER_TEMPLATE = WORKER_KAUTION_ABRECHNUNG_TEMPLATE;
 
 /** Name part of the file per kind: `Kautionsabrechnung-Zwischen-…` or `Kautionsabrechnung-End-…`. */
 const ART_DATEITEIL: Record<KautionAbrechnungArt, string> = { zwischen: "Zwischen", end: "End" };

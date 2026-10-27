@@ -15,7 +15,7 @@ import { formatBetrag, formatDatum, heuteIso } from "@/components/kaution/kautio
 import { KAUTION_MIN_WERTSTELLUNG, KAUTION_TEXT_LIMITS } from "@/lib/kautionen-constants";
 import { parseMoneyToCents } from "@/lib/kautionen-money";
 import { validateKautionDatum, validateKautionText } from "@/lib/kautionen-validation";
-import { formatLocalDateToIso } from "@/utils/date-calculations";
+import { formatLocalDateToIso, isoToLocalDate } from "@/utils/date-calculations";
 import type { KautionDetails, KautionRechte } from "@/types/Kaution";
 
 /**
@@ -58,7 +58,7 @@ export function KautionAbrechnungEinbehalt({
   const [serverFehler, setServerFehler] = useState<string | null>(null);
   const aufhebenRef = useRef(false);
 
-  const formularSichtbar = (!einbehalt && hatGuthaben) || (einbehalt !== null && hatGuthaben && aendernOffen);
+  const formularSichtbar = hatGuthaben && (!einbehalt || aendernOffen);
 
   const handleAufheben = async () => {
     if (aufhebenRef.current || !rechte.bearbeiten) return;
@@ -199,13 +199,6 @@ interface KautionEinbehaltFormProps {
   onDirtyChange?: (dirty: boolean) => void;
 }
 
-/** Local calendar date for the date picker (no time zone shift). */
-function isoZuLokalemDatum(iso: string): Date | undefined {
-  const treffer = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!treffer) return undefined;
-  return new Date(Number(treffer[1]), Number(treffer[2]) - 1, Number(treffer[3]));
-}
-
 /** Form "Einbehalt": reason (3 to 500 characters) and the date since when the balance is held back (not in the future). */
 function KautionEinbehaltForm({
   kautionId,
@@ -222,7 +215,7 @@ function KautionEinbehaltForm({
   const [start] = useState(() => ({ grund: startGrund, seit: startSeit !== "" ? startSeit : heuteIso() }));
   const [grund, setGrund] = useState(start.grund);
   const [seit, setSeit] = useState(start.seit);
-  const [seitKalender, setSeitKalender] = useState(() => isoZuLokalemDatum(start.seit));
+  const [seitKalender, setSeitKalender] = useState(() => isoToLocalDate(start.seit));
   const [fehler, setFehler] = useState<{ grund?: string; seit?: string }>({});
   const [serverFehler, setServerFehler] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

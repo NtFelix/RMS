@@ -157,6 +157,13 @@ export interface KautionZinsGrundlage {
   segmente?: KautionZinsSegment[];
 }
 
+/** Hold of a deposit (not a booking): reason, date since when, and the days it has been held at the settlement date. */
+export interface KautionEinbehalt {
+  grund: string;
+  seit: string;
+  liegedauer_tage: number;
+}
+
 export interface KautionDetails {
   kaution: Kaution;
   konto: KautionKonto;
@@ -187,7 +194,7 @@ export interface KautionDetails {
   /** Balance plus the accrued interest proposal (`null` without a balance, for non-account types). */
   kontostand_inkl_zinsen?: number | null;
   // P4: set while a hold is stored (`get_kaution_details`), also when the balance is 0 (then it can only be removed, not changed)
-  einbehalt?: { grund: string; seit: string; liegedauer_tage: number } | null;
+  einbehalt?: KautionEinbehalt | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -240,7 +247,7 @@ export interface KautionAbrechnung {
   zinsen_offen: KautionZinsVorschlag | null;
   /** Balance plus the open interest (if the proposal is possible). */
   betrag_inkl_zinsen: number;
-  einbehalt: { grund: string; seit: string; liegedauer_tage: number } | null;
+  einbehalt: KautionEinbehalt | null;
   bewegungen: KautionAbrechnungBewegung[];
   storniert_anzahl: number;
 }

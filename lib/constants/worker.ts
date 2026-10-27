@@ -10,4 +10,5 @@ export type WorkerTemplate = (typeof WORKER_TEMPLATES)[number];
  * `app/api/kautionen/abrechnung/route.ts`). The generic proxy `app/api/worker/route.ts` adds the shared key to every call
  * of a signed-in user, so it must refuse these: otherwise any user could send forged figures to the worker.
  */
-export const WORKER_INTERNAL_ONLY_TEMPLATES = ['kaution-abrechnung'] as const;
+export const WORKER_KAUTION_ABRECHNUNG_TEMPLATE = 'kaution-abrechnung';
+export const WORKER_INTERNAL_ONLY_TEMPLATES = [WORKER_KAUTION_ABRECHNUNG_TEMPLATE] as const;
