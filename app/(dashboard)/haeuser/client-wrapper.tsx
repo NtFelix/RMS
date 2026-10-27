@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { STAT_CARD_ROW_CLASS } from "@/components/skeletons/stat-cards-skeleton";
 import { StatCard } from "@/components/common/stat-card";
 import { HouseTable, House } from "@/components/tables/house-table";
 import { formatPlzOrt } from "@/lib/address";
@@ -181,7 +182,7 @@ function SummaryStats({ summary }: { summary: {
   freeApartments: number;
 } }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4 animate-in fade-in duration-300">
+    <div className={`${STAT_CARD_ROW_CLASS} animate-in fade-in duration-300`}>
       <StatCard
         title="Häuser gesamt"
         value={summary.totalHouses}
