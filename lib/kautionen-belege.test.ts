@@ -14,6 +14,7 @@ import {
   bereinigeBelegDateiname,
   erzeugeBelegDateiname,
   formatBelegGroesse,
+  fehltBelegAnfrageGroesse,
   istBelegAnfrageZuGross,
   istNichtAngemeldetFehler,
   parseBelegFehler,
@@ -150,6 +151,19 @@ describe("istBelegAnfrageZuGross", () => {
     expect(istBelegAnfrageZuGross(String(MAX_FILE_SIZE + 1024 * 1024))).toBe(false);
     expect(istBelegAnfrageZuGross(String(MAX_FILE_SIZE + 1024 * 1024 + 1))).toBe(true);
     expect(istBelegAnfrageZuGross("keine-zahl")).toBe(false);
+  });
+});
+
+describe("fehltBelegAnfrageGroesse", () => {
+  it("verlangt eine Größenangabe, damit ein Körper ohne Länge nicht vollständig gepuffert wird", () => {
+    expect(fehltBelegAnfrageGroesse(null)).toBe(true);
+    expect(fehltBelegAnfrageGroesse(undefined)).toBe(true);
+    expect(fehltBelegAnfrageGroesse("")).toBe(true);
+    expect(fehltBelegAnfrageGroesse("  ")).toBe(true);
+    expect(fehltBelegAnfrageGroesse("keine-zahl")).toBe(true);
+    expect(fehltBelegAnfrageGroesse("-1")).toBe(true);
+    expect(fehltBelegAnfrageGroesse("0")).toBe(false);
+    expect(fehltBelegAnfrageGroesse("2048")).toBe(false);
   });
 });
 
