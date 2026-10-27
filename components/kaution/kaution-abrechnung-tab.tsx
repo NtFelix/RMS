@@ -72,7 +72,9 @@ export function KautionAbrechnungTab({
   onBuchungErfassen,
 }: KautionAbrechnungTabProps) {
   const basisId = useId();
-  const { funktionen } = useKautionFlag();
+  const { funktionen, bewegungsarten } = useKautionFlag();
+  // Interest credits only with the function flag `zinsen` AND if the flag payload allows the booking type (like the statement).
+  const zinsenBuchbar = funktionen.zinsen && bewegungsarten.includes("zinsgutschrift");
   const [stichtagStart] = useState(() => heuteIso());
   const [stichtag, setStichtag] = useState(stichtagStart);
   const [stichtagKalender, setStichtagKalender] = useState<Date | undefined>(() => isoToLocalDate(stichtagStart));
@@ -133,7 +135,7 @@ export function KautionAbrechnungTab({
     onBuchungErfassen({ art: "zinsgutschrift", von: zinsen.von, bis: zinsen.bis });
   };
 
-  const zinsGutschriftDarf = rechte.erstellen && funktionen.zinsen;
+  const zinsGutschriftDarf = rechte.erstellen && zinsenBuchbar;
 
   return (
     <div className="space-y-4">
@@ -260,7 +262,7 @@ export function KautionAbrechnungTab({
                   </AlertDescription>
                 </Alert>
               )}
-              {funktionen.zinsen && zinsGutschriftMoeglich ? (
+              {zinsenBuchbar && zinsGutschriftMoeglich ? (
                 <ButtonWithTooltip
                   type="button"
                   variant="outline"

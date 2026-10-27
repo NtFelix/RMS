@@ -68,6 +68,7 @@ const flagMock = useKautionFlag as unknown as jest.Mock;
 function setzeFunktionen(funktionen: Partial<Record<KautionFunktion, boolean>> = {}) {
   flagMock.mockReturnValue({
     ...standardKautionFlagKonfig(true),
+    bewegungsarten: ["einzahlung", "zinsgutschrift", "auszahlung", "abzug"],
     funktionen: { raten: false, dokumente: false, fristen: false, zinsen: false, abrechnung: true, ...funktionen },
   });
 }
@@ -371,6 +372,19 @@ describe("KautionAbrechnungTab: Berechnung", () => {
     expect(screen.queryByRole("button", { name: "Zinsen gutschreiben" })).not.toBeInTheDocument();
   });
 
+  it("bietet die Zinsgutschrift nicht an, wenn die Konfiguration die Buchungsart nicht erlaubt", async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    flagMock.mockReturnValue({
+      ...standardKautionFlagKonfig(true),
+      bewegungsarten: ["einzahlung", "auszahlung", "abzug"],
+      funktionen: { raten: false, dokumente: false, fristen: false, zinsen: true, abrechnung: true },
+    });
+    renderTab();
+    await berechneHeute(user);
+
+    expect(screen.queryByRole("button", { name: "Zinsen gutschreiben" })).not.toBeInTheDocument();
+  });
+
   it("bietet keine Zinsgutschrift an, wenn kein Zinsbetrag über 0 offen ist", async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     setzeFunktionen({ zinsen: true });
@@ -421,6 +435,34 @@ describe("KautionAbrechnungTab: Abzüge", () => {
     expect(knopf).toBeDisabled();
     await user.hover(knopf.parentElement as HTMLElement);
     expect(await screen.findByText("Keine Berechtigung")).toBeInTheDocument();
+  });
+});
+
+describe("KautionAbrechnungTab: Buchungsarten der Konfiguration", () => {
+  raeumeNachJedemTestAuf();
+
+  it("zeigt „Abzug erfassen“ und „Auszahlung erfassen“ nicht, wenn die Konfiguration die Buchungsart nicht erlaubt", () => {
+    flagMock.mockReturnValue({
+      ...standardKautionFlagKonfig(true),
+      bewegungsarten: ["einzahlung"],
+      funktionen: { raten: false, dokumente: false, fristen: false, zinsen: false, abrechnung: true },
+    });
+    renderTab();
+
+    expect(screen.queryByRole("button", { name: "Abzug erfassen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Auszahlung erfassen" })).not.toBeInTheDocument();
+  });
+
+  it("zeigt nur den Knopf der erlaubten Buchungsart", () => {
+    flagMock.mockReturnValue({
+      ...standardKautionFlagKonfig(true),
+      bewegungsarten: ["einzahlung", "abzug"],
+      funktionen: { raten: false, dokumente: false, fristen: false, zinsen: false, abrechnung: true },
+    });
+    renderTab();
+
+    expect(screen.getByRole("button", { name: "Abzug erfassen" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Auszahlung erfassen" })).not.toBeInTheDocument();
   });
 });
 

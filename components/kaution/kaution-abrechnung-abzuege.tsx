@@ -6,6 +6,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import type { KautionBuchungVorgabe } from "@/components/kaution/kaution-buchung-form";
 import { KEINE_BERECHTIGUNG_TEXT } from "@/components/kaution/kaution-feld";
+import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import { formatBetrag, formatDatum } from "@/components/kaution/kaution-format";
 import { KAUTION_ABZUG_KATEGORIE_LABELS } from "@/lib/kautionen-constants";
 import type { KautionDetails, KautionRechte } from "@/types/Kaution";
@@ -13,7 +14,8 @@ import type { KautionDetails, KautionRechte } from "@/types/Kaution";
 /**
  * Section "1. Abzüge erfassen" of the settlement tab: the deductions that are not cancelled (from the statement, database
  * data only), and the button to book another one. The button hands over to the statement, where the booking form opens
- * with the type "Abzug" (category and reason are entered there).
+ * with the type "Abzug" (category and reason are entered there). The button only exists if the flag payload allows the
+ * booking type `abzug` (`bewegungsarten`), like the buttons of the statement.
  */
 
 interface KautionAbrechnungAbzuegeProps {
@@ -25,6 +27,7 @@ interface KautionAbrechnungAbzuegeProps {
 
 export function KautionAbrechnungAbzuege({ details, rechte, onBuchungErfassen }: KautionAbrechnungAbzuegeProps) {
   const basisId = useId();
+  const { bewegungsarten } = useKautionFlag();
   const abzuege = details.kontoauszug.filter((bewegung) => bewegung.bewegungsart === "abzug" && bewegung.storniert_am === null);
 
   return (
@@ -33,18 +36,20 @@ export function KautionAbrechnungAbzuege({ details, rechte, onBuchungErfassen }:
         <h3 id={`${basisId}-titel`} className="text-base font-semibold">
           1. Abzüge erfassen
         </h3>
-        <ButtonWithTooltip
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={!rechte.erstellen}
-          tooltip={KEINE_BERECHTIGUNG_TEXT}
-          showTooltip={!rechte.erstellen}
-          onClick={() => onBuchungErfassen({ art: "abzug" })}
-        >
-          <Minus aria-hidden="true" />
-          Abzug erfassen
-        </ButtonWithTooltip>
+        {bewegungsarten.includes("abzug") ? (
+          <ButtonWithTooltip
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!rechte.erstellen}
+            tooltip={KEINE_BERECHTIGUNG_TEXT}
+            showTooltip={!rechte.erstellen}
+            onClick={() => onBuchungErfassen({ art: "abzug" })}
+          >
+            <Minus aria-hidden="true" />
+            Abzug erfassen
+          </ButtonWithTooltip>
+        ) : null}
       </div>
 
       {abzuege.length === 0 ? (

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
+import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import { toast } from "@/hooks/use-toast";
 import { KEINE_BERECHTIGUNG_TEXT, KautionFeld, KautionFormularFehler, useDirtyMelder } from "@/components/kaution/kaution-feld";
 import type { KautionBuchungVorgabe } from "@/components/kaution/kaution-buchung-form";
@@ -22,6 +23,7 @@ import type { KautionDetails, KautionRechte } from "@/types/Kaution";
  * Section "4. Auszahlung und Einbehalt" of the settlement tab.
  *
  * - "Auszahlung erfassen" hands over to the statement (booking form with the type "Auszahlung", prefilled with the balance).
+ *   The button only exists if the flag payload allows the booking type `auszahlung` (`bewegungsarten`).
  * - Einbehalt: a reason and the date since when the balance is held back. It is NOT a booking: the amount held back is always
  *   the balance from the database. Set, change and remove need the right `bearbeiten`.
  * - Without a balance there is nothing to hold back: no form, a hint instead. A hold that is still stored without a balance
@@ -50,6 +52,7 @@ export function KautionAbrechnungEinbehalt({
   onBuchungErfassen,
 }: KautionAbrechnungEinbehaltProps) {
   const basisId = useId();
+  const { bewegungsarten } = useKautionFlag();
   const { kaution, konto, einbehalt } = details;
   // Comparison in exact cents (no float): a balance above 0 allows a hold and a payout.
   const hatGuthaben = (parseMoneyToCents(konto.kontostand) ?? 0) > 0;
@@ -89,18 +92,20 @@ export function KautionAbrechnungEinbehalt({
         <h3 id={`${basisId}-titel`} className="text-base font-semibold">
           4. Auszahlung und Einbehalt
         </h3>
-        <ButtonWithTooltip
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={!rechte.erstellen}
-          tooltip={KEINE_BERECHTIGUNG_TEXT}
-          showTooltip={!rechte.erstellen}
-          onClick={() => onBuchungErfassen({ art: "auszahlung" })}
-        >
-          <ArrowUpFromLine aria-hidden="true" />
-          Auszahlung erfassen
-        </ButtonWithTooltip>
+        {bewegungsarten.includes("auszahlung") ? (
+          <ButtonWithTooltip
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!rechte.erstellen}
+            tooltip={KEINE_BERECHTIGUNG_TEXT}
+            showTooltip={!rechte.erstellen}
+            onClick={() => onBuchungErfassen({ art: "auszahlung" })}
+          >
+            <ArrowUpFromLine aria-hidden="true" />
+            Auszahlung erfassen
+          </ButtonWithTooltip>
+        ) : null}
       </div>
 
       <div className="space-y-3">
