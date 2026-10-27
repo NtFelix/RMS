@@ -104,7 +104,9 @@ function anfrage(felder: Record<string, string | File | undefined>, contentLengt
     if (typeof wert === "string") formData.append(schluessel, wert);
     else formData.append(schluessel, wert, wert.name);
   }
-  const headers = { get: (name: string) => (name.toLowerCase() === "content-length" ? (contentLength ?? null) : null) };
+  // Browsers always send the length of a `FormData` body: the default stands for that (`null` = a chunked request without it).
+  const laenge = contentLength === "keine" ? null : (contentLength ?? "2048");
+  const headers = { get: (name: string) => (name.toLowerCase() === "content-length" ? laenge : null) };
   return { formData: jest.fn(async () => formData), headers } as unknown as NextRequest;
 }
 
@@ -216,6 +218,16 @@ describe("Eingaben", () => {
     const response = await POST(request);
 
     expect(response.status).toBe(413);
+    expect(request.formData).not.toHaveBeenCalled();
+    expect(mockUpload).not.toHaveBeenCalled();
+  });
+
+  it("lehnt eine Anfrage ohne Größenangabe ab, ohne den Körper zu lesen (411)", async () => {
+    const request = anfrage({ bewegungId: BEWEGUNG_ID, file: pdf() }, "keine");
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(411);
     expect(request.formData).not.toHaveBeenCalled();
     expect(mockUpload).not.toHaveBeenCalled();
   });

@@ -15,6 +15,7 @@ import {
   baueBelegPfad,
   belegFehlerAntwort,
   erzeugeBelegDateiname,
+  fehltBelegAnfrageGroesse,
   istBelegAnfrageZuGross,
   istNichtAngemeldetFehler,
   pruefeBelegDatei,
@@ -144,7 +145,11 @@ export async function POST(request: NextRequest) {
       return ablehnen(abgelehnt.status, abgelehnt.body.error.message, "42501");
     }
 
-    // Early size check (before the body is read): a huge request is refused without parsing it.
+    // Early size check (before the body is read): a huge request is refused without parsing it. Without a declared length
+    // (chunked) `formData()` would buffer the whole body before the file size is known: refused (411).
+    if (fehltBelegAnfrageGroesse(request.headers.get("content-length"))) {
+      return ablehnen(411, "Die Anfrage muss eine Größenangabe enthalten.");
+    }
     if (istBelegAnfrageZuGross(request.headers.get("content-length"))) {
       return ablehnen(413, `Die Datei ist zu groß (max. ${MAX_FILE_SIZE_LABEL}).`);
     }
