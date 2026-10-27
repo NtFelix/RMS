@@ -410,6 +410,15 @@ describe('contentDispositionAttachment', () => {
         expect(decodeURIComponent(header.split("filename*=UTF-8''")[1])).toBe(`${'a'.repeat(95)}${astral}.pdf`);
     });
 
+    it('entfernt Punkte und Leerzeichen am Rand, auch bei sehr langen Folgen (linear, ohne Regex-Backtracking)', () => {
+        const lang = ' '.repeat(200_000);
+        const start = Date.now();
+        expect(contentDispositionAttachment(`${lang}a.pdf${lang}x`, 'x.pdf')).toMatch(/^attachment; filename="a\.pdf/);
+        expect(contentDispositionAttachment(`..${'a'}..`, 'x.pdf')).toBe('attachment; filename="a"');
+        expect(contentDispositionAttachment(`${lang}.`, 'fallback.pdf')).toBe('attachment; filename="fallback.pdf"');
+        expect(Date.now() - start).toBeLessThan(2000);
+    });
+
     it('lässt filename* weg, wenn der Name keine Nicht-ASCII-Buchstaben oder -Ziffern enthält', () => {
         expect(contentDispositionAttachment('a\u{1F600}b.pdf', 'x.pdf')).not.toContain('filename*');
         expect(contentDispositionAttachment('Abrechnung.pdf', 'x.pdf')).not.toContain('filename*');

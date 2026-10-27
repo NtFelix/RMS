@@ -914,6 +914,16 @@ export function isWorkerAuthenticated(request: Request, env: Env): boolean {
     return diff === 0;
 }
 
+// Entfernt Punkte und Leerzeichen am Anfang und Ende in einem Durchlauf (linear; eine Regex wie /^[. ]+|[. ]+$/ ist bei langen
+// Folgen von Leerzeichen polynomiell, CodeQL: ReDoS auf Nutzereingabe).
+function schneideRandpunkteAb(text: string): string {
+    let start = 0;
+    let ende = text.length;
+    while (start < ende && (text[start] === '.' || text[start] === ' ')) start++;
+    while (ende > start && (text[ende - 1] === '.' || text[ende - 1] === ' ')) ende--;
+    return text.slice(start, ende);
+}
+
 // Content-Disposition für Downloads: nur ein bereinigter Dateiname (ohne Pfade und Anführungszeichen). `filename` bleibt
 // ASCII (Umlaute werden zu "_"); enthält der Name Buchstaben oder Ziffern außerhalb von ASCII, kommt `filename*` (RFC 5987/6266)
 // mit dem Originalnamen dazu, damit Browser "Müller.pdf" statt "M_ller.pdf" speichern.
@@ -922,7 +932,7 @@ export function contentDispositionAttachment(filename: string | undefined, fallb
         const basisname = wert.split(/[\\/]/).pop() ?? '';
         const ohneSteuerzeichen = basisname.replace(/["\r\n]/g, '');
         const ungueltig = unicode ? /[^\p{L}\p{N}._ -]/gu : /[^A-Za-z0-9._ -]/gu;
-        const ersetzt = ohneSteuerzeichen.replace(ungueltig, '_').replace(/^[. ]+|[. ]+$/g, '');
+        const ersetzt = schneideRandpunkteAb(ohneSteuerzeichen.replace(ungueltig, '_'));
         // Nach Zeichen (nicht UTF-16-Einheiten) kürzen: ein Surrogatpaar darf nicht getrennt werden (encodeURIComponent wirft sonst).
         const zeichen = Array.from(ersetzt);
         if (zeichen.length <= 100) return ersetzt;
