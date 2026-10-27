@@ -190,6 +190,43 @@ describe("Anfrageform und Eingaben", () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
+  it("answers 413 for a body above the limit without a declared length, and stops reading at the limit", async () => {
+    const stuecke = [new Uint8Array(3 * 1024), new Uint8Array(3 * 1024), new Uint8Array(3 * 1024)];
+    let gelesen = 0;
+    const strom = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        const stueck = stuecke[gelesen++];
+        if (stueck) controller.enqueue(stueck);
+        else controller.close();
+      },
+    });
+    const anfrageObj = anfrage(GUELTIG);
+    (anfrageObj as unknown as { body: ReadableStream<Uint8Array> }).body = strom;
+
+    const response = await POST(anfrageObj);
+
+    expect(response.status).toBe(413);
+    expect((anfrageObj as unknown as { text: jest.Mock }).text).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("reads a small streamed body without a declared length", async () => {
+    const anfrageObj = anfrage(GUELTIG);
+    const bytes = new TextEncoder().encode(JSON.stringify({ ...GUELTIG, tenantId: "keine-id" }));
+    (anfrageObj as unknown as { body: ReadableStream<Uint8Array> }).body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes);
+        controller.close();
+      },
+    });
+
+    const response = await POST(anfrageObj);
+
+    expect(response.status).toBe(400); // read and parsed (invalid tenant ID), not 413
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("answers 400 for broken JSON and for a body that is not an object", async () => {
     expect((await POST(anfrage(null, {}, "{nicht json"))).status).toBe(400);
     expect((await POST(anfrage([GUELTIG]))).status).toBe(400);
@@ -420,6 +457,16 @@ describe("Worker-Fehler (502, neutrale Meldung)", () => {
 
     expect(response.status).toBe(502);
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("uses the same default worker URL as the other callers when the variable is not set", async () => {
+    delete process.env.MIETEVO_BACKEND_URL;
+    mockFetch.mockResolvedValueOnce(pdfAntwort());
+
+    const response = await POST(anfrage(GUELTIG));
+
+    expect(response.status).toBe(200);
+    expect(mockFetch.mock.calls[0]?.[0]).toBe("https://backend.mietevo.de");
   });
 
   it("does not send the shared key over plain HTTP in production", async () => {

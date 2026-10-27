@@ -24,7 +24,8 @@ import type { KautionDetails, KautionRechte } from "@/types/Kaution";
  * - "Auszahlung erfassen" hands over to the statement (booking form with the type "Auszahlung", prefilled with the balance).
  * - Einbehalt: a reason and the date since when the balance is held back. It is NOT a booking: the amount held back is always
  *   the balance from the database. Set, change and remove need the right `bearbeiten`.
- * - Without a balance there is nothing to hold back: no form, a hint instead.
+ * - Without a balance there is nothing to hold back: no form, a hint instead. A hold that is still stored without a balance
+ *   (paid out or cancelled to 0) is shown and can only be removed, so it does not come back with a stale reason.
  *
  * Errors of the actions: stable codes decide (`onFehler`), a form error (`KA004`, `KA013`, `KA014`) stays at the form.
  */
@@ -57,7 +58,7 @@ export function KautionAbrechnungEinbehalt({
   const [serverFehler, setServerFehler] = useState<string | null>(null);
   const aufhebenRef = useRef(false);
 
-  const formularSichtbar = (!einbehalt && hatGuthaben) || (einbehalt !== null && aendernOffen);
+  const formularSichtbar = (!einbehalt && hatGuthaben) || (einbehalt !== null && hatGuthaben && aendernOffen);
 
   const handleAufheben = async () => {
     if (aufhebenRef.current || !rechte.bearbeiten) return;
@@ -107,23 +108,32 @@ export function KautionAbrechnungEinbehalt({
 
         {einbehalt ? (
           <div className="space-y-3">
-            <p className="text-sm" data-testid="kaution-einbehalt-zeile">
-              Noch einbehalten: <span className="font-medium tabular-nums">{formatBetrag(konto.kontostand)}</span> – {einbehalt.grund}, seit{" "}
-              {formatDatum(einbehalt.seit)} ({einbehalt.liegedauer_tage} Tage)
-            </p>
+            {hatGuthaben ? (
+              <p className="text-sm" data-testid="kaution-einbehalt-zeile">
+                Noch einbehalten: <span className="font-medium tabular-nums">{formatBetrag(konto.kontostand)}</span> – {einbehalt.grund}, seit{" "}
+                {formatDatum(einbehalt.seit)} ({einbehalt.liegedauer_tage} Tage)
+              </p>
+            ) : (
+              <p className="text-sm" data-testid="kaution-einbehalt-ohne-guthaben">
+                Es liegt kein Guthaben auf dem Konto, es ist aber noch ein Einbehalt gespeichert: {einbehalt.grund}, seit{" "}
+                {formatDatum(einbehalt.seit)}. Er gilt wieder, sobald Guthaben auf dem Konto liegt. Heben Sie ihn auf, wenn er erledigt ist.
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
-              <ButtonWithTooltip
-                type="button"
-                variant="outline"
-                size="sm"
-                aria-expanded={aendernOffen}
-                disabled={!rechte.bearbeiten || aufhebenLaeuft}
-                tooltip={KEINE_BERECHTIGUNG_TEXT}
-                showTooltip={!rechte.bearbeiten}
-                onClick={() => setAendernOffen((offen) => !offen)}
-              >
-                Einbehalt ändern
-              </ButtonWithTooltip>
+              {hatGuthaben ? (
+                <ButtonWithTooltip
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-expanded={aendernOffen}
+                  disabled={!rechte.bearbeiten || aufhebenLaeuft}
+                  tooltip={KEINE_BERECHTIGUNG_TEXT}
+                  showTooltip={!rechte.bearbeiten}
+                  onClick={() => setAendernOffen((offen) => !offen)}
+                >
+                  Einbehalt ändern
+                </ButtonWithTooltip>
+              ) : null}
               <ButtonWithTooltip
                 type="button"
                 variant="outline"

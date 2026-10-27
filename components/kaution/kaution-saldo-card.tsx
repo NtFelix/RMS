@@ -51,8 +51,9 @@ export function KautionSaldoCard({ details }: KautionSaldoCardProps) {
   }
 
   const istAltbestand = kaution.quelle === "migration_altbestand";
-  // Hold (phase 4): only with the function flag `abrechnung`. The database sets `einbehalt` only while there is a balance.
-  const zeigeEinbehalt = funktionen.abrechnung && Boolean(einbehalt);
+  // Hold (phase 4): only with the function flag `abrechnung` and while there is a balance. The database also returns a stored
+  // hold without a balance (so it can be removed in the settlement tab); the card does not show it then.
+  const zeigeEinbehalt = funktionen.abrechnung && Boolean(einbehalt) && konto.kontostand > 0;
 
   return (
     <Card>

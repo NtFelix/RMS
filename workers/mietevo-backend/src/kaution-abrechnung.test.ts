@@ -135,20 +135,45 @@ describe('Kautionsabrechnung-Template (kaution-abrechnung)', () => {
         expect(text).toContain('410,00');
     });
 
-    it('zeigt den Einbehalt nur bei der Zwischenabrechnung', async () => {
+    it('zeigt den Einbehalt bei beiden Arten und nennt dann keinen auszuzahlenden Restbetrag', async () => {
         const einbehalt = { grund: 'Nebenkostenabrechnung offen', seit: '2026-03-01', liegedauer_tage: 14 };
 
-        const zwischen = await renderKaution(beispielPayload('zwischen', { einbehalt }));
-        expect(zwischen.text).toContain('Einbehalt');
-        expect(zwischen.text).toContain('Noch einbehalten: 410,00');
-        expect(zwischen.text).toContain('Nebenkostenabrechnung offen');
-        expect(zwischen.text).toContain('seit 01.03.2026 (Liegedauer 14 Tage)');
-        expect(zwischen.text).not.toContain('Auszuzahlender Restbetrag');
+        for (const art of ['zwischen', 'end'] as const) {
+            const { text } = await renderKaution(beispielPayload(art, { einbehalt }));
+            expect(text).toContain('Einbehalt');
+            expect(text).toContain('Noch einbehalten: 410,00');
+            expect(text).toContain('Nebenkostenabrechnung offen');
+            expect(text).toContain('seit 01.03.2026 (Liegedauer 14 Tage)');
+            expect(text).not.toContain('Auszuzahlender Restbetrag');
+        }
+    });
 
-        const end = await renderKaution(beispielPayload('end', { einbehalt }));
+    it('nennt bei der Endabrechnung ohne Einbehalt den auszuzahlenden Restbetrag', async () => {
+        const end = await renderKaution(beispielPayload('end'));
         expect(end.text).not.toContain('Noch einbehalten');
-        expect(end.text).not.toContain('Liegedauer');
         expect(end.text).toContain('Auszuzahlender Restbetrag: 410,00');
+
+        const zwischen = await renderKaution(beispielPayload('zwischen'));
+        expect(zwischen.text).not.toContain('Auszuzahlender Restbetrag');
+    });
+
+    it('nennt bei der Endabrechnung ohne Guthaben, aber mit offenen Zinsen, die Zinsen als Restbetrag', async () => {
+        const { text } = await renderKaution(beispielPayload('end', {
+            konto: { summe_einzahlungen: 1000, summe_zinsgutschriften: 10, summe_auszahlungen: 910, summe_abzuege: 100, kontostand: 0 },
+            zinsen_offen: { moeglich: true, betrag: 12.34 },
+            betrag_inkl_zinsen: 12.34,
+        }));
+
+        expect(text).toContain('Auszuzahlender Restbetrag: 12,34');
+    });
+
+    it('nennt bei der Endabrechnung ohne Guthaben und ohne Zinsen keinen Restbetrag', async () => {
+        const { text } = await renderKaution(beispielPayload('end', {
+            konto: { summe_einzahlungen: 1000, summe_zinsgutschriften: 10, summe_auszahlungen: 910, summe_abzuege: 100, kontostand: 0 },
+            betrag_inkl_zinsen: 0,
+        }));
+
+        expect(text).not.toContain('Auszuzahlender Restbetrag');
     });
 
     it('zeigt den Zinsblock mit Vorschlag und den Betrag inklusive Zinsen', async () => {
@@ -329,8 +354,20 @@ describe('contentDispositionAttachment', () => {
     });
 
     it('ersetzt Zeichen außerhalb von ASCII-Buchstaben, Ziffern, Punkt, Leerzeichen und Bindestrich', () => {
-        expect(contentDispositionAttachment('Übersicht.pdf', 'x.pdf')).toBe('attachment; filename="_bersicht.pdf"');
         expect(contentDispositionAttachment('x"; evil=1', 'x.pdf')).toBe('attachment; filename="x_ evil_1"');
+        expect(contentDispositionAttachment('a/b%c.pdf', 'x.pdf')).toBe('attachment; filename="b_c.pdf"');
+    });
+
+    it('ergänzt filename* mit dem Originalnamen, wenn der Name Umlaute oder andere Nicht-ASCII-Buchstaben enthält', () => {
+        expect(contentDispositionAttachment('Übersicht.pdf', 'x.pdf'))
+            .toBe("attachment; filename=\"_bersicht.pdf\"; filename*=UTF-8''%C3%9Cbersicht.pdf");
+        expect(contentDispositionAttachment('Betriebskosten Müller 2025.pdf', 'x.pdf'))
+            .toBe("attachment; filename=\"Betriebskosten M_ller 2025.pdf\"; filename*=UTF-8''Betriebskosten%20M%C3%BCller%202025.pdf");
+    });
+
+    it('lässt filename* weg, wenn der Name keine Nicht-ASCII-Buchstaben oder -Ziffern enthält', () => {
+        expect(contentDispositionAttachment('a\u{1F600}b.pdf', 'x.pdf')).not.toContain('filename*');
+        expect(contentDispositionAttachment('Abrechnung.pdf', 'x.pdf')).not.toContain('filename*');
     });
 
     it('kürzt auf höchstens 100 Zeichen und behält die Endung', () => {
@@ -342,7 +379,7 @@ describe('contentDispositionAttachment', () => {
     it('erzeugt immer einen Header mit geschlossenem Anführungszeichen und nur sicheren Zeichen', () => {
         const eingaben = ['a"b', 'c\r\nd', '../e', 'ö ü ß.pdf', 'x'.repeat(500), '"', '\\\\server\\share\\f.pdf'];
         for (const eingabe of eingaben) {
-            expect(contentDispositionAttachment(eingabe, 'x.pdf')).toMatch(/^attachment; filename="[A-Za-z0-9._ -]+"$/);
+            expect(contentDispositionAttachment(eingabe, 'x.pdf')).toMatch(/^attachment; filename="[A-Za-z0-9._ -]+"(; filename\*=UTF-8''[A-Za-z0-9._%-]+)?$/);
         }
     });
 });

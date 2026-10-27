@@ -186,7 +186,7 @@ export interface KautionDetails {
   zins_aufgelaufen?: KautionZinsVorschlag | null;
   /** Balance plus the accrued interest proposal (`null` without a balance, for non-account types). */
   kontostand_inkl_zinsen?: number | null;
-  // P4: only set while a hold exists AND the balance is above 0 (`get_kaution_details`)
+  // P4: set while a hold is stored (`get_kaution_details`), also when the balance is 0 (then it can only be removed, not changed)
   einbehalt?: { grund: string; seit: string; liegedauer_tage: number } | null;
 }
 

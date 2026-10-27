@@ -26,8 +26,8 @@ import {
  * (sign-in, module right `ansehen`, object scope and RPC `get_kaution_abrechnung` under the user's session; the client
  * never sends figures) -> worker `POST` (template `kaution-abrechnung`) -> PDF answer.
  *
- * The worker has no authentication of its own on the PDF path, so it is called only from this route, with the shared key
- * from the server environment. No redirects are followed, the call has one time budget (30 s) and at most one retry after
+ * The worker only checks the shared key on the PDF path, so it is called only from this route, with the key from the server
+ * environment; the generic proxy `app/api/worker/route.ts` refuses this template (it would add the key for any signed-in user). No redirects are followed, the call has one time budget (30 s) and at most one retry after
  * a network error. Errors come back as neutral German messages; the text of the worker is never passed on.
  *
  * Privacy: the log has the kind, the status, the duration and an error code only. No name, no figure, no file name.
@@ -45,6 +45,9 @@ const MSG_NICHT_VERFUEGBAR = "Die Kautionsabrechnung ist für diesen Mieter nich
 const MSG_WORKER = "Die Kautionsabrechnung konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.";
 const MSG_ZU_GROSS = "Die Anfrage ist zu groß.";
 const MSG_UNGUELTIG = "Die Anfrage ist ungültig.";
+
+/** Same default as the other worker callers (`lib/worker-client.ts`, `app/api/worker/route.ts`). */
+const WORKER_STANDARD_URL = "https://backend.mietevo.de";
 
 /** Pause before the one retry after a network error. */
 const WORKER_WIEDERHOLUNG_PAUSE_MS = 500;
@@ -85,6 +88,38 @@ async function verwerfeAntwort(antwort: Response): Promise<void> {
   }
 }
 
+/**
+ * Reads the request body with a byte limit, so a request without `Content-Length` (chunked) cannot make the server buffer
+ * more than the limit. `null` = body above the limit.
+ */
+async function leseAnfrageText(request: NextRequest): Promise<string | null> {
+  const strom = request.body;
+  if (!strom || typeof strom.getReader !== "function") {
+    const text = await request.text();
+    return new TextEncoder().encode(text).byteLength > KAUTION_ABRECHNUNG_MAX_ANFRAGE_BYTES ? null : text;
+  }
+  const leser = strom.getReader();
+  const teile: Uint8Array[] = [];
+  let gesamt = 0;
+  for (;;) {
+    const { done, value } = await leser.read();
+    if (done) break;
+    gesamt += value.byteLength;
+    if (gesamt > KAUTION_ABRECHNUNG_MAX_ANFRAGE_BYTES) {
+      await leser.cancel().catch(() => undefined);
+      return null;
+    }
+    teile.push(value);
+  }
+  const bytes = new Uint8Array(gesamt);
+  let versatz = 0;
+  for (const teil of teile) {
+    bytes.set(teil, versatz);
+    versatz += teil.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 function pause(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -95,9 +130,10 @@ function pause(ms: number): Promise<void> {
  * is retried once.
  */
 async function erstelleAbrechnungsPdf(nutzlast: KautionAbrechnungWorkerNutzlast, frist: number): Promise<WorkerErgebnis> {
-  const basisUrl = (process.env.MIETEVO_BACKEND_URL ?? "").trim().replace(/\/$/, "");
+  const basisUrl = (process.env.MIETEVO_BACKEND_URL?.trim() || WORKER_STANDARD_URL).replace(/\/$/, "");
+  // Without the shared key the worker would refuse the call anyway: fail closed here.
   const schluessel = process.env.WORKER_AUTH_KEY ?? "";
-  if (basisUrl === "" || schluessel === "") return { ok: false, code: "KONFIGURATION" };
+  if (schluessel === "") return { ok: false, code: "KONFIGURATION" };
   // In production the shared key only travels over HTTPS.
   if (process.env.NODE_ENV === "production" && !basisUrl.startsWith("https://")) return { ok: false, code: "KONFIGURATION" };
 
@@ -165,20 +201,19 @@ export async function POST(request: NextRequest) {
     const kopf = pruefeAbrechnungAnfrageKopf(request.headers.get("content-type"), request.headers.get("sec-fetch-site"));
     if (!kopf.ok) return ablehnen(kopf.status, kopf.message, { startedAt });
 
-    // 2. Body: size limit from the declared length, then the text and the JSON
+    // 2. Body: size limit from the declared length, then the text (read with a byte limit, also without a declared length)
+    // and the JSON
     if (istAbrechnungAnfrageZuGross(request.headers.get("content-length"))) {
       return ablehnen(413, MSG_ZU_GROSS, { startedAt });
     }
-    let text: string;
+    let text: string | null;
     try {
-      text = await request.text();
+      text = await leseAnfrageText(request);
     } catch (lesefehler) {
       unstable_rethrow(lesefehler);
       return ablehnen(400, MSG_UNGUELTIG, { startedAt });
     }
-    if (new TextEncoder().encode(text).byteLength > KAUTION_ABRECHNUNG_MAX_ANFRAGE_BYTES) {
-      return ablehnen(413, MSG_ZU_GROSS, { startedAt });
-    }
+    if (text === null) return ablehnen(413, MSG_ZU_GROSS, { startedAt });
     let body: unknown;
     try {
       body = JSON.parse(text);

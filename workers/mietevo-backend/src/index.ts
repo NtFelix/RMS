@@ -818,9 +818,9 @@ export function generateKautionAbrechnungPDF(doc: jsPDF, payload: KautionAbrechn
     doc.setFont('helvetica', 'normal');
     zusammenfassungHinweise.forEach(hinweis => schreibeAbsatz(hinweis));
 
-    // 4. Einbehalt (nur Zwischenabrechnung) oder auszuzahlender Restbetrag (Endabrechnung)
+    // 4. Einbehalt (beide Arten; die Datenbank liefert ihn nur bei Guthaben) oder auszuzahlender Restbetrag (Endabrechnung ohne Einbehalt)
     const kontostand = bereinigeZahl(konto.kontostand) ?? 0;
-    if (!istEnd && einbehalt) {
+    if (einbehalt) {
         const grundText = `Grund: ${bereinigeText(einbehalt.grund, 500) || '-'}`;
         const grundZeilen = doc.splitTextToSize(grundText, tableWidth) as string[];
         const tage = bereinigeZahl(einbehalt.liegedauer_tage);
@@ -839,9 +839,11 @@ export function generateKautionAbrechnungPDF(doc: jsPDF, payload: KautionAbrechn
         schreibeAbsatz(seitText);
     }
 
-    if (istEnd && kontostand > 0) {
-        const betragInklZinsen = bereinigeZahl(payload.betrag_inkl_zinsen);
-        const mitZinsen = zinsenMoeglich && betragInklZinsen !== null;
+    // Mit Einbehalt bleibt der Kontostand einbehalten: kein auszuzahlender Restbetrag. Ohne Guthaben, aber mit offenen Zinsen,
+    // ist der Zinsbetrag der Restbetrag.
+    const betragInklZinsen = bereinigeZahl(payload.betrag_inkl_zinsen);
+    const mitZinsen = zinsenMoeglich && betragInklZinsen !== null;
+    if (istEnd && !einbehalt && (kontostand > 0 || (mitZinsen && (betragInklZinsen ?? 0) > 0))) {
         y = platzFuer(y + 6, mitZinsen ? 26 : 14);
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
@@ -886,19 +888,26 @@ export function isWorkerAuthenticated(request: Request, env: Env): boolean {
     return diff === 0;
 }
 
-// Content-Disposition für Downloads: nur ein bereinigter Dateiname (ASCII, ohne Pfade und Anführungszeichen).
+// Content-Disposition für Downloads: nur ein bereinigter Dateiname (ohne Pfade und Anführungszeichen). `filename` bleibt
+// ASCII (Umlaute werden zu "_"); enthält der Name Buchstaben oder Ziffern außerhalb von ASCII, kommt `filename*` (RFC 5987/6266)
+// mit dem Originalnamen dazu, damit Browser "Müller.pdf" statt "M_ller.pdf" speichern.
 export function contentDispositionAttachment(filename: string | undefined, fallback: string): string {
-    const bereinige = (wert: string): string => {
+    const bereinige = (wert: string, unicode: boolean): string => {
         const basisname = wert.split(/[\\/]/).pop() ?? '';
         const ohneSteuerzeichen = basisname.replace(/["\r\n]/g, '');
-        const ersetzt = ohneSteuerzeichen.replace(/[^A-Za-z0-9._ -]/g, '_').replace(/^[. ]+|[. ]+$/g, '');
+        const ungueltig = unicode ? /[^\p{L}\p{N}._ -]/gu : /[^A-Za-z0-9._ -]/gu;
+        const ersetzt = ohneSteuerzeichen.replace(ungueltig, '_').replace(/^[. ]+|[. ]+$/g, '');
         if (ersetzt.length <= 100) return ersetzt;
         const punkt = ersetzt.lastIndexOf('.');
         const endung = punkt > 0 && ersetzt.length - punkt <= 10 ? ersetzt.slice(punkt) : '';
         return ersetzt.slice(0, 100 - endung.length) + endung;
     };
-    const name = bereinige(typeof filename === 'string' ? filename : '') || bereinige(fallback) || 'download';
-    return `attachment; filename="${name}"`;
+    const eingabe = typeof filename === 'string' ? filename : '';
+    const name = bereinige(eingabe, false) || bereinige(fallback, false) || 'download';
+    const nameUnicode = bereinige(eingabe, true);
+    if (nameUnicode === '' || nameUnicode === name) return `attachment; filename="${name}"`;
+    // Nach der Bereinigung bleiben nur Buchstaben, Ziffern, Punkt, Leerzeichen und Bindestrich: encodeURIComponent genügt.
+    return `attachment; filename="${name}"; filename*=UTF-8''${encodeURIComponent(nameUnicode)}`;
 }
 
 // --- AI Logic Implementation ---

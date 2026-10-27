@@ -616,6 +616,30 @@ describe("KautionAbrechnungTab: Auszahlung und Einbehalt", () => {
     expect(onGeaendert).toHaveBeenCalled();
   });
 
+  it("zeigt einen gespeicherten Einbehalt bei Kontostand 0 und erlaubt nur das Aufheben", async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    const onGeaendert = jest.fn();
+    renderTab({
+      onGeaendert,
+      details: baueDetails({
+        konto: { ...baueDetails().konto, kontostand: 0 },
+        einbehalt: { grund: "Nebenkostenabrechnung offen (Testdaten)", seit: "2026-03-01", liegedauer_tage: 14 },
+      }),
+    });
+
+    expect(screen.getByTestId("kaution-einbehalt-ohne-guthaben")).toHaveTextContent(
+      "noch ein Einbehalt gespeichert: Nebenkostenabrechnung offen (Testdaten), seit 01.03.2026"
+    );
+    expect(screen.queryByTestId("kaution-einbehalt-zeile")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Einbehalt ändern" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("kaution-einbehalt-form")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Einbehalt aufheben" }));
+
+    expect(einbehaltMock).toHaveBeenCalledWith({ kautionId: KAUTION_ID, grund: null, seit: null });
+    expect(onGeaendert).toHaveBeenCalled();
+  });
+
   it("zeigt bei Kontostand 0 den Hinweis und kein Formular", () => {
     renderTab({ details: baueDetails({ konto: { ...baueDetails().konto, kontostand: 0 } }) });
 

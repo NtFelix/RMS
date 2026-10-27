@@ -240,6 +240,19 @@ describe("KautionDialog: Einbehalt in der Übersicht", () => {
     );
   });
 
+  it("zeigt die Zeile Einbehalt bei Kontostand 0 nicht, auch wenn noch ein Einbehalt gespeichert ist", async () => {
+    setzeFunktionen({ abrechnung: true });
+    const basis = barDetails();
+    await oeffne(
+      barDetails({
+        konto: { ...basis.konto, kontostand: 0 },
+        einbehalt: { grund: "Nebenkostenabrechnung offen (Testdaten)", seit: "2026-03-01", liegedauer_tage: 14 },
+      })
+    );
+
+    expect(screen.queryByTestId("kaution-saldo-einbehalt")).not.toBeInTheDocument();
+  });
+
   it("zeigt die Zeile Einbehalt ohne die Funktion abrechnung nicht", async () => {
     setzeFunktionen({ abrechnung: false });
     await oeffne(barDetails({ einbehalt: { grund: "Nebenkostenabrechnung offen (Testdaten)", seit: "2026-03-01", liegedauer_tage: 14 } }));
