@@ -113,6 +113,17 @@ export function istBelegAnfrageZuGross(contentLength: string | null | undefined)
   return Number.isFinite(groesse) && groesse > MAX_FILE_SIZE + ANFRAGE_ZUSATZ_BYTES;
 }
 
+/**
+ * `true` if the request has no usable declared size (no `Content-Length`, or not a non-negative number). Such a (chunked) request
+ * would be buffered completely by `formData()` before the size of the file can be checked, so the upload route refuses it.
+ * Browsers always send the length for a `FormData` body; the server enforces that the body is not longer than declared.
+ */
+export function fehltBelegAnfrageGroesse(contentLength: string | null | undefined): boolean {
+  if (typeof contentLength !== "string" || contentLength.trim() === "") return true;
+  const groesse = Number(contentLength);
+  return !Number.isFinite(groesse) || groesse < 0;
+}
+
 /** Status of a mapped deposit error code for the upload route. Unknown codes are server errors (500). */
 export function belegFehlerStatus(code: string | undefined): number {
   switch (code) {
