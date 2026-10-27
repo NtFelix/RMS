@@ -1,6 +1,7 @@
 // Request-time reads live here so layout.tsx is a static shell. This gate loads the
 // organisation flag and the admin/permission checks on each request and renders
-// SettingsLayoutClient; children are rendered only inside the gate's returned SettingsLayoutClient.
+// SettingsLayoutClient; children are passed through that client layout. The gate does not stop
+// the pages from rendering, so every settings page checks access itself.
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isOrgAdminOrOwner, hasPermission } from "@/lib/permissions";
 import { SettingsLayoutClient } from "./settings-layout-client";
