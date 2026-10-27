@@ -857,7 +857,8 @@ export function generateKautionAbrechnungPDF(doc: jsPDF, payload: KautionAbrechn
     }
 
     // 5. Fußzeile auf jeder Seite
-    const heute = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    // Datum in Berliner Zeit (der Worker läuft in UTC; der Stichtag kommt aus der Datenbank in Berliner Zeit)
+    const heute = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' });
     const seitenAnzahl = doc.getNumberOfPages();
     for (let seite = 1; seite <= seitenAnzahl; seite++) {
         doc.setPage(seite);
@@ -897,10 +898,12 @@ export function contentDispositionAttachment(filename: string | undefined, fallb
         const ohneSteuerzeichen = basisname.replace(/["\r\n]/g, '');
         const ungueltig = unicode ? /[^\p{L}\p{N}._ -]/gu : /[^A-Za-z0-9._ -]/gu;
         const ersetzt = ohneSteuerzeichen.replace(ungueltig, '_').replace(/^[. ]+|[. ]+$/g, '');
-        if (ersetzt.length <= 100) return ersetzt;
-        const punkt = ersetzt.lastIndexOf('.');
-        const endung = punkt > 0 && ersetzt.length - punkt <= 10 ? ersetzt.slice(punkt) : '';
-        return ersetzt.slice(0, 100 - endung.length) + endung;
+        // Nach Zeichen (nicht UTF-16-Einheiten) kürzen: ein Surrogatpaar darf nicht getrennt werden (encodeURIComponent wirft sonst).
+        const zeichen = Array.from(ersetzt);
+        if (zeichen.length <= 100) return ersetzt;
+        const punkt = zeichen.lastIndexOf('.');
+        const endung = punkt > 0 && zeichen.length - punkt <= 10 ? zeichen.slice(punkt) : [];
+        return [...zeichen.slice(0, 100 - endung.length), ...endung].join('');
     };
     const eingabe = typeof filename === 'string' ? filename : '';
     const name = bereinige(eingabe, false) || bereinige(fallback, false) || 'download';

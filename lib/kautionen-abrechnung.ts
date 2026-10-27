@@ -22,7 +22,10 @@ export const KAUTION_ABRECHNUNG_MAX_ANFRAGE_BYTES = 4 * 1024;
 /** Upper bound of a PDF returned by the worker. Larger answers are refused (`502`). */
 export const KAUTION_ABRECHNUNG_MAX_PDF_BYTES = 10 * 1024 * 1024;
 
-/** Total time budget of the worker call (one request and at most one retry). */
+/**
+ * Total time budget of the request, counted from its start (sign-in, database and the worker call with at most one retry).
+ * The route's `maxDuration` is above it, so the neutral 502 comes before the platform ends the function.
+ */
 export const KAUTION_ABRECHNUNG_WORKER_FRIST_MS = 30_000;
 
 /** Template name the worker uses for the settlement PDF. */

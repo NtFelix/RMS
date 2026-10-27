@@ -37,7 +37,8 @@ import {
  * `lib/kautionen-abrechnung.ts`.
  */
 
-export const maxDuration = 30;
+// Above the time budget (`KAUTION_ABRECHNUNG_WORKER_FRIST_MS`, 30 s from the start of the request): a timeout answers 502 before the platform ends the function.
+export const maxDuration = 40;
 
 const LOG_NAME = "kautionAbrechnungPdf";
 
@@ -240,7 +241,7 @@ export async function POST(request: NextRequest) {
     // 5. PDF from the worker
     const pdf = await erstelleAbrechnungsPdf(
       baueAbrechnungWorkerNutzlast(art, dateiname, abrechnung),
-      Date.now() + KAUTION_ABRECHNUNG_WORKER_FRIST_MS
+      startedAt + KAUTION_ABRECHNUNG_WORKER_FRIST_MS
     );
     if (!pdf.ok) return ablehnen(502, MSG_WORKER, { ...protokoll, code: pdf.code }, true);
 

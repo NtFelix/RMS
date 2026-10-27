@@ -463,6 +463,21 @@ describe("Worker-Fehler (502, neutrale Meldung)", () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
+  it("counts the time budget of the worker call from the start of the request, not from the worker call", async () => {
+    const start = 1_700_000_000_000;
+    const jetzt = jest.spyOn(Date, "now").mockReturnValueOnce(start).mockReturnValue(start + 29_000);
+    const timer = jest.spyOn(global, "setTimeout");
+    mockFetch.mockResolvedValueOnce(pdfAntwort());
+
+    const response = await POST(anfrage(GUELTIG));
+
+    expect(response.status).toBe(200);
+    // 30 s budget from the start, 29 s used by sign-in and database: 1 s is left for the worker
+    expect(timer).toHaveBeenCalledWith(expect.any(Function), 1_000);
+    jetzt.mockRestore();
+    timer.mockRestore();
+  });
+
   it("uses the same default worker URL as the other callers when the variable is not set", async () => {
     delete process.env.MIETEVO_BACKEND_URL;
     mockFetch.mockResolvedValueOnce(pdfAntwort());

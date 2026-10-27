@@ -219,6 +219,19 @@ describe('Kautionsabrechnung-Template (kaution-abrechnung)', () => {
         expect(text).not.toContain('Betrag inkl. Zinsen');
     });
 
+    it('schreibt das Erstellungsdatum der Fußzeile in Berliner Zeit (nicht in UTC)', async () => {
+        // 23:30 UTC am 14.03.2026 = 00:30 am 15.03.2026 in Berlin
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-03-14T23:30:00Z'));
+        try {
+            const { text } = await renderKaution(beispielPayload('zwischen'));
+            expect(text).toContain('Erstellt am 15.03.2026');
+            expect(text).not.toContain('Erstellt am 14.03.2026');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('bricht auf Folgeseiten um, wiederholt den Kopf und nummeriert alle Seiten', async () => {
         const viele: Bewegung[] = [];
         for (let i = 0; i < 150; i++) {
@@ -363,6 +376,15 @@ describe('contentDispositionAttachment', () => {
             .toBe("attachment; filename=\"_bersicht.pdf\"; filename*=UTF-8''%C3%9Cbersicht.pdf");
         expect(contentDispositionAttachment('Betriebskosten Müller 2025.pdf', 'x.pdf'))
             .toBe("attachment; filename=\"Betriebskosten M_ller 2025.pdf\"; filename*=UTF-8''Betriebskosten%20M%C3%BCller%202025.pdf");
+    });
+
+    it('trennt beim Kürzen kein Surrogatpaar und wirft nicht (Zeichen außerhalb der BMP)', () => {
+        const astral = '\u{20000}';
+        const header = contentDispositionAttachment(`${'a'.repeat(95)}${astral.repeat(20)}.pdf`, 'x.pdf');
+
+        // 96 Zeichen plus ".pdf": 95 x "a" und ein ganzes Zeichen außerhalb der BMP (ASCII-Name: "_")
+        expect(header).toContain(`filename="${'a'.repeat(95)}_.pdf"`);
+        expect(decodeURIComponent(header.split("filename*=UTF-8''")[1])).toBe(`${'a'.repeat(95)}${astral}.pdf`);
     });
 
     it('lässt filename* weg, wenn der Name keine Nicht-ASCII-Buchstaben oder -Ziffern enthält', () => {
