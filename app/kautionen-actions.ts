@@ -442,7 +442,7 @@ function istZinsVorschlag(value: unknown): value is KautionZinsVorschlag {
   if (typeof feld.moeglich !== "boolean") return false;
   if (typeof feld.von !== "string" || typeof feld.bis !== "string") return false;
   if (!isKautionZinsmethode(feld.methode)) return false;
-  if (feld.moeglich === false) return feld.grund === "KEIN_ZINSSATZ";
+  if (feld.moeglich === false) return feld.grund === "KEIN_ZINSSATZ" || feld.grund === "ZEITRAUM_ZU_LANG";
   return (
     typeof feld.betrag === "number" &&
     typeof feld.betrag_exakt === "string" &&

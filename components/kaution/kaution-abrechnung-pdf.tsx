@@ -5,6 +5,7 @@ import { FileDown } from "lucide-react";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { KEINE_BERECHTIGUNG_TEXT, KautionFormularFehler } from "@/components/kaution/kaution-feld";
 import { ladeKautionAbrechnungPdf } from "@/components/kaution/kaution-abrechnung-download";
+import { formatDatum } from "@/components/kaution/kaution-format";
 import { KAUTION_ABRECHNUNG_ARTEN, KAUTION_ABRECHNUNG_ART_LABELS } from "@/lib/kautionen-constants";
 import type { KautionAbrechnungArt } from "@/types/Kaution";
 
@@ -57,8 +58,8 @@ export function KautionAbrechnungPdf({ tenantId, stichtag, darfAnsehen, dokument
       </h3>
       <p className="text-sm text-muted-foreground">
         {stichtag === null
-          ? "Bitte berechnen Sie die Abrechnung zuerst. Das PDF wird aus den Zahlen dieser Berechnung erstellt."
-          : "Das PDF enthält die Zahlen der Berechnung von oben."}
+          ? "Bitte berechnen Sie die Abrechnung zuerst. Das PDF wird beim Klick aus den aktuellen Daten der Datenbank für den Stichtag erstellt."
+          : `Das PDF wird beim Klick aus den aktuellen Daten der Datenbank für den Stichtag ${formatDatum(stichtag)} erstellt. Haben sich die Daten seit der Berechnung geändert, kann es von der Anzeige oben abweichen: berechnen Sie dann neu.`}
       </p>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

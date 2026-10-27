@@ -209,6 +209,19 @@ describe("KautionZinsenTab: aufgelaufene Zinsen", () => {
     expect(screen.getByTestId("kaution-zins-kontostand-inkl")).toHaveTextContent("–");
   });
 
+  it("meldet einen Zinszeitraum über zehn Jahre ausdrücklich statt „keine Zinsen“", () => {
+    renderTab({
+      details: baueDetails({
+        zins_aufgelaufen: { moeglich: false, grund: "ZEITRAUM_ZU_LANG", methode: "act_365", von: "2010-01-01", bis: "2026-10-17", tage: 6133 },
+        kontostand_inkl_zinsen: null,
+      }),
+    });
+
+    expect(screen.getByText(/Der Zeitraum seit 01\.01\.2010 ist länger als zehn Jahre/)).toBeInTheDocument();
+    expect(screen.queryByText("Derzeit sind keine Zinsen aufgelaufen.")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("kaution-zins-aufgelaufen")).not.toBeInTheDocument();
+  });
+
   it("deaktiviert die Zinsgutschrift, wenn keine Zinsen aufgelaufen sind", () => {
     renderTab({ details: baueDetails({ zins_aufgelaufen: null }) });
 

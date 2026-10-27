@@ -2114,6 +2114,15 @@ describe("berechneKautionZinsenAction (phase 3, read only)", () => {
     expect(result).toEqual({ success: true, data: OHNE_SATZ });
   });
 
+  it("returns the 'period too long' answer of the database (more than 3660 days) as a result, not as an error", async () => {
+    const ZU_LANG = { moeglich: false, grund: "ZEITRAUM_ZU_LANG", methode: "act_365", von: "2010-01-01", bis: "2026-10-17", tage: 6133 };
+    rpcOk(ZU_LANG);
+
+    const result = await berechneKautionZinsenAction({ kautionId: KAUTION_ID });
+
+    expect(result).toEqual({ success: true, data: ZU_LANG });
+  });
+
   it("returns null when the database returns null (not visible or not a bank account)", async () => {
     rpcOk(null);
 

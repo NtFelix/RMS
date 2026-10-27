@@ -212,6 +212,29 @@ describe('Kautionsabrechnung-Template (kaution-abrechnung)', () => {
         expect(text).not.toContain('Noch nicht gutgeschriebene Zinsen');
     });
 
+    it('weist bei einem Zinszeitraum über zehn Jahre darauf hin, statt „kein Zinssatz“ zu sagen', async () => {
+        const { text } = await renderKaution(beispielPayload('end', {
+            zinsen_offen: { moeglich: false, grund: 'ZEITRAUM_ZU_LANG', methode: 'act_365', von: '2010-01-01', bis: '2026-03-15', tage: 5917 },
+            betrag_inkl_zinsen: 410,
+        }));
+
+        expect(text).toContain('Zinszeitraum ist länger als zehn Jahre');
+        expect(text).not.toContain('kein Zinssatz hinterlegt');
+    });
+
+    it('ersetzt Zeichen außerhalb von WinAnsi durch lesbare Buchstaben statt sie zu verfälschen', async () => {
+        const { text } = await renderKaution(beispielPayload('zwischen', {
+            mieter: { name: 'Łukasz Ćwik Şahin Ğüneş Čech Müller-Çelik', auszug: '2026-02-28' },
+            objekt: { haus: 'Дом 1', wohnung: 'c\u0301 Whg' },
+        }));
+
+        expect(text).toContain('Lukasz Cwik Sahin Günes Cech Müller-Çelik');
+        expect(text).toContain('??? 1');
+        expect(text).toContain('c Whg');
+        expect(text).not.toContain('Ł');
+        expect(text).not.toContain('Ş');
+    });
+
     it('lässt den Zinsblock weg, wenn kein Zinsvorschlag vorliegt', async () => {
         const { text } = await renderKaution(beispielPayload('zwischen', { zinsen_offen: null }));
 

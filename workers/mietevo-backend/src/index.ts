@@ -540,7 +540,7 @@ export interface KautionAbrechnungPayload {
         kontostand?: number | null;
     } | null;
     abzuege?: { kategorie?: string | null; anzahl?: number | null; summe?: number | null }[] | null;
-    zinsen_offen?: { moeglich?: boolean | null; betrag?: number | null } | null;
+    zinsen_offen?: { moeglich?: boolean | null; betrag?: number | null; grund?: string | null } | null;
     betrag_inkl_zinsen?: number | null;
     einbehalt?: { grund?: string | null; seit?: string | null; liegedauer_tage?: number | null } | null;
     bewegungen: KautionAbrechnungBewegung[];
@@ -565,7 +565,30 @@ const KAUTION_ABRECHNUNG_ZINSMETHODE_LABELS: Record<string, string> = {
     '30_360': '30/360',
 };
 
-// Entfernt Steuerzeichen, macht Zeilenumbrüche zu Leerzeichen, fasst Leerzeichen zusammen und kürzt.
+// Die eingebaute Helvetica von jsPDF kann nur WinAnsi (cp1252): ASCII, Latin-1 und die Sonderzeichen unten. Alles andere würde
+// verfälscht oder gar nicht gezeichnet.
+const WINANSI_SONDERZEICHEN = new Set(Array.from('€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ'));
+// Buchstaben ohne Zerlegung in Grundbuchstabe und Akzent (NFD hilft dort nicht)
+const ERSATZ_BUCHSTABEN: Record<string, string> = {
+    'ł': 'l', 'Ł': 'L', 'đ': 'd', 'Đ': 'D', 'ħ': 'h', 'Ħ': 'H', 'ı': 'i', 'İ': 'I', 'ŧ': 't', 'Ŧ': 'T',
+    'ĳ': 'ij', 'Ĳ': 'IJ', 'ŀ': 'l', 'Ŀ': 'L', 'ŉ': 'n', 'ſ': 's', 'ŋ': 'n', 'Ŋ': 'N',
+};
+
+// Macht einen Text mit WinAnsi darstellbar: Akzente werden entfernt (ć -> c, ş -> s, ğ -> g), einzelne Buchstaben ersetzt (ł -> l),
+// alles Übrige (z. B. kyrillisch) wird zu '?'. Lieber ein lesbarer Ersatz als ein verfälschter Name in einem Dokument.
+function machePdfDarstellbar(text: string): string {
+    return Array.from(text).map(zeichen => {
+        if (/\p{M}/u.test(zeichen)) return '';
+        const code = zeichen.codePointAt(0) ?? 0;
+        if (code <= 0xFF || WINANSI_SONDERZEICHEN.has(zeichen)) return zeichen;
+        const ersatz = ERSATZ_BUCHSTABEN[zeichen];
+        if (ersatz !== undefined) return ersatz;
+        const ohneAkzent = zeichen.normalize('NFD').replace(/\p{M}/gu, '');
+        return ohneAkzent !== zeichen && /^[\u0020-\u007E]+$/.test(ohneAkzent) ? ohneAkzent : '?';
+    }).join('');
+}
+
+// Entfernt Steuerzeichen, macht Zeilenumbrüche zu Leerzeichen, fasst Leerzeichen zusammen, macht den Text darstellbar und kürzt.
 // Nicht-Strings ergeben einen leeren Text. Der Text wird nie als Markup interpretiert.
 function bereinigeText(wert: unknown, maxLaenge: number): string {
     if (typeof wert !== 'string') return '';
@@ -574,7 +597,7 @@ function bereinigeText(wert: unknown, maxLaenge: number): string {
         .replace(/[\u0000-\u0008\u000E-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
         .replace(/\s+/g, ' ')
         .trim();
-    return Array.from(bereinigt).slice(0, maxLaenge).join('');
+    return Array.from(machePdfDarstellbar(bereinigt)).slice(0, maxLaenge).join('');
 }
 
 // Wählt das Anzeigelabel für einen bekannten Schlüssel; unbekannte Werte werden als Text angezeigt.
@@ -804,6 +827,8 @@ export function generateKautionAbrechnungPDF(doc: jsPDF, payload: KautionAbrechn
             { label: 'Betrag inkl. Zinsen', wert: formatiereGeld(payload.betrag_inkl_zinsen), fett: false },
         );
         zusammenfassungHinweise.push('Zinsen brutto berechnet, ohne Steuern und Gebühren.');
+    } else if (zinsen.moeglich === false && zinsen.grund === 'ZEITRAUM_ZU_LANG') {
+        zusammenfassungHinweise.push('Hinweis: Der Zinszeitraum ist länger als zehn Jahre. Zinsen bis zum Stichtag wurden nicht berechnet und sind in den Beträgen nicht enthalten.');
     } else if (zinsen.moeglich === false) {
         zusammenfassungHinweise.push('Hinweis: Für diese Kaution ist kein Zinssatz hinterlegt. Zinsen bis zum Stichtag wurden nicht berechnet.');
     }

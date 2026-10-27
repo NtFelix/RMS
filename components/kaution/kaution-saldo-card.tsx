@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import { formatBetrag, formatDatum } from "@/components/kaution/kaution-format";
+import { parseMoneyToCents } from "@/lib/kautionen-money";
 import type { KautionDetails } from "@/types/Kaution";
 
 /**
@@ -53,7 +54,8 @@ export function KautionSaldoCard({ details }: KautionSaldoCardProps) {
   const istAltbestand = kaution.quelle === "migration_altbestand";
   // Hold (phase 4): only with the function flag `abrechnung` and while there is a balance. The database also returns a stored
   // hold without a balance (so it can be removed in the settlement tab); the card does not show it then.
-  const zeigeEinbehalt = funktionen.abrechnung && Boolean(einbehalt) && konto.kontostand > 0;
+  // Exact comparison in cents (like the hold section of the settlement tab), no float noise.
+  const zeigeEinbehalt = funktionen.abrechnung && Boolean(einbehalt) && (parseMoneyToCents(konto.kontostand) ?? 0) > 0;
 
   return (
     <Card>

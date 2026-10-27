@@ -538,7 +538,7 @@ export function KautionBuchungForm({
                       </div>
                     ) : null}
 
-                    {berechnungPasst && ergebnis?.moeglich === false ? (
+                    {berechnungPasst && ergebnis?.moeglich === false && ergebnis.grund === "KEIN_ZINSSATZ" ? (
                       <Alert role="note" className="border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200 [&>svg]:text-amber-600">
                         <AlertDescription>
                           Für den Zeitraum ist kein Zinssatz hinterlegt (ab {formatDatum(ergebnis.erster_tag_ohne_satz)}). Bitte erfassen Sie den

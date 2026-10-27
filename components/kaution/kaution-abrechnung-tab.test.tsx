@@ -326,6 +326,23 @@ describe("KautionAbrechnungTab: Berechnung", () => {
     expect(await screen.findByText(/Kein Zinssatz hinterlegt \(ab 01\.03\.2026\)/)).toBeInTheDocument();
   });
 
+  it("meldet einen Zinszeitraum über zehn Jahre ausdrücklich statt „keine Zinsen“", async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    renderTab();
+    abrechnungMock.mockResolvedValueOnce({
+      success: true,
+      data: baueAbrechnung({
+        zinsen_offen: { moeglich: false, grund: "ZEITRAUM_ZU_LANG", methode: "act_365", von: "2010-01-01", bis: "2026-10-17", tage: 6133 },
+      }),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Berechnen" }));
+
+    expect(await screen.findByText(/Der Zinszeitraum seit 01\.01\.2010 ist länger als zehn Jahre/)).toBeInTheDocument();
+    expect(screen.queryByText("Bis zum Auszahlungsdatum sind keine Zinsen aufgelaufen.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Zinsen gutschreiben" })).not.toBeInTheDocument();
+  });
+
   it("markiert die Berechnung nach einer Datenänderung als veraltet und blendet die Zahlen aus", async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     const { neueDaten } = renderTab();

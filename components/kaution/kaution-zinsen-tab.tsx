@@ -106,8 +106,9 @@ export function KautionZinsenTab({
         ) : (
           <Alert role="note" className="border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200 [&>svg]:text-amber-600">
             <AlertDescription>
-              Für den Zeitraum ist kein Zinssatz hinterlegt (ab {formatDatum(aufgelaufen.erster_tag_ohne_satz)}). Bitte hinterlegen Sie die
-              Zinsstaffel oder erfassen Sie die Zinsgutschrift manuell.
+              {aufgelaufen.grund === "ZEITRAUM_ZU_LANG"
+                ? `Der Zeitraum seit ${formatDatum(aufgelaufen.von)} ist länger als zehn Jahre und kann nicht in einem Schritt berechnet werden. Die Zinsen sind in den Beträgen nicht enthalten. Erfassen Sie zuerst Zinsgutschriften für frühere Zeiträume (je höchstens zehn Jahre).`
+                : `Für den Zeitraum ist kein Zinssatz hinterlegt (ab ${formatDatum(aufgelaufen.erster_tag_ohne_satz)}). Bitte hinterlegen Sie die Zinsstaffel oder erfassen Sie die Zinsgutschrift manuell.`}
             </AlertDescription>
           </Alert>
         )}
