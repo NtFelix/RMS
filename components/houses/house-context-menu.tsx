@@ -22,7 +22,7 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions"; // Added import
 import { useModalStore } from "@/hooks/use-modal-store"
-import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen"
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 
 export interface House {
   id: string
@@ -63,10 +63,10 @@ export function HouseContextMenu({
     }, 0);
   };
 
-  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
+  const handleDelete = async () => {
     try {
       setIsDeleting(true);
-      const result = await deleteHouseAction(house.id, pruefsummen[house.id]);
+      const result = await deleteHouseAction(house.id);
 
       if (result.success) {
         toast({

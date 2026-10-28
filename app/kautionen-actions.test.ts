@@ -45,8 +45,7 @@ const LOESCH_AUSWIRKUNG = {
   anzahl_mieter: 3,
   kautionen_sichtbar: true,
   kautionen: { anzahl: 3, ohne_buchungen: 1, mit_buchungen: 2 },
-  pruefsumme: "0123456789abcdef0123456789abcdef",
-  eintraege: [{ id: HAUS_ID, anzahl_mieter: 3, mit_buchungen: 2, pruefsumme: "0123456789abcdef0123456789abcdef" }],
+  eintraege: [{ id: HAUS_ID, anzahl_mieter: 3, mit_buchungen: 2 }],
 };
 const SCHLUESSEL = "44444444-4444-4444-8444-444444444444";
 const RATE_ID = "66666666-6666-4666-8666-666666666666";
@@ -1632,8 +1631,7 @@ describe("getKautionLoeschauswirkungAction", () => {
       mit_buchungen_gekuerzt: false,
       mit_buchungen_liste: [],
     },
-    pruefsumme: "ffffffffffffffffffffffffffffffff",
-    eintraege: [{ id: idPrefix, anzahl_mieter: anzahlMieter, mit_buchungen: anzahlMieter, pruefsumme: "0123456789abcdef0123456789abcdef" }],
+    eintraege: [{ id: idPrefix, anzahl_mieter: anzahlMieter, mit_buchungen: anzahlMieter }],
   });
 
   it("asks for more than 200 IDs in chunks of 200 and combines the answers on the server", async () => {

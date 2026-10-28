@@ -26,7 +26,7 @@ import { useTabParams } from "@/hooks/use-tab-params";
 import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRentPerSqmBarChart } from "@/components/dashboard/dashboard-charts";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
-import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -195,7 +195,7 @@ export default function WohnungenClientView({
     })
   }, [selectedApartments, apartments, escapeCsvValue])
 
-  const handleBulkDelete = useCallback(async (pruefsummen: Pruefsummen = {}) => {
+  const handleBulkDelete = useCallback(async () => {
     if (selectedApartments.size === 0) return;
 
     setIsBulkDeleting(true);
@@ -205,7 +205,7 @@ export default function WohnungenClientView({
       const response = await fetch('/api/apartments/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds, pruefsummen }),
+        body: JSON.stringify({ ids: selectedIds }),
       });
 
       if (!response.ok) {

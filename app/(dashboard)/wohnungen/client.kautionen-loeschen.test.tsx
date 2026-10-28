@@ -51,7 +51,7 @@ describe('WohnungenClientView - Sammellöschen mit Kautionen-Übersicht', () => 
     fireEvent.click(await screen.findByRole('button', { name: /^Löschen \(2\)/ }));
   };
 
-  it('lädt zuerst die Auswirkung, fragt dann üblich und sendet leere Prüfsummen', async () => {
+  it('lädt zuerst die Auswirkung, fragt dann üblich und sendet nur die IDs', async () => {
     await waehleUndKlickeLoeschen();
 
     const dialog = await screen.findByRole('alertdialog');
@@ -61,17 +61,17 @@ describe('WohnungenClientView - Sammellöschen mit Kautionen-Übersicht', () => 
 
     await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/apartments/bulk-delete', expect.anything()));
     const [, init] = mockFetch.mock.calls.find(([url]) => url === '/api/apartments/bulk-delete')!;
-    expect(JSON.parse(init.body)).toEqual({ ids: ['1', '2'], pruefsummen: {} });
+    expect(JSON.parse(init.body)).toEqual({ ids: ['1', '2'] });
   });
 
-  it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht sendet ihre Prüfsummen', async () => {
-    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ '1': 'abc' }));
+  it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht sendet die IDs', async () => {
+    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen());
     await waehleUndKlickeLoeschen();
 
     await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/apartments/bulk-delete', expect.anything()));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     const [, init] = mockFetch.mock.calls.find(([url]) => url === '/api/apartments/bulk-delete')!;
-    expect(JSON.parse(init.body)).toEqual({ ids: ['1', '2'], pruefsummen: { '1': 'abc' } });
+    expect(JSON.parse(init.body)).toEqual({ ids: ['1', '2'] });
   });
 
   it('ruft die Route nicht auf und zeigt keine Frage, wenn die Übersicht abgebrochen wird', async () => {

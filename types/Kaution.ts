@@ -328,13 +328,12 @@ export interface KautionLoeschKautionen {
   mit_buchungen_liste: KautionLoeschMitBuchung[];
 }
 
-/** One entry per selected ID (bulk deletion): the checksum to send back when confirming. */
+/** One entry per selected ID (bulk deletion). */
 export interface KautionLoeschEintrag {
   id: string;
   anzahl_mieter: number;
   /** `null` without the right to see deposits. */
   mit_buchungen: number | null;
-  pruefsumme: string | null;
 }
 
 export interface KautionLoeschauswirkung {
@@ -345,6 +344,5 @@ export interface KautionLoeschauswirkung {
   /** `false` without `kautionen: ansehen`: then there is no statement about deposits at all. */
   kautionen_sichtbar: boolean;
   kautionen: KautionLoeschKautionen | null;
-  pruefsumme: string | null;
   eintraege: KautionLoeschEintrag[];
 }

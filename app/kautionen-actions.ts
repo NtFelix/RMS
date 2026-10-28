@@ -650,7 +650,7 @@ const LOESCH_TABELLEN: readonly string[] = ["Haeuser", "Wohnungen", "Mieter"];
 /**
  * What deleting the given houses, apartments or tenants means for the deposits (`get_kautionen_loeschauswirkung`):
  * counts, amounts "still open" and "held" (deposit accounts only), guarantees/insurances separately, tenants with
- * a balance and a checksum to send back when confirming. All figures come from the database.
+ * a balance. All figures come from the database.
  *
  * Without the module right `kautionen: ansehen` this action fails with `42501` (the caller then deletes without the
  * overview; the database still blocks deposits with bookings). The database checks the object scope itself.

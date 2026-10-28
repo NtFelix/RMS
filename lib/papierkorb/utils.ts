@@ -7,24 +7,16 @@ import { createDeleteError } from '@/lib/bulk-delete-summary';
  *
  * Haus und Wohnung gehen über die Datenbankfunktion `soft_delete_mit_kautionen`: die EINE atomare Kaskade Haus ->
  * Wohnungen -> Mieter (samt Kautionen) in einer Transaktion mit einem Zeitstempel. Schlägt ein Schritt fehl (z. B. weil
- * eine Kaution mit Buchungen nicht bestätigt wurde, `KA009`/`KA016`), wird nichts gelöscht und die Meldung der Datenbank
- * weitergereicht. Es gibt keine Teilerfolge und keinen zweiten Kaskadenweg in der App.
- *
- * `options.pruefsumme`: Prüfsumme der bestätigten Auswirkung auf Kautionen mit Buchungen (Übersicht "Kautionen werden
- * mitgelöscht"). Ohne sie lehnt die Datenbank das Löschen mit gebuchten Kautionen ab; ohne gebuchte Kaution wird sie nicht
- * gebraucht. Für einen einzelnen Mieter mit Prüfsumme gilt derselbe Weg; alle anderen Datensätze gehen über `soft_delete_record`.
+ * eine Kaution mit Buchungen die Löschung sperrt, `KA009`), wird nichts gelöscht und die Meldung der Datenbank
+ * weitergereicht. Es gibt keine Teilerfolge und keinen zweiten Kaskadenweg in der App. Alle anderen Datensätze
+ * (auch Mieter) gehen über `soft_delete_record`.
  */
-export async function softDeleteEntryAction(
-  tableName: string,
-  recordId: string,
-  options?: { pruefsumme?: string | null }
-): Promise<void> {
+export async function softDeleteEntryAction(tableName: string, recordId: string): Promise<void> {
   const supabase = await createSupabaseServerClient();
-  const pruefsumme = options?.pruefsumme || null;
 
-  const ueberKaskade = tableName === 'Haeuser' || tableName === 'Wohnungen' || (tableName === 'Mieter' && pruefsumme !== null);
+  const ueberKaskade = tableName === 'Haeuser' || tableName === 'Wohnungen';
   const { error } = ueberKaskade
-    ? await supabase.rpc('soft_delete_mit_kautionen', { p_table_name: tableName, p_record_id: recordId, p_pruefsumme: pruefsumme })
+    ? await supabase.rpc('soft_delete_mit_kautionen', { p_table_name: tableName, p_record_id: recordId })
     : await supabase.rpc('soft_delete_record', { p_table_name: tableName, p_record_id: recordId });
   if (error) {
     // Nur Tabelle, Kennung und Code loggen (keine Inhalte der Datensätze).

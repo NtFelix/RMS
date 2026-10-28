@@ -59,12 +59,6 @@ describe("kautionen-errors", () => {
       ["KA011", "KAUT_RATENPLAN_GESPERRT: Die Summe der Raten weicht vom Soll ab.", "Die Summe der Raten weicht vom Soll ab.", "formular"],
       ["KA014", "KAUT_ART_OHNE_KONTO: Diese Kautionsart führt kein Konto.", "Diese Kautionsart führt kein Konto.", "formular"],
       ["KA015", "KAUT_PHASE_NICHT_VERFUEGBAR: Zinsgutschriften sind noch nicht verfügbar.", "Zinsgutschriften sind noch nicht verfügbar.", "formular"],
-      [
-        "KA016",
-        "KAUT_BESTAETIGUNG: Die Auswirkung muss bestätigt werden oder hat sich inzwischen geändert.",
-        "Die Auswirkung muss bestätigt werden oder hat sich inzwischen geändert.",
-        "toast",
-      ],
     ])("%s", (code, message, expected, verhalten) => {
       expect(mapKautionError({ code, message })).toEqual({ code, message: expected, verhalten });
     });
@@ -231,7 +225,7 @@ describe("kautionen-errors", () => {
     });
 
     it("agrees with mapKautionError for every defined code", () => {
-      const codes = ["KA001", "42501", "KA002", "KA003", "KA004", "KA005", "KA006", "KA007", "KA008", "KA009", "KA011", "KA013", "KA014", "KA015", "KA016", "23503", "55P03"];
+      const codes = ["KA001", "42501", "KA002", "KA003", "KA004", "KA005", "KA006", "KA007", "KA008", "KA009", "KA011", "KA013", "KA014", "KA015", "23503", "55P03"];
       for (const code of codes) {
         expect(getKautionFehlerVerhalten(code)).toBe(mapKautionError({ code, message: "x" }).verhalten);
       }
