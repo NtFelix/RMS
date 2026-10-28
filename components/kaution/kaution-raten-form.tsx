@@ -121,7 +121,8 @@ export function KautionRatenForm({ kautionId, sollBetrag, raten, onGespeichert, 
   });
 
   const [anzahl, setAnzahl] = useState<RatenAnzahl>(start.anzahl);
-  const [ersteDatum, setErsteDatum] = useState(start.erste);
+  // Only read in the handlers (never shown): a ref avoids a redraw per change. The shown date is `ersteKalender`.
+  const ersteDatumRef = useRef(start.erste);
   const [ersteKalender, setErsteKalender] = useState<Date | undefined>(() => isoZuLokalemDatum(start.erste));
   const [zeilen, setZeilen] = useState<RateZeile[]>(start.zeilen);
   // Without a stored plan there is nothing to compare with: the form counts as changed once the user touched it.
@@ -154,7 +155,7 @@ export function KautionRatenForm({ kautionId, sollBetrag, raten, onGespeichert, 
     const neu = Number(wert);
     if (neu !== 1 && neu !== 2 && neu !== 3) return;
     setAnzahl(neu);
-    setZeilen(zeilenAusVorschlag(neu, ersteDatum, sollCents));
+    setZeilen(zeilenAusVorschlag(neu, ersteDatumRef.current, sollCents));
     setBeruehrt(true);
   };
 
@@ -162,11 +163,11 @@ export function KautionRatenForm({ kautionId, sollBetrag, raten, onGespeichert, 
     setBeruehrt(true);
     if (!datum) {
       // Incomplete input: the rows stay as they are.
-      setErsteDatum("");
+      ersteDatumRef.current = "";
       return;
     }
     const iso = formatLocalDateToIso(datum);
-    setErsteDatum(iso);
+    ersteDatumRef.current = iso;
     setErsteKalender(datum);
     setZeilen(zeilenAusVorschlag(anzahl, iso, sollCents));
   };
