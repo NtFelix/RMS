@@ -44,7 +44,8 @@ type Bewegung = Record<string, unknown>;
 function beispielBewegungen(): Bewegung[] {
     return [
         { wertstellung: '2025-09-01', bewegungsart: 'einzahlung', betrag: 1000, kategorie: null, grund: null, zinszeitraum_von: null, zinszeitraum_bis: null, saldo_nach_buchung: 1000 },
-        { wertstellung: '2025-12-31', bewegungsart: 'zinsgutschrift', betrag: 10, kategorie: null, grund: null, zinszeitraum_von: '2025-09-01', zinszeitraum_bis: '2025-12-31', saldo_nach_buchung: 1010 },
+        // Wertstellung = Tag nach dem (einschließenden) Ende des Zeitraums; die Datenbank liefert das Ende exklusiv: [2025-09-01, 2026-01-01)
+        { wertstellung: '2026-01-01', bewegungsart: 'zinsgutschrift', betrag: 10, kategorie: null, grund: null, zinszeitraum_von: '2025-09-01', zinszeitraum_bis: '2026-01-01', saldo_nach_buchung: 1010 },
         { wertstellung: '2026-02-01', bewegungsart: 'abzug', betrag: 100, kategorie: 'nebenkosten', grund: 'Nebenkostenabrechnung 2025', zinszeitraum_von: null, zinszeitraum_bis: null, saldo_nach_buchung: 910 },
         { wertstellung: '2026-02-28', bewegungsart: 'auszahlung', betrag: 500, kategorie: null, grund: 'Teilauszahlung', zinszeitraum_von: null, zinszeitraum_bis: null, saldo_nach_buchung: 410 },
     ];
@@ -126,7 +127,9 @@ describe('Kautionsabrechnung-Template (kaution-abrechnung)', () => {
         expect(text).toContain('+1.000,00');
         expect(text).toContain('-100,00');
         expect(text).toContain('-500,00');
-        expect(text).toContain('Zinsgutschrift (01.09.2025');
+        // Das Ende steht einschließend (die Datenbank liefert 2026-01-01 exklusiv), wie in der App
+        expect(text).toContain('Zinsgutschrift (01.09.2025 – 31.12.2025)');
+        expect(text).not.toContain('01.01.2026)');
         expect(text).toContain('Abzug (Nebenkosten)');
         expect(text).toContain('Nebenkostenabrechnung 2025');
         expect(text).toContain('Zusammenfassung');
@@ -218,7 +221,7 @@ describe('Kautionsabrechnung-Template (kaution-abrechnung)', () => {
             betrag_inkl_zinsen: 410,
         }));
 
-        expect(text).toContain('Zinszeitraum ist länger als zehn Jahre');
+        expect(text).toContain('Zinszeitraum ist länger als 3660 Tage');
         expect(text).not.toContain('kein Zinssatz hinterlegt');
     });
 

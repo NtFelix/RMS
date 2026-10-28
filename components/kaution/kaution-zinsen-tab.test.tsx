@@ -13,7 +13,17 @@ import { axe, toHaveNoViolations } from "jest-axe";
 import { KautionZinsenTab } from "@/components/kaution/kaution-zinsen-tab";
 import { planeKautionZinsstaffelAction } from "@/app/kautionen-actions";
 import { toast } from "@/hooks/use-toast";
+import { useKautionFlag } from "@/hooks/use-kaution-flag";
+import { standardKautionFlagKonfig } from "@/lib/kautionen-flag";
 import type { KautionBewegung, KautionDetails, KautionRechte, KautionZinsVorschlag, KautionZinssatz } from "@/types/Kaution";
+
+jest.mock("@/hooks/use-kaution-flag", () => ({ useKautionFlag: jest.fn() }));
+const flagMock = useKautionFlag as unknown as jest.Mock;
+
+/** Flag configuration of the test: the booking type `zinsgutschrift` is allowed unless the test restricts it. */
+function setzeBuchungsarten(bewegungsarten: string[] = ["einzahlung", "zinsgutschrift", "auszahlung", "abzug"]) {
+  flagMock.mockReturnValue({ ...standardKautionFlagKonfig(true), bewegungsarten, funktionen: { raten: false, dokumente: false, fristen: false, zinsen: true, abrechnung: false } });
+}
 
 expect.extend(toHaveNoViolations);
 
@@ -168,6 +178,7 @@ function renderTab(props: Props = {}) {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  setzeBuchungsarten();
   planeMock.mockResolvedValue({ success: true, data: undefined });
 });
 
@@ -217,9 +228,27 @@ describe("KautionZinsenTab: aufgelaufene Zinsen", () => {
       }),
     });
 
-    expect(screen.getByText(/Der Zeitraum seit 01\.01\.2010 ist länger als zehn Jahre/)).toBeInTheDocument();
+    expect(screen.getByText(/Der Zeitraum seit 01\.01\.2010 ist länger als 3660 Tage/)).toBeInTheDocument();
     expect(screen.queryByText("Derzeit sind keine Zinsen aufgelaufen.")).not.toBeInTheDocument();
     expect(screen.queryByTestId("kaution-zins-aufgelaufen")).not.toBeInTheDocument();
+  });
+
+  it("deaktiviert „Zinsgutschrift erfassen“ bei einem Zinszeitraum über 3660 Tage (der Zeitraum wäre ungültig)", () => {
+    renderTab({
+      details: baueDetails({
+        zins_aufgelaufen: { moeglich: false, grund: "ZEITRAUM_ZU_LANG", methode: "act_365", von: "2010-01-01", bis: "2026-10-17", tage: 6133 },
+        kontostand_inkl_zinsen: null,
+      }),
+    });
+
+    expect(screen.getByRole("button", { name: "Zinsgutschrift erfassen" })).toBeDisabled();
+  });
+
+  it("deaktiviert „Zinsgutschrift erfassen“, wenn die Konfiguration die Buchungsart zinsgutschrift nicht erlaubt", () => {
+    setzeBuchungsarten(["einzahlung", "auszahlung", "abzug"]);
+    renderTab();
+
+    expect(screen.getByRole("button", { name: "Zinsgutschrift erfassen" })).toBeDisabled();
   });
 
   it("deaktiviert die Zinsgutschrift, wenn keine Zinsen aufgelaufen sind", () => {

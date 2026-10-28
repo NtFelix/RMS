@@ -259,7 +259,7 @@ export function KautionAbrechnungTab({
                 <Alert role="note" className="border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200 [&>svg]:text-amber-600">
                   <AlertDescription>
                     {zinsen.grund === "ZEITRAUM_ZU_LANG"
-                      ? `Der Zinszeitraum seit ${formatDatum(zinsen.von)} ist länger als zehn Jahre. Die Zinsen konnten nicht berechnet werden und sind in den Beträgen nicht enthalten. Erfassen Sie zuerst Zinsgutschriften für frühere Zeiträume (je höchstens zehn Jahre) und berechnen Sie dann neu.`
+                      ? `Der Zinszeitraum seit ${formatDatum(zinsen.von)} ist länger als 3660 Tage (etwa zehn Jahre). Die Zinsen konnten nicht berechnet werden und sind in den Beträgen nicht enthalten. Erfassen Sie zuerst im Kontoauszug Zinsgutschriften für frühere Zeiträume (je höchstens 3660 Tage) und berechnen Sie dann neu.`
                       : `Kein Zinssatz hinterlegt (ab ${formatDatum(zinsen.erster_tag_ohne_satz)}). Die Zinsen können nicht berechnet werden.`}
                   </AlertDescription>
                 </Alert>

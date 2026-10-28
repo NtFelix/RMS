@@ -635,6 +635,18 @@ function formatiereDatum(wert: unknown): string {
     return `${tag}.${monat}.${jahr}`;
 }
 
+// Ende eines Zinszeitraums für die Anzeige: die Datenbank liefert es exklusiv (Zeitraum [von, bis), der Tag "bis" zählt nicht),
+// die App zeigt es einschließend (bis minus 1 Tag). Das PDF muss denselben Zeitraum nennen wie die App. Ungültig ergibt '-'.
+function formatiereZeitraumEnde(bisExklusiv: unknown): string {
+    if (typeof bisExklusiv !== 'string') return '-';
+    const treffer = /^(\d{4})-(\d{2})-(\d{2})$/.exec(bisExklusiv.trim());
+    if (!treffer) return '-';
+    const datum = new Date(Date.UTC(Number(treffer[1]), Number(treffer[2]) - 1, Number(treffer[3])));
+    if (datum.getUTCMonth() !== Number(treffer[2]) - 1 || datum.getUTCDate() !== Number(treffer[3])) return '-';
+    datum.setUTCDate(datum.getUTCDate() - 1);
+    return formatiereDatum(datum.toISOString().slice(0, 10));
+}
+
 // Prüft die Form der Nutzlast. Texte und Zahlen werden erst beim Rendern bereinigt.
 export function parseKautionAbrechnungPayload(data: unknown): KautionAbrechnungParseErgebnis {
     if (typeof data !== 'object' || data === null || Array.isArray(data)) {
@@ -729,7 +741,7 @@ export function generateKautionAbrechnungPDF(doc: jsPDF, payload: KautionAbrechn
             zugang = true;
         } else if (art === 'zinsgutschrift') {
             const von = formatiereDatum(b.zinszeitraum_von);
-            const bis = formatiereDatum(b.zinszeitraum_bis);
+            const bis = formatiereZeitraumEnde(b.zinszeitraum_bis);
             bezeichnung = von !== '-' && bis !== '-' ? `Zinsgutschrift (${von} – ${bis})` : 'Zinsgutschrift';
             zugang = true;
         } else if (art === 'auszahlung') {
@@ -828,7 +840,7 @@ export function generateKautionAbrechnungPDF(doc: jsPDF, payload: KautionAbrechn
         );
         zusammenfassungHinweise.push('Zinsen brutto berechnet, ohne Steuern und Gebühren.');
     } else if (zinsen.moeglich === false && zinsen.grund === 'ZEITRAUM_ZU_LANG') {
-        zusammenfassungHinweise.push('Hinweis: Der Zinszeitraum ist länger als zehn Jahre. Zinsen bis zum Stichtag wurden nicht berechnet und sind in den Beträgen nicht enthalten.');
+        zusammenfassungHinweise.push('Hinweis: Der Zinszeitraum ist länger als 3660 Tage (etwa zehn Jahre). Zinsen bis zum Stichtag wurden nicht berechnet und sind in den Beträgen nicht enthalten.');
     } else if (zinsen.moeglich === false) {
         zusammenfassungHinweise.push('Hinweis: Für diese Kaution ist kein Zinssatz hinterlegt. Zinsen bis zum Stichtag wurden nicht berechnet.');
     }

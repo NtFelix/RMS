@@ -9,6 +9,7 @@ import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { KautionBuchungVorgabe } from "@/components/kaution/kaution-buchung-form";
 import { KEINE_BERECHTIGUNG_TEXT } from "@/components/kaution/kaution-feld";
+import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import { formatBetrag, formatDatum } from "@/components/kaution/kaution-format";
 import { KautionZinsstaffelForm } from "@/components/kaution/kaution-zinsstaffel-form";
 import { endeEinschliessendSicher } from "@/lib/kautionen-zinsen";
@@ -45,13 +46,19 @@ export function KautionZinsenTab({
   onZinsgutschriftErfassen,
 }: KautionZinsenTabProps) {
   const basisId = useId();
+  const { bewegungsarten } = useKautionFlag();
   const { kaution, konto, kontoauszug, zinsstaffel, kontostand_inkl_zinsen: kontostandInklZinsen } = details;
   const aufgelaufen = details.zins_aufgelaufen ?? null;
   const zinsGutschriften = kontoauszug.filter((bewegung) => bewegung.bewegungsart === "zinsgutschrift");
   const aktiveGutschriften = zinsGutschriften.filter((bewegung) => bewegung.storniert_am === null).length;
 
+  // The credit for the accrued period needs a proposal that is not "period too long" (the database cannot calculate more than
+  // 3660 days: earlier periods have to be credited first, in the statement) and the booking type in the flag payload.
+  const zinsgutschriftMoeglich =
+    aufgelaufen !== null && !(aufgelaufen.moeglich === false && aufgelaufen.grund === "ZEITRAUM_ZU_LANG") && bewegungsarten.includes("zinsgutschrift");
+
   const handleZinsgutschrift = () => {
-    if (!aufgelaufen) return;
+    if (!aufgelaufen || !zinsgutschriftMoeglich) return;
     onZinsgutschriftErfassen({ art: "zinsgutschrift", von: aufgelaufen.von, bis: aufgelaufen.bis });
   };
 
@@ -66,7 +73,7 @@ export function KautionZinsenTab({
             type="button"
             variant="outline"
             size="sm"
-            disabled={!rechte.erstellen || aufgelaufen === null}
+            disabled={!rechte.erstellen || !zinsgutschriftMoeglich}
             tooltip={KEINE_BERECHTIGUNG_TEXT}
             showTooltip={!rechte.erstellen}
             onClick={handleZinsgutschrift}
@@ -107,7 +114,7 @@ export function KautionZinsenTab({
           <Alert role="note" className="border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200 [&>svg]:text-amber-600">
             <AlertDescription>
               {aufgelaufen.grund === "ZEITRAUM_ZU_LANG"
-                ? `Der Zeitraum seit ${formatDatum(aufgelaufen.von)} ist länger als zehn Jahre und kann nicht in einem Schritt berechnet werden. Die Zinsen sind in den Beträgen nicht enthalten. Erfassen Sie zuerst Zinsgutschriften für frühere Zeiträume (je höchstens zehn Jahre).`
+                ? `Der Zeitraum seit ${formatDatum(aufgelaufen.von)} ist länger als 3660 Tage (etwa zehn Jahre) und kann nicht in einem Schritt berechnet werden. Die Zinsen sind in den Beträgen nicht enthalten. Erfassen Sie zuerst im Kontoauszug Zinsgutschriften für frühere Zeiträume (je höchstens 3660 Tage).`
                 : `Für den Zeitraum ist kein Zinssatz hinterlegt (ab ${formatDatum(aufgelaufen.erster_tag_ohne_satz)}). Bitte hinterlegen Sie die Zinsstaffel oder erfassen Sie die Zinsgutschrift manuell.`}
             </AlertDescription>
           </Alert>

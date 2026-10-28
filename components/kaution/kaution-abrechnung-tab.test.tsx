@@ -338,7 +338,7 @@ describe("KautionAbrechnungTab: Berechnung", () => {
 
     await user.click(screen.getByRole("button", { name: "Berechnen" }));
 
-    expect(await screen.findByText(/Der Zinszeitraum seit 01\.01\.2010 ist länger als zehn Jahre/)).toBeInTheDocument();
+    expect(await screen.findByText(/Der Zinszeitraum seit 01\.01\.2010 ist länger als 3660 Tage/)).toBeInTheDocument();
     expect(screen.queryByText("Bis zum Auszahlungsdatum sind keine Zinsen aufgelaufen.")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Zinsen gutschreiben" })).not.toBeInTheDocument();
   });
