@@ -161,6 +161,33 @@ export default function Footer() {
               .filter(([, links]) => links.length > 0)
               .map(([category, links]) => {
                 const isAccordionOpen = openMobileCategory === category
+                const footerCategory = categoryMap[category]
+                const linkItems = links.map((link) => {
+                  const specialLink = specialLinks[link]
+                  return (
+                    <li key={link}>
+                      {specialLink ? (
+                        <Link
+                          href={specialLink.href}
+                          target={specialLink.target}
+                          rel={specialLink.rel}
+                          className="text-muted-foreground hover:text-foreground transition-colors text-sm hover:underline"
+                          onClick={() => trackFooterLinkClicked(specialLink.text, footerCategory, specialLink.href)}
+                        >
+                          {specialLink.text}
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground transition-colors text-sm text-left hover:underline"
+                          onClick={() => trackFooterLinkClicked(link, footerCategory, "#")}
+                        >
+                          {link}
+                        </button>
+                      )}
+                    </li>
+                  )
+                })
                 return (
                   <div key={category} className="border-b border-border/40 md:border-b-0 pb-4 md:pb-0">
                     <button
@@ -174,50 +201,31 @@ export default function Footer() {
                       />
                     </button>
                     
-                    {/* AnimatePresence for smooth height transitions on mobile */}
-                    <AnimatePresence initial={false}>
-                      {(isAccordionOpen || typeof window !== 'undefined' && window.innerWidth >= 768) && (
-                        <motion.ul 
-                          initial="collapsed"
-                          animate="open"
-                          exit="collapsed"
-                          variants={{
-                            open: { opacity: 1, height: "auto", marginTop: 12 },
-                            collapsed: { opacity: 0, height: 0, marginTop: 0 }
-                          }}
-                          transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
-                          className="space-y-3 overflow-hidden md:!opacity-100 md:!h-auto md:!mt-0"
-                        >
-                          {links.map((link) => {
-                            const specialLink = specialLinks[link]
-                            const footerCategory = categoryMap[category]
-                            return (
-                              <li key={link}>
-                                {specialLink ? (
-                                  <Link
-                                    href={specialLink.href}
-                                    target={specialLink.target}
-                                    rel={specialLink.rel}
-                                    className="text-muted-foreground hover:text-foreground transition-colors text-sm hover:underline"
-                                    onClick={() => trackFooterLinkClicked(specialLink.text, footerCategory, specialLink.href)}
-                                  >
-                                    {specialLink.text}
-                                  </Link>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className="text-muted-foreground hover:text-foreground transition-colors text-sm text-left hover:underline"
-                                    onClick={() => trackFooterLinkClicked(link, footerCategory, "#")}
-                                  >
-                                    {link}
-                                  </button>
-                                )}
-                              </li>
-                            )
-                          })}
-                        </motion.ul>
-                      )}
-                    </AnimatePresence>
+                    {/* Mobile collapsible view */}
+                    <div className="md:hidden">
+                      <AnimatePresence initial={false}>
+                        {isAccordionOpen && (
+                          <motion.ul 
+                            initial="collapsed"
+                            animate="open"
+                            exit="collapsed"
+                            variants={{
+                              open: { opacity: 1, height: "auto", marginTop: 12 },
+                              collapsed: { opacity: 0, height: 0, marginTop: 0 }
+                            }}
+                            transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
+                            className="space-y-3 overflow-hidden"
+                          >
+                            {linkItems}
+                          </motion.ul>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Desktop always visible view */}
+                    <ul className="hidden md:block space-y-3 mt-4">
+                      {linkItems}
+                    </ul>
                   </div>
                 )
               })}
@@ -229,7 +237,7 @@ export default function Footer() {
           {/* Bottom Bar: Copyright on left, legal links on right */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground relative z-10">
             <div className="flex items-center gap-4 flex-wrap justify-center md:justify-start">
-              <span>© {new Date().getFullYear()} {BRAND_NAME}. Alle Rechte vorbehalten.</span>
+              <span>© {process.env.NEXT_PUBLIC_BUILD_YEAR ?? new Date().getFullYear()} {BRAND_NAME}. Alle Rechte vorbehalten.</span>
             </div>
             
             {/* Inline right-aligned legal links with analytics tracking restored */}

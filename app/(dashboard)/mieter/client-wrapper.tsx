@@ -20,6 +20,7 @@ import { deleteTenantAction, deleteAllApplicantsAction } from "@/app/mieter-acti
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
+import { STAT_CARD_ROW_CLASS } from "@/components/skeletons/stat-cards-skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -741,7 +742,7 @@ export default function MieterClientView({
 
         {currentTab !== "overview" ? (
           <>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4 animate-in fade-in duration-300">
+            <div className={`${STAT_CARD_ROW_CLASS} animate-in fade-in duration-300`}>
               <StatCard
                 title={currentTab === 'mieter' ? "Mieter gesamt" : "Bewerber gesamt"}
                 value={summary.total}

@@ -6,6 +6,7 @@ import { Search } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import type { Tab } from "@/types/settings"
+import { SETTINGS_SIDEBAR_CLASS } from "@/components/settings/settings-layout-classes"
 
 interface SettingsSidebarProps {
   tabs: Omit<Tab, 'content'>[]
@@ -46,7 +47,7 @@ export function SettingsSidebar({ tabs }: SettingsSidebarProps) {
   }, [filteredTabs])
 
   return (
-    <nav className="flex flex-col bg-white dark:bg-[#181818] relative border border-border/50 rounded-2xl shadow-xs w-56">
+    <nav className={SETTINGS_SIDEBAR_CLASS}>
       {/* Search */}
       <div className="relative z-10 p-3 pb-2">
         <div className="relative">

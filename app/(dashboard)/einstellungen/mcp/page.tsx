@@ -6,8 +6,6 @@ import McpSection from "@/components/settings/mcp-section";
 import { SettingsSectionSkeleton } from "@/components/settings/section-skeletons";
 import { type UserMcpAuthorizationRecord } from "@/app/oauth/consent/actions";
 
-export const instant = false;
-
 export default async function McpSettingsPage() {
   const [isAdminOrOwner, canManagePermission] = await Promise.all([
     isOrgAdminOrOwner(),
