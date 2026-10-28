@@ -16,7 +16,6 @@ import {
   KAUTION_ZINSSATZ_MAX_NACHKOMMASTELLEN,
   KAUTION_ZINSSTAFFEL_MAX_ZEILEN,
   isKautionZinsmethode,
-  type KautionVereinbarungsFeld,
 } from "@/lib/kautionen-constants";
 import { istGueltigeIban, normalisiereIban } from "@/lib/kautionen-iban";
 import { parseZinssatzProzent } from "@/lib/kautionen-money";
@@ -135,8 +134,8 @@ export function validateKautionGetrennt(value: unknown): ValidationResult<boolea
  * `gefuellt` lists only the fields that carry a value; a field of another type is rejected (`KA004` at the database).
  */
 export function validateKautionArtFelder(art: KautionArt, gefuellt: readonly string[]): ValidationResult<null> {
-  const erlaubt: readonly KautionVereinbarungsFeld[] = KAUTION_VEREINBARUNGSFELDER_JE_ART[art];
-  const fremd = gefuellt.some((feld) => !(erlaubt as readonly string[]).includes(feld));
+  const erlaubt: ReadonlySet<string> = new Set<string>(KAUTION_VEREINBARUNGSFELDER_JE_ART[art]);
+  const fremd = gefuellt.some((feld) => !erlaubt.has(feld));
   if (fremd) return { ok: false, message: "Eine Angabe passt nicht zu dieser Kautionsart." };
   return { ok: true, value: null };
 }
