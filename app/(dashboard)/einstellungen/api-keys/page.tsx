@@ -5,8 +5,6 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import ApiKeysSection from "@/components/settings/api-keys-section";
 import { SettingsSectionSkeleton } from "@/components/settings/section-skeletons";
 
-export const instant = false;
-
 export default async function ApiKeysPage() {
   // The API-keys tab is gated by the org-wide flag only: regular members must be able to
   // reach this page to submit key requests ("API-Key beantragen"). Approval actions are

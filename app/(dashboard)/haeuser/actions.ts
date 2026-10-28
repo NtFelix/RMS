@@ -123,7 +123,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       }
     }
     revalidatePath("/haeuser");
-    revalidatePath("/dashboard/betriebskosten");
+    revalidatePath("/betriebskosten");
     revalidatePath("/wohnungen");
     revalidatePath("/dashboard");
     logAction(actionName, 'success', { ...(id && { house_id: id }), house_name: houseName });
@@ -165,7 +165,7 @@ export async function deleteHouseAction(houseId: string, pruefsumme?: string | n
     }
 
     revalidatePath('/haeuser');
-    revalidatePath("/dashboard/betriebskosten");
+    revalidatePath("/betriebskosten");
     revalidatePath("/wohnungen");
     revalidatePath("/dashboard");
     logAction(actionName, 'success', { house_id: houseId });

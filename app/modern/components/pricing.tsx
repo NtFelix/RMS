@@ -500,7 +500,7 @@ export default function Pricing({
 
   if (isLoadingPlans) {
     return (
-      <section className="py-16 px-4">
+      <section className="py-16 px-4" data-testid="pricing-skeleton">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <Skeleton className="h-10 w-64 mx-auto mb-4" />

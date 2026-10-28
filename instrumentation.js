@@ -72,22 +72,9 @@ export const onRequestError = async (err, request, context) => {
     try {
       const { getPostHogServer } = require('./app/posthog-server')
       const posthog = await getPostHogServer()
-      let distinctId = null
-      if (request.headers.cookie) {
-        const cookieString = request.headers.cookie
-        const postHogCookieMatch =
-          cookieString.match(/ph_phc_.*?_posthog=([^;]+)/)
-        if (postHogCookieMatch && postHogCookieMatch[1]) {
-          try {
-            const decodedCookie = decodeURIComponent(postHogCookieMatch[1])
-            const postHogData = JSON.parse(decodedCookie)
-            distinctId = postHogData.distinct_id
-          } catch (e) {
-            console.error('Error parsing PostHog cookie:', e)
-          }
-        }
-      }
-      await posthog.captureException(err, distinctId || undefined)
+      const { extractPostHogContextFromHeaders } = require('./lib/posthog-context-extractor')
+      const { distinctId } = extractPostHogContextFromHeaders(request?.headers)
+      await posthog.captureException(err, distinctId)
     } catch (posthogError) {
       console.error('Failed to capture exception in PostHog:', posthogError);
     }

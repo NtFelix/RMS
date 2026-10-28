@@ -1,14 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { headers } from "next/headers"
-import { CSPNonceSync } from "@/components/providers/csp-nonce-sync"
-import { redirectAuthenticatedAuthRoute } from "@/lib/server/route-access"
-
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
-
-// Cloudflare Pages requires dynamic routes to be marked as edge
+import { Suspense } from "react"
+import { AuthRequestGate } from "./auth-request-gates"
 
 // Auth layout metadata - common settings for all auth pages
 export const metadata: Metadata = {
@@ -20,17 +13,18 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function AuthLayout({
+// Static shell: no request-time APIs are read here, so auth pages can prerender.
+// Request-time work lives in Suspense-wrapped components in auth-request-gates.tsx.
+export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  await redirectAuthenticatedAuthRoute()
-  const nonce = (await headers()).get('x-nonce')
-
   return (
     <div className="min-h-screen bg-background">
-      <CSPNonceSync nonce={nonce} />
+      <Suspense fallback={null}>
+        <AuthRequestGate />
+      </Suspense>
       {children}
     </div>
   )

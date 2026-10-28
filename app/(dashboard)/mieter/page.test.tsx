@@ -26,7 +26,7 @@ jest.mock("@/lib/data-fetching", () => ({
 
 jest.mock("@/app/mieter-actions", () => ({ handleSubmit: jest.fn() }));
 jest.mock("./client-wrapper", () => ({ __esModule: true, default: () => null }));
-jest.mock("@/components/common/table-skeleton", () => ({ TableSkeleton: () => null }));
+jest.mock("./skeleton", () => ({ MieterSkeleton: () => null }));
 
 const mockHasPermission = hasPermission as jest.Mock;
 const mockFetchWithRpcFallback = fetchWithRpcFallback as jest.Mock;

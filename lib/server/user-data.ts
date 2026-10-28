@@ -53,8 +53,7 @@ export async function getSidebarUserData(
   const [countResult, secondaryProfileResult, orgIdResult] = await Promise.all([
     supabase
       .from('Wohnungen')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id),
+      .select('id', { count: 'exact', head: true }),
     // Only fetch profile if it wasn't provided
     !profile ? supabase
       .from('profiles')
@@ -63,6 +62,10 @@ export async function getSidebarUserData(
       .single() : Promise.resolve({ data: profile }),
     supabase.rpc('current_organisation_id'),
   ]);
+
+  if (countResult.error) {
+    console.error("[getSidebarUserData] Failed to count apartments:", countResult.error);
+  }
 
   const orgId = orgIdResult.data;
   const hasOrganisationPermission = orgId !== null;

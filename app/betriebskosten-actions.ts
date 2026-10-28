@@ -195,7 +195,7 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
     return { success: false, message: error.message, data: null };
   }
 
-  revalidatePath("/dashboard/betriebskosten");
+  revalidatePath("/betriebskosten");
   logAction(actionName, 'success', { nebenkosten_id: data?.id, house_id: formData.haeuser_id });
 
   // Return optimized data for the UI
@@ -294,7 +294,7 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
     return { success: false, message: error.message, data: null };
   }
 
-  revalidatePath("/dashboard/betriebskosten");
+  revalidatePath("/betriebskosten");
   logAction(actionName, 'success', { nebenkosten_id: id });
 
   // Return optimized data for the UI
@@ -345,7 +345,7 @@ export async function deleteNebenkosten(id: string) {
     return { success: false, message: error.message };
   }
 
-  revalidatePath("/dashboard/betriebskosten");
+  revalidatePath("/betriebskosten");
   logAction(actionName, 'success', { nebenkosten_id: id });
   return { success: true, message: "Nebenkosten erfolgreich gelöscht" };
 }
@@ -394,7 +394,7 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
     await Promise.all(ids.map(id => softDeleteEntryAction("Nebenkosten", id)));
 
     // Invalidate cache and refresh data
-    revalidatePath("/dashboard/betriebskosten");
+    revalidatePath("/betriebskosten");
 
     return {
       success: true,
@@ -462,12 +462,8 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
     return { success: false, message: error.message, data: null };
   }
 
-  // Consider revalidating paths where Rechnungen might be displayed directly
-  // e.g., revalidatePath("/dashboard/some-path-displaying-rechnungen");
-  // For now, revalidating the main betriebskosten path as a general measure,
-  // though direct display of individual Rechnungen might be on a different page.
-  revalidatePath("/dashboard/betriebskosten");
-  // Or more specific if a detailed view exists: revalidatePath(`/dashboard/betriebskosten/${rechnungen[0]?.nebenkosten_id}`);
+  // Rechnungen belong to the Betriebskosten flow, so revalidate its page
+  revalidatePath("/betriebskosten");
 
 
 
@@ -1248,7 +1244,7 @@ export async function saveMeterReadings(formData: MeterReadingFormData): Promise
     }
   }
 
-  revalidatePath('/dashboard/betriebskosten');
+  revalidatePath('/betriebskosten');
 
   return {
     success: errorCount === 0,
