@@ -59,6 +59,7 @@ describe('lib/supabase-server', () => {
         'https://test.supabase.co',
         'test-anon-key',
         expect.objectContaining({
+          tracePropagation: true,
           cookies: expect.objectContaining({
             getAll: expect.any(Function),
             setAll: expect.any(Function)

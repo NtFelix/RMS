@@ -13,6 +13,7 @@ import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Apartment as ApartmentTableType } from "@/components/tables/apartment-table";
+import { STAT_CARD_ROW_CLASS } from "@/components/skeletons/stat-cards-skeleton";
 import { StatCard } from "@/components/common/stat-card";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -392,7 +393,7 @@ export default function WohnungenClientView({
 
       {currentTab === "apartments" ? (
         <>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4 animate-in fade-in duration-300">
+          <div className={`${STAT_CARD_ROW_CLASS} animate-in fade-in duration-300`}>
             <StatCard
               title="Wohnungen gesamt"
               value={summary.total}

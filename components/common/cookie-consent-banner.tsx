@@ -37,6 +37,7 @@ export function CookieConsentBanner() {
     } else {
       // Ensure analytics are disabled when only necessary cookies are accepted
       posthog?.opt_out_capturing?.();
+      posthog?.set_config?.({ tracing_headers: [] });
       console.log('PostHog tracking disabled - only necessary cookies accepted');
     }
   };

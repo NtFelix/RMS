@@ -222,11 +222,10 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
 
     if (dbResponse.error) throw dbResponse.error;
 
+    // /haeuser lists the apartments of each house, /dashboard shows the apartment count
     revalidatePath('/wohnungen');
-    revalidatePath('/');
-    if (payload.haus_id) {
-      revalidatePath(`/haeuser/${payload.haus_id}`);
-    }
+    revalidatePath('/haeuser');
+    revalidatePath('/dashboard');
 
     logAction(actionName, 'success', {
       apartment_id: dbResponse.data.id,
