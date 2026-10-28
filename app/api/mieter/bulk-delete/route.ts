@@ -39,8 +39,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // Jeder Mieter wird einzeln gelöscht, die Datenbank kann einzelne Löschungen ablehnen (z. B. Mieter mit
-    // hinterlegter Kaution, SQLSTATE KA009). Alle Ergebnisse abwarten: Teilerfolge werden mit den Gründen der
+    // Jeder Mieter wird einzeln gelöscht, die Datenbank kann einzelne Löschungen ablehnen (z. B. fehlender Objektzugriff
+    // oder fehlende Berechtigung; eine Kaution, auch mit Buchungen, wandert mit dem Mieter in den Papierkorb). Alle Ergebnisse abwarten: Teilerfolge werden mit den Gründen der
     // abgelehnten Löschungen gemeldet (HTTP 200), nur wenn keine gelungen ist, antwortet die Route mit 409 bzw. 500.
     const results = await Promise.allSettled(
       ids.map(async (id) => {

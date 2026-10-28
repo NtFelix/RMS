@@ -14,8 +14,8 @@ type LoeschVorabpruefung = { ok: true; auswirkung: KautionLoeschauswirkung | nul
  * Loads the impact of deleting these records on the deposits.
  *
  * - No right to see deposits (`42501`), no deposits or only deposits without bookings: `ok` without an impact. The usual
- *   deletion applies (an empty deposit goes to the trash bin with its tenant; the database still blocks deposits with
- *   bookings).
+ *   deletion applies (the deposit goes to the trash bin with its tenant, also with bookings; the database no longer
+ *   blocks that, only permanent deletion stays blocked).
  * - Any other error (e.g. no access to the object): the message is shown, nothing is deleted (`ok: false`).
  */
 export async function pruefeLoeschenMitKautionen(tabelle: KautionLoeschTabelle, ids: string[]): Promise<LoeschVorabpruefung> {

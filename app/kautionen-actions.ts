@@ -653,7 +653,7 @@ const LOESCH_TABELLEN: readonly string[] = ["Haeuser", "Wohnungen", "Mieter"];
  * a balance. All figures come from the database.
  *
  * Without the module right `kautionen: ansehen` this action fails with `42501` (the caller then deletes without the
- * overview; the database still blocks deposits with bookings). The database checks the object scope itself.
+ * overview; the database no longer blocks soft-deleting deposits with bookings). The database checks the object scope itself.
  */
 export async function getKautionLoeschauswirkungAction(
   input: KautionLoeschauswirkungInput

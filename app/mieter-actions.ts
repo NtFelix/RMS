@@ -394,7 +394,8 @@ export async function deleteAllApplicantsAction(): Promise<{ success: boolean; e
     if (applicants && applicants.length > 0) {
       const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
       // Jeden Bewerber einzeln löschen und alle Ergebnisse abwarten: Die Datenbank kann einzelne Löschungen ablehnen
-      // (z. B. Bewerber mit hinterlegter Kaution). Die Gründe stehen ohne technisches Präfix in der Meldung.
+      // (z. B. fehlender Objektzugriff). Eine Kaution, auch mit Buchungen, wandert mit dem Bewerber in den Papierkorb (ohne Übersicht).
+      // Die Gründe stehen ohne technisches Präfix in der Meldung.
       const results = await Promise.allSettled(applicants.map(applicant => softDeleteEntryAction("Mieter", applicant.id)));
       const { successCount, errorCount, reasons } = summarizeSettledDeletes(results);
       if (errorCount > 0) {
