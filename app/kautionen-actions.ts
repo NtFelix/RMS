@@ -34,6 +34,7 @@ import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ensureAuth } from "@/lib/auth-utils";
+import { checkStoragePathAccess } from "@/lib/storage-access";
 import { hasPermission } from "@/lib/permissions";
 import { logAction } from "@/lib/logging-middleware";
 import type { LogAttributes } from "@/lib/otlp-utils";
@@ -1146,10 +1147,17 @@ export async function getKautionBelegUrlAction(input: GetKautionBelegUrlInput): 
       if (typeof beleg.dateipfad !== "string" || beleg.dateipfad === "" || typeof beleg.dateiname !== "string" || beleg.dateiname === "") {
         return fail(mappedError("KA003"));
       }
+      const speicherPfad = baueBelegPfad(beleg.dateipfad, beleg.dateiname);
+
+      // Object scope on the STORED path (read). TRANSITION (GH-27 PR 2 -> PR 3): a legacy `user_` receipt is readable
+      // only by its own uploader; other users get the same answer as for a missing receipt. TODO(GH-27 PR3): remove.
+      const { user } = await ensureAuth();
+      const zugriff = await checkStoragePathAccess(supabase, user.id, speicherPfad, { allowLegacyOwnRead: true });
+      if (zugriff) return fail(mappedError("KA003"));
 
       const { data: signiert, error: signierFehler } = await supabase.storage
         .from(BELEG_STORAGE_BUCKET)
-        .createSignedUrl(baueBelegPfad(beleg.dateipfad, beleg.dateiname), BELEG_DOWNLOAD_GUELTIG_SEKUNDEN, {
+        .createSignedUrl(speicherPfad, BELEG_DOWNLOAD_GUELTIG_SEKUNDEN, {
           download: anzeigeNameAusDateiname(beleg.dateiname),
         });
       if (signierFehler || typeof signiert?.signedUrl !== "string") {
