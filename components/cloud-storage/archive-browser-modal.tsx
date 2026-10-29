@@ -20,7 +20,12 @@ import {
   Loader2
 } from "lucide-react"
 import { useCloudStorageArchive, StorageObject } from "@/hooks/use-cloud-storage-store"
-import { extractArchiveTimestamp, reconstructOriginalPath } from "@/lib/path-utils"
+import { parseArchivePath } from "@/lib/storage-paths"
+
+/** Archive timestamps are written as 2026-10-29T10-00-00-000Z (see archiveFile) */
+function archiveTimestampToIso(timestamp: string): string {
+  return timestamp.replace(/^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/, "$1T$2:$3:$4.$5Z")
+}
 import { formatDistanceToNow } from "date-fns"
 import { de } from "date-fns/locale"
 import { cn } from "@/lib/utils"
@@ -65,9 +70,19 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
 
   // Process archived files with metadata
   const processedFiles: ArchivedFileWithMetadata[] = archivedFiles.map(file => {
-    const timestamp = extractArchiveTimestamp(file.name) || ''
-    const originalPath = reconstructOriginalPath(file.name)
-    const archiveDate = timestamp ? new Date(timestamp.replace(/-/g, ':')) : new Date(file.created_at)
+    let timestamp = ''
+    let originalPath: string | null = null
+    try {
+      const parsed = parseArchivePath(file.path ?? file.name)
+      if (parsed) {
+        timestamp = parsed.timestamp
+        originalPath = parsed.originalPath
+      }
+    } catch {
+      // Not a valid archive path: shown without original path
+    }
+    const isoDate = timestamp ? new Date(archiveTimestampToIso(timestamp)) : null
+    const archiveDate = isoDate && !isNaN(isoDate.getTime()) ? isoDate : new Date(file.created_at)
 
     return {
       ...file,

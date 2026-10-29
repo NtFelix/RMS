@@ -5,7 +5,15 @@
  */
 
 import { createClient } from '@/utils/supabase/client';
-import { pathUtils, validatePath, isUserPath, extractPathSegments, isKeepFile } from './path-utils';
+import { pathUtils, isKeepFile } from './path-utils';
+import {
+  archivePathFor,
+  assertPathAllowed,
+  parseArchivePath,
+  privateRoot,
+  sharedPath,
+  type PathAccessContext,
+} from '@/lib/storage-paths';
 import {
   optimizedListFiles,
   performanceMonitor,
@@ -23,6 +31,8 @@ import {
 
 export interface StorageObject {
   name: string;
+  /** Full storage path, set for archive listings */
+  path?: string;
   id: string;
   updated_at: string;
   created_at: string;
@@ -90,6 +100,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 // Storage bucket name
 const STORAGE_BUCKET = 'documents';
+const ARCHIVE_FOLDER = '__archive__';
 
 /**
  * Validates file type and size
@@ -130,18 +141,39 @@ async function getCurrentUserId(): Promise<string> {
 }
 
 /**
- * Validates that a path belongs to the current user
+ * Access context of the current user for storage paths: active organisation and house scope.
+ * Fail-closed: if the house scope cannot be resolved, an error is thrown.
  */
-async function validateUserPath(path: string): Promise<void> {
-  const userId = await getCurrentUserId();
-
-  if (!validatePath(path)) {
-    throw new Error('Invalid path format');
+async function getClientAccessContext(): Promise<PathAccessContext> {
+  const supabase = createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    throw new Error('User not authenticated');
   }
 
-  if (!isUserPath(path, userId)) {
-    throw new Error('Access denied: path does not belong to current user');
+  const { data: orgId, error: orgError } = await supabase.rpc('current_organisation_id');
+  if (orgError || !orgId) {
+    throw new Error('No active organisation');
   }
+
+  const { data: houseIds, error: houseError } = await supabase.rpc('get_accessible_haeuser_ids');
+  if (houseError) {
+    throw new Error('Could not resolve house scope');
+  }
+
+  return {
+    orgId: orgId as string,
+    userId: user.id,
+    accessibleHouseIds: (houseIds as string[] | null) ?? null,
+  };
+}
+
+/**
+ * Validates a storage path against the active organisation and the house scope
+ * (see lib/storage-paths.ts). Throws StoragePathError on violation.
+ */
+async function validateStoragePath(path: string): Promise<void> {
+  assertPathAllowed(path, await getClientAccessContext());
 }
 
 /**
@@ -165,7 +197,7 @@ export async function uploadFile(
     }
 
     // Validate and sanitize path
-    await validateUserPath(path);
+    await validateStoragePath(path);
     let sanitizedPath = pathUtils.sanitizePath(path);
 
     // Clean up path to avoid issues with folder creation
@@ -330,7 +362,7 @@ export async function listFiles(prefix: string, options?: {
   const startTime = Date.now();
 
   try {
-    await validateUserPath(prefix);
+    await validateStoragePath(prefix);
     const sanitizedPrefix = pathUtils.sanitizePath(prefix);
 
     // Use circuit breaker to prevent cascading failures
@@ -417,7 +449,7 @@ export async function downloadFile(path: string): Promise<Blob> {
   const startTime = Date.now();
 
   try {
-    await validateUserPath(path);
+    await validateStoragePath(path);
     const sanitizedPath = pathUtils.sanitizePath(path);
 
     // Use retry logic with circuit breaker
@@ -501,42 +533,15 @@ export async function triggerFileDownload(path: string, filename?: string): Prom
 }
 
 /**
- * Archives a file by moving it to the archive folder with timestamp
+ * Archives a file inside its zone: shared/{house}/__archive__/{timestamp}/... or
+ * private/{user}/__archive__/{timestamp}/... (see archivePathFor)
  */
 export async function archiveFile(path: string): Promise<string> {
-  await validateUserPath(path);
+  await validateStoragePath(path);
 
-  const userId = await getCurrentUserId();
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const fileName = path.split('/').pop() || 'unknown';
-
-  // Preserve original folder structure within archive
-  const pathSegments = extractPathSegments(path);
-  const originalStructure = [];
-
-  if (pathSegments.houseId) {
-    originalStructure.push(pathSegments.houseId);
-    if (pathSegments.apartmentId) {
-      originalStructure.push(pathSegments.apartmentId);
-      if (pathSegments.tenantId) {
-        originalStructure.push(pathSegments.tenantId);
-      } else if (pathSegments.category) {
-        originalStructure.push(pathSegments.category);
-      }
-    } else if (pathSegments.category) {
-      originalStructure.push(pathSegments.category);
-    }
-  } else if (pathSegments.category) {
-    originalStructure.push(pathSegments.category);
-  }
-
-  const archivePath = pathUtils.buildUserPath(
-    userId,
-    '__archive__',
-    timestamp,
-    ...originalStructure,
-    fileName
-  );
+  const archivePath = archivePathFor(path, timestamp);
+  await validateStoragePath(archivePath);
 
   await moveFile(path, archivePath);
   return archivePath;
@@ -617,8 +622,8 @@ export async function debugListDirectory(path: string): Promise<void> {
  * Moves a file from one path to another
  */
 export async function moveFile(oldPath: string, newPath: string): Promise<void> {
-  await validateUserPath(oldPath);
-  await validateUserPath(newPath);
+  await validateStoragePath(oldPath);
+  await validateStoragePath(newPath);
 
   // Clean paths - remove leading slashes and normalize
   let cleanOldPath = oldPath.startsWith('/') ? oldPath.slice(1) : oldPath;
@@ -943,7 +948,7 @@ export async function createSignedUrl(
   options?: { download?: boolean | string }
 ): Promise<string> {
   try {
-    await validateUserPath(path);
+    await validateStoragePath(path);
     const sanitizedPath = pathUtils.sanitizePath(path);
 
     // Remove leading slash if present
@@ -992,7 +997,7 @@ export async function createSignedUrl(
  * Renames a file in the same directory
  */
 export async function renameFile(filePath: string, newName: string): Promise<void> {
-  await validateUserPath(filePath);
+  await validateStoragePath(filePath);
 
   // Clean the file path
   let cleanFilePath = filePath;
@@ -1018,7 +1023,7 @@ export async function renameFile(filePath: string, newName: string): Promise<voi
  * Creates a placeholder file for empty folders
  */
 export async function createPlaceholder(path: string): Promise<void> {
-  await validateUserPath(path);
+  await validateStoragePath(path);
 
   const placeholderPath = `${pathUtils.sanitizePath(path)}/.keep`;
   const placeholderFile = new File([''], '.keep', { type: 'text/plain' });
@@ -1034,7 +1039,7 @@ export async function createPlaceholder(path: string): Promise<void> {
  * Gets a signed URL for a file
  */
 export async function getFileUrl(path: string): Promise<string> {
-  await validateUserPath(path);
+  await validateStoragePath(path);
   const sanitizedPath = pathUtils.sanitizePath(path);
 
   const supabase = createClient();
@@ -1051,63 +1056,88 @@ export async function getFileUrl(path: string): Promise<string> {
 }
 
 /**
- * Lists archived files for a user
+ * Lists archived files the user may see: the archive of every accessible house (shared zone)
+ * and the own private archive. Only archive entries are returned.
  */
 export async function listArchivedFiles(userId: string): Promise<StorageObject[]> {
-  const archivePrefix = pathUtils.buildUserPath(userId, '__archive__');
-  return await listFiles(archivePrefix);
+  const ctx = await getClientAccessContext();
+  if (ctx.userId !== userId) {
+    throw new Error('Access denied: path does not belong to current user');
+  }
+  const supabase = createClient();
+
+  let houseIds = ctx.accessibleHouseIds;
+  if (houseIds === null) {
+    const { data: houses, error: houseError } = await supabase.from('Haeuser').select('id');
+    if (houseError) {
+      throw new Error('Could not resolve houses for archive listing');
+    }
+    houseIds = (houses ?? []).map((h: { id: string }) => h.id);
+  }
+
+  const roots = [
+    privateRoot(ctx.orgId, ctx.userId),
+    ...houseIds.map((houseId) => sharedPath(ctx.orgId, houseId)),
+  ].map((zoneRoot) => `${zoneRoot}/${ARCHIVE_FOLDER}`);
+
+  const result: StorageObject[] = [];
+  for (const root of roots) {
+    const { data, error } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('*')
+      .like('dateipfad', `${root}/%`);
+    if (error) {
+      throw mapError(error, 'list_archived_files');
+    }
+    for (const item of data ?? []) {
+      if (!item.dateipfad.startsWith(`${root}/`)) continue;
+      const fullPath = `${item.dateipfad}/${item.dateiname}`;
+      result.push({
+        name: item.dateiname,
+        path: fullPath,
+        id: item.id,
+        updated_at: item.aktualisierungsdatum || new Date().toISOString(),
+        created_at: item.erstellungsdatum || new Date().toISOString(),
+        last_accessed_at: item.letzter_zugriff || new Date().toISOString(),
+        metadata: { mimetype: item.mime_type, size: item.dateigroesse },
+        size: Number(item.dateigroesse) || 0,
+      });
+    }
+  }
+  return result;
 }
 
 /**
- * Restores a file from archive to its original location or a new location
+ * Restores an archived file to its original location (or to targetPath).
+ * Both paths are validated against the zone rules before the move.
  */
 export async function restoreFile(archivePath: string, targetPath?: string): Promise<void> {
-  await validateUserPath(archivePath);
-
-  if (!archivePath.includes('__archive__')) {
+  const parsed = parseArchivePath(archivePath);
+  if (!parsed) {
     throw new Error('File is not in archive');
   }
+  await validateStoragePath(archivePath);
 
-  let restorePath: string;
-
-  if (targetPath) {
-    await validateUserPath(targetPath);
-    restorePath = targetPath;
-  } else {
-    // Try to reconstruct original path from archive structure
-    const pathSegments = pathUtils.extractPathSegments(archivePath);
-    const archiveSegments = archivePath.split('/');
-
-    // Find the archive timestamp segment (after __archive__)
-    const archiveIndex = archiveSegments.findIndex(seg => seg === '__archive__');
-    if (archiveIndex === -1 || archiveIndex + 2 >= archiveSegments.length) {
-      throw new Error('Cannot determine original path from archive structure');
-    }
-
-    // Extract original structure (skip user_, __archive__, and timestamp)
-    const originalSegments = archiveSegments.slice(archiveIndex + 2);
-    restorePath = pathUtils.buildUserPath(pathSegments.userId, ...originalSegments);
-  }
+  const restorePath = targetPath ?? parsed.originalPath;
+  await validateStoragePath(restorePath);
 
   await moveFile(archivePath, restorePath);
 }
 
 /**
- * Permanently deletes a file from archive
+ * Permanently deletes a file, only allowed for paths inside an archive.
  */
 export async function permanentlyDeleteFile(path: string): Promise<void> {
-  await validateUserPath(path);
-
-  if (!path.includes('__archive__')) {
+  if (!parseArchivePath(path)) {
     throw new Error('Can only permanently delete files from archive');
   }
+  await validateStoragePath(path);
 
-  const sanitizedPath = pathUtils.sanitizePath(path);
   const supabase = createClient();
 
   const { error } = await supabase.storage
     .from(STORAGE_BUCKET)
-    .remove([sanitizedPath]);
+    .remove([path]);
 
   if (error) {
     throw new Error(`Failed to permanently delete file: ${error.message}`);
@@ -1137,8 +1167,8 @@ export async function bulkArchiveFiles(paths: string[]): Promise<string[]> {
  * Moves a folder and all its contents to a new location
  */
 export async function moveFolder(oldFolderPath: string, newFolderPath: string): Promise<void> {
-  await validateUserPath(oldFolderPath);
-  await validateUserPath(newFolderPath);
+  await validateStoragePath(oldFolderPath);
+  await validateStoragePath(newFolderPath);
 
   // Clean paths
   let cleanOldPath = oldFolderPath.startsWith('/') ? oldFolderPath.slice(1) : oldFolderPath;
@@ -1312,7 +1342,7 @@ async function cleanupEmptyFolders(folderPath: string): Promise<void> {
  * Archives all files in a folder (for folder deletion)
  */
 export async function archiveFolder(folderPath: string): Promise<string[]> {
-  await validateUserPath(folderPath);
+  await validateStoragePath(folderPath);
 
   // List all files in the folder recursively
   const files = await listFiles(folderPath);

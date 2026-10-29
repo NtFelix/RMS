@@ -8,6 +8,8 @@ import { buildFallbackBreadcrumbs } from '@/lib/storage-navigation'
 // Types for cloud storage state
 export interface StorageObject {
   name: string
+  /** Full storage path, set for archive listings */
+  path?: string
   id: string
   updated_at: string
   created_at: string
@@ -571,7 +573,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
 
       try {
         const { restoreFile } = await import('@/lib/storage-service')
-        await restoreFile(archivedFile.name, targetPath)
+        await restoreFile(archivedFile.path ?? archivedFile.name, targetPath)
 
         // Remove from archived files list
         set((state) => {
@@ -597,7 +599,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
 
       try {
         const { permanentlyDeleteFile } = await import('@/lib/storage-service')
-        await permanentlyDeleteFile(archivedFile.name)
+        await permanentlyDeleteFile(archivedFile.path ?? archivedFile.name)
 
         // Remove from archived files list
         set((state) => {

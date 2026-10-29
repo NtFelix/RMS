@@ -6,6 +6,7 @@ import { getAccessibleHaeuserIds } from '@/lib/object-scope'
 import { getActiveOrgId } from '@/lib/storage-access'
 import {
   assertPathAllowed,
+  ARCHIVE_SEGMENT,
   orgRoot,
   parseStoragePath,
   privateRoot,
@@ -25,6 +26,12 @@ interface TreeNode {
   children?: TreeNode[]
   isEmpty?: boolean
   fileCount?: number
+}
+
+/** Archive node below a zone (house or private area), shown instead of the raw __archive__ folder */
+function archiveNode(zoneBase: string): TreeNode {
+  const path = `${zoneBase}/${ARCHIVE_SEGMENT}`
+  return { id: path, name: 'Archiv', path, type: 'folder', displayName: 'Archiv', children: [], isEmpty: false, fileCount: 0 }
 }
 
 /** Labels for system folders below a house or apartment */
@@ -149,9 +156,10 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
     const houseId = parsed.houseId
     const { data: apartments } = await supabase.from('Wohnungen').select('id, name').eq('haus_id', houseId)
     const names = new Map<string, string>((apartments ?? []).map((a: { id: string; name: string | null }) => [a.id, a.name || a.id]))
-    return listFolderNodes(supabase, folderPath, (segment) => names.get(segment), (segment) => ({
+    const nodes = await listFolderNodes(supabase, folderPath, (segment) => names.get(segment), (segment) => ({
       path: sharedPath(orgId, houseId, segment),
     }))
+    return [archiveNode(sharedPath(orgId, houseId)), ...nodes]
   }
 
   if (parsed.zone === 'shared' && parsed.houseId !== undefined && parsed.rest.length === 1) {
@@ -163,9 +171,13 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
     }))
   }
 
-  return listFolderNodes(supabase, folderPath, () => undefined, (segment) => ({
+  const nodes = await listFolderNodes(supabase, folderPath, () => undefined, (segment) => ({
     path: `${folderPath}/${segment}`,
   }))
+  if (parsed.zone === 'private' && parsed.rest.length === 0) {
+    return [archiveNode(folderPath), ...nodes]
+  }
+  return nodes
 }
 
 /**
@@ -181,7 +193,7 @@ async function listFolderNodes(
   const { data: items } = await supabase.storage.from('documents').list(folderPath, { limit: 1000 })
   const nodes: TreeNode[] = []
   for (const item of items ?? []) {
-    if (!item.name || item.name === '.keep' || item.metadata) continue
+    if (!item.name || item.name === '.keep' || item.name === ARCHIVE_SEGMENT || item.metadata) continue
     const displayName = lookup(item.name) ?? SYSTEM_FOLDER_LABELS[item.name]
     const { path } = childPath(item.name)
     nodes.push({
