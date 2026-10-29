@@ -97,7 +97,7 @@ describe('TenantContextMenu - Kaution (GH-6)', () => {
 });
 
 // Kautionsmanagement: Beim Klick auf "Löschen" wird zuerst die Auswirkung geladen; danach erscheint genau EIN Dialog
-// (die übliche Frage oder die Übersicht der mitgelöschten Kautionen, die Prüfsumme geht an die Server-Action).
+// (die übliche Frage oder die Übersicht der mitgelöschten Kautionen, die Server-Action bekommt nur die ID).
 describe('TenantContextMenu - Löschen mit Kautionen', () => {
   const mockStart = starteLoeschenMitKautionen as jest.Mock;
   const mockDelete = deleteTenantAction as jest.MockedFunction<typeof deleteTenantAction>;
@@ -131,23 +131,23 @@ describe('TenantContextMenu - Löschen mit Kautionen', () => {
     await waitFor(() => expect(mockStart).toHaveBeenCalledWith('Mieter', ['tenant-1'], expect.any(Object)));
   });
 
-  it('ohne gebuchte Kaution: zeigt die übliche Frage und löscht danach ohne Prüfsumme', async () => {
+  it('ohne gebuchte Kaution: zeigt die übliche Frage und löscht danach', async () => {
     klickeLoeschen();
 
     const dialog = await screen.findByRole('alertdialog');
     expect(mockDelete).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }));
 
-    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('tenant-1', undefined));
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('tenant-1'));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   });
 
-  it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht mit der Prüfsumme', async () => {
-    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ 'tenant-1': 'abc' }));
+  it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht sofort', async () => {
+    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen());
 
     const onRefresh = klickeLoeschen();
 
-    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('tenant-1', 'abc'));
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('tenant-1'));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     // Handler vollständig durchgelaufen (Zustand im finally zurückgesetzt), sonst endet der Test mit Updates außerhalb von act()
     await waitFor(() => expect(onRefresh).toHaveBeenCalled());

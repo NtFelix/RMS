@@ -1,6 +1,6 @@
 "use client";
 import { deleteTenantAction } from "@/app/mieter-actions";
-import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 import {
   Dialog,
   DialogContent,
@@ -203,16 +203,16 @@ export function WohnungOverviewModal() {
         setMieterToDelete(mieter);
         setDeleteDialogOpen(true);
       },
-      loeschen: (pruefsummen) => confirmDeleteMieter(mieter, pruefsummen),
+      loeschen: () => confirmDeleteMieter(mieter),
     });
   };
 
-  const confirmDeleteMieter = async (mieter: { id: string; name: string }, pruefsummen: Pruefsummen) => {
+  const confirmDeleteMieter = async (mieter: { id: string; name: string }) => {
     try {
       setIsDeleting(true);
 
       // Use the server action to delete the tenant
-      const { success, error } = await deleteTenantAction(mieter.id, pruefsummen[mieter.id]);
+      const { success, error } = await deleteTenantAction(mieter.id);
 
       if (success) {
         toast({
@@ -640,7 +640,7 @@ export function WohnungOverviewModal() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => mieterToDelete && confirmDeleteMieter(mieterToDelete, {})}
+              onClick={() => mieterToDelete && confirmDeleteMieter(mieterToDelete)}
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
             >

@@ -23,7 +23,7 @@ import { HousesDonutChart } from "@/components/dashboard/dashboard-charts";
 import { cn } from "@/lib/utils";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
-import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 
 const safeParseFloat = (val: unknown): number => {
   if (typeof val === "number") return val;
@@ -862,7 +862,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
     })
   }, [selectedHouses, enrichedHaeuser, escapeCsvValue])
 
-  const handleBulkDelete = useCallback(async (pruefsummen: Pruefsummen = {}) => {
+  const handleBulkDelete = useCallback(async () => {
     if (selectedHouses.size === 0) {
       toast({
         title: "Keine Auswahl",
@@ -879,7 +879,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
       const response = await fetch('/api/haeuser/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds, pruefsummen }),
+        body: JSON.stringify({ ids: selectedIds }),
       });
 
       if (!response.ok) {

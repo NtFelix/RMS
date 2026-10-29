@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
+import { WORKER_INTERNAL_ONLY_TEMPLATES } from '@/lib/constants/worker';
 
 import { recordWorkerCall } from '@/lib/worker-metrics';
 
@@ -87,6 +88,17 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Invalid JSON body' }, { 
                 status: 400, 
                 headers: NO_CACHE_HEADERS 
+            });
+        }
+
+        // This proxy adds the shared worker key for every signed-in user. Templates with confidential figures are only
+        // reachable through their own route (checks, rights and figures from the database), never through here.
+        const template = body && typeof body === 'object' && !Array.isArray(body) ? (body as { template?: unknown }).template : undefined;
+        if (typeof template === 'string' && (WORKER_INTERNAL_ONLY_TEMPLATES as readonly string[]).includes(template.trim().toLowerCase())) {
+            console.warn('[WorkerProxy] Refused internal-only template for user:', user.id);
+            return NextResponse.json({ error: 'Forbidden' }, {
+                status: 403,
+                headers: NO_CACHE_HEADERS
             });
         }
 

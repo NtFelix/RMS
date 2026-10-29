@@ -20,7 +20,6 @@ const mockRevalidatePath = revalidatePath as jest.MockedFunction<typeof revalida
 const HAUS_ID = 'haus-1';
 const WOHNUNG_ID = 'wohnung-1';
 const MIETER_ID = 'mieter-1';
-const PRUEFSUMME = '0123456789abcdef0123456789abcdef';
 const SPERRE_TEXT =
   'Das Haus kann nicht gelöscht werden, solange Mieter mit einer Kaution mit Buchungen zugeordnet sind.';
 /** So kommt die Meldung der Datenbank über PostgREST an (`<CODE>: <deutsche Meldung>`). */
@@ -52,13 +51,13 @@ describe('softDeleteEntryAction', () => {
     it.each([
       ['Haeuser', HAUS_ID],
       ['Wohnungen', WOHNUNG_ID],
-    ])('%s: genau ein Aufruf von soft_delete_mit_kautionen ohne Prüfsumme, ohne App-Kaskade', async (tabelle, id) => {
+    ])('%s: genau ein Aufruf von soft_delete_mit_kautionen, ohne App-Kaskade', async (tabelle, id) => {
       const { rpc, from } = mockClient();
 
       await softDeleteEntryAction(tabelle, id);
 
       expect(rpc).toHaveBeenCalledTimes(1);
-      expect(rpc).toHaveBeenCalledWith('soft_delete_mit_kautionen', { p_table_name: tabelle, p_record_id: id, p_pruefsumme: null });
+      expect(rpc).toHaveBeenCalledWith('soft_delete_mit_kautionen', { p_table_name: tabelle, p_record_id: id });
       // Keine Abfrage der Kinder und keine Einzel-Löschungen: Mieter, Wohnungen und Kautionen löscht die Datenbank atomar.
       expect(from).not.toHaveBeenCalled();
     });
@@ -83,26 +82,6 @@ describe('softDeleteEntryAction', () => {
       }
     });
 
-    it('reicht die Prüfsumme der bestätigten Auswirkung an die Datenbank weiter', async () => {
-      const { rpc } = mockClient();
-
-      await softDeleteEntryAction('Haeuser', HAUS_ID, { pruefsumme: PRUEFSUMME });
-
-      expect(rpc).toHaveBeenCalledWith('soft_delete_mit_kautionen', { p_table_name: 'Haeuser', p_record_id: HAUS_ID, p_pruefsumme: PRUEFSUMME });
-    });
-
-    it.each([
-      ['undefined', { pruefsumme: undefined }],
-      ['null', { pruefsumme: null }],
-      ['eine leere Zeichenkette', { pruefsumme: '' }],
-    ])('behandelt %s als fehlende Prüfsumme (null an die Datenbank)', async (_name, options) => {
-      const { rpc } = mockClient();
-
-      await softDeleteEntryAction('Wohnungen', WOHNUNG_ID, options);
-
-      expect(rpc).toHaveBeenCalledWith('soft_delete_mit_kautionen', { p_table_name: 'Wohnungen', p_record_id: WOHNUNG_ID, p_pruefsumme: null });
-    });
-
     it('wirft die Meldung der Löschsperre ohne technisches Präfix und mit dem Code KA009, ohne zu revalidieren', async () => {
       mockClient({ error: SPERRE_ROH });
 
@@ -113,18 +92,6 @@ describe('softDeleteEntryAction', () => {
       expect((fehler as Error).message).not.toContain('KAUT_GESPERRT');
       expect((fehler as Error & { code?: string }).code).toBe('KA009');
       // Nichts wurde gelöscht (eine Transaktion): keine Revalidierung nötig.
-      expect(mockRevalidatePath).not.toHaveBeenCalled();
-    });
-
-    it('reicht die Meldung einer veralteten Prüfsumme (KA016) mit Code weiter', async () => {
-      mockClient({
-        error: { code: 'KA016', message: 'KAUT_BESTAETIGUNG: Die Auswirkung hat sich inzwischen geändert. Bitte erneut bestätigen.' },
-      });
-
-      const fehler = await softDeleteEntryAction('Haeuser', HAUS_ID, { pruefsumme: PRUEFSUMME }).catch((error: unknown) => error);
-
-      expect((fehler as Error).message).toBe('Die Auswirkung hat sich inzwischen geändert. Bitte erneut bestätigen.');
-      expect((fehler as Error & { code?: string }).code).toBe('KA016');
       expect(mockRevalidatePath).not.toHaveBeenCalled();
     });
 
@@ -150,22 +117,14 @@ describe('softDeleteEntryAction', () => {
   });
 
   describe('Mieter', () => {
-    it('ohne Prüfsumme: Standardweg soft_delete_record (Löschsperre bei gebuchter Kaution bleibt wirksam)', async () => {
-      const { rpc } = mockClient();
+    it('immer soft_delete_record (Löschsperre bei gebuchter Kaution bleibt wirksam) und revalidiert /mieter', async () => {
+      const { rpc, from } = mockClient();
 
       await softDeleteEntryAction('Mieter', MIETER_ID);
 
       expect(rpc).toHaveBeenCalledTimes(1);
       expect(rpc).toHaveBeenCalledWith('soft_delete_record', { p_table_name: 'Mieter', p_record_id: MIETER_ID });
-    });
-
-    it('mit Prüfsumme: soft_delete_mit_kautionen', async () => {
-      const { rpc } = mockClient();
-
-      await softDeleteEntryAction('Mieter', MIETER_ID, { pruefsumme: PRUEFSUMME });
-
-      expect(rpc).toHaveBeenCalledTimes(1);
-      expect(rpc).toHaveBeenCalledWith('soft_delete_mit_kautionen', { p_table_name: 'Mieter', p_record_id: MIETER_ID, p_pruefsumme: PRUEFSUMME });
+      expect(from).not.toHaveBeenCalled();
       expect(mockRevalidatePath).toHaveBeenCalledWith('/mieter');
     });
 
@@ -181,10 +140,10 @@ describe('softDeleteEntryAction', () => {
   });
 
   describe('Datensatz ohne Kaskade', () => {
-    it('ruft nur soft_delete_record für den Datensatz selbst auf und ignoriert eine Prüfsumme', async () => {
+    it('ruft nur soft_delete_record für den Datensatz selbst auf', async () => {
       const { rpc, from } = mockClient();
 
-      await softDeleteEntryAction('Finanzen', 'finanz-1', { pruefsumme: PRUEFSUMME });
+      await softDeleteEntryAction('Finanzen', 'finanz-1');
 
       expect(rpc).toHaveBeenCalledTimes(1);
       expect(rpc).toHaveBeenCalledWith('soft_delete_record', { p_table_name: 'Finanzen', p_record_id: 'finanz-1' });

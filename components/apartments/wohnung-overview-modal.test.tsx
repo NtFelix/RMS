@@ -220,7 +220,7 @@ describe('WohnungOverviewModal', () => {
       mockDelete.mockResolvedValue({ success: true });
     });
 
-    it('lädt zuerst die Auswirkung, fragt dann üblich und löscht ohne Prüfsumme', async () => {
+    it('lädt zuerst die Auswirkung, fragt dann üblich und löscht danach', async () => {
       await klickeLoeschen();
 
       const dialog = await screen.findByRole('alertdialog');
@@ -228,16 +228,16 @@ describe('WohnungOverviewModal', () => {
       expect(mockDelete).not.toHaveBeenCalled();
       fireEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }));
 
-      await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('1', undefined));
+      await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('1'));
       await waitFor(() => expect(refreshWohnungOverviewData).toHaveBeenCalled());
     });
 
-    it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht mit der Prüfsumme', async () => {
-      mockStart.mockImplementation(async (_tabelle, _ids, handlers) => handlers.loeschen({ '1': 'abc' }));
+    it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht sofort', async () => {
+      mockStart.mockImplementation(async (_tabelle, _ids, handlers) => handlers.loeschen());
 
       await klickeLoeschen();
 
-      await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('1', 'abc'));
+      await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('1'));
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       await waitFor(() => expect(refreshWohnungOverviewData).toHaveBeenCalled());
     });

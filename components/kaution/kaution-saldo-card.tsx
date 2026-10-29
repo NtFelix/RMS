@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import { formatBetrag, formatDatum } from "@/components/kaution/kaution-format";
+import { parseMoneyToCents } from "@/lib/kautionen-money";
 import type { KautionDetails } from "@/types/Kaution";
 
 /**
@@ -23,8 +24,8 @@ interface Kennzahl {
 }
 
 export function KautionSaldoCard({ details }: KautionSaldoCardProps) {
-  const { kaution, konto, warnungen, einbehalt } = details;
-  const { bewegungsarten } = useKautionFlag();
+  const { kaution, konto, warnungen, einbehalt, kontostand_inkl_zinsen: kontostandInklZinsen } = details;
+  const { bewegungsarten, funktionen } = useKautionFlag();
 
   const kennzahlen: Kennzahl[] = [
     { label: "Soll-Betrag", wert: kaution.soll_betrag },
@@ -51,8 +52,10 @@ export function KautionSaldoCard({ details }: KautionSaldoCardProps) {
   }
 
   const istAltbestand = kaution.quelle === "migration_altbestand";
-  // Withheld amount (phase 4): only while there is still a balance.
-  const zeigeEinbehalt = Boolean(einbehalt) && konto.kontostand > 0;
+  // Hold (phase 4): only with the function flag `abrechnung` and while there is a balance. The database also returns a stored
+  // hold without a balance (so it can be removed in the settlement tab); the card does not show it then.
+  // Exact comparison in cents (like the hold section of the settlement tab), no float noise.
+  const zeigeEinbehalt = funktionen.abrechnung && Boolean(einbehalt) && (parseMoneyToCents(konto.kontostand) ?? 0) > 0;
 
   return (
     <Card>
@@ -74,9 +77,15 @@ export function KautionSaldoCard({ details }: KautionSaldoCardProps) {
           </dl>
         </div>
 
+        {funktionen.zinsen && typeof kontostandInklZinsen === "number" ? (
+          <p className="text-sm text-muted-foreground" data-testid="kaution-kontostand-inkl-zinsen">
+            Inklusive aufgelaufener Zinsen (Vorschlag, noch nicht gutgeschrieben): <span className="font-medium tabular-nums text-foreground">{formatBetrag(kontostandInklZinsen)}</span>
+          </p>
+        ) : null}
+
         {zeigeEinbehalt && einbehalt ? (
-          <p className="text-sm">
-            Seit {formatDatum(einbehalt.seit)} einbehalten ({einbehalt.liegedauer_tage} Tage): {einbehalt.grund}
+          <p className="text-sm" data-testid="kaution-saldo-einbehalt">
+            Einbehalt: {einbehalt.grund}, seit {formatDatum(einbehalt.seit)}
           </p>
         ) : null}
 

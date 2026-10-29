@@ -424,7 +424,7 @@ describe('HaeuserClientView', () => {
       );
     });
 
-    it('loads the impact first, then asks the usual question and sends empty checksums', async () => {
+    it('loads the impact first, then asks the usual question and sends only the IDs', async () => {
       const user = userEvent.setup();
       await waehleUndKlickeLoeschen(user);
 
@@ -432,18 +432,18 @@ describe('HaeuserClientView', () => {
 
       await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/haeuser/bulk-delete', expect.any(Object)));
       expect(mockStart).toHaveBeenCalledWith('Haeuser', ['1'], expect.any(Object));
-      expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({ ids: ['1'], pruefsummen: {} });
+      expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({ ids: ['1'] });
       // Nach einer Löschung wird die Auswahl zurückgesetzt
       await waitFor(() => expect(screen.queryByRole('button', { name: /Löschen \(1\)/ })).not.toBeInTheDocument());
     });
 
-    it('with booked deposits: no second question, the confirmed overview sends its checksums', async () => {
-      mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ '1': 'abc' }));
+    it('with booked deposits: no second question, the confirmed overview sends the IDs', async () => {
+      mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen());
       await waehleUndKlickeLoeschen(userEvent.setup());
 
       await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/haeuser/bulk-delete', expect.any(Object)));
       expect(screen.queryByRole('button', { name: '1 Häuser löschen' })).not.toBeInTheDocument();
-      expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({ ids: ['1'], pruefsummen: { '1': 'abc' } });
+      expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({ ids: ['1'] });
       await waitFor(() => expect(screen.queryByRole('button', { name: /Löschen \(1\)/ })).not.toBeInTheDocument());
     });
 

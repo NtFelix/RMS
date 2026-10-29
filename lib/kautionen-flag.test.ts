@@ -32,10 +32,22 @@ describe("ermittleKautionFlagKonfig", () => {
     expect(ermittleKautionFlagKonfig(true, vollstaendig).aktiv).toBe(true);
   });
 
-  it("never offers more than the RPCs release, even if the payload enables everything", () => {
-    const konfig = ermittleKautionFlagKonfig(true, vollstaendig);
-    expect(konfig.arten).toEqual(["barkaution"]);
-    expect(konfig.bewegungsarten).toEqual(["einzahlung", "auszahlung", "abzug"]);
+  it("never offers more than the RPCs release, even if the payload lists unknown types", () => {
+    // Phase 3: the RPCs release all deposit types and the interest credit. Unknown values are still dropped.
+    const konfig = ermittleKautionFlagKonfig(true, {
+      version: 1,
+      arten: { barkaution: true, sparbuch: true, buergschaft: true, versicherung: true, gold: true },
+      bewegungsarten: ["einzahlung", "zinsgutschrift", "auszahlung", "abzug", "ueberweisung"],
+    });
+    expect(konfig.arten).toEqual(["barkaution", "sparbuch", "buergschaft", "versicherung"]);
+    expect(konfig.bewegungsarten).toEqual(["einzahlung", "zinsgutschrift", "auszahlung", "abzug"]);
+  });
+
+  it("offers the interest credit only if the payload lists it", () => {
+    const ohneZins = ermittleKautionFlagKonfig(true, { version: 1, bewegungsarten: ["einzahlung", "auszahlung", "abzug"] });
+    const mitZins = ermittleKautionFlagKonfig(true, { version: 1, bewegungsarten: ["einzahlung", "zinsgutschrift"] });
+    expect(ohneZins.bewegungsarten).not.toContain("zinsgutschrift");
+    expect(mitZins.bewegungsarten).toEqual(["einzahlung", "zinsgutschrift"]);
   });
 
   it("takes the functions from the payload; a missing or non-true key counts as off", () => {
@@ -54,8 +66,8 @@ describe("ermittleKautionFlagKonfig", () => {
   it("uses the defaults when nothing usable is left for deposit or booking types", () => {
     const konfig = ermittleKautionFlagKonfig(true, {
       version: 1,
-      arten: { barkaution: false, sparbuch: true },
-      bewegungsarten: ["zinsgutschrift"],
+      arten: { barkaution: false, sparbuch: false, buergschaft: "ja" },
+      bewegungsarten: ["unbekannt"],
     });
     expect(konfig.arten).toEqual(["barkaution"]);
     expect(konfig.bewegungsarten).toEqual(["einzahlung", "auszahlung", "abzug"]);
