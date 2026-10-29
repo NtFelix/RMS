@@ -571,15 +571,12 @@ export async function deleteFile(path: string): Promise<void> {
     await validateStoragePath(path, 'write');
     const supabase = createClient();
 
-    // Remove the leading slash if present (Supabase doesn't like it)
-    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-
-    console.log('Deleting file at path:', cleanPath);
+    console.log('Deleting file at path:', path);
 
     // Make sure to use the correct bucket name that matches your Supabase storage
     const { error } = await supabase.storage
       .from('documents')
-      .remove([cleanPath]);
+      .remove([path]);
 
     if (error) {
       console.error('Supabase delete error:', error);
@@ -589,7 +586,7 @@ export async function deleteFile(path: string): Promise<void> {
     // Delete from Dokumente_Metadaten is now handled by a database trigger
     // on the storage.objects table (see migration 20251124000003)
 
-    console.log('Successfully deleted file:', cleanPath);
+    console.log('Successfully deleted file:', path);
   } catch (error) {
     console.error('Error in deleteFile:', error);
     throw error;
@@ -642,13 +639,10 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
   await validateStoragePath(oldPath, 'write');
   await validateStoragePath(newPath, 'write');
 
-  // Clean paths - remove leading slashes and normalize
-  let cleanOldPath = oldPath.startsWith('/') ? oldPath.slice(1) : oldPath;
-  let cleanNewPath = newPath.startsWith('/') ? newPath.slice(1) : newPath;
-
-  // Normalize paths to avoid double slashes
-  cleanOldPath = cleanOldPath.replace(/\/+/g, '/');
-  cleanNewPath = cleanNewPath.replace(/\/+/g, '/');
+  // Both paths are validated above (no leading/trailing or double slashes), they are used as they are.
+  // cleanOldPath/cleanNewPath are only reassigned if the file name is corrected below.
+  let cleanOldPath = oldPath;
+  let cleanNewPath = newPath;
 
   console.log('🔄 Starting move operation:', {
     originalOldPath: oldPath,
@@ -1016,25 +1010,19 @@ export async function createSignedUrl(
 export async function renameFile(filePath: string, newName: string): Promise<void> {
   await validateStoragePath(filePath, 'write');
 
-  // Clean the file path
-  let cleanFilePath = filePath;
-  if (cleanFilePath.startsWith('/')) {
-    cleanFilePath = cleanFilePath.slice(1);
-  }
-
-  const pathSegments = cleanFilePath.split('/');
+  const pathSegments = filePath.split('/');
   const directory = pathSegments.slice(0, -1).join('/');
   // Validates newName as a single segment (no traversal, no separator) before it reaches moveFile
   const newPath = childPath(directory, newName);
 
   console.log('Storage service renaming:', {
-    originalPath: cleanFilePath,
+    originalPath: filePath,
     newPath: newPath,
     directory: directory,
     newName: newName
   });
 
-  await moveFile(cleanFilePath, newPath);
+  await moveFile(filePath, newPath);
 }
 
 /**
@@ -1199,12 +1187,9 @@ export async function moveFolder(oldFolderPath: string, newFolderPath: string): 
   await validateStoragePath(oldFolderPath, 'write');
   await validateStoragePath(newFolderPath, 'write');
 
-  // Clean paths
-  let cleanOldPath = oldFolderPath.startsWith('/') ? oldFolderPath.slice(1) : oldFolderPath;
-  let cleanNewPath = newFolderPath.startsWith('/') ? newFolderPath.slice(1) : newFolderPath;
-
-  cleanOldPath = cleanOldPath.replace(/\/+/g, '/').replace(/\/$/, '');
-  cleanNewPath = cleanNewPath.replace(/\/+/g, '/').replace(/\/$/, '');
+  // Both paths are validated above (no leading/trailing or double slashes), they are used as they are
+  const cleanOldPath = oldFolderPath;
+  const cleanNewPath = newFolderPath;
 
   console.log('📁 Starting folder move operation:', {
     from: cleanOldPath,
