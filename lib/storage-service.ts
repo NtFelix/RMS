@@ -2,6 +2,13 @@
  * Cloud storage service for file management
  * Provides interface for Supabase Storage operations with security and validation
  * Enhanced with performance optimizations and comprehensive error handling
+ *
+ * Paths: every path is validated strictly against the active organisation and the house scope
+ * (lib/storage-paths.ts), invalid input throws instead of being repaired. Only a path that creates a NEW
+ * name (uploadFile, createPlaceholder) is normalised once (pathUtils.sanitizePath, which also drops
+ * characters like `: ? * < > " |`) before it is validated; the validated string is then the one that is
+ * checked, written to storage and stored in Dokumente_Metadaten. Existing paths (read, download, signed
+ * URL, move, delete) come from the database and are validated as they are, never rewritten.
  */
 
 import { createClient } from '@/utils/supabase/client';
@@ -219,16 +226,14 @@ export async function uploadFile(
       };
     }
 
-    // Validate and sanitize path
-    await validateStoragePath(path, 'write');
-    let sanitizedPath = pathUtils.sanitizePath(path);
-
-    // Clean up path to avoid issues with folder creation
-    sanitizedPath = sanitizedPath.replace(/\/+/g, '/').replace(/^\//, '').replace(/\/$/, '');
+    // A new name is created here: normalise once (also strips slashes at both ends and double slashes),
+    // then validate exactly this string and use it for the access check, storage and metadata
+    const targetPath = pathUtils.sanitizePath(path);
+    await validateStoragePath(targetPath, 'write');
 
     console.log('Storage service uploading file:', {
       originalPath: path,
-      sanitizedPath,
+      targetPath,
       fileName: file.name,
       fileSize: file.size
     });
@@ -242,7 +247,7 @@ export async function uploadFile(
           // Set timeout for upload to meet performance requirements
           const uploadPromise = supabase.storage
             .from(STORAGE_BUCKET)
-            .upload(sanitizedPath, file, {
+            .upload(targetPath, file, {
               upsert: options.upsert || false,
               contentType: options.contentType || file.type,
             });
@@ -260,14 +265,14 @@ export async function uploadFile(
           }
 
           console.log('Upload successful:', {
-            path: sanitizedPath,
+            path: targetPath,
             fileName: file.name,
             uploadedPath: data?.path
           });
 
           // Insert metadata into Dokumente_Metadaten table
           try {
-            const pathSegments = sanitizedPath.split('/');
+            const pathSegments = targetPath.split('/');
             const fileName = pathSegments.pop() || file.name;
             const directoryPath = pathSegments.join('/');
             const userId = await getCurrentUserId();
@@ -309,10 +314,10 @@ export async function uploadFile(
             try {
               await supabase.storage
                 .from(STORAGE_BUCKET)
-                .remove([sanitizedPath]);
-              console.log('Cleaned up orphaned file after DB failure:', sanitizedPath);
+                .remove([targetPath]);
+              console.log('Cleaned up orphaned file after DB failure:', targetPath);
             } catch (cleanupError) {
-              console.error('CRITICAL: Failed to cleanup orphaned file:', sanitizedPath, cleanupError);
+              console.error('CRITICAL: Failed to cleanup orphaned file:', targetPath, cleanupError);
             }
 
             // Re-throw to fail the upload operation
@@ -320,7 +325,7 @@ export async function uploadFile(
           }
 
           // Invalidate cache for the directory
-          const directoryPath = sanitizedPath.substring(0, sanitizedPath.lastIndexOf('/'));
+          const directoryPath = targetPath.substring(0, targetPath.lastIndexOf('/'));
           cacheManager.invalidatePrefix(directoryPath);
 
           return data;
@@ -385,8 +390,8 @@ export async function listFiles(prefix: string, options?: {
   const startTime = Date.now();
 
   try {
+    // The prefix is an existing folder path (from the database): validated as it is, never rewritten
     await validateStoragePath(prefix);
-    const sanitizedPrefix = pathUtils.sanitizePath(prefix);
 
     // Use circuit breaker to prevent cascading failures
     const result = await storageCircuitBreaker.execute(async () => {
@@ -396,7 +401,7 @@ export async function listFiles(prefix: string, options?: {
       let query = supabase
         .from('Dokumente_Metadaten')
         .select('*')
-        .eq('dateipfad', sanitizedPrefix);
+        .eq('dateipfad', prefix);
 
       // Apply sorting
       const sortBy = options?.sortBy || 'name';
@@ -461,8 +466,8 @@ export async function downloadFile(path: string): Promise<Blob> {
   const startTime = Date.now();
 
   try {
+    // Existing path from the database: validated as it is, never rewritten
     await validateStoragePath(path);
-    const sanitizedPath = pathUtils.sanitizePath(path);
 
     // Use retry logic with circuit breaker
     const result = await withRetry(
@@ -473,7 +478,7 @@ export async function downloadFile(path: string): Promise<Blob> {
           // Set a timeout for the download to meet 2-second performance target
           const downloadPromise = supabase.storage
             .from(STORAGE_BUCKET)
-            .download(sanitizedPath);
+            .download(path);
 
           const timeoutPromise = new Promise<never>((_, reject) => {
             setTimeout(() => reject(new Error('Download timeout: File download took longer than 2 seconds')),
@@ -964,15 +969,11 @@ export async function createSignedUrl(
   options?: { download?: boolean | string }
 ): Promise<string> {
   try {
+    // Existing path from the database: validated as it is, never rewritten
     await validateStoragePath(path);
-    const sanitizedPath = pathUtils.sanitizePath(path);
-
-    // Remove leading slash if present
-    const cleanPath = sanitizedPath.startsWith('/') ? sanitizedPath.slice(1) : sanitizedPath;
 
     console.log('Creating signed URL:', {
-      originalPath: path,
-      cleanPath,
+      path,
       expiresIn,
       options
     });
@@ -981,7 +982,7 @@ export async function createSignedUrl(
 
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .createSignedUrl(cleanPath, expiresIn, options);
+      .createSignedUrl(path, expiresIn, options);
 
     if (error) {
       console.error('Error creating signed URL:', error);
@@ -993,7 +994,7 @@ export async function createSignedUrl(
     }
 
     console.log('Signed URL created successfully:', {
-      path: cleanPath,
+      path: path,
       expiresIn,
       urlLength: data.signedUrl.length
     });
@@ -1040,9 +1041,11 @@ export async function renameFile(filePath: string, newName: string): Promise<voi
  * Creates a placeholder file for empty folders
  */
 export async function createPlaceholder(path: string): Promise<void> {
-  await validateStoragePath(path, 'write');
+  // A new folder name is created here: normalise once, validate the folder, then upload the placeholder below it
+  const folderPath = pathUtils.sanitizePath(path);
+  await validateStoragePath(folderPath, 'write');
 
-  const placeholderPath = `${pathUtils.sanitizePath(path)}/.keep`;
+  const placeholderPath = `${folderPath}/.keep`;
   const placeholderFile = new File([''], '.keep', { type: 'text/plain' });
 
   const result = await uploadFile(placeholderFile, placeholderPath, { upsert: true });
@@ -1056,14 +1059,14 @@ export async function createPlaceholder(path: string): Promise<void> {
  * Gets a signed URL for a file
  */
 export async function getFileUrl(path: string): Promise<string> {
+  // Existing path from the database: validated as it is, never rewritten
   await validateStoragePath(path);
-  const sanitizedPath = pathUtils.sanitizePath(path);
 
   const supabase = createClient();
 
   const { data, error } = await supabase.storage
     .from(STORAGE_BUCKET)
-    .createSignedUrl(sanitizedPath, 3600); // 1 hour expiry
+    .createSignedUrl(path, 3600); // 1 hour expiry
 
   if (error) {
     throw new Error(`Failed to get file URL: ${error.message}`);

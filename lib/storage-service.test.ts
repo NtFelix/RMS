@@ -19,7 +19,8 @@ import {
   renameFile,
   moveFolder,
 } from './storage-service';
-import { folderMetadataFilter } from './storage-paths';
+import { folderMetadataFilter, assertPathAllowed } from './storage-paths';
+import { pathUtils } from './path-utils';
 
 // Mock functions
 const mockUpload = jest.fn();
@@ -89,6 +90,12 @@ jest.mock('@/utils/supabase/client', () => ({
     };
   })
 }));
+
+// Records which paths the access check saw (behaviour stays the real one)
+jest.mock('./storage-paths', () => {
+  const actual = jest.requireActual('./storage-paths');
+  return { ...actual, assertPathAllowed: jest.fn(actual.assertPathAllowed) };
+});
 
 // Mock path utils
 jest.mock('./path-utils', () => ({
@@ -605,5 +612,83 @@ describe('Storage Service moveFolder', () => {
       [`${FOLDER}/a.pdf`, 'org_org1/shared/house456/Bar/a.pdf'],
       [`${FOLDER}/Sub/b.pdf`, 'org_org1/shared/house456/Bar/Sub/b.pdf'],
     ]);
+  });
+});
+
+describe('Storage Service path normalisation', () => {
+  const HOUSE_PATH = 'org_org1/shared/house456';
+  const realSanitizePath = jest.requireActual('./path-utils').pathUtils.sanitizePath;
+  let consoleLogSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+    // The module mock is an identity function: use the real sanitizer for these tests
+    (pathUtils.sanitizePath as jest.Mock).mockImplementation(realSanitizePath);
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'test-user-123' } }, error: null });
+    mockOrgScope(['house456']);
+    mockUpload.mockResolvedValue({ data: { path: 'x' }, error: null });
+    mockDownload.mockResolvedValue({ data: new Blob(['x']), error: null });
+    mockCreateSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://example.com/signed-url' }, error: null });
+    mockInsert.mockResolvedValue({ error: null });
+    mockDefaultSingle = { data: null, error: null };
+  });
+
+  afterEach(() => {
+    consoleLogSpy.mockRestore();
+    (pathUtils.sanitizePath as jest.Mock).mockImplementation((path) => path);
+  });
+
+  const pdf = () => {
+    const file = new File(['x'], 'x.pdf', { type: 'application/pdf' });
+    Object.defineProperty(file, 'size', { value: 1024 });
+    return file;
+  };
+
+  it('upload: the checked path, the stored path and the metadata path are the same string', async () => {
+    const result = await uploadFile(pdf(), `${HOUSE_PATH}/Bericht: Q1/x.pdf`);
+
+    expect(result.success).toBe(true);
+    const checkedPaths = (assertPathAllowed as jest.Mock).mock.calls.map(([path]) => path);
+    expect(checkedPaths).toEqual([`${HOUSE_PATH}/Bericht Q1/x.pdf`]);
+    expect(mockUpload).toHaveBeenCalledWith(checkedPaths[0], expect.anything(), expect.anything());
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ dateipfad: `${HOUSE_PATH}/Bericht Q1`, dateiname: 'x.pdf' }),
+    );
+    expect(`${mockInsert.mock.calls[0][0].dateipfad}/${mockInsert.mock.calls[0][0].dateiname}`).toBe(checkedPaths[0]);
+  });
+
+  it('upload: refuses a normalised path that leaves the allowed area', async () => {
+    mockOrgScope(['other-house']);
+    const result = await uploadFile(pdf(), `${HOUSE_PATH}/Bericht: Q1/x.pdf`);
+    expect(result.success).toBe(false);
+    expect(mockUpload).not.toHaveBeenCalled();
+  });
+
+  it('createPlaceholder: validates and uploads below the normalised folder', async () => {
+    await createPlaceholder(`${HOUSE_PATH}/Neuer: Ordner?`);
+
+    const checkedPaths = (assertPathAllowed as jest.Mock).mock.calls.map(([path]) => path);
+    expect(checkedPaths).toContain(`${HOUSE_PATH}/Neuer Ordner`);
+    expect(checkedPaths).toContain(`${HOUSE_PATH}/Neuer Ordner/.keep`);
+    expect(mockUpload).toHaveBeenCalledWith(`${HOUSE_PATH}/Neuer Ordner/.keep`, expect.anything(), expect.anything());
+  });
+
+  it('read access (download, getFileUrl, createSignedUrl, listFiles) validates the stored path and does not rewrite it', async () => {
+    const stored = `${HOUSE_PATH}/Bericht: Q1/x.pdf`;
+    const { createSignedUrl } = await import('./storage-service');
+
+    await downloadFile(stored);
+    await getFileUrl(stored);
+    await createSignedUrl(stored);
+    await listFiles(`${HOUSE_PATH}/Bericht: Q1`);
+
+    expect(pathUtils.sanitizePath).not.toHaveBeenCalled();
+    expect(mockDownload).toHaveBeenCalledWith(stored);
+    expect(mockCreateSignedUrl).toHaveBeenNthCalledWith(1, stored, 3600);
+    expect(mockCreateSignedUrl).toHaveBeenNthCalledWith(2, stored, 3600, undefined);
+    expect(mockEq).toHaveBeenCalledWith('dateipfad', `${HOUSE_PATH}/Bericht: Q1`);
+    const checkedPaths = (assertPathAllowed as jest.Mock).mock.calls.map(([path]) => path);
+    expect(checkedPaths).toEqual([stored, stored, stored, `${HOUSE_PATH}/Bericht: Q1`]);
   });
 });
