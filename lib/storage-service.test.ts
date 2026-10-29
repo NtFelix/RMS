@@ -15,6 +15,7 @@ import {
   archiveFile,
   restoreFile,
   permanentlyDeleteFile,
+  listArchivedFiles,
   renameFile,
 } from './storage-service';
 
@@ -36,6 +37,7 @@ const mockSingle = jest.fn();
 const mockOrder = jest.fn();
 const mockLimit = jest.fn();
 const mockRange = jest.fn();
+const mockLike = jest.fn();
 
 // Mock Supabase client
 jest.mock('@/utils/supabase/client', () => ({
@@ -50,7 +52,8 @@ jest.mock('@/utils/supabase/client', () => ({
       single: mockSingle,
       order: mockOrder,
       limit: mockLimit,
-      range: mockRange
+      range: mockRange,
+      like: mockLike
     };
 
     // Make functions return the builder for chaining
@@ -475,5 +478,85 @@ describe('Storage Service read/write modes', () => {
     expect(mockMove).not.toHaveBeenCalled();
     await renameFile('org_org1/shared/house456/x.pdf', 'Vertrag..pdf');
     expect(mockMove).toHaveBeenCalledWith('org_org1/shared/house456/x.pdf', 'org_org1/shared/house456/Vertrag..pdf');
+  });
+});
+
+describe('Storage Service listArchivedFiles', () => {
+  const row = (dateipfad: string, dateiname: string, id = `${dateipfad}/${dateiname}`) => ({
+    id,
+    dateipfad,
+    dateiname,
+    dateigroesse: 1,
+    mime_type: 'text/plain',
+  });
+  const ARCHIVE = '__archive__/2026-10-29T10-00-00-000Z';
+
+  /** Replaces the query chain of `.like(...)` so that every pattern gets its own rows, delivered page by page */
+  function mockArchiveRows(rowsFor: (pattern: string) => unknown[]) {
+    mockLike.mockImplementation((_column: string, pattern: string) => ({
+      order: () => ({
+        range: (from: number, to: number) =>
+          Promise.resolve({ data: rowsFor(pattern).slice(from, to + 1), error: null }),
+      }),
+    }));
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'test-user-123' } }, error: null });
+  });
+
+  it('runs one shared and one private query (not one per house) and filters by house scope', async () => {
+    mockOrgScope(['house456']);
+    mockArchiveRows((pattern) =>
+      pattern.startsWith('org_org1/shared/')
+        ? [
+            row(`org_org1/shared/house456/${ARCHIVE}/wohnung1`, 'a.pdf'),
+            row(`org_org1/shared/house456/${ARCHIVE}/wohnung1`, '.keep'),
+            row(`org_org1/shared/other-house/${ARCHIVE}/wohnung1`, 'b.pdf'),
+            row(`org_org1/shared/house456/Ordner/${ARCHIVE}`, 'c.pdf'),
+          ]
+        : [
+            row(`org_org1/private/test-user-123/${ARCHIVE}/Notizen`, 'n.md'),
+            row(`org_org1/private/other-user/${ARCHIVE}/Notizen`, 'x.md'),
+          ],
+    );
+
+    const result = await listArchivedFiles('test-user-123');
+
+    expect(mockLike).toHaveBeenCalledTimes(2);
+    expect(mockLike).toHaveBeenCalledWith('dateipfad', 'org_org1/shared/%/__archive__/%');
+    expect(mockLike).toHaveBeenCalledWith('dateipfad', 'org_org1/private/test-user-123/__archive__/%');
+    expect(result.map((item) => item.path).sort()).toEqual([
+      `org_org1/private/test-user-123/${ARCHIVE}/Notizen/n.md`,
+      `org_org1/shared/house456/${ARCHIVE}/wohnung1/a.pdf`,
+    ]);
+  });
+
+  it('returns all houses for an unrestricted user', async () => {
+    mockOrgScope(null);
+    mockArchiveRows((pattern) =>
+      pattern.startsWith('org_org1/shared/')
+        ? [row(`org_org1/shared/house-a/${ARCHIVE}`, 'a.pdf'), row(`org_org1/shared/house-b/${ARCHIVE}`, 'b.pdf')]
+        : [],
+    );
+
+    expect(await listArchivedFiles('test-user-123')).toHaveLength(2);
+  });
+
+  it('does not stop at 1000 rows but reads the next pages', async () => {
+    mockOrgScope(null);
+    const many = Array.from({ length: 1001 }, (_, index) =>
+      row(`org_org1/shared/house-a/${ARCHIVE}/ordner`, `datei-${index}.pdf`, `id-${index}`),
+    );
+    mockArchiveRows((pattern) => (pattern.startsWith('org_org1/shared/') ? many : []));
+
+    expect(await listArchivedFiles('test-user-123')).toHaveLength(1001);
+  });
+
+  it('refuses a foreign user id', async () => {
+    mockOrgScope(null);
+    await expect(listArchivedFiles('someone-else')).rejects.toThrow('Access denied');
+    expect(mockLike).not.toHaveBeenCalled();
   });
 });

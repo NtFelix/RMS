@@ -13,8 +13,9 @@ import {
   assertPathAllowed,
   childPath,
   parseArchivePath,
+  parseStoragePath,
   privateRoot,
-  sharedPath,
+  sharedRoot,
   type PathAccessContext,
   type PathAccessMode,
 } from '@/lib/storage-paths';
@@ -1064,9 +1065,16 @@ export async function getFileUrl(path: string): Promise<string> {
   return data.signedUrl;
 }
 
+/** Rows per request: PostgREST caps a response at 1000 rows by default, so larger result sets are paged */
+const ARCHIVE_PAGE_SIZE = 1000;
+
 /**
  * Lists archived files the user may see: the archive of every accessible house (shared zone)
- * and the own private archive. Only archive entries are returned.
+ * and the own private archive. Only archive entries are returned, `.keep` placeholders are skipped.
+ *
+ * Two queries run in parallel (shared: one LIKE with a house wildcard instead of one query per house,
+ * private: own archive). The house scope is applied afterwards on the parsed path, because `%` and `_`
+ * are LIKE wildcards and the pattern alone would also match foreign paths. Each query is paged.
  */
 export async function listArchivedFiles(userId: string): Promise<StorageObject[]> {
   const ctx = await getClientAccessContext();
@@ -1075,35 +1083,47 @@ export async function listArchivedFiles(userId: string): Promise<StorageObject[]
   }
   const supabase = createClient();
 
-  let houseIds = ctx.accessibleHouseIds;
-  if (houseIds === null) {
-    const { data: houses, error: houseError } = await supabase.from('Haeuser').select('id');
-    if (houseError) {
-      throw new Error('Could not resolve houses for archive listing');
+  const fetchAllRows = async (likePattern: string) => {
+    const rows: any[] = [];
+    for (let from = 0; ; from += ARCHIVE_PAGE_SIZE) {
+      const { data, error } = await supabase
+        .from('Dokumente_Metadaten')
+        .select('*')
+        .like('dateipfad', likePattern)
+        .order('id', { ascending: true })
+        .range(from, from + ARCHIVE_PAGE_SIZE - 1);
+      if (error) {
+        throw mapError(error, 'list_archived_files');
+      }
+      rows.push(...(data ?? []));
+      if ((data?.length ?? 0) < ARCHIVE_PAGE_SIZE) break;
     }
-    houseIds = (houses ?? []).map((h: { id: string }) => h.id);
-  }
+    return rows;
+  };
 
-  const roots = [
-    privateRoot(ctx.orgId, ctx.userId),
-    ...houseIds.map((houseId) => sharedPath(ctx.orgId, houseId)),
-  ].map((zoneRoot) => `${zoneRoot}/${ARCHIVE_SEGMENT}`);
+  const [sharedRows, privateRows] = await Promise.all([
+    fetchAllRows(`${sharedRoot(ctx.orgId)}/%/${ARCHIVE_SEGMENT}/%`),
+    fetchAllRows(`${privateRoot(ctx.orgId, ctx.userId)}/${ARCHIVE_SEGMENT}/%`),
+  ]);
 
-  const result: StorageObject[] = [];
-  for (const root of roots) {
-    const { data, error } = await supabase
-      .from('Dokumente_Metadaten')
-      .select('*')
-      .like('dateipfad', `${root}/%`);
-    if (error) {
-      throw mapError(error, 'list_archived_files');
+  const accessibleHouses = ctx.accessibleHouseIds === null ? null : new Set(ctx.accessibleHouseIds);
+  const isVisible = (dateipfad: string): boolean => {
+    try {
+      const parsed = parseStoragePath(dateipfad);
+      if (parsed.orgId !== ctx.orgId || parsed.rest[0] !== ARCHIVE_SEGMENT) return false;
+      if (parsed.zone === 'private') return parsed.userId === ctx.userId;
+      if (parsed.zone === 'shared' && parsed.houseId !== undefined) {
+        return accessibleHouses === null || accessibleHouses.has(parsed.houseId);
+      }
+      return false;
+    } catch {
+      return false;
     }
-    for (const item of data ?? []) {
-      if (!item.dateipfad.startsWith(`${root}/`)) continue;
-      result.push(toStorageObject(item, { path: `${item.dateipfad}/${item.dateiname}` }));
-    }
-  }
-  return result;
+  };
+
+  return [...sharedRows, ...privateRows]
+    .filter((item) => item.dateiname !== '.keep' && isVisible(item.dateipfad))
+    .map((item) => toStorageObject(item, { path: `${item.dateipfad}/${item.dateiname}` }));
 }
 
 /**
