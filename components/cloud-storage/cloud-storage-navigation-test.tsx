@@ -4,17 +4,18 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useReliableNavigation } from '@/hooks/use-reliable-navigation'
 import { useCloudStorageStore } from '@/hooks/use-cloud-storage-store'
+import { orgRoot } from '@/lib/storage-paths'
 
 interface NavigationTestProps {
-  userId: string
+  orgId: string
 }
 
 /**
  * Test component to verify efficient navigation works correctly
  * This component can be temporarily added to test the navigation improvements
  */
-export function CloudStorageNavigationTest({ userId }: NavigationTestProps) {
-  const navigation = useReliableNavigation(userId)
+export function CloudStorageNavigationTest({ orgId }: NavigationTestProps) {
+  const navigation = useReliableNavigation(orgId)
   const { currentPath, files, folders, isLoading } = useCloudStorageStore()
   const [navigationCount, setNavigationCount] = useState(0)
   const [pageReloadCount, setPageReloadCount] = useState(0)
@@ -37,10 +38,10 @@ export function CloudStorageNavigationTest({ userId }: NavigationTestProps) {
   }, [currentPath])
 
   const testPaths = [
-    `user_${userId}`,
-    `user_${userId}/test-folder-1`,
-    `user_${userId}/test-folder-2`,
-    `user_${userId}/test-folder-1/subfolder`
+    orgRoot(orgId),
+    `${orgRoot(orgId)}/shared/test-folder-1`,
+    `${orgRoot(orgId)}/shared/test-folder-2`,
+    `${orgRoot(orgId)}/shared/test-folder-1/subfolder`
   ]
 
   return (

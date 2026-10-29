@@ -1,5 +1,9 @@
 import {
   assertPathAllowed,
+  orgIdOfPath,
+  orgRootOfPath,
+  privateRoot,
+  sharedRoot,
   orgRoot,
   parseStoragePath,
   privatePath,
@@ -15,6 +19,11 @@ const HOUSE_B = 'haus-b';
 describe('storage-paths builders', () => {
   it('builds the org root', () => {
     expect(orgRoot(ORG)).toBe('org_org-1');
+  });
+
+  it('builds the zone roots', () => {
+    expect(sharedRoot(ORG)).toBe('org_org-1/shared');
+    expect(privateRoot(ORG, USER)).toBe('org_org-1/private/user-1');
   });
 
   it('builds shared paths below the house folder', () => {
@@ -114,6 +123,19 @@ describe('parseStoragePath', () => {
     ['empty legacy user id', 'user_/haus'],
   ])('rejects %s', (_label, path) => {
     expect(() => parseStoragePath(path)).toThrow(StoragePathError);
+  });
+});
+
+describe('orgIdOfPath / orgRootOfPath', () => {
+  it('derives org id and root from valid paths', () => {
+    expect(orgIdOfPath('org_org-1/shared/haus-a')).toBe('org-1');
+    expect(orgRootOfPath('org_org-1/private/user-1/x')).toBe('org_org-1');
+  });
+
+  it('returns null for legacy, invalid or traversal paths instead of throwing', () => {
+    expect(orgIdOfPath('user_user-1/haus')).toBeNull();
+    expect(orgRootOfPath('org_org-1/../x')).toBeNull();
+    expect(orgIdOfPath('')).toBeNull();
   });
 });
 

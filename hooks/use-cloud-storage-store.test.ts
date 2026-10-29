@@ -60,10 +60,10 @@ describe('useCloudStorageStore', () => {
       const { result } = renderHook(() => useCloudStorageStore())
       
       await act(async () => {
-        await result.current.navigateToPath('user_123/test/path')
+        await result.current.navigateToPath('org_org-1/test/path')
       })
       
-      expect(result.current.currentPath).toBe('user_123/test/path')
+      expect(result.current.currentPath).toBe('org_org-1/test/path')
       // Note: error might not be null if the path doesn't exist in the mock
       // Just check that currentPath was updated
     })
@@ -94,12 +94,12 @@ describe('useCloudStorageStore', () => {
       
       // Navigate to new path should clear error initially
       await act(async () => {
-        await result.current.navigateToPath('user_123/new/path')
+        await result.current.navigateToPath('org_org-1/new/path')
       })
       
       // Error is cleared at the start of navigation
       // (it might be set again if navigation fails, but that's expected behavior)
-      expect(result.current.currentPath).toBe('user_123/new/path')
+      expect(result.current.currentPath).toBe('org_org-1/new/path')
     })
   })
 

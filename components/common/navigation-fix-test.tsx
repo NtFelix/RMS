@@ -4,16 +4,17 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useSimpleNavigation } from '@/hooks/use-simple-navigation'
 import { useCloudStorageStore } from '@/hooks/use-cloud-storage-store'
+import { orgRoot } from '@/lib/storage-paths'
 
 interface NavigationFixTestProps {
-  userId: string
+  orgId: string
 }
 
 /**
  * Test component to verify the navigation fix works without infinite loops
  */
-export function NavigationFixTest({ userId }: NavigationFixTestProps) {
-  const navigation = useSimpleNavigation(userId)
+export function NavigationFixTest({ orgId }: NavigationFixTestProps) {
+  const navigation = useSimpleNavigation(orgId)
   const { currentPath, files, folders, isLoading } = useCloudStorageStore()
   const [renderCount, setRenderCount] = useState(0)
 
@@ -23,9 +24,9 @@ export function NavigationFixTest({ userId }: NavigationFixTestProps) {
   })
 
   const testPaths = [
-    `user_${userId}`,
-    `user_${userId}/test-folder-1`,
-    `user_${userId}/test-folder-2`
+    orgRoot(orgId),
+    `${orgRoot(orgId)}/shared/test-folder-1`,
+    `${orgRoot(orgId)}/shared/test-folder-2`
   ]
 
   return (

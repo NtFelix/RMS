@@ -215,7 +215,7 @@ describe('Storage Service', () => {
       const file = new File(['test content'], 'test.txt', { type: 'text/plain' });
       Object.defineProperty(file, 'size', { value: 1024 });
 
-      const result = await uploadFile(file, 'user_test-user-123/test.txt');
+      const result = await uploadFile(file, 'org_org1/private/test-user-123/test.txt');
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual({ path: 'test-path' });
@@ -226,7 +226,7 @@ describe('Storage Service', () => {
       const invalidFile = new File(['test'], 'test.exe', { type: 'application/x-executable' });
       Object.defineProperty(invalidFile, 'size', { value: 1024 });
 
-      const result = await uploadFile(invalidFile, 'user_test-user-123/test.exe');
+      const result = await uploadFile(invalidFile, 'org_org1/private/test-user-123/test.exe');
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('is not supported');
@@ -241,7 +241,7 @@ describe('Storage Service', () => {
       const file = new File(['test content'], 'test.txt', { type: 'text/plain' });
       Object.defineProperty(file, 'size', { value: 1024 });
 
-      const result = await uploadFile(file, 'user_test-user-123/test.txt');
+      const result = await uploadFile(file, 'org_org1/private/test-user-123/test.txt');
 
       expect(result.success).toBe(false);
       // Error message is mapped through mapError which returns German user message
@@ -255,7 +255,7 @@ describe('Storage Service', () => {
     // changed, requiring a more complex mock setup for the chained Supabase calls.
     // See integration tests for coverage of this functionality.
     it.skip('should list files successfully', async () => {
-      const files = await listFiles('user_test-user-123/house456');
+      const files = await listFiles('org_org1/shared/house456');
 
       expect(files).toHaveLength(1);
       expect(files[0]).toEqual({
@@ -272,7 +272,7 @@ describe('Storage Service', () => {
 
   describe('downloadFile', () => {
     it('should download file successfully', async () => {
-      const blob = await downloadFile('user_test-user-123/test.txt');
+      const blob = await downloadFile('org_org1/private/test-user-123/test.txt');
 
       expect(blob).toBeInstanceOf(Blob);
     });
@@ -284,7 +284,7 @@ describe('Storage Service', () => {
       });
 
       // Error is mapped through mapError which returns a StorageError object
-      await expect(downloadFile('user_test-user-123/test.txt')).rejects.toMatchObject({
+      await expect(downloadFile('org_org1/private/test-user-123/test.txt')).rejects.toMatchObject({
         type: expect.any(String),
         message: expect.stringContaining('Download failed')
       });
@@ -309,7 +309,7 @@ describe('Storage Service', () => {
 
   describe('createPlaceholder', () => {
     it('should create placeholder file', async () => {
-      await createPlaceholder('user_test-user-123/empty-folder');
+      await createPlaceholder('org_org1/private/test-user-123/empty-folder');
 
       expect(mockUpload).toHaveBeenCalled();
       expect(mockInsert).toHaveBeenCalled();
@@ -318,7 +318,7 @@ describe('Storage Service', () => {
 
   describe('getFileUrl', () => {
     it('should get signed URL successfully', async () => {
-      const url = await getFileUrl('user_test-user-123/test.txt');
+      const url = await getFileUrl('org_org1/private/test-user-123/test.txt');
 
       expect(url).toBe('https://example.com/signed-url');
     });
@@ -329,7 +329,7 @@ describe('Storage Service', () => {
         error: { message: 'URL generation failed' }
       });
 
-      await expect(getFileUrl('user_test-user-123/test.txt')).rejects.toThrow('Failed to get file URL: URL generation failed');
+      await expect(getFileUrl('org_org1/private/test-user-123/test.txt')).rejects.toThrow('Failed to get file URL: URL generation failed');
     });
   });
 

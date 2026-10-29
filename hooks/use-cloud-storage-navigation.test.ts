@@ -32,10 +32,10 @@ describe('useCloudStorageNavigation', () => {
     const { result } = renderHook(() => useNavigationState())
     
     await act(async () => {
-      await result.current.navigateToPath('user_123/house_456')
+      await result.current.navigateToPath('org_org-1/house_456')
     })
     
-    expect(result.current.currentPath).toBe('user_123/house_456')
+    expect(result.current.currentPath).toBe('org_org-1/house_456')
     expect(result.current.isNavigating).toBe(false)
   })
 
@@ -44,12 +44,12 @@ describe('useCloudStorageNavigation', () => {
     
     // Navigate to first path
     await act(async () => {
-      await result.current.navigateToPath('user_123/house_456')
+      await result.current.navigateToPath('org_org-1/house_456')
     })
     
     // Navigate to second path
     await act(async () => {
-      await result.current.navigateToPath('user_123/house_456/apartment_789')
+      await result.current.navigateToPath('org_org-1/house_456/apartment_789')
     })
     
     expect(result.current.canGoBack).toBe(true)
@@ -60,14 +60,14 @@ describe('useCloudStorageNavigation', () => {
       await result.current.goBack()
     })
     
-    expect(result.current.currentPath).toBe('user_123/house_456')
+    expect(result.current.currentPath).toBe('org_org-1/house_456')
     expect(result.current.canGoForward).toBe(true)
   })
 
   it('should cache directory contents', async () => {
     const { result } = renderHook(() => useCloudStorageNavigationStore())
     
-    const testPath = 'user_123/house_456'
+    const testPath = 'org_org-1/house_456'
     const testContents = {
       files: [],
       folders: [],
@@ -86,7 +86,7 @@ describe('useCloudStorageNavigation', () => {
   it('should manage view preferences', () => {
     const { result } = renderHook(() => useCloudStorageNavigationStore())
     
-    const testPath = 'user_123/house_456'
+    const testPath = 'org_org-1/house_456'
     const preferences = {
       viewMode: 'list' as const,
       sortBy: 'date',
@@ -110,7 +110,7 @@ describe('useCloudStorageNavigation', () => {
   it('should manage scroll positions', () => {
     const { result } = renderHook(() => useCloudStorageNavigationStore())
     
-    const testPath = 'user_123/house_456'
+    const testPath = 'org_org-1/house_456'
     const scrollPosition = 500
     
     act(() => {

@@ -5,7 +5,7 @@
 const mockFetchResult = {
     files: [{ id: '1', name: 'test.pdf' }],
     folders: [],
-    breadcrumbs: [{ name: 'Root', path: 'user_123', type: 'root' as const }],
+    breadcrumbs: [{ name: 'Root', path: 'org_org-1', type: 'root' as const }],
     totalSize: 0,
 }
 
@@ -29,9 +29,9 @@ describe('loadFiles', () => {
 
         // Make multiple concurrent requests
         const requests = [
-            loadFiles('123', 'user_123/folder1'),
-            loadFiles('123', 'user_123/folder1'),
-            loadFiles('123', 'user_123/folder1'),
+            loadFiles('123', 'org_org-1/folder1'),
+            loadFiles('123', 'org_org-1/folder1'),
+            loadFiles('123', 'org_org-1/folder1'),
         ]
 
         const results = await Promise.all(requests)
@@ -69,7 +69,7 @@ describe('loadFiles', () => {
         const abortController = new AbortController()
 
         // Start the request
-        const promise = loadFiles('123', 'user_123/folder1', abortController.signal)
+        const promise = loadFiles('123', 'org_org-1/folder1', abortController.signal)
 
         // Abort immediately
         abortController.abort()
@@ -86,17 +86,17 @@ describe('loadFiles', () => {
         invalidateBreadcrumbCache()
 
         // Should be null initially
-        expect(getCachedBreadcrumbs('user_123/folder1')).toBeNull()
+        expect(getCachedBreadcrumbs('org_org-1/folder1')).toBeNull()
 
         // Add to cache
         const breadcrumbs = [
-            { name: 'Root', path: 'user_123', type: 'root' as const },
-            { name: 'Folder 1', path: 'user_123/folder1', type: 'category' as const },
+            { name: 'Root', path: 'org_org-1', type: 'root' as const },
+            { name: 'Folder 1', path: 'org_org-1/folder1', type: 'category' as const },
         ]
-        setCachedBreadcrumbs('user_123/folder1', breadcrumbs as any)
+        setCachedBreadcrumbs('org_org-1/folder1', breadcrumbs as any)
 
         // Should return cached value
-        expect(getCachedBreadcrumbs('user_123/folder1')).toEqual(breadcrumbs)
+        expect(getCachedBreadcrumbs('org_org-1/folder1')).toEqual(breadcrumbs)
     })
 })
 
@@ -104,19 +104,19 @@ describe('getPreloadPaths', () => {
     it('should include parent path for nested directories', async () => {
         const { getPreloadPaths } = await import('@/lib/file-loader')
 
-        const paths = getPreloadPaths('123', 'user_123/house1/apartment1')
+        const paths = getPreloadPaths('123', 'org_org-1/shared/house1/apartment1')
 
         // Should include parent
-        expect(paths).toContain('user_123/house1')
+        expect(paths).toContain('org_org-1/shared/house1')
     })
 
     it('should include common system folders for root path', async () => {
         const { getPreloadPaths } = await import('@/lib/file-loader')
 
-        const paths = getPreloadPaths('123', 'user_123')
+        const paths = getPreloadPaths('123', 'org_org-1')
 
         // Should include system folders
-        expect(paths).toContain('user_123/Miscellaneous')
-        expect(paths).toContain('user_123/house_documents')
+        expect(paths).toContain('org_org-1/shared')
+        expect(paths).toContain('org_org-1/private/123')
     })
 })

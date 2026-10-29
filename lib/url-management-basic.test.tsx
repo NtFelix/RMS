@@ -55,22 +55,22 @@ describe('URL Management Basic Tests', () => {
   it('should convert storage paths to URLs correctly', () => {
     const { result } = renderHook(() => useCloudStorageNavigationStore())
     
-    expect(result.current.getCurrentUrl('user_test-user')).toBe('/dateien')
-    expect(result.current.getCurrentUrl('user_test-user/house1')).toBe('/dateien/house1')
-    expect(result.current.getCurrentUrl('user_test-user/house1/apt1')).toBe('/dateien/house1/apt1')
+    expect(result.current.getCurrentUrl('org_org-1')).toBe('/dateien')
+    expect(result.current.getCurrentUrl('org_org-1/shared/house1')).toBe('/dateien/shared/house1')
+    expect(result.current.getCurrentUrl('org_org-1/shared/house1/apt1')).toBe('/dateien/shared/house1/apt1')
   })
 
   it('should update document title correctly', () => {
     const { result } = renderHook(() => useCloudStorageNavigationStore())
     
     const breadcrumbs = [
-      { name: 'Cloud Storage', path: 'user_test-user', type: 'root' as const },
-      { name: 'House 1', path: 'user_test-user/house1', type: 'house' as const },
-      { name: 'Apartment 1', path: 'user_test-user/house1/apt1', type: 'apartment' as const }
+      { name: 'Cloud Storage', path: 'org_org-1', type: 'root' as const },
+      { name: 'House 1', path: 'org_org-1/shared/house1', type: 'house' as const },
+      { name: 'Apartment 1', path: 'org_org-1/shared/house1/apt1', type: 'apartment' as const }
     ]
     
     act(() => {
-      result.current.updateDocumentTitle('user_test-user/house1/apt1', breadcrumbs)
+      result.current.updateDocumentTitle('org_org-1/shared/house1/apt1', breadcrumbs)
     })
     
     expect(document.title).toBe('Apartment 1 - House 1 - Cloud Storage - RMS')
@@ -80,17 +80,17 @@ describe('URL Management Basic Tests', () => {
     const { result } = renderHook(() => useCloudStorageNavigationStore())
     
     act(() => {
-      result.current.updateBrowserHistory('user_test-user/house1', false)
+      result.current.updateBrowserHistory('org_org-1/shared/house1', false)
     })
     
     expect(window.history.pushState).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: 'user_test-user/house1',
+        path: 'org_org-1/shared/house1',
         clientNavigation: true,
         timestamp: expect.any(Number)
       }),
       '',
-      '/dateien/house1'
+      '/dateien/shared/house1'
     )
   })
 
@@ -98,11 +98,11 @@ describe('URL Management Basic Tests', () => {
     const { result } = renderHook(() => useCloudStorageNavigationStore())
     
     act(() => {
-      result.current.saveScrollPosition('user_test-user/house1', 500)
+      result.current.saveScrollPosition('org_org-1/shared/house1', 500)
     })
     
-    expect(result.current.getScrollPosition('user_test-user/house1')).toBe(500)
-    expect(result.current.getScrollPosition('user_test-user/house2')).toBe(0) // Default
+    expect(result.current.getScrollPosition('org_org-1/shared/house1')).toBe(500)
+    expect(result.current.getScrollPosition('org_org-1/shared/house2')).toBe(0) // Default
   })
 
   it('should handle navigation history correctly', async () => {
@@ -110,10 +110,10 @@ describe('URL Management Basic Tests', () => {
     
     // Navigate to a path
     await act(async () => {
-      await result.current.navigateToPath('user_test-user/house1')
+      await result.current.navigateToPath('org_org-1/shared/house1')
     })
     
-    expect(result.current.currentPath).toBe('user_test-user/house1')
+    expect(result.current.currentPath).toBe('org_org-1/shared/house1')
     expect(result.current.navigationHistory).toHaveLength(1)
     expect(result.current.historyIndex).toBe(0)
   })

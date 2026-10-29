@@ -48,7 +48,7 @@ describe('CloudStorageItemCard', () => {
         openFileRenameModal: mockOpenFileRenameModal
       })
       ; (useCloudStorageStore as unknown as jest.Mock).mockReturnValue({
-        currentPath: 'user_123/documents',
+        currentPath: 'org_org-1/documents',
         renameFile: mockRenameFile
       })
   })
@@ -68,7 +68,7 @@ describe('CloudStorageItemCard', () => {
 
   const mockFolder = {
     name: 'test-folder',
-    path: 'user_123/documents/test-folder',
+    path: 'org_org-1/documents/test-folder',
     type: 'storage' as const,
     isEmpty: false,
     children: [],
@@ -158,7 +158,7 @@ describe('CloudStorageItemCard', () => {
     }
 
     expect(mockStorageFrom).toHaveBeenCalledWith('documents')
-    expect(mockCreateSignedUrl).toHaveBeenCalledWith('user_123/documents/test-document.pdf', 3600)
+    expect(mockCreateSignedUrl).toHaveBeenCalledWith('org_org-1/documents/test-document.pdf', 3600)
 
     window.open = originalOpen
   })
