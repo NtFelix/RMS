@@ -3,7 +3,7 @@
 import { ensureAuth } from '@/lib/auth-utils'
 import { checkStoragePathAccess, getActiveOrgId } from '@/lib/storage-access'
 import { STORAGE_ROOT_LABEL } from '@/lib/storage-navigation'
-import { orgRoot, parseStoragePath } from '@/lib/storage-paths'
+import { folderMetadataFilter, isPathInFolder, orgRoot, parseStoragePath } from '@/lib/storage-paths'
 import { redirect, unstable_rethrow } from 'next/navigation'
 
 /**
@@ -346,11 +346,12 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             }
         }
 
-        // Get all files to delete from the database
-        const { data: filesToDelete, error: listError } = await supabase
+        // Get all files to delete from the database: exactly this folder and its sub-folders, never a
+        // sibling with the same prefix (Rechnungen vs. Rechnungen2) and no LIKE wildcards from the name
+        const { data: folderRows, error: listError } = await supabase
             .from('Dokumente_Metadaten')
             .select('dateipfad, dateiname')
-            .like('dateipfad', `${folderPath}%`)
+            .or(folderMetadataFilter(folderPath))
 
         if (listError) {
             return {
@@ -358,9 +359,11 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
                 error: `Fehler beim Auflisten der Dateien: ${listError.message}`
             }
         }
+        // PostgREST turns a literal `*` of a LIKE value into a wildcard: the exact check is repeated on the rows
+        const filesToDelete = (folderRows ?? []).filter(file => isPathInFolder(file.dateipfad, folderPath))
 
         // Delete files from storage
-        if (filesToDelete && filesToDelete.length > 0) {
+        if (filesToDelete.length > 0) {
             const storagePaths = filesToDelete.map(file => `${file.dateipfad}/${file.dateiname}`)
 
             const { error: deleteError } = await supabase.storage

@@ -2,6 +2,7 @@ import { checkStoragePathAccess, resolveChildPath } from "@/lib/storage-access"
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
+import { escapeLikePattern } from '@/lib/storage-paths'
 
 
 export async function POST(request: NextRequest) {
@@ -91,10 +92,14 @@ export async function POST(request: NextRequest) {
         .from('Dokumente_Metadaten')
         .select('dateiname')
         .eq('dateipfad', directory)
-        .ilike('dateiname', currentFileName)
+        .ilike('dateiname', escapeLikePattern(currentFileName))
 
-      if (similarFiles && similarFiles.length > 0) {
-        actualFileName = similarFiles[0].dateiname
+      // A literal `*` of the name would still act as a wildcard in PostgREST, so compare the rows exactly
+      const caseInsensitiveMatches = (similarFiles ?? []).filter(
+        (candidate) => candidate.dateiname.toLowerCase() === currentFileName.toLowerCase(),
+      )
+      if (caseInsensitiveMatches.length > 0) {
+        actualFileName = caseInsensitiveMatches[0].dateiname
         fileFound = true
         console.log('Found file with case-insensitive match in DB:', { searched: currentFileName, found: actualFileName })
       }

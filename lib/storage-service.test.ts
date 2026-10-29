@@ -17,7 +17,9 @@ import {
   permanentlyDeleteFile,
   listArchivedFiles,
   renameFile,
+  moveFolder,
 } from './storage-service';
+import { folderMetadataFilter } from './storage-paths';
 
 // Mock functions
 const mockUpload = jest.fn();
@@ -38,6 +40,7 @@ const mockOrder = jest.fn();
 const mockLimit = jest.fn();
 const mockRange = jest.fn();
 const mockLike = jest.fn();
+const mockOr = jest.fn();
 
 // Mock Supabase client
 jest.mock('@/utils/supabase/client', () => ({
@@ -53,7 +56,8 @@ jest.mock('@/utils/supabase/client', () => ({
       order: mockOrder,
       limit: mockLimit,
       range: mockRange,
-      like: mockLike
+      like: mockLike,
+      or: mockOr
     };
 
     // Make functions return the builder for chaining
@@ -509,7 +513,7 @@ describe('Storage Service listArchivedFiles', () => {
   it('runs one shared and one private query (not one per house) and filters by house scope', async () => {
     mockOrgScope(['house456']);
     mockArchiveRows((pattern) =>
-      pattern.startsWith('org_org1/shared/')
+      pattern.startsWith('org\\_org1/shared/')
         ? [
             row(`org_org1/shared/house456/${ARCHIVE}/wohnung1`, 'a.pdf'),
             row(`org_org1/shared/house456/${ARCHIVE}/wohnung1`, '.keep'),
@@ -525,8 +529,9 @@ describe('Storage Service listArchivedFiles', () => {
     const result = await listArchivedFiles('test-user-123');
 
     expect(mockLike).toHaveBeenCalledTimes(2);
-    expect(mockLike).toHaveBeenCalledWith('dateipfad', 'org_org1/shared/%/__archive__/%');
-    expect(mockLike).toHaveBeenCalledWith('dateipfad', 'org_org1/private/test-user-123/__archive__/%');
+    // `_` of the literal parts is escaped, only the house level is a wildcard
+    expect(mockLike).toHaveBeenCalledWith('dateipfad', 'org\\_org1/shared/%/\\_\\_archive\\_\\_/%');
+    expect(mockLike).toHaveBeenCalledWith('dateipfad', 'org\\_org1/private/test-user-123/\\_\\_archive\\_\\_/%');
     expect(result.map((item) => item.path).sort()).toEqual([
       `org_org1/private/test-user-123/${ARCHIVE}/Notizen/n.md`,
       `org_org1/shared/house456/${ARCHIVE}/wohnung1/a.pdf`,
@@ -536,7 +541,7 @@ describe('Storage Service listArchivedFiles', () => {
   it('returns all houses for an unrestricted user', async () => {
     mockOrgScope(null);
     mockArchiveRows((pattern) =>
-      pattern.startsWith('org_org1/shared/')
+      pattern.startsWith('org\\_org1/shared/')
         ? [row(`org_org1/shared/house-a/${ARCHIVE}`, 'a.pdf'), row(`org_org1/shared/house-b/${ARCHIVE}`, 'b.pdf')]
         : [],
     );
@@ -549,7 +554,7 @@ describe('Storage Service listArchivedFiles', () => {
     const many = Array.from({ length: 1001 }, (_, index) =>
       row(`org_org1/shared/house-a/${ARCHIVE}/ordner`, `datei-${index}.pdf`, `id-${index}`),
     );
-    mockArchiveRows((pattern) => (pattern.startsWith('org_org1/shared/') ? many : []));
+    mockArchiveRows((pattern) => (pattern.startsWith('org\\_org1/shared/') ? many : []));
 
     expect(await listArchivedFiles('test-user-123')).toHaveLength(1001);
   });
@@ -558,5 +563,47 @@ describe('Storage Service listArchivedFiles', () => {
     mockOrgScope(null);
     await expect(listArchivedFiles('someone-else')).rejects.toThrow('Access denied');
     expect(mockLike).not.toHaveBeenCalled();
+  });
+});
+
+describe('Storage Service moveFolder', () => {
+  const FOLDER = 'org_org1/shared/house456/Foo';
+  let consoleLogSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'test-user-123' } }, error: null });
+    mockOrgScope(['house456']);
+    mockMove.mockResolvedValue({ error: null });
+    mockDownload.mockResolvedValue({ data: new Blob(['x']), error: null });
+    mockDefaultSingle = { data: { id: 'doc-1', dateiname: 'x.pdf', dateipfad: 'dir' }, error: null };
+  });
+
+  afterEach(() => {
+    consoleLogSpy.mockRestore();
+    mockDefaultSingle = { data: null, error: null };
+  });
+
+  it('moves exactly the files of the folder and its sub-folders, not those of a sibling with the same prefix', async () => {
+    // Rows of the sibling folders are delivered on purpose (a literal `*` in a name would let PostgREST match them)
+    mockOr.mockResolvedValue({
+      data: [
+        { dateipfad: FOLDER, dateiname: 'a.pdf' },
+        { dateipfad: `${FOLDER}/Sub`, dateiname: 'b.pdf' },
+        { dateipfad: `${FOLDER}bar`, dateiname: 'c.pdf' },
+        { dateipfad: `${FOLDER}_x/Sub`, dateiname: 'd.pdf' },
+      ],
+      error: null,
+    });
+
+    await moveFolder(FOLDER, 'org_org1/shared/house456/Bar');
+
+    expect(mockOr).toHaveBeenCalledWith(folderMetadataFilter(FOLDER));
+    expect(mockLike).not.toHaveBeenCalled();
+    expect(mockMove.mock.calls).toEqual([
+      [`${FOLDER}/a.pdf`, 'org_org1/shared/house456/Bar/a.pdf'],
+      [`${FOLDER}/Sub/b.pdf`, 'org_org1/shared/house456/Bar/Sub/b.pdf'],
+    ]);
   });
 });

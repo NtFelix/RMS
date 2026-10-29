@@ -12,6 +12,9 @@ import {
   archiveTimestamp,
   assertPathAllowed,
   childPath,
+  escapeLikePattern,
+  folderMetadataFilter,
+  isPathInFolder,
   parseArchivePath,
   parseStoragePath,
   privateRoot,
@@ -676,10 +679,14 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
       .from('Dokumente_Metadaten')
       .select('*')
       .eq('dateipfad', sourceDirectory)
-      .ilike('dateiname', fileName); // Case insensitive match
+      .ilike('dateiname', escapeLikePattern(fileName)); // Case insensitive match, `_` and `%` of the name stay literal
 
-    if (similarFiles && similarFiles.length > 0) {
-      const matchedFile = similarFiles[0];
+    // A literal `*` of the name would still act as a wildcard in PostgREST, so compare the rows exactly
+    const caseInsensitiveMatches = (similarFiles ?? []).filter(
+      (candidate) => candidate.dateiname.toLowerCase() === fileName.toLowerCase(),
+    );
+    if (caseInsensitiveMatches.length > 0) {
+      const matchedFile = caseInsensitiveMatches[0];
       fileName = matchedFile.dateiname;
       console.log('✅ Found file with case-insensitive match in DB:', fileName);
     } else {
@@ -1102,8 +1109,8 @@ export async function listArchivedFiles(userId: string): Promise<StorageObject[]
   };
 
   const [sharedRows, privateRows] = await Promise.all([
-    fetchAllRows(`${sharedRoot(ctx.orgId)}/%/${ARCHIVE_SEGMENT}/%`),
-    fetchAllRows(`${privateRoot(ctx.orgId, ctx.userId)}/${ARCHIVE_SEGMENT}/%`),
+    fetchAllRows(`${escapeLikePattern(sharedRoot(ctx.orgId))}/%/${escapeLikePattern(ARCHIVE_SEGMENT)}/%`),
+    fetchAllRows(`${escapeLikePattern(privateRoot(ctx.orgId, ctx.userId))}/${escapeLikePattern(ARCHIVE_SEGMENT)}/%`),
   ]);
 
   const accessibleHouses = ctx.accessibleHouseIds === null ? null : new Set(ctx.accessibleHouseIds);
@@ -1296,19 +1303,22 @@ async function getAllFilesInFolder(folderPath: string): Promise<Array<{ name: st
   const supabase = createClient();
 
   try {
-    // Query database for all files starting with the folder path
-    // We use the 'like' operator to match the folder path and any subfolders
-    const { data: files, error } = await supabase
+    // Query database for the files of exactly this folder and its sub-folders (no sibling with the same
+    // prefix, no LIKE wildcards from the name): moveFolder derives the relative path from the folder prefix
+    const { data: rows, error } = await supabase
       .from('Dokumente_Metadaten')
       .select('dateipfad, dateiname')
-      .like('dateipfad', `${folderPath}%`);
+      .or(folderMetadataFilter(folderPath));
 
     if (error) {
       console.warn(`Could not scan folder ${folderPath} from DB:`, error);
       return [];
     }
 
-    if (!files) return [];
+    if (!rows) return [];
+
+    // PostgREST turns a literal `*` of a LIKE value into a wildcard: the exact check is repeated on the rows
+    const files = rows.filter(file => isPathInFolder(file.dateipfad, folderPath));
 
     return files.map(file => ({
       name: file.dateiname,

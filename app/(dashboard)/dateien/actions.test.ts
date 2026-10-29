@@ -7,6 +7,7 @@ import {
 } from './actions';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
+import { folderMetadataFilter } from '@/lib/storage-paths';
 
 // Mock dependencies
 jest.mock('@/lib/supabase-server', () => ({
@@ -33,7 +34,7 @@ describe('dateien/actions', () => {
   };
   let mockQueryBuilder: {
     select: jest.Mock;
-    like: jest.Mock;
+    or: jest.Mock;
     eq: jest.Mock;
     single: jest.Mock;
     then: jest.Mock;
@@ -48,6 +49,7 @@ describe('dateien/actions', () => {
 
     mockQueryBuilder = {
       select: jest.fn().mockReturnThis(),
+      or: jest.fn().mockReturnThis(),
       like: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn(), // mockResolvedValue will be used on this
@@ -228,6 +230,32 @@ describe('dateien/actions', () => {
 
       expect(result).toEqual({ success: true });
       expect(mockStorageBuilder.remove).toHaveBeenCalled();
+    });
+
+    it('selects exactly the folder and its sub-folders and never removes a sibling with the same prefix', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user123' } },
+        error: null,
+      });
+      const folderPath = `org_${ORG_ID}/shared/${HAUS}/Rechnungen`;
+      // The sibling rows are returned on purpose, as a literal `*` in the name would let PostgREST match them
+      mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({
+        data: [
+          { dateipfad: folderPath, dateiname: 'a.pdf' },
+          { dateipfad: `${folderPath}/2024`, dateiname: 'b.pdf' },
+          { dateipfad: `${folderPath}2`, dateiname: 'c.pdf' },
+          { dateipfad: `${folderPath}_alt`, dateiname: 'd.pdf' },
+        ],
+        error: null,
+      }));
+      mockStorageBuilder.remove.mockResolvedValue({ error: null });
+
+      const result = await deleteFolder('user123', folderPath);
+
+      expect(result).toEqual({ success: true });
+      expect(mockQueryBuilder.or).toHaveBeenCalledWith(folderMetadataFilter(folderPath));
+      expect(mockQueryBuilder.like).not.toHaveBeenCalled();
+      expect(mockStorageBuilder.remove).toHaveBeenNthCalledWith(1, [`${folderPath}/a.pdf`, `${folderPath}/2024/b.pdf`]);
     });
 
     it('should return error if user not authenticated', async () => {

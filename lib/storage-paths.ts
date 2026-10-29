@@ -338,3 +338,37 @@ export function isOwnLegacyPath(path: string, userId: string): boolean {
     return false;
   }
 }
+
+/**
+ * Escapes `\`, `%` and `_` so that the string only matches itself in a LIKE pattern
+ * (Postgres default escape character is the backslash).
+ * Note: PostgREST additionally turns a literal `*` of a like/ilike value into `%` and offers no escape for
+ * it, so callers that need an exact set also filter the rows afterwards (see isPathInFolder).
+ */
+export function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+/** Quotes a value for a PostgREST logic filter (`.or()`): reserved characters such as `,` `.` `(` `)` stay literal */
+function quotePostgrestValue(value: string): string {
+  return `"${value.replace(/[\\"]/g, (char) => `\\${char}`)}"`;
+}
+
+/**
+ * Filter string for `.or()` on Dokumente_Metadaten that selects exactly the files of a folder and of
+ * its sub-folders: `dateipfad = folder OR dateipfad LIKE 'folder/%'`. A plain `LIKE 'folder%'` would also
+ * match sibling folders (`Rechnungen` -> `Rechnungen2`), and `%`/`_` in the folder name would act as wildcards.
+ */
+export function folderMetadataFilter(folderPath: string, column = 'dateipfad'): string {
+  const folder = folderPath.replace(/\/+$/, '');
+  return [
+    `${column}.eq.${quotePostgrestValue(folder)}`,
+    `${column}.like.${quotePostgrestValue(`${escapeLikePattern(folder)}/%`)}`,
+  ].join(',');
+}
+
+/** True if `dateipfad` is the folder itself or lies below it (exact check, no wildcards) */
+export function isPathInFolder(dateipfad: string, folderPath: string): boolean {
+  const folder = folderPath.replace(/\/+$/, '');
+  return dateipfad === folder || dateipfad.startsWith(`${folder}/`);
+}

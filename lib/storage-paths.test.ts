@@ -6,7 +6,10 @@ import {
   parseArchivePath,
   assertPathAllowed,
   childPath,
+  escapeLikePattern,
+  folderMetadataFilter,
   isArchivePath,
+  isPathInFolder,
   orgIdOfPath,
   orgRootOfPath,
   privateRoot,
@@ -381,5 +384,91 @@ describe('archive paths', () => {
   it('returns null for invalid archive timestamps', () => {
     expect(archiveTimestampToDate('')).toBeNull();
     expect(archiveTimestampToDate('not-a-timestamp')).toBeNull();
+  });
+});
+
+describe('escapeLikePattern / folderMetadataFilter / isPathInFolder', () => {
+  /** Reads `col.op."value",col.op."value"` the way PostgREST does (quoted values, backslash escapes) */
+  function parseOrFilter(filter: string): Array<{ op: string; value: string }> {
+    const conditions: Array<{ op: string; value: string }> = [];
+    let rest = filter;
+    while (rest.length > 0) {
+      const match = /^[a-z_]+\.([a-z]+)\."((?:[^"\\]|\\.)*)"(?:,|$)/.exec(rest);
+      if (!match) throw new Error(`Not a valid or-filter: ${rest}`);
+      conditions.push({ op: match[1], value: match[2].replace(/\\(.)/g, '$1') });
+      rest = rest.slice(match[0].length);
+    }
+    return conditions;
+  }
+
+  /** LIKE with the default escape character `\` */
+  function sqlLike(value: string, pattern: string): boolean {
+    let source = '';
+    for (let i = 0; i < pattern.length; i++) {
+      const char = pattern[i];
+      if (char === '\\') source += pattern[++i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      else if (char === '%') source += '[\\s\\S]*';
+      else if (char === '_') source += '[\\s\\S]';
+      else source += char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    return new RegExp(`^${source}$`).test(value);
+  }
+
+  /** What the database returns for `.or(folderMetadataFilter(folder))` */
+  function selected(folder: string, paths: string[]): string[] {
+    const conditions = parseOrFilter(folderMetadataFilter(folder));
+    return paths.filter((path) =>
+      conditions.some(({ op, value }) => (op === 'eq' ? path === value : sqlLike(path, value))),
+    );
+  }
+
+  const BASE = 'org_org-1/shared/haus-a';
+
+  it('escapes the LIKE wildcards and the escape character', () => {
+    expect(escapeLikePattern('a_b%c\\d')).toBe('a\\_b\\%c\\\\d');
+    expect(escapeLikePattern('plain')).toBe('plain');
+  });
+
+  it('selects the folder and its sub-folders, but no sibling with the same prefix', () => {
+    const paths = [
+      `${BASE}/Foo`,
+      `${BASE}/Foo/Sub`,
+      `${BASE}/Foo/Sub/Deep`,
+      `${BASE}/Foobar`,
+      `${BASE}/Foo_x`,
+      `${BASE}/Foo-alt/Sub`,
+      `${BASE}/Fo`,
+    ];
+    expect(selected(`${BASE}/Foo`, paths)).toEqual([`${BASE}/Foo`, `${BASE}/Foo/Sub`, `${BASE}/Foo/Sub/Deep`]);
+  });
+
+  it('does not treat _ in the folder name as a wildcard', () => {
+    const paths = [`${BASE}/Foo_x`, `${BASE}/Foo_x/Sub`, `${BASE}/FooAx`, `${BASE}/FooAx/Sub`];
+    expect(selected(`${BASE}/Foo_x`, paths)).toEqual([`${BASE}/Foo_x`, `${BASE}/Foo_x/Sub`]);
+  });
+
+  it('does not treat % in the folder name as a wildcard', () => {
+    const paths = [`${BASE}/100%`, `${BASE}/100%/Sub`, `${BASE}/100 Prozent`, `${BASE}/100 Prozent/Sub`, `${BASE}/100`];
+    expect(selected(`${BASE}/100%`, paths)).toEqual([`${BASE}/100%`, `${BASE}/100%/Sub`]);
+  });
+
+  it('quotes reserved filter characters (comma, dot, parentheses, quote, backslash)', () => {
+    const folder = `${BASE}/A, "B" (1).v2\\x`;
+    const filter = folderMetadataFilter(folder);
+    expect(parseOrFilter(filter)).toHaveLength(2);
+    expect(selected(folder, [folder, `${folder}/Sub`, `${BASE}/A`])).toEqual([folder, `${folder}/Sub`]);
+  });
+
+  it('ignores a trailing slash and supports another column', () => {
+    expect(folderMetadataFilter(`${BASE}/Foo/`)).toBe(folderMetadataFilter(`${BASE}/Foo`));
+    expect(folderMetadataFilter('a', 'pfad')).toBe('pfad.eq."a",pfad.like."a/%"');
+  });
+
+  it('isPathInFolder is the exact check used on the returned rows (also covers a literal *)', () => {
+    expect(isPathInFolder(`${BASE}/Foo`, `${BASE}/Foo`)).toBe(true);
+    expect(isPathInFolder(`${BASE}/Foo/Sub`, `${BASE}/Foo`)).toBe(true);
+    expect(isPathInFolder(`${BASE}/Foobar`, `${BASE}/Foo`)).toBe(false);
+    expect(isPathInFolder(`${BASE}/Foo_x`, `${BASE}/Foo`)).toBe(false);
+    expect(isPathInFolder(`${BASE}/FooX/Sub`, `${BASE}/Foo*`)).toBe(false);
   });
 });
