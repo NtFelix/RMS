@@ -43,10 +43,14 @@ export function resolveSegmentLabel(segment: string, index: number): string {
   return segment
 }
 
+/** Apartment and tenant folders are named after their database id */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /**
- * Breadcrumbs derived from a storage path without a server round trip.
- * Zone segments are shown with their labels; house, apartment and tenant
- * levels fall back to the segment itself until the RPC provides names.
+ * Breadcrumbs derived from a storage path without a server round trip. Only used if the RPC delivers
+ * none. Zone segments are shown with their labels; house, apartment and tenant levels show the segment
+ * itself (the id) because the names are only known to the RPC. Only a UUID segment at the apartment/tenant
+ * level is typed as apartment/tenant, folders like `house_documents` or `Rechnungen` are categories.
  */
 export function buildFallbackBreadcrumbs(path: string): StorageBreadcrumb[] {
   const root = orgRootOfPath(path)
@@ -62,10 +66,11 @@ export function buildFallbackBreadcrumbs(path: string): StorageBreadcrumb[] {
   let current = root
   segments.forEach((segment, index) => {
     current = `${current}/${segment}`
+    const isId = UUID_PATTERN.test(segment)
     const type: StorageBreadcrumb['type'] =
       isShared && index === 1 ? 'house'
-      : isShared && index === 2 ? 'apartment'
-      : isShared && index === 3 ? 'tenant'
+      : isShared && index === 2 && isId ? 'apartment'
+      : isShared && index === 3 && isId && UUID_PATTERN.test(segments[2]) ? 'tenant'
       : 'category'
     breadcrumbs.push({ name: resolveSegmentLabel(segment, index), path: current, type })
   })

@@ -145,4 +145,27 @@ describe('useCloudStorageNavigation', () => {
     expect(loadFilesForPath).toHaveBeenCalledWith('org_org-1/shared/house-1')
     expect(result.current.currentPath).toBe('org_org-1/shared/house-1')
   })
+
+  it('keeps the breadcrumbs of the RPC for the directory and uses the fallback only without them', async () => {
+    const { result } = renderHook(() => useCloudStorageNavigationStore())
+    const rpcBreadcrumbs = [
+      { name: 'Cloud Storage', path: 'org_org-1', type: 'root' },
+      { name: 'Haus Eins', path: 'org_org-1/shared/house-1', type: 'house' },
+    ]
+    ;(loadFilesForPath as jest.Mock).mockResolvedValueOnce({
+      files: [], folders: [], breadcrumbs: rpcBreadcrumbs, totalSize: 0, error: null,
+    })
+
+    await act(async () => {
+      await result.current.navigateToPath('org_org-1/shared/house-1', { force: true })
+    })
+    expect(result.current.getCachedDirectory('org_org-1/shared/house-1')?.breadcrumbs).toEqual(rpcBreadcrumbs)
+
+    // The default mock has no breadcrumbs: derived from the path
+    await act(async () => {
+      await result.current.navigateToPath('org_org-1/shared/house-2/house_documents', { force: true })
+    })
+    const fallback = result.current.getCachedDirectory('org_org-1/shared/house-2/house_documents')?.breadcrumbs
+    expect(fallback?.map((crumb) => crumb.type)).toEqual(['root', 'category', 'house', 'category'])
+  })
 })

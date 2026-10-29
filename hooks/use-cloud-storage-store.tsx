@@ -179,13 +179,15 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       try {
         // Use server action to load files for the new path (the user is the one of the session)
         const { loadFilesForPath } = await import('@/app/(dashboard)/dateien/actions')
-        const { files, folders, error } = await loadFilesForPath(path)
+        const { files, folders, breadcrumbs: rpcBreadcrumbs, error } = await loadFilesForPath(path)
 
         if (error) {
           throw new Error(error)
         }
 
-        const breadcrumbs = buildFallbackBreadcrumbs(path)
+        // The RPC knows the names of houses, apartments and tenants: the path-derived fallback only
+        // applies if it delivered no breadcrumbs
+        const breadcrumbs = rpcBreadcrumbs?.length ? rpcBreadcrumbs : buildFallbackBreadcrumbs(path)
 
         set((state) => {
           state.files = files

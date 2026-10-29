@@ -431,6 +431,37 @@ describe('Server actions without a user id', () => {
 
     expect(mockDeleteFolder).toHaveBeenCalledWith(`${PATH}/Ordner`)
   })
+
+  it('navigateToPath adopts the breadcrumbs of the RPC (names instead of ids)', async () => {
+    const rpcBreadcrumbs: BreadcrumbItem[] = [
+      { name: 'Cloud Storage', path: 'org_org-1', type: 'root' },
+      { name: 'Haus Eins', path: PATH, type: 'house' },
+    ]
+    mockLoadFilesForPath.mockResolvedValue({ files: [], folders: [], breadcrumbs: rpcBreadcrumbs, totalSize: 0 })
+
+    await act(async () => {
+      await useCloudStorageStore.getState().navigateToPath(PATH)
+    })
+
+    expect(useCloudStorageStore.getState().breadcrumbs).toEqual(rpcBreadcrumbs)
+  })
+
+  it('navigateToPath falls back to path-derived breadcrumbs only if the RPC delivers none', async () => {
+    mockLoadFilesForPath.mockResolvedValue({ files: [], folders: [], breadcrumbs: [], totalSize: 0 })
+
+    await act(async () => {
+      await useCloudStorageStore.getState().navigateToPath(`${PATH}/house_documents`)
+    })
+
+    const breadcrumbs = useCloudStorageStore.getState().breadcrumbs
+    expect(breadcrumbs.map((crumb) => crumb.path)).toEqual([
+      'org_org-1',
+      'org_org-1/shared',
+      PATH,
+      `${PATH}/house_documents`,
+    ])
+    expect(breadcrumbs[3].type).toBe('category')
+  })
 })
 
 describe('Selector Hooks', () => {
