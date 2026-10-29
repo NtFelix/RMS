@@ -8,6 +8,7 @@ import {
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { folderMetadataFilter } from '@/lib/storage-paths';
+import { getAccessibleHaeuserIds } from '@/lib/object-scope';
 
 // Mock dependencies
 jest.mock('@/lib/supabase-server', () => ({
@@ -20,6 +21,7 @@ jest.mock('next/navigation', () => ({
 
 const ORG_ID = 'org1';
 const HAUS = 'haus-a';
+const FOLDER_PATH = `org_${ORG_ID}/shared/${HAUS}/folder`;
 let mockFolderRpcResult: { data: unknown; error: unknown } = { data: null, error: null };
 function mockFolderRpc(result: { data: unknown; error: unknown }) {
   mockFolderRpcResult = result;
@@ -114,7 +116,7 @@ describe('dateien/actions', () => {
 
       mockFolderRpc({ data: mockData, error: null });
 
-      const result = await getFolderContents('user123', 'path/to/folder');
+      const result = await getFolderContents('user123', FOLDER_PATH);
 
       expect(result).toEqual({
         files: mockData.files,
@@ -123,7 +125,7 @@ describe('dateien/actions', () => {
         totalSize: mockData.totalSize,
       });
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-        p_current_path: 'path/to/folder',
+        p_current_path: FOLDER_PATH,
       });
     });
 
@@ -135,9 +137,35 @@ describe('dateien/actions', () => {
 
       mockFolderRpc({ data: null, error: { message: 'RPC error' } });
 
-      const result = await getFolderContents('user123', 'path/to/folder');
+      const result = await getFolderContents('user123', FOLDER_PATH);
 
       expect(result.error).toContain('Fehler beim Laden der Ordnerinhalte');
+    });
+
+    it('refuses a path outside the organisation, a foreign private folder and a house outside the scope', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null });
+      const denied = {
+        files: [], folders: [], breadcrumbs: [], totalSize: 0, error: 'Ungültiger Pfad',
+      };
+
+      expect(await getFolderContents('user123', 'path/to/folder')).toEqual(denied);
+      expect(await getFolderContents('user123', 'org_andere-org/shared/haus-a')).toEqual(denied);
+      expect(await getFolderContents('user123', `org_${ORG_ID}/private/other/path`)).toEqual(denied);
+      // Scope of the next call: only haus-b
+      (getAccessibleHaeuserIds as jest.Mock).mockResolvedValueOnce(['haus-b']);
+      expect(await getFolderContents('user123', FOLDER_PATH)).toEqual(denied);
+      expect(mockSupabase.rpc).not.toHaveBeenCalledWith('get_folder_contents', expect.anything());
+    });
+
+    it('loads the organisation root without a path and does not check anything else', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null });
+      mockFolderRpc({ data: { files: [], folders: [], breadcrumbs: [], totalSize: 0, error: null }, error: null });
+
+      const result = await getFolderContents('user123');
+
+      expect(result.error).toBeUndefined();
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', { p_current_path: `org_${ORG_ID}` });
+      expect(getAccessibleHaeuserIds).not.toHaveBeenCalled();
     });
 
     it('should redirect if user is invalid', async () => {
@@ -147,7 +175,7 @@ describe('dateien/actions', () => {
       });
 
       try {
-        await getFolderContents('user123', 'path/to/folder');
+        await getFolderContents('user123', FOLDER_PATH);
       } catch (e) {
         // redirect throws
       }
@@ -168,9 +196,9 @@ describe('dateien/actions', () => {
         }, error: null
       });
 
-      await getPathContents('user123', 'path');
+      await getPathContents('user123', FOLDER_PATH);
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-        p_current_path: 'path',
+        p_current_path: FOLDER_PATH,
       });
     });
   });
@@ -196,10 +224,12 @@ describe('dateien/actions', () => {
         }, error: null
       });
 
-      await loadFilesForPath('user123', `org_${ORG_ID}/private/user123/path`);
+      await loadFilesForPath('user123', `org_${ORG_ID}/shared/${HAUS}/path`);
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-        p_current_path: `org_${ORG_ID}/private/user123/path`,
+        p_current_path: `org_${ORG_ID}/shared/${HAUS}/path`,
       });
+      // The path is checked once (in getFolderContents), not a second time in the wrapper
+      expect(getAccessibleHaeuserIds).toHaveBeenCalledTimes(1);
     });
   });
 

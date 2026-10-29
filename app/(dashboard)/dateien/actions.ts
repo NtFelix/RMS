@@ -120,6 +120,22 @@ export async function getFolderContents(userId: string, path?: string): Promise<
             redirect('/auth/login')
         }
 
+        // Validate that the path belongs to the active organisation and an accessible house (the single
+        // access check of all folder loads, loadFilesForPath goes through here). Without a path the
+        // organisation root is loaded, which is derived from the active organisation below.
+        if (path) {
+            const accessError = await checkStoragePathAccess(supabase, user.id, path, { allowLegacyOwnRead: true })
+            if (accessError) {
+                return {
+                    files: [],
+                    folders: [],
+                    breadcrumbs: [],
+                    totalSize: 0,
+                    error: 'Ungültiger Pfad'
+                }
+            }
+        }
+
         const orgId = await getActiveOrgId(supabase)
         if (!orgId) {
             return {
@@ -218,19 +234,7 @@ export async function getPathContents(userId: string, path?: string): Promise<Fo
  * Used by: use-cloud-storage-store.tsx, use-cloud-storage-navigation.tsx
  */
 export async function loadFilesForPath(userId: string, path: string): Promise<FolderContentsResult> {
-    // Validate that the path belongs to the active organisation and an accessible house
-    const { user, supabase } = await ensureAuth()
-    const accessError = user.id === userId ? await checkStoragePathAccess(supabase, userId, path, { allowLegacyOwnRead: true }) : 'Nicht authentifiziert'
-    if (accessError) {
-        return {
-            files: [],
-            folders: [],
-            breadcrumbs: [],
-            totalSize: 0,
-            error: 'Ungültiger Pfad'
-        }
-    }
-
+    // The path check (organisation and house scope) is part of getFolderContents
     return getFolderContents(userId, path)
 }
 
