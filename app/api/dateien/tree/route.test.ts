@@ -160,4 +160,29 @@ describe('GET /api/dateien/tree', () => {
 
     expect(children.map((c) => c.path)).toEqual([HOUSE_PATH])
   })
+
+  it('lists only the own folder at the private root, never the folders (user ids) of other members', async () => {
+    // A storage listing of `private` would show the folders of all members: it must not be read at all
+    mockList.mockResolvedValue({ data: [folder(USER_ID), folder('88888888-8888-4888-8888-888888888888')] })
+
+    const children = await childrenOf(`org_${ORG_ID}/private`)
+
+    expect(children).toEqual([
+      expect.objectContaining({ path: `org_${ORG_ID}/private/${USER_ID}`, name: 'Meine Dateien', displayName: 'Meine Dateien' }),
+    ])
+    expect(mockList).not.toHaveBeenCalled()
+  })
+
+  it('returns nothing for the private folder of another user', async () => {
+    expect(await childrenOf(`org_${ORG_ID}/private/88888888-8888-4888-8888-888888888888`)).toEqual([])
+    expect(mockList).not.toHaveBeenCalled()
+  })
+
+  it('lists the own private folder from storage, with the archive node first', async () => {
+    mockList.mockResolvedValue({ data: [folder('Notizen'), file('a.md')] })
+
+    const children = await childrenOf(`org_${ORG_ID}/private/${USER_ID}`)
+
+    expect(children.map((c) => c.name)).toEqual(['Archiv', 'Notizen'])
+  })
 })

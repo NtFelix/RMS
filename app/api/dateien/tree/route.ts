@@ -4,7 +4,7 @@ import { unstable_rethrow } from 'next/navigation'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 import { getAccessibleHaeuserIds } from '@/lib/object-scope'
 import { getActiveOrgId } from '@/lib/storage-access'
-import { STORAGE_ROOT_LABEL, SYSTEM_FOLDER_LABELS, ZONE_LABELS } from '@/lib/storage-navigation'
+import { OWN_PRIVATE_FOLDER_LABEL, STORAGE_ROOT_LABEL, SYSTEM_FOLDER_LABELS, ZONE_LABELS } from '@/lib/storage-navigation'
 import {
   assertPathAllowed,
   ARCHIVE_SEGMENT,
@@ -145,6 +145,13 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
       folderNode(sharedPath(orgId, h.id), h.name || h.id, h.name || undefined),
     )
     return sortNodes(nodes)
+  }
+
+  // Private zone root: the storage listing of `private` holds the folders of all members (their user ids).
+  // Only the own folder is shown, never a foreign one.
+  if (parsed.zone === 'private' && parsed.userId === undefined) {
+    const ownPath = privateRoot(orgId, ctx.userId)
+    return [folderNode(ownPath, OWN_PRIVATE_FOLDER_LABEL, OWN_PRIVATE_FOLDER_LABEL)]
   }
 
   // House folder: Hausdokumente always, apartments from the database, additional custom folders from storage

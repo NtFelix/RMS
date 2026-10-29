@@ -15,6 +15,9 @@ export const ZONE_LABELS: Record<string, string> = {
   private: 'Privat',
 }
 
+/** Label of the own private folder `private/{userId}`, shown where the raw user ids must not appear */
+export const OWN_PRIVATE_FOLDER_LABEL = 'Meine Dateien'
+
 /** UI labels of the system folders below a house or apartment */
 export const SYSTEM_FOLDER_LABELS: Record<string, string> = {
   house_documents: 'Hausdokumente',
