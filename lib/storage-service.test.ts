@@ -12,6 +12,9 @@ import {
   createPlaceholder,
   getFileUrl,
   storageService,
+  archiveFile,
+  restoreFile,
+  permanentlyDeleteFile,
 } from './storage-service';
 
 // Mock functions
@@ -22,6 +25,8 @@ const mockMove = jest.fn();
 const mockRemove = jest.fn();
 const mockCreateSignedUrl = jest.fn();
 const mockGetUser = jest.fn();
+const mockRpc = jest.fn();
+let mockDefaultSingle: { data: unknown; error: unknown } = { data: null, error: null };
 const mockSelect = jest.fn();
 const mockInsert = jest.fn();
 const mockUpdate = jest.fn();
@@ -52,7 +57,7 @@ jest.mock('@/utils/supabase/client', () => ({
     mockInsert.mockReturnValue(queryBuilder);
     mockUpdate.mockReturnValue(queryBuilder);
     mockEq.mockReturnValue(queryBuilder);
-    mockSingle.mockReturnValue(Promise.resolve({ data: null, error: null }));
+    mockSingle.mockReturnValue(Promise.resolve(mockDefaultSingle));
     mockOrder.mockReturnValue(queryBuilder);
     mockLimit.mockReturnValue(queryBuilder);
     mockRange.mockReturnValue(Promise.resolve({ data: [], error: null }));
@@ -61,6 +66,7 @@ jest.mock('@/utils/supabase/client', () => ({
       auth: {
         getUser: mockGetUser
       },
+      rpc: mockRpc,
       storage: {
         from: jest.fn(() => ({
           upload: mockUpload,
@@ -86,6 +92,14 @@ jest.mock('./path-utils', () => ({
   isUserPath: jest.fn(() => true)
 }));
 
+function mockOrgScope(houseIds: string[] | null = null) {
+  mockRpc.mockImplementation((name: string) => {
+    if (name === 'current_organisation_id') return Promise.resolve({ data: 'org1', error: null });
+    if (name === 'get_accessible_haeuser_ids') return Promise.resolve({ data: houseIds, error: null });
+    return Promise.resolve({ data: null, error: null });
+  });
+}
+
 describe('Storage Service', () => {
   // Mock console methods to suppress logs during tests
   let consoleLogSpy: jest.SpyInstance;
@@ -109,6 +123,7 @@ describe('Storage Service', () => {
       data: { user: { id: 'test-user-123' } },
       error: null
     });
+    mockOrgScope(null);
 
     mockUpload.mockResolvedValue({
       data: { path: 'test-path' },
@@ -343,5 +358,64 @@ describe('Storage Service', () => {
       expect(storageService.createPlaceholder).toBeDefined();
       expect(storageService.getFileUrl).toBeDefined();
     });
+  });
+});
+
+describe('Storage Service archive (zone layout)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'test-user-123' } }, error: null });
+    mockOrgScope(['house456']);
+    mockMove.mockResolvedValue({ error: null });
+    // moveFile looks up the source file in Dokumente_Metadaten first
+    mockDefaultSingle = { data: { id: 'doc-1', dateiname: 'x.pdf', dateipfad: 'dir' }, error: null };
+  });
+
+  afterEach(() => {
+    mockDefaultSingle = { data: null, error: null };
+  });
+
+  it('archives a shared file inside the house zone', async () => {
+    const archived = await archiveFile('org_org1/shared/house456/wohnung1/x.pdf');
+    expect(archived).toMatch(/^org_org1\/shared\/house456\/__archive__\/[^/]+\/wohnung1\/x\.pdf$/);
+    expect(mockMove).toHaveBeenCalledWith('org_org1/shared/house456/wohnung1/x.pdf', archived);
+  });
+
+  it('archives a private file inside the private zone', async () => {
+    const archived = await archiveFile('org_org1/private/test-user-123/Notizen/a.md');
+    expect(archived).toMatch(/^org_org1\/private\/test-user-123\/__archive__\/[^/]+\/Notizen\/a\.md$/);
+  });
+
+  it('refuses to archive a file in a house the user cannot access', async () => {
+    mockOrgScope(['other-house']);
+    await expect(archiveFile('org_org1/shared/house456/wohnung1/x.pdf')).rejects.toThrow();
+    expect(mockMove).not.toHaveBeenCalled();
+  });
+
+  it('restores an archived file to its original path', async () => {
+    await restoreFile('org_org1/shared/house456/__archive__/2026-10-29T10-00-00-000Z/wohnung1/x.pdf');
+    expect(mockMove).toHaveBeenCalledWith(
+      'org_org1/shared/house456/__archive__/2026-10-29T10-00-00-000Z/wohnung1/x.pdf',
+      'org_org1/shared/house456/wohnung1/x.pdf',
+    );
+  });
+
+  it('rejects restore of a path that is not in an archive', async () => {
+    await expect(restoreFile('org_org1/shared/house456/wohnung1/x.pdf')).rejects.toThrow('File is not in archive');
+    expect(mockMove).not.toHaveBeenCalled();
+  });
+
+  it('permanently deletes only archived files', async () => {
+    await expect(permanentlyDeleteFile('org_org1/shared/house456/wohnung1/x.pdf')).rejects.toThrow(
+      'Can only permanently delete files from archive',
+    );
+    mockRemove.mockResolvedValue({ error: null });
+    await permanentlyDeleteFile('org_org1/shared/house456/__archive__/2026-10-29T10-00-00-000Z/wohnung1/x.pdf');
+    expect(mockRemove).toHaveBeenCalledWith(['org_org1/shared/house456/__archive__/2026-10-29T10-00-00-000Z/wohnung1/x.pdf']);
+  });
+
+  it('refuses legacy user_ paths', async () => {
+    await expect(archiveFile('user_test-user-123/haus/x.pdf')).rejects.toThrow();
+    expect(mockMove).not.toHaveBeenCalled();
   });
 });

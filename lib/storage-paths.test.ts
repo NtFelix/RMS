@@ -1,4 +1,7 @@
 import {
+  archivePathFor,
+  isOwnLegacyPath,
+  parseArchivePath,
   assertPathAllowed,
   orgIdOfPath,
   orgRootOfPath,
@@ -191,5 +194,49 @@ describe('assertPathAllowed', () => {
 
   it('allows the org root for any member', () => {
     expect(() => assertPathAllowed(`org_${ORG}`, noHouses)).not.toThrow();
+  });
+});
+
+describe('archive paths', () => {
+  const TS = '2026-10-29T10-00-00';
+
+  it('puts the archive of a shared file inside the house zone', () => {
+    expect(archivePathFor(`org_${ORG}/shared/${HOUSE_A}/wohnung-1/Rechnungen/x.pdf`, TS)).toBe(
+      `org_${ORG}/shared/${HOUSE_A}/__archive__/${TS}/wohnung-1/Rechnungen/x.pdf`,
+    );
+  });
+
+  it('puts the archive of a private file inside the private zone', () => {
+    expect(archivePathFor(`org_${ORG}/private/${USER}/Notizen/a.md`, TS)).toBe(
+      `org_${ORG}/private/${USER}/__archive__/${TS}/Notizen/a.md`,
+    );
+  });
+
+  it('round-trips through parseArchivePath', () => {
+    const archived = archivePathFor(`org_${ORG}/shared/${HOUSE_A}/wohnung-1/x.pdf`, TS);
+    expect(parseArchivePath(archived)).toEqual({
+      originalPath: `org_${ORG}/shared/${HOUSE_A}/wohnung-1/x.pdf`,
+      timestamp: TS,
+    });
+  });
+
+  it('returns null for non-archive paths', () => {
+    expect(parseArchivePath(`org_${ORG}/shared/${HOUSE_A}/wohnung-1`)).toBeNull();
+    expect(parseArchivePath(`org_${ORG}/private/${USER}/x`)).toBeNull();
+  });
+
+  it('refuses zone roots, house folders, legacy and already archived paths', () => {
+    expect(() => archivePathFor(`org_${ORG}/shared/${HOUSE_A}`, TS)).toThrow(StoragePathError);
+    expect(() => archivePathFor(`org_${ORG}/shared`, TS)).toThrow(StoragePathError);
+    expect(() => archivePathFor(`user_${USER}/haus/x`, TS)).toThrow(StoragePathError);
+    expect(() => archivePathFor(`org_${ORG}/shared/${HOUSE_A}/__archive__/${TS}/x`, TS)).toThrow(StoragePathError);
+    expect(() => archivePathFor(`org_${ORG}/shared/${HOUSE_A}/x`, '../evil')).toThrow(StoragePathError);
+  });
+
+  it('allows the owner to read a legacy user_ path only', () => {
+    expect(isOwnLegacyPath(`user_${USER}/haus/x.pdf`, USER)).toBe(true);
+    expect(isOwnLegacyPath(`user_${USER}/haus/x.pdf`, 'other')).toBe(false);
+    expect(isOwnLegacyPath(`org_${ORG}/private/${USER}/x`, USER)).toBe(false);
+    expect(isOwnLegacyPath('user_/x', USER)).toBe(false);
   });
 });

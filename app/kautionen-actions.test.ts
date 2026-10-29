@@ -11,6 +11,7 @@
 
 import { revalidatePath } from "next/cache";
 import { ensureAuth } from "@/lib/auth-utils";
+import { getAccessibleHaeuserIds } from "@/lib/object-scope";
 import { hasPermission } from "@/lib/permissions";
 import { logAction } from "@/lib/logging-middleware";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
@@ -51,7 +52,12 @@ const SCHLUESSEL = "44444444-4444-4444-8444-444444444444";
 const RATE_ID = "66666666-6666-4666-8666-666666666666";
 const SCOPE_RPC = "kautionen_pruefe_objektzugriff";
 const DOKUMENT_ID = "99999999-9999-4999-8999-999999999999";
-const MUSTER_PFAD = "user_muster/haus/wohnung/mieter";
+const MUSTER_ORG = "33333333-3333-4333-8333-333333333333";
+const MUSTER_HAUS = "55555555-5555-4555-8555-555555555555";
+const MUSTER_PFAD = `org_${MUSTER_ORG}/shared/${MUSTER_HAUS}/66666666-6666-4666-8666-666666666666/11111111-1111-4111-8111-111111111111`;
+/** Legacy receipt of the signed-in user (`user-1`, see the auth mock) and of another user. */
+const ALTER_PFAD_EIGEN = "user_user-1/haus/wohnung/mieter";
+const ALTER_PFAD_FREMD = "user_muster/haus/wohnung/mieter";
 const BELEG_ROW = { dateipfad: MUSTER_PFAD, dateiname: "1765000000000_Muster-Beleg.pdf", mime_type: "application/pdf", dateigroesse: 2048 };
 const SIGNED_URL = "https://storage.example.invalid/documents/muster-beleg?token=muster";
 /** Synthetic settlement as `get_kaution_abrechnung` returns it (phase 4). */
@@ -94,7 +100,11 @@ const mockFrom = jest.fn(() => ({
 }));
 const mockSupabase = {
   from: mockFrom,
-  rpc: (name: string, args: unknown) => (name === SCOPE_RPC ? mockScopeRpc(args) : mockRpc(name, args)),
+  rpc: (name: string, args: unknown) => {
+    // Active organisation for the storage-path check (the house scope is the mocked object-scope helper)
+    if (name === "current_organisation_id") return Promise.resolve({ data: MUSTER_ORG, error: null });
+    return name === SCOPE_RPC ? mockScopeRpc(args) : mockRpc(name, args);
+  },
   storage: {
     from: (bucket: string) => ({
       createSignedUrl: (...args: unknown[]) => mockCreateSignedUrl(bucket, ...args),
@@ -1897,6 +1907,34 @@ describe("getKautionBelegUrlAction", () => {
     expect(mockLogAction).not.toHaveBeenCalled();
   });
 
+  it("liest einen Legacy-Beleg (user_…) nur für den eigenen Hochlader; Link aus den gespeicherten Metadaten, nicht neu gebaut", async () => {
+    rpcOk({ ...BELEG_ROW, dateipfad: ALTER_PFAD_EIGEN });
+
+    const result = await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
+
+    expect(result).toEqual({ success: true, data: { url: SIGNED_URL } });
+    expect(mockCreateSignedUrl).toHaveBeenCalledWith("documents", `${ALTER_PFAD_EIGEN}/1765000000000_Muster-Beleg.pdf`, 300, expect.any(Object));
+  });
+
+  it("verweigert einen Legacy-Beleg eines anderen Nutzers wie einen nicht sichtbaren Beleg (KA003), ohne Link", async () => {
+    rpcOk({ ...BELEG_ROW, dateipfad: ALTER_PFAD_FREMD });
+
+    const result = await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
+
+    expect(result.error?.code).toBe("KA003");
+    expect(mockCreateSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("verweigert einen Beleg in einem Haus außerhalb des Haus-Scopes (KA003), ohne Link", async () => {
+    rpcOk(BELEG_ROW);
+    (getAccessibleHaeuserIds as jest.Mock).mockResolvedValueOnce(["99999999-0000-4000-8000-000000000000"]);
+
+    const result = await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
+
+    expect(result.error?.code).toBe("KA003");
+    expect(mockCreateSignedUrl).not.toHaveBeenCalled();
+  });
+
   it("gibt KA003 zurück, wenn der Beleg nicht verknüpft oder nicht sichtbar ist (NULL)", async () => {
     rpcOk(null);
 
@@ -1921,12 +1959,12 @@ describe("getKautionBelegUrlAction", () => {
     const result = await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
 
     expect(result).toEqual({ success: false, error: { message: KAUTION_FEHLER_FALLBACK_MESSAGE } });
-    expect(JSON.stringify(result)).not.toContain("user_muster");
-    expect(JSON.stringify(mockLogAction.mock.calls)).not.toContain("user_muster");
+    expect(JSON.stringify(result)).not.toContain(MUSTER_ORG);
+    expect(JSON.stringify(mockLogAction.mock.calls)).not.toContain(MUSTER_ORG);
     expect(mockLogAction).toHaveBeenCalledWith("getKautionBelegUrl", "error", {});
   });
 
-  it("has no object scope pre-check: the database RPC decides the access", async () => {
+  it("uses the database RPC for the receipt; the object scope is the stored-path check, not the mieter scope RPC", async () => {
     rpcOk(BELEG_ROW);
 
     await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
