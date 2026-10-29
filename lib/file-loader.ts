@@ -9,6 +9,7 @@
  */
 
 import type { StorageObject, VirtualFolder, BreadcrumbItem } from '@/hooks/use-cloud-storage-store'
+import { orgIdOfPath, orgRoot, orgRootOfPath, privateRoot, sharedRoot } from '@/lib/storage-paths'
 
 // In-memory request deduplication
 interface PendingRequest<T> {
@@ -129,7 +130,7 @@ async function executeFileLoad(
             return {
                 files: [],
                 folders: [],
-                breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+                breadcrumbs: [{ name: 'Cloud Storage', path: orgRootOfPath(path) ?? path, type: 'root' }],
                 totalSize: 0,
                 error: 'Request cancelled',
             }
@@ -150,7 +151,7 @@ async function executeFileLoad(
             return {
                 files: [],
                 folders: [],
-                breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+                breadcrumbs: [{ name: 'Cloud Storage', path: orgRootOfPath(path) ?? path, type: 'root' }],
                 totalSize: 0,
                 error: 'Request cancelled',
             }
@@ -193,7 +194,7 @@ async function executeFileLoad(
             return {
                 files: [],
                 folders: [],
-                breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+                breadcrumbs: [{ name: 'Cloud Storage', path: orgRootOfPath(path) ?? path, type: 'root' }],
                 totalSize: 0,
                 error: 'Request cancelled',
                 loadTime,
@@ -203,7 +204,7 @@ async function executeFileLoad(
         return {
             files: [],
             folders: [],
-            breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+            breadcrumbs: [{ name: 'Cloud Storage', path: orgRootOfPath(path) ?? path, type: 'root' }],
             totalSize: 0,
             error: error instanceof Error ? error.message : 'Failed to load files',
             loadTime,
@@ -237,7 +238,8 @@ export async function preloadPaths(
 export function getPreloadPaths(userId: string, currentPath: string): string[] {
     const paths: string[] = []
     const segments = currentPath.split('/').filter(Boolean)
-    const basePath = `user_${userId}`
+    const orgId = orgIdOfPath(currentPath)
+    if (orgId === null) return paths
 
     // Always preload parent
     if (segments.length > 1) {
@@ -245,10 +247,10 @@ export function getPreloadPaths(userId: string, currentPath: string): string[] {
         paths.push(parentPath)
     }
 
-    // Preload common system folders
-    if (currentPath === basePath) {
-        paths.push(`${basePath}/Miscellaneous`)
-        paths.push(`${basePath}/house_documents`)
+    // Preload the two zones when at the org root
+    if (currentPath === orgRoot(orgId)) {
+        paths.push(sharedRoot(orgId))
+        paths.push(privateRoot(orgId, userId))
     }
 
     return paths

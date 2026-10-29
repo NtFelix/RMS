@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
+import { orgRoot } from '@/lib/storage-paths'
 
 interface NavigationState {
   currentPath: string
@@ -25,7 +26,7 @@ interface NavigationOptions {
  * - Browser history management
  * - No circular dependencies with cloud storage store
  */
-export function useSimpleNavigation(userId: string) {
+export function useSimpleNavigation(orgId: string) {
   const router = useRouter()
   const { toast } = useToast()
   
@@ -44,7 +45,7 @@ export function useSimpleNavigation(userId: string) {
    * Convert storage path to URL path
    */
   const pathToUrl = useCallback((path: string): string => {
-    const base = `user_${userId}`
+    const base = orgRoot(orgId)
     if (!path || path === base) return "/dateien"
     
     const prefix = `${base}/`
@@ -53,7 +54,7 @@ export function useSimpleNavigation(userId: string) {
       return `/dateien/${rest}`
     }
     return "/dateien"
-  }, [userId])
+  }, [orgId])
   
   /**
    * Perform efficient navigation with proper error handling

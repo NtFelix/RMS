@@ -4,11 +4,13 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { ChevronRight, ChevronDown, Folder, FolderOpen, Home, Building, Users, FileText, AlertCircle, Archive, Search, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCloudStorageStore, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
-import { buildUserPath, buildHousePath, buildApartmentPath, buildTenantPath } from "@/lib/path-utils"
+import { orgRoot, sharedRoot, sharedPath, privateRoot, privatePath } from "@/lib/storage-paths"
+import { buildFallbackBreadcrumbs } from "@/lib/storage-navigation"
 import { usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
 import { useFolderNavigation } from "@/components/common/navigation-interceptor"
 import { useDirectoryActiveState } from "@/hooks/use-active-state-manager"
 interface FileTreeViewProps {
+  orgId: string
   userId: string
   className?: string
   onFolderClick?: (path: string) => void
@@ -25,9 +27,9 @@ interface TreeNode {
   isEmpty: boolean
 }
 
-export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewProps) {
+export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTreeViewProps) {
   const [treeData, setTreeData] = useState<TreeNode[]>([])
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['root']))
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['root', 'private']))
   const [filterQuery, setFilterQuery] = useState('')
 
   const {
@@ -41,7 +43,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
     const folder = folders.find(f => f.path === path)
     return folder?.fileCount || 0
   }
-  const { handleFolderClick, isNavigating } = useFolderNavigation(userId)
+  const { handleFolderClick, isNavigating } = useFolderNavigation(orgId)
   const { isDirectoryActive, getDirectoryActiveClasses } = useDirectoryActiveState()
 
   // Fetch real data from API
@@ -53,7 +55,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
       const rootNode: TreeNode = {
         id: 'root',
         name: 'Cloud Storage',
-        path: buildUserPath(userId),
+        path: orgRoot(orgId),
         type: 'root',
         icon: Home,
         children: [],
@@ -62,11 +64,12 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
       }
 
       // Add category folders
+      const privateRootPath = privateRoot(orgId, userId)
       const categories = [
         {
           id: 'haeuser',
-          name: 'Häuser',
-          path: buildUserPath(userId, 'haeuser'),
+          name: 'Gemeinsam',
+          path: sharedRoot(orgId),
           type: 'category' as const,
           icon: Building,
           children: [] as TreeNode[],
@@ -76,29 +79,29 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
         {
           id: 'miscellaneous',
           name: 'Sonstiges',
-          path: buildUserPath(userId, 'Miscellaneous'),
+          path: privatePath(orgId, userId, 'Miscellaneous'),
           type: 'category' as const,
           icon: FileText,
           children: [] as TreeNode[],
-          fileCount: getFileCountFromStore(buildUserPath(userId, 'Miscellaneous')),
-          isEmpty: getFileCountFromStore(buildUserPath(userId, 'Miscellaneous')) === 0
+          fileCount: getFileCountFromStore(privatePath(orgId, userId, 'Miscellaneous')),
+          isEmpty: getFileCountFromStore(privatePath(orgId, userId, 'Miscellaneous')) === 0
         },
         {
           id: 'archive',
           name: 'Archiv',
-          path: buildUserPath(userId, '__archive__'),
+          path: privatePath(orgId, userId, '__archive__'),
           type: 'archive' as const,
           icon: Archive,
           children: [] as TreeNode[],
-          fileCount: getFileCountFromStore(buildUserPath(userId, '__archive__')),
-          isEmpty: getFileCountFromStore(buildUserPath(userId, '__archive__')) === 0
+          fileCount: getFileCountFromStore(privatePath(orgId, userId, '__archive__')),
+          isEmpty: getFileCountFromStore(privatePath(orgId, userId, '__archive__')) === 0
         }
       ]
 
       // Build house structure
       const haeuser = categories.find(c => c.id === 'haeuser')!
       houses.forEach(house => {
-        const housePath = buildHousePath(userId, house.id)
+        const housePath = sharedPath(orgId, house.id)
         const houseFileCount = getFileCountFromStore(housePath)
         const houseNode: TreeNode = {
           id: `house-${house.id}`,
@@ -112,7 +115,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
         }
 
         // Add house documents category
-        const houseDocsPath = buildUserPath(userId, house.id, 'house_documents')
+        const houseDocsPath = sharedPath(orgId, house.id, 'house_documents')
         const houseDocsFileCount = getFileCountFromStore(houseDocsPath)
         const houseDocsNode: TreeNode = {
           id: `house-docs-${house.id}`,
@@ -129,7 +132,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
         // Add apartments for this house
         const houseApartments = apartments.filter(apt => apt.haus_id === house.id)
         houseApartments.forEach(apartment => {
-          const apartmentPath = buildApartmentPath(userId, house.id, apartment.id)
+          const apartmentPath = sharedPath(orgId, house.id, apartment.id)
           const apartmentFileCount = getFileCountFromStore(apartmentPath)
           const apartmentNode: TreeNode = {
             id: `apartment-${apartment.id}`,
@@ -143,7 +146,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           }
 
           // Add apartment documents category
-          const apartmentDocsPath = buildUserPath(userId, house.id, apartment.id, 'apartment_documents')
+          const apartmentDocsPath = sharedPath(orgId, house.id, apartment.id, 'apartment_documents')
           const apartmentDocsFileCount = getFileCountFromStore(apartmentDocsPath)
           const apartmentDocsNode: TreeNode = {
             id: `apartment-docs-${apartment.id}`,
@@ -160,7 +163,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           // Add tenants for this apartment
           const apartmentTenants = tenants.filter(tenant => tenant.wohnung_id === apartment.id)
           apartmentTenants.forEach(tenant => {
-            const tenantPath = buildTenantPath(userId, house.id, apartment.id, tenant.id)
+            const tenantPath = sharedPath(orgId, house.id, apartment.id, tenant.id)
             const tenantFileCount = getFileCountFromStore(tenantPath)
             const tenantNode: TreeNode = {
               id: `tenant-${tenant.id}`,
@@ -184,8 +187,8 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
       // Add custom folders from the cloud storage store
       const customFolders = folders.filter(folder =>
         folder.type === 'storage' &&
-        folder.path.startsWith(buildUserPath(userId)) &&
-        folder.path.split('/').length === 2 // Only root level custom folders
+        folder.path.startsWith(`${privateRootPath}/`) &&
+        folder.path.split('/').length === privateRootPath.split('/').length + 1 // Only direct children of the private area
       )
 
       const customFolderNodes = customFolders.map(folder => ({
@@ -201,102 +204,42 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
 
       categories.push(...customFolderNodes)
 
-      rootNode.children = categories
+      // Zones: "Gemeinsam" (shared houses) and "Privat" (own private area with Sonstiges and Archiv)
+      const privateZone = categories.filter(c => c.id === 'miscellaneous' || c.id === 'archive')
+      const privateNode = {
+        id: 'private',
+        name: 'Privat',
+        path: privateRootPath,
+        type: 'category' as const,
+        icon: Folder,
+        children: privateZone,
+        fileCount: 0,
+        isEmpty: false
+      }
+      rootNode.children = [
+        ...categories.filter(c => c.id === 'haeuser'),
+        privateNode,
+        ...categories.filter(c => c.id !== 'haeuser' && c.id !== 'miscellaneous' && c.id !== 'archive')
+      ]
       return [rootNode]
     }
 
     if (!isLoading && !error) {
       setTreeData(buildTreeStructure())
     }
-  }, [userId, houses, apartments, tenants, isLoading, error, folders])
+  }, [orgId, userId, houses, apartments, tenants, isLoading, error, folders])
 
-  // Generate breadcrumbs from current path
+  // Generate breadcrumbs from current path; names come from the loaded lists, never raw IDs
   const generateBreadcrumbs = (path: string): BreadcrumbItem[] => {
-    const breadcrumbs: BreadcrumbItem[] = [
-      { name: 'Cloud Storage', path: buildUserPath(userId), type: 'root' }
-    ]
+    const names = new Map<string, string>()
+    houses.forEach(house => names.set(house.id, house.name))
+    apartments.forEach(apartment => names.set(apartment.id, apartment.name))
+    tenants.forEach(tenant => names.set(tenant.id, tenant.name))
 
-    if (!path || path === buildUserPath(userId)) {
-      return breadcrumbs
-    }
-
-    // Parse path to build breadcrumbs
-    const userPath = buildUserPath(userId)
-    const relativePath = path.startsWith(userPath) ? path.substring(userPath.length + 1) : path
-    const segments = relativePath.split('/').filter(Boolean)
-
-    if (segments.length > 0) {
-      if (segments[0] === 'haeuser') {
-        breadcrumbs.push({
-          name: 'Häuser',
-          path: buildUserPath(userId, 'haeuser'),
-          type: 'category'
-        })
-
-        if (segments.length > 1) {
-          const house = houses.find(h => h.id === segments[1])
-          if (house) {
-            breadcrumbs.push({
-              name: house.name,
-              path: buildHousePath(userId, house.id),
-              type: 'house'
-            })
-
-            if (segments.length > 2) {
-              if (segments[2] === 'house_documents') {
-                breadcrumbs.push({
-                  name: 'Hausdokumente',
-                  path: buildUserPath(userId, house.id, 'house_documents'),
-                  type: 'category'
-                })
-              } else {
-                const apartment = apartments.find(a => a.id === segments[2])
-                if (apartment) {
-                  breadcrumbs.push({
-                    name: apartment.name,
-                    path: buildApartmentPath(userId, house.id, apartment.id),
-                    type: 'apartment'
-                  })
-
-                  if (segments.length > 3) {
-                    if (segments[3] === 'apartment_documents') {
-                      breadcrumbs.push({
-                        name: 'Wohnungsdokumente',
-                        path: buildUserPath(userId, house.id, apartment.id, 'apartment_documents'),
-                        type: 'category'
-                      })
-                    } else {
-                      const tenant = tenants.find(t => t.id === segments[3])
-                      if (tenant) {
-                        breadcrumbs.push({
-                          name: tenant.name,
-                          path: buildTenantPath(userId, house.id, apartment.id, tenant.id),
-                          type: 'tenant'
-                        })
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      } else if (segments[0] === 'miscellaneous') {
-        breadcrumbs.push({
-          name: 'Sonstiges',
-          path: buildUserPath(userId, 'miscellaneous'),
-          type: 'category'
-        })
-      } else if (segments[0] === '__archive__') {
-        breadcrumbs.push({
-          name: 'Archiv',
-          path: buildUserPath(userId, '__archive__'),
-          type: 'category'
-        })
-      }
-    }
-
-    return breadcrumbs
+    return buildFallbackBreadcrumbs(path).map(crumb => {
+      const name = names.get(crumb.path.split('/').pop() ?? '')
+      return name ? { ...crumb, name } : crumb
+    })
   }
 
   // Handle node click with navigation interceptor

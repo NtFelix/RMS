@@ -298,12 +298,12 @@ async function processNavigationRequest(
         // Import and call the file loader
         const { loadFiles } = await import('@/lib/file-loader')
 
-        // Extract userId from path - handle both user_ID and user_ID/subpath formats
-        const userIdMatch = request.path.match(/^user_([^/]+)/)
-        if (!userIdMatch) {
-            throw new Error('Invalid path format: expected user_ID prefix')
+        // Current user id (shared paths do not contain it); set by the cloud storage component
+        const { useCloudStorageStore } = await import('@/hooks/use-cloud-storage-store')
+        const userId = useCloudStorageStore.getState().ownerUserId
+        if (!userId) {
+            throw new Error('Benutzer nicht gesetzt')
         }
-        const userId = userIdMatch[1]
 
         // Execute the request with timeout and abort handling
         const dataPromise = loadFiles(userId, request.path, request.abortController.signal)

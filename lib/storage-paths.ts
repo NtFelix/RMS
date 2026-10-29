@@ -81,6 +81,16 @@ export function orgRoot(orgId: string): string {
   return `${ORG_PREFIX}${assertSafeSegment(orgId, 'orgId')}`;
 }
 
+/** Zone root of the shared area: `org_{orgId}/shared` (label in UI: "Gemeinsam") */
+export function sharedRoot(orgId: string): string {
+  return `${orgRoot(orgId)}/${SHARED_SEGMENT}`;
+}
+
+/** Zone root of one user's private area: `org_{orgId}/private/{userId}` (label in UI: "Privat") */
+export function privateRoot(orgId: string, userId: string): string {
+  return privatePath(orgId, userId);
+}
+
 /** Shared (house-related) path: `org_{orgId}/shared/{houseId}/...segments` */
 export function sharedPath(orgId: string, houseId: string, ...segments: string[]): string {
   return joinChecked([
@@ -150,6 +160,21 @@ export function parseStoragePath(path: string): ParsedStoragePath {
   }
 
   throw new StoragePathError('Unbekannte Speicherzone', 'INVALID_PATH');
+}
+
+/** Org id of a path, or null if the path has no valid org layout (never throws). */
+export function orgIdOfPath(path: string): string | null {
+  try {
+    return parseStoragePath(path).orgId;
+  } catch {
+    return null;
+  }
+}
+
+/** Org root of a path, or null if the path has no valid org layout (never throws). */
+export function orgRootOfPath(path: string): string | null {
+  const orgId = orgIdOfPath(path);
+  return orgId === null ? null : orgRoot(orgId);
 }
 
 /**

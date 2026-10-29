@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { createClient } from '@/utils/supabase/client'
+import { buildFallbackBreadcrumbs } from '@/lib/storage-navigation'
 
 // Types for cloud storage state
 export interface StorageObject {
@@ -122,6 +123,10 @@ interface CloudStorageState {
   // Archive actions
   archiveFile: (file: StorageObject) => Promise<void>
   loadArchivedFiles: (userId: string) => Promise<void>
+
+  // Identity of the current user (needed for server actions, not derivable from shared paths)
+  ownerUserId: string | null
+  setOwnerUserId: (userId: string | null) => void
   restoreFile: (archivedFile: StorageObject, targetPath?: string) => Promise<void>
   permanentlyDeleteFile: (archivedFile: StorageObject) => Promise<void>
   bulkArchiveFiles: (files: StorageObject[]) => Promise<void>
@@ -142,6 +147,7 @@ interface CloudStorageState {
 }
 
 const initialState = {
+  ownerUserId: null as string | null,
   currentPath: '',
   breadcrumbs: [],
   files: [],
@@ -164,6 +170,12 @@ export const useCloudStorageStore = create<CloudStorageState>()(
   immer((set, get) => ({
     ...initialState,
 
+    setOwnerUserId: (userId: string | null) => {
+      set((state) => {
+        state.ownerUserId = userId
+      })
+    },
+
     // Navigation actions
     navigateToPath: async (path: string) => {
       set((state) => {
@@ -173,12 +185,10 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       })
 
       try {
-        // Extract user ID from path
-        const userIdMatch = path.match(/^user_([^\/]+)/)
-        if (!userIdMatch) {
-          throw new Error('Invalid path format')
+        const userId = get().ownerUserId
+        if (!userId) {
+          throw new Error('Benutzer nicht gesetzt')
         }
-        const userId = userIdMatch[1]
 
         // Use server action to load files for the new path
         const { loadFilesForPath } = await import('@/app/(dashboard)/dateien/actions')
@@ -188,29 +198,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
           throw new Error(error)
         }
 
-        // Generate simple breadcrumbs (Simple Logic to avoid infinite loops)
-        const pathSegments = path.split('/').filter(Boolean)
-        const breadcrumbs: BreadcrumbItem[] = []
-
-        // Always add root breadcrumb
-        breadcrumbs.push({
-          name: 'Cloud Storage',
-          path: `user_${userId}`,
-          type: 'root'
-        })
-
-        // Add path segments as breadcrumbs
-        let currentPath = `user_${userId}`
-        for (let i = 1; i < pathSegments.length; i++) {
-          const segment = pathSegments[i]
-          currentPath = `${currentPath}/${segment}`
-
-          breadcrumbs.push({
-            name: segment,
-            path: currentPath,
-            type: i === 1 ? 'house' : i === 2 ? 'apartment' : i === 3 ? 'tenant' : 'category'
-          })
-        }
+        const breadcrumbs = buildFallbackBreadcrumbs(path)
 
         set((state) => {
           state.files = files
@@ -515,12 +503,10 @@ export const useCloudStorageStore = create<CloudStorageState>()(
 
     deleteFolder: async (folder: VirtualFolder) => {
       try {
-        // Extract user ID from folder path
-        const userIdMatch = folder.path.match(/^user_([^\/]+)/)
-        if (!userIdMatch) {
-          throw new Error('Invalid folder path format')
+        const userId = get().ownerUserId
+        if (!userId) {
+          throw new Error('Benutzer nicht gesetzt')
         }
-        const userId = userIdMatch[1]
 
         // Use server action to delete folder
         const { deleteFolder } = await import('@/app/(dashboard)/dateien/actions')
@@ -853,12 +839,10 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       })
 
       try {
-        // Extract user ID from current path
-        const userIdMatch = currentPath.match(/^user_([^\/]+)/)
-        if (!userIdMatch) {
-          throw new Error('Invalid path format')
+        const userId = get().ownerUserId
+        if (!userId) {
+          throw new Error('Benutzer nicht gesetzt')
         }
-        const userId = userIdMatch[1]
 
         // Use server action to load files for the current path
         const { loadFilesForPath } = await import('@/app/(dashboard)/dateien/actions')

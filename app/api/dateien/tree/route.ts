@@ -2,6 +2,18 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from 'next/server'
 import { unstable_rethrow } from 'next/navigation'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
+import { getAccessibleHaeuserIds } from '@/lib/object-scope'
+import { getActiveOrgId } from '@/lib/storage-access'
+import {
+  assertPathAllowed,
+  orgRoot,
+  parseStoragePath,
+  privateRoot,
+  sharedPath,
+  sharedRoot,
+  StoragePathError,
+  type PathAccessContext,
+} from '@/lib/storage-paths'
 
 
 interface TreeNode {
@@ -15,6 +27,13 @@ interface TreeNode {
   fileCount?: number
 }
 
+/** Labels for system folders below a house or apartment */
+const SYSTEM_FOLDER_LABELS: Record<string, string> = {
+  house_documents: 'Hausdokumente',
+  apartment_documents: 'Wohnungsdokumente',
+  Rechnungen: 'Rechnungen',
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -24,463 +43,166 @@ export async function GET(request: NextRequest) {
     if (!userId) {
       return NextResponse.json(
         { error: 'User ID is required' },
-        {
-          status: 400,
-          headers: NO_CACHE_HEADERS,
-        }
+        { status: 400, headers: NO_CACHE_HEADERS }
       )
     }
 
     const supabase = await createSupabaseServerClient()
-    
-    // Verify user authentication
+
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user || user.id !== userId) {
       return NextResponse.json(
         { error: 'Not authenticated' },
-        {
-          status: 401,
-          headers: NO_CACHE_HEADERS,
-        }
+        { status: 401, headers: NO_CACHE_HEADERS }
       )
     }
 
-    if (path) {
-      // Load children for a specific path
-      const children = await loadFolderChildren(supabase, userId, path)
-      return NextResponse.json({ children }, { headers: NO_CACHE_HEADERS })
-    } else {
-      // Load root tree structure
-      const tree = await loadRootTree(supabase, userId)
-      return NextResponse.json({ tree }, { headers: NO_CACHE_HEADERS })
+    const orgId = await getActiveOrgId(supabase)
+    if (!orgId) {
+      return NextResponse.json(
+        { error: 'No active organisation' },
+        { status: 400, headers: NO_CACHE_HEADERS }
+      )
     }
 
+    const ctx: PathAccessContext = {
+      orgId,
+      userId,
+      accessibleHouseIds: await getAccessibleHaeuserIds(),
+    }
+
+    if (path) {
+      const children = await loadFolderChildren(supabase, ctx, path)
+      return NextResponse.json({ children }, { headers: NO_CACHE_HEADERS })
+    }
+
+    const tree = loadRootTree(ctx)
+    return NextResponse.json({ tree }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     unstable_rethrow(error)
     console.error('Unexpected error loading folder tree:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      {
-        status: 500,
-        headers: NO_CACHE_HEADERS,
-      }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }
 
-async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> {
-  const rootPath = `user_${userId}`
-  const tree: TreeNode[] = []
+function zoneNodes(ctx: PathAccessContext): TreeNode[] {
+  return [
+    { id: sharedRoot(ctx.orgId), name: 'Gemeinsam', path: sharedRoot(ctx.orgId), type: 'folder', displayName: 'Gemeinsam', children: [], isEmpty: false, fileCount: 0 },
+    { id: privateRoot(ctx.orgId, ctx.userId), name: 'Privat', path: privateRoot(ctx.orgId, ctx.userId), type: 'folder', displayName: 'Privat', children: [], isEmpty: false, fileCount: 0 },
+  ]
+}
 
-  // Add root folder
-  tree.push({
-    id: rootPath,
-    name: 'Cloud Storage',
-    path: rootPath,
-    type: 'folder',
-    displayName: 'Cloud Storage',
-    children: [],
-    isEmpty: false,
-    fileCount: 0 // Root folder file count not needed for tree display
-  })
+function loadRootTree(ctx: PathAccessContext): TreeNode[] {
+  const rootPath = orgRoot(ctx.orgId)
+  return [
+    {
+      id: rootPath,
+      name: 'Cloud Storage',
+      path: rootPath,
+      type: 'folder',
+      displayName: 'Cloud Storage',
+      children: zoneNodes(ctx),
+      isEmpty: false,
+      fileCount: 0,
+    },
+  ]
+}
 
+/**
+ * Children of one folder. Names are resolved from the database for house, apartment and
+ * tenant folders (display name), system folders get fixed labels, everything else shows
+ * the storage folder name.
+ */
+async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderPath: string): Promise<TreeNode[]> {
   try {
-    // First, discover all folders in storage to determine what exists
-    const { data: rootContents } = await supabase.storage
-      .from('documents')
-      .list(rootPath, { limit: 1000 })
-
-    const discoveredFolders = new Set<string>()
-    const folderContents = new Map<string, any[]>()
-    
-    // Analyze storage contents to find all folders
-    if (rootContents) {
-      for (const item of rootContents) {
-        if (item.name && item.name.includes('/')) {
-          const folderName = item.name.split('/')[0]
-          discoveredFolders.add(folderName)
-        } else if (item.name && !item.metadata && !item.name.includes('.') && item.name !== '.keep') {
-          discoveredFolders.add(item.name)
-        }
-      }
-      
-      // Get contents for each discovered folder
-      for (const folderName of discoveredFolders) {
-        try {
-          const { data: contents } = await supabase.storage
-            .from('documents')
-            .list(`${rootPath}/${folderName}`, { limit: 100 })
-          folderContents.set(folderName, contents || [])
-        } catch (error) {
-          folderContents.set(folderName, [])
-        }
-      }
-    }
-
-    // Get houses and apartments from database for comparison
-    const { data: houses } = await supabase
-      .from('Haeuser')
-      .select('id, name')
-      .order('name')
-
-    const { data: apartments } = await supabase
-      .from('Wohnungen')
-      .select('id, name, haus_id')
-      .order('name')
-
-    const houseIds = new Set(houses?.map((h: any) => h.id) || [])
-    const apartmentIds = new Set(apartments?.map((a: any) => a.id) || [])
-
-    // Process discovered folders
-    for (const folderName of discoveredFolders) {
-      const folderPath = `${rootPath}/${folderName}`
-      const contents = folderContents.get(folderName) || []
-      
-      // Count direct files only
-      const fileCount = await countDirectFiles(supabase, folderPath)
-      const isEmpty = fileCount === 0
-
-      if (houseIds.has(folderName)) {
-        // This is a house folder
-        const house = houses?.find((h: any) => h.id === folderName)
-        tree.push({
-          id: folderName,
-          name: folderName,
-          path: folderPath,
-          type: 'folder',
-          displayName: house?.name || folderName,
-          children: [],
-          isEmpty,
-          fileCount
-        })
-      } else if (folderName === 'Miscellaneous') {
-        // Miscellaneous folder
-        tree.push({
-          id: 'Miscellaneous',
-          name: 'Miscellaneous',
-          path: folderPath,
-          type: 'folder',
-          displayName: 'Sonstiges',
-          children: [],
-          isEmpty,
-          fileCount
-        })
-      } else {
-        // This is a custom folder - check if it contains any house/apartment structure
-        const hasHouseStructure = contents.some((item: any) => {
-          if (item.name && !item.name.includes('.') && !item.metadata) {
-            // Check if this subfolder name matches a house ID
-            return houseIds.has(item.name)
-          }
-          return false
-        })
-
-        if (!hasHouseStructure) {
-          // This is a pure custom folder, not containing house structure
-          tree.push({
-            id: folderName,
-            name: folderName,
-            path: folderPath,
-            type: 'folder',
-            displayName: folderName,
-            children: [],
-            isEmpty,
-            fileCount
-          })
-        }
-      }
-    }
-
-    // Add any houses that exist in database but not in storage yet
-    if (houses) {
-      for (const house of houses) {
-        if (!discoveredFolders.has(house.id)) {
-          const housePath = `${rootPath}/${house.id}`
-          tree.push({
-            id: house.id,
-            name: house.id,
-            path: housePath,
-            type: 'folder',
-            displayName: house.name,
-            children: [],
-            isEmpty: true,
-            fileCount: 0
-          })
-        }
-      }
-    }
-
-    // Add Miscellaneous folder if it doesn't exist yet
-    if (!discoveredFolders.has('Miscellaneous')) {
-      const miscPath = `${rootPath}/Miscellaneous`
-      tree.push({
-        id: 'Miscellaneous',
-        name: 'Miscellaneous',
-        path: miscPath,
-        type: 'folder',
-        displayName: 'Sonstiges',
-        children: [],
-        isEmpty: true,
-        fileCount: 0
-      })
-    }
-
+    assertPathAllowed(folderPath, ctx)
   } catch (error) {
-    console.error('Error loading root tree:', error)
+    if (error instanceof StoragePathError) return []
+    throw error
   }
 
-  // Sort tree: houses first (by display name), then custom folders, then Miscellaneous
-  return tree.sort((a, b) => {
-    // Root folder always first
-    if (a.name === 'Cloud Storage') return -1
-    if (b.name === 'Cloud Storage') return 1
-    
-    // Miscellaneous always last
+  const parsed = parseStoragePath(folderPath)
+  const { orgId } = ctx
+
+  if (parsed.zone === 'root') {
+    return zoneNodes(ctx)
+  }
+
+  if (parsed.zone === 'shared' && parsed.houseId === undefined) {
+    let query = supabase.from('Haeuser').select('id, name')
+    if (ctx.accessibleHouseIds !== null) {
+      query = query.in('id', ctx.accessibleHouseIds)
+    }
+    const { data: houses } = await query
+    const nodes: TreeNode[] = (houses ?? []).map((h: { id: string; name: string | null }) => {
+      const path = sharedPath(orgId, h.id)
+      return { id: path, name: h.name || h.id, path, type: 'folder', displayName: h.name || undefined, children: [], isEmpty: false, fileCount: 0 }
+    })
+    return sortNodes(nodes)
+  }
+
+  if (parsed.zone === 'shared' && parsed.houseId !== undefined && parsed.rest.length === 0) {
+    const houseId = parsed.houseId
+    const { data: apartments } = await supabase.from('Wohnungen').select('id, name').eq('haus_id', houseId)
+    const names = new Map<string, string>((apartments ?? []).map((a: { id: string; name: string | null }) => [a.id, a.name || a.id]))
+    return listFolderNodes(supabase, folderPath, (segment) => names.get(segment), (segment) => ({
+      path: sharedPath(orgId, houseId, segment),
+    }))
+  }
+
+  if (parsed.zone === 'shared' && parsed.houseId !== undefined && parsed.rest.length === 1) {
+    const apartmentId = parsed.rest[0]
+    const { data: tenants } = await supabase.from('Mieter').select('id, name').eq('wohnung_id', apartmentId)
+    const names = new Map<string, string>((tenants ?? []).map((t: { id: string; name: string | null }) => [t.id, t.name || t.id]))
+    return listFolderNodes(supabase, folderPath, (segment) => names.get(segment), (segment) => ({
+      path: sharedPath(orgId, parsed.houseId as string, apartmentId, segment),
+    }))
+  }
+
+  return listFolderNodes(supabase, folderPath, () => undefined, (segment) => ({
+    path: `${folderPath}/${segment}`,
+  }))
+}
+
+/**
+ * Lists storage sub-folders of folderPath and maps them to tree nodes.
+ * Display name: lookup (database) ?? system label ?? storage name.
+ */
+async function listFolderNodes(
+  supabase: any,
+  folderPath: string,
+  lookup: (segment: string) => string | undefined,
+  childPath: (segment: string) => { path: string },
+): Promise<TreeNode[]> {
+  const { data: items } = await supabase.storage.from('documents').list(folderPath, { limit: 1000 })
+  const nodes: TreeNode[] = []
+  for (const item of items ?? []) {
+    if (!item.name || item.name === '.keep' || item.metadata) continue
+    const displayName = lookup(item.name) ?? SYSTEM_FOLDER_LABELS[item.name]
+    const { path } = childPath(item.name)
+    nodes.push({
+      id: path,
+      name: displayName ?? item.name,
+      path,
+      type: 'folder',
+      displayName: displayName,
+      children: [],
+      isEmpty: false,
+      fileCount: 0,
+    })
+  }
+  return sortNodes(nodes)
+}
+
+/** Alphabetical order, Miscellaneous last */
+function sortNodes(nodes: TreeNode[]): TreeNode[] {
+  return nodes.sort((a, b) => {
     if (a.name === 'Miscellaneous') return 1
     if (b.name === 'Miscellaneous') return -1
-    
-    // Sort by display name
-    return (a.displayName || a.name).localeCompare(b.displayName || b.name)
+    return a.name.localeCompare(b.name, 'de')
   })
-}
-
-async function loadFolderChildren(supabase: any, userId: string, folderPath: string): Promise<TreeNode[]> {
-  const children: TreeNode[] = []
-
-  try {
-    const pathSegments = folderPath.split('/')
-    const folderName = pathSegments[pathSegments.length - 1]
-    
-    // Get database entities for comparison
-    const { data: houses } = await supabase
-      .from('Haeuser')
-      .select('id, name')
-
-    const { data: apartments } = await supabase
-      .from('Wohnungen')
-      .select('id, name, haus_id')
-
-    const { data: tenants } = await supabase
-      .from('Mieter')
-      .select('id, name, wohnung_id')
-
-    const houseIds = new Set(houses?.map((h: any) => h.id) || [])
-    const apartmentIds = new Set(apartments?.map((a: any) => a.id) || [])
-    const tenantIds = new Set(tenants?.map((t: any) => t.id) || [])
-
-    // Check if this is a house folder (and it exists in database)
-    const isHouseFolder = pathSegments.length === 2 && 
-                         pathSegments[1] !== 'Miscellaneous' && 
-                         houseIds.has(pathSegments[1])
-    
-    // Check if this is an apartment folder (and both house and apartment exist in database)
-    const isApartmentFolder = pathSegments.length === 3 && 
-                             pathSegments[1] !== 'Miscellaneous' && 
-                             houseIds.has(pathSegments[1]) && 
-                             apartmentIds.has(pathSegments[2])
-
-    if (isHouseFolder) {
-      const houseId = pathSegments[1]
-      
-      // Add house documents folder
-      const houseDocsPath = `${folderPath}/house_documents`
-      const { data: houseDocsContents } = await supabase.storage
-        .from('documents')
-        .list(houseDocsPath, { limit: 1 })
-      
-      children.push({
-        id: 'house_documents',
-        name: 'house_documents',
-        path: houseDocsPath,
-        type: 'folder',
-        displayName: 'Hausdokumente',
-        children: [],
-        isEmpty: !houseDocsContents || houseDocsContents.filter((item: any) => item.name !== '.keep').length === 0
-      })
-
-      // Get apartments for this house
-      const houseApartments = apartments?.filter((a: any) => a.haus_id === houseId) || []
-
-      for (const apartment of houseApartments) {
-        const apartmentPath = `${folderPath}/${apartment.id}`
-        
-        // Count direct files in apartment folder
-        const fileCount = await countDirectFiles(supabase, apartmentPath)
-        
-        children.push({
-          id: apartment.id,
-          name: apartment.id,
-          path: apartmentPath,
-          type: 'folder',
-          displayName: apartment.name,
-          children: [],
-          isEmpty: fileCount === 0
-        })
-      }
-    } else if (isApartmentFolder) {
-      const apartmentId = pathSegments[2]
-      
-      // Add apartment documents folder
-      const apartmentDocsPath = `${folderPath}/apartment_documents`
-      const { data: apartmentDocsContents } = await supabase.storage
-        .from('documents')
-        .list(apartmentDocsPath, { limit: 1 })
-      
-      children.push({
-        id: 'apartment_documents',
-        name: 'apartment_documents',
-        path: apartmentDocsPath,
-        type: 'folder',
-        displayName: 'Wohnungsdokumente',
-        children: [],
-        isEmpty: !apartmentDocsContents || apartmentDocsContents.filter((item: any) => item.name !== '.keep').length === 0
-      })
-
-      // Get tenants for this apartment
-      const apartmentTenants = tenants?.filter((t: any) => t.wohnung_id === apartmentId) || []
-
-      for (const tenant of apartmentTenants) {
-        const tenantPath = `${folderPath}/${tenant.id}`
-        
-        // Count direct files in tenant folder
-        const fileCount = await countDirectFiles(supabase, tenantPath)
-        
-        children.push({
-          id: tenant.id,
-          name: tenant.id,
-          path: tenantPath,
-          type: 'folder',
-          displayName: tenant.name,
-          children: [],
-          isEmpty: fileCount === 0
-        })
-      }
-    } else {
-      // This is either a custom folder, Miscellaneous, or a subfolder
-      // Load storage contents directly
-      const { data: contents } = await supabase.storage
-        .from('documents')
-        .list(folderPath, { limit: 100 })
-
-      if (contents) {
-        const discoveredFolders = new Set<string>()
-        
-        // First pass: find direct subfolders
-        for (const item of contents) {
-          if (item.name === '.keep') continue
-          
-          const isFolder = (item.metadata === null || item.metadata === undefined) && 
-                          !item.name.includes('.') && 
-                          item.name !== '.keep'
-          
-          if (isFolder) {
-            discoveredFolders.add(item.name)
-          }
-        }
-
-        // Second pass: find nested folders from file paths
-        for (const item of contents) {
-          if (item.name && item.name.includes('/')) {
-            const nestedFolderName = item.name.split('/')[0]
-            discoveredFolders.add(nestedFolderName)
-          }
-        }
-
-        // Create tree nodes for discovered folders
-        for (const folderName of discoveredFolders) {
-          const childPath = `${folderPath}/${folderName}`
-          
-          try {
-            // Count direct files in this folder
-            const fileCount = await countDirectFiles(supabase, childPath)
-            const isEmpty = fileCount === 0
-            
-            // Determine display name based on context
-            let displayName = folderName
-            
-            // If this folder name matches a house ID, use house name
-            if (houseIds.has(folderName)) {
-              const house = houses?.find((h: any) => h.id === folderName)
-              displayName = house?.name || folderName
-            }
-            // If this folder name matches an apartment ID, use apartment name
-            else if (apartmentIds.has(folderName)) {
-              const apartment = apartments?.find((a: any) => a.id === folderName)
-              displayName = apartment?.name || folderName
-            }
-            // If this folder name matches a tenant ID, use tenant name
-            else if (tenantIds.has(folderName)) {
-              const tenant = tenants?.find((t: any) => t.id === folderName)
-              displayName = tenant?.name || folderName
-            }
-            // Special folder names
-            else if (folderName === 'house_documents') {
-              displayName = 'Hausdokumente'
-            }
-            else if (folderName === 'apartment_documents') {
-              displayName = 'Wohnungsdokumente'
-            }
-            
-            children.push({
-              id: folderName,
-              name: folderName,
-              path: childPath,
-              type: 'folder',
-              displayName,
-              children: [],
-              isEmpty,
-              fileCount
-            })
-          } catch (error) {
-            // Skip problematic folders
-            console.warn('Could not access folder %s:', childPath, error)
-            continue
-          }
-        }
-      }
-    }
-
-  } catch (error) {
-    console.error('Error loading folder children:', error)
-  }
-
-  return children.sort((a, b) => {
-    // Sort by display name, with special folders first
-    const aName = a.displayName || a.name
-    const bName = b.displayName || b.name
-    
-    // Documents folders first
-    if (aName.includes('dokumente') && !bName.includes('dokumente')) return -1
-    if (!aName.includes('dokumente') && bName.includes('dokumente')) return 1
-    
-    return aName.localeCompare(bName)
-  })
-}
-
-// Helper function to count direct files only (not recursive)
-async function countDirectFiles(supabase: any, path: string): Promise<number> {
-  try {
-    const { data: contents, error } = await supabase.storage
-      .from('documents')
-      .list(path, { limit: 100 })
-    
-    if (error || !contents) return 0
-    
-    let fileCount = 0
-    
-    for (const item of contents) {
-      if (item.name === '.keep') continue
-      
-      if (item.metadata?.size) {
-        // It's a file - count it
-        fileCount++
-      }
-      // Don't count folders or recurse into them
-    }
-    
-    return fileCount
-  } catch (error) {
-    return 0
-  }
 }

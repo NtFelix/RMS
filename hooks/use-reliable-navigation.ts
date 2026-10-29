@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
 import { useCloudStorageStore } from './use-cloud-storage-store'
+import { orgRoot } from '@/lib/storage-paths'
 
 interface NavigationState {
   currentPath: string
@@ -28,7 +29,7 @@ interface NavigationOptions {
  * - Proper error handling and recovery
  * - Debouncing to prevent rapid navigation attempts
  */
-export function useReliableNavigation(userId: string) {
+export function useReliableNavigation(orgId: string) {
   const router = useRouter()
   const { toast } = useToast()
   const cloudStorageStore = useCloudStorageStore()
@@ -50,7 +51,7 @@ export function useReliableNavigation(userId: string) {
    * Convert storage path to URL path
    */
   const pathToUrl = useCallback((path: string): string => {
-    const base = `user_${userId}`
+    const base = orgRoot(orgId)
     if (!path || path === base) return "/dateien"
     
     const prefix = `${base}/`
@@ -59,7 +60,7 @@ export function useReliableNavigation(userId: string) {
       return `/dateien/${rest}`
     }
     return "/dateien"
-  }, [userId])
+  }, [orgId])
   
   /**
    * Check if navigation should be debounced

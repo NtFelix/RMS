@@ -3,6 +3,7 @@
  * Provides error boundaries, retry logic, and user-friendly error messages
  */
 
+import { orgRoot } from '@/lib/storage-paths';
 import { toast } from '@/hooks/use-toast';
 
 // Error types for cloud storage operations
@@ -558,7 +559,7 @@ export async function checkStorageHealth(): Promise<{
   const startTime = Date.now();
   
   try {
-    // Simple health check - try to list files in user's root directory
+    // Simple health check - try to list files in the organisation root
     const { createClient } = await import('@/utils/supabase/client');
     const supabase = createClient();
     
@@ -567,11 +568,16 @@ export async function checkStorageHealth(): Promise<{
     if (authError || !user) {
       throw new Error('Authentication failed');
     }
+
+    const { data: orgId, error: orgError } = await supabase.rpc('current_organisation_id');
+    if (orgError || !orgId) {
+      throw new Error('No active organisation');
+    }
     
     // Try a simple storage operation
     await supabase.storage
       .from('documents')
-      .list(`user_${user.id}`, { limit: 1 });
+      .list(orgRoot(orgId as string), { limit: 1 });
     
     const latency = Date.now() - startTime;
     

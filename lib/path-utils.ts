@@ -1,6 +1,10 @@
 /**
- * Path utilities for cloud storage management
- * Handles user-specific path construction, sanitization, and validation
+ * LEGACY: Path utilities for the old `user_{uid}` storage layout.
+ *
+ * New paths are built and validated in `lib/storage-paths.ts` (org_{orgId}/shared/... and
+ * org_{orgId}/private/...). The helpers in this file are still used by the archive feature
+ * (`__archive__` below a user root, see storage-service.ts and archive-browser-modal.tsx)
+ * and by the legacy tree helpers in file-tree-view.tsx. Do not use them for new code.
  */
 
 export interface PathSegments {

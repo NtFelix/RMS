@@ -31,9 +31,12 @@ import { DocumentsSummaryCards } from "@/components/common/documents-summary-car
 import { useStorageUsage } from "@/hooks/use-storage-usage"
 import { getStorageUsageState, NO_STORAGE_MESSAGE, STORAGE_FULL_MESSAGE } from "@/lib/storage-usage"
 import { useUserProfile } from "@/hooks/use-user-profile"
+import { orgRoot } from "@/lib/storage-paths"
+import { storageUrlFor } from "@/lib/storage-navigation"
 
 interface CloudStorageProps {
     userId: string
+    orgId: string
     initialFiles?: StorageObject[]
     initialFolders?: VirtualFolder[]
     initialPath?: string
@@ -56,9 +59,10 @@ type FilterType = 'all' | 'folders' | 'images' | 'documents' | 'recent'
  */
 export function CloudStorage({
     userId,
+    orgId,
     initialFiles = [],
     initialFolders = [],
-    initialPath = `user_${userId}`,
+    initialPath = orgRoot(orgId),
     initialBreadcrumbs = [],
     initialTotalSize = 0,
     initialStorageLimit
@@ -129,20 +133,16 @@ export function CloudStorage({
         }
     }, [userId, cancelAllNavigations])
 
+    // Server actions need the current user id; shared paths do not contain it
+    const setOwnerUserId = useCloudStorageStore(state => state.setOwnerUserId)
+    useEffect(() => {
+        setOwnerUserId(userId)
+    }, [userId, setOwnerUserId])
+
     /**
      * Convert storage path to URL path
      */
-    const pathToUrl = useCallback((path: string): string => {
-        const base = `user_${userId}`
-        if (!path || path === base) return "/dateien"
-
-        const prefix = `${base}/`
-        if (path.startsWith(prefix)) {
-            const rest = path.slice(prefix.length)
-            return `/dateien/${rest}`
-        }
-        return "/dateien"
-    }, [userId])
+    const pathToUrl = useCallback((path: string): string => storageUrlFor(path), [])
 
     /**
      * Initialize component with initial data and set history state
@@ -299,7 +299,7 @@ export function CloudStorage({
                 const pathMatch = pathname.match(/^\/dateien(?:\/(.+))?$/)
                 if (pathMatch) {
                     const urlPath = pathMatch[1] || ''
-                    const storagePath = urlPath ? `user_${userId}/${urlPath}` : `user_${userId}`
+                    const storagePath = urlPath ? `${orgRoot(orgId)}/${urlPath}` : orgRoot(orgId)
                     if (storagePath !== currentPath) {
                         handleNavigate(storagePath, true, true)
                     }
@@ -309,7 +309,7 @@ export function CloudStorage({
 
         window.addEventListener('popstate', handlePopState)
         return () => window.removeEventListener('popstate', handlePopState)
-    }, [handleNavigate, userId, currentPath])
+    }, [handleNavigate, orgId, currentPath])
 
     /**
      * Filter and sort items
