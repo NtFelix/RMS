@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Validate path belongs to the active organisation and an accessible house
-        const accessError = await checkStoragePathAccess(supabase, user.id, path)
+        const accessError = await checkStoragePathAccess(supabase, user.id, path, { allowLegacyOwnRead: true })
         if (accessError) {
             return NextResponse.json(
                 { error: 'Ungültiger Pfad' },

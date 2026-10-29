@@ -24,7 +24,7 @@ export default async function DateienPathPage({ params }: { params: Promise<{ sl
     const initialPath = [orgRoot(orgId), ...slug].join('/')
 
     // Unknown, legacy (user_) or foreign paths fall back to the org root
-    const accessError = await checkStoragePathAccess(supabase, user.id, initialPath)
+    const accessError = await checkStoragePathAccess(supabase, user.id, initialPath, { allowLegacyOwnRead: true })
     if (accessError) {
         redirect('/dateien')
     }

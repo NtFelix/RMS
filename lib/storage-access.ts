@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAccessibleHaeuserIds } from '@/lib/object-scope'
-import { assertPathAllowed, StoragePathError } from '@/lib/storage-paths'
+import { assertPathAllowed, isOwnLegacyPath, StoragePathError } from '@/lib/storage-paths'
 
 /**
  * Active organisation of the current user (verified server-side via the RPC).
@@ -23,7 +23,14 @@ export async function checkStoragePathAccess(
   supabase: SupabaseClient,
   userId: string,
   path: string,
+  options: { allowLegacyOwnRead?: boolean } = {},
 ): Promise<string | null> {
+  // TRANSITION (GH-27 PR 2 -> PR 3): read-only access to the own legacy user_ path until the
+  // backfill has moved it. Only for read/download routes, never for writes. TODO(GH-27 PR3): remove.
+  if (options.allowLegacyOwnRead && isOwnLegacyPath(path, userId)) {
+    return null
+  }
+
   const orgId = await getActiveOrgId(supabase)
   if (!orgId) {
     return 'Keine aktive Organisation'

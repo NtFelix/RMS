@@ -14,6 +14,7 @@ export const ORG_PREFIX = 'org_';
 export const LEGACY_USER_PREFIX = 'user_';
 export const SHARED_SEGMENT = 'shared';
 export const PRIVATE_SEGMENT = 'private';
+export const ARCHIVE_SEGMENT = '__archive__';
 
 const MAX_PATH_LENGTH = 1000;
 const MAX_SEGMENT_LENGTH = 255;
@@ -218,5 +219,61 @@ export function assertPathAllowed(path: string, ctx: PathAccessContext): void {
         throw new StoragePathError('Zugriff auf dieses Haus verweigert', 'ACCESS_DENIED');
       }
       return;
+  }
+}
+
+/**
+ * Archive location of a file or folder inside its zone:
+ *   org_{org}/shared/{houseId}/{rel...}  ->  org_{org}/shared/{houseId}/__archive__/{timestamp}/{rel...}
+ *   org_{org}/private/{uid}/{rel...}     ->  org_{org}/private/{uid}/__archive__/{timestamp}/{rel...}
+ * Visible to everyone with house rights (shared) or to the owner only (private).
+ * Throws for zone roots, house folders, legacy paths and already archived paths.
+ */
+export function archivePathFor(path: string, timestamp: string): string {
+  const parsed = parseStoragePath(path);
+  assertSafeSegment(timestamp, 'timestamp');
+  if (parsed.rest.length === 0 || parsed.rest[0] === ARCHIVE_SEGMENT) {
+    throw new StoragePathError('Pfad kann nicht archiviert werden', 'INVALID_PATH');
+  }
+  if (parsed.zone === 'shared' && parsed.houseId !== undefined) {
+    return joinChecked([sharedPath(parsed.orgId as string, parsed.houseId), ARCHIVE_SEGMENT, timestamp, ...parsed.rest]);
+  }
+  if (parsed.zone === 'private' && parsed.userId !== undefined) {
+    return joinChecked([privatePath(parsed.orgId as string, parsed.userId), ARCHIVE_SEGMENT, timestamp, ...parsed.rest]);
+  }
+  throw new StoragePathError('Pfad liegt nicht in einer archivierbaren Zone', 'INVALID_PATH');
+}
+
+/**
+ * Reads an archive path. Returns the original path (zone + relative path) and the archive
+ * timestamp, or null if the path is not an archive path. Throws on invalid paths.
+ */
+export function parseArchivePath(path: string): { originalPath: string; timestamp: string } | null {
+  const parsed = parseStoragePath(path);
+  if (parsed.rest[0] !== ARCHIVE_SEGMENT || parsed.rest.length < 2) {
+    return null;
+  }
+  const timestamp = parsed.rest[1];
+  const relative = parsed.rest.slice(2);
+  if (parsed.zone === 'shared' && parsed.houseId !== undefined) {
+    return { originalPath: joinChecked([sharedPath(parsed.orgId as string, parsed.houseId), ...relative]), timestamp };
+  }
+  if (parsed.zone === 'private' && parsed.userId !== undefined) {
+    return { originalPath: joinChecked([privatePath(parsed.orgId as string, parsed.userId), ...relative]), timestamp };
+  }
+  return null;
+}
+
+/**
+ * TRANSITION (GH-27 PR 2 -> PR 3): legacy `user_{uid}` paths stay readable for their own owner
+ * until the backfill has moved them. This is a read-only exception, never write, never other users.
+ * TODO(GH-27 PR3): remove together with the legacy storage policies.
+ */
+export function isOwnLegacyPath(path: string, userId: string): boolean {
+  try {
+    const parsed = parseStoragePath(path);
+    return parsed.zone === 'legacy-user' && parsed.userId === userId;
+  } catch {
+    return false;
   }
 }

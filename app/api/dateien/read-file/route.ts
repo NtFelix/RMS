@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate that the path belongs to the user
-    const accessError = await checkStoragePathAccess(supabase, user.id, `${filePath}/${fileName}`)
+    const accessError = await checkStoragePathAccess(supabase, user.id, `${filePath}/${fileName}`, { allowLegacyOwnRead: true })
     if (accessError) {
       return NextResponse.json({ error: accessError }, { status: 403, headers: NO_CACHE_HEADERS })
     }

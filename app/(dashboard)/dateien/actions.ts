@@ -219,7 +219,7 @@ export async function getPathContents(userId: string, path?: string): Promise<Fo
 export async function loadFilesForPath(userId: string, path: string): Promise<FolderContentsResult> {
     // Validate that the path belongs to the active organisation and an accessible house
     const { user, supabase } = await ensureAuth()
-    const accessError = user.id === userId ? await checkStoragePathAccess(supabase, userId, path) : 'Nicht authentifiziert'
+    const accessError = user.id === userId ? await checkStoragePathAccess(supabase, userId, path, { allowLegacyOwnRead: true }) : 'Nicht authentifiziert'
     if (accessError) {
         return {
             files: [],
