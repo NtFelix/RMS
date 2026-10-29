@@ -34,6 +34,16 @@ function folderNode(path: string, name: string, displayName?: string, children: 
   return { id: path, name, path, type: 'folder', displayName, children, isEmpty: false, fileCount: 0 }
 }
 
+const HOUSE_DOCUMENTS = 'house_documents'
+const APARTMENT_DOCUMENTS = 'apartment_documents'
+/** Apartment and tenant folders are named after their database id */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** System folder node (Hausdokumente / Wohnungsdokumente), shown even if nothing was uploaded yet */
+function systemNode(path: string, name: string): TreeNode {
+  return folderNode(path, name, SYSTEM_FOLDER_LABELS[name])
+}
+
 /** Archive node below a zone (house or private area), shown instead of the raw __archive__ folder */
 function archiveNode(zoneBase: string): TreeNode {
   return folderNode(`${zoneBase}/${ARCHIVE_SEGMENT}`, 'Archiv', 'Archiv')
@@ -106,9 +116,9 @@ function loadRootTree(ctx: PathAccessContext): TreeNode[] {
 }
 
 /**
- * Children of one folder. Names are resolved from the database for house, apartment and
- * tenant folders (display name), system folders get fixed labels, everything else shows
- * the storage folder name.
+ * Children of one folder. Houses, apartments and tenants come from the database (display name),
+ * the system folders Hausdokumente/Wohnungsdokumente are always present, the storage listing only
+ * adds custom folders. Everything else shows the storage folder name.
  */
 async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderPath: string): Promise<TreeNode[]> {
   try {
@@ -137,23 +147,46 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
     return sortNodes(nodes)
   }
 
+  // House folder: Hausdokumente always, apartments from the database, additional custom folders from storage
   if (parsed.zone === 'shared' && parsed.houseId !== undefined && parsed.rest.length === 0) {
     const houseId = parsed.houseId
     const { data: apartments } = await supabase.from('Wohnungen').select('id, name').eq('haus_id', houseId)
-    const names = new Map<string, string>((apartments ?? []).map((a: { id: string; name: string | null }) => [a.id, a.name || a.id]))
-    const nodes = await listFolderNodes(supabase, folderPath, (segment) => names.get(segment), (segment) =>
-      sharedPath(orgId, houseId, segment),
+    const apartmentNodes: TreeNode[] = (apartments ?? []).map((a: { id: string; name: string | null }) =>
+      folderNode(sharedPath(orgId, houseId, a.id), a.name || a.id, a.name || undefined),
     )
-    return [archiveNode(sharedPath(orgId, houseId)), ...nodes]
+    const known = new Set<string>([HOUSE_DOCUMENTS, ...(apartments ?? []).map((a: { id: string }) => a.id)])
+    const customNodes = await listCustomFolderNodes(supabase, folderPath, known, (segment) => sharedPath(orgId, houseId, segment))
+    return [
+      archiveNode(sharedPath(orgId, houseId)),
+      systemNode(sharedPath(orgId, houseId, HOUSE_DOCUMENTS), HOUSE_DOCUMENTS),
+      ...sortNodes([...apartmentNodes, ...customNodes]),
+    ]
   }
 
-  if (parsed.zone === 'shared' && parsed.houseId !== undefined && parsed.rest.length === 1) {
+  // Apartment folder (only a UUID segment is an apartment: not __archive__, not a system or custom folder)
+  if (parsed.zone === 'shared' && parsed.houseId !== undefined && parsed.rest.length === 1 && UUID_PATTERN.test(parsed.rest[0])) {
+    const houseId = parsed.houseId
     const apartmentId = parsed.rest[0]
+    // The apartment must belong to the house of the path (whose scope was checked above)
+    const { data: apartment } = await supabase
+      .from('Wohnungen')
+      .select('id')
+      .eq('id', apartmentId)
+      .eq('haus_id', houseId)
+      .maybeSingle()
+    if (!apartment) return []
     const { data: tenants } = await supabase.from('Mieter').select('id, name').eq('wohnung_id', apartmentId)
-    const names = new Map<string, string>((tenants ?? []).map((t: { id: string; name: string | null }) => [t.id, t.name || t.id]))
-    return listFolderNodes(supabase, folderPath, (segment) => names.get(segment), (segment) =>
-      sharedPath(orgId, parsed.houseId as string, apartmentId, segment),
+    const tenantNodes: TreeNode[] = (tenants ?? []).map((t: { id: string; name: string | null }) =>
+      folderNode(sharedPath(orgId, houseId, apartmentId, t.id), t.name || t.id, t.name || undefined),
     )
+    const known = new Set<string>([APARTMENT_DOCUMENTS, ...(tenants ?? []).map((t: { id: string }) => t.id)])
+    const customNodes = await listCustomFolderNodes(supabase, folderPath, known, (segment) =>
+      sharedPath(orgId, houseId, apartmentId, segment),
+    )
+    return [
+      systemNode(sharedPath(orgId, houseId, apartmentId, APARTMENT_DOCUMENTS), APARTMENT_DOCUMENTS),
+      ...sortNodes([...tenantNodes, ...customNodes]),
+    ]
   }
 
   const nodes = await listFolderNodes(supabase, folderPath, () => undefined, (segment) => `${folderPath}/${segment}`)
@@ -161,6 +194,25 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
     return [archiveNode(folderPath), ...nodes]
   }
   return nodes
+}
+
+/** Storage list() returns at most this many entries per call, larger folders are read page by page */
+const STORAGE_LIST_PAGE_SIZE = 1000
+
+/** Storage sub-folder names of folderPath (entries without metadata), all pages, without `.keep` and `__archive__` */
+async function listStorageFolderNames(supabase: any, folderPath: string): Promise<string[]> {
+  const names: string[] = []
+  for (let offset = 0; ; offset += STORAGE_LIST_PAGE_SIZE) {
+    const { data: items } = await supabase.storage
+      .from('documents')
+      .list(folderPath, { limit: STORAGE_LIST_PAGE_SIZE, offset, sortBy: { column: 'name', order: 'asc' } })
+    for (const item of items ?? []) {
+      if (!item.name || item.name === '.keep' || item.name === ARCHIVE_SEGMENT || item.metadata) continue
+      names.push(item.name)
+    }
+    if ((items?.length ?? 0) < STORAGE_LIST_PAGE_SIZE) break
+  }
+  return names
 }
 
 /**
@@ -173,14 +225,31 @@ async function listFolderNodes(
   lookup: (segment: string) => string | undefined,
   childPath: (segment: string) => string,
 ): Promise<TreeNode[]> {
-  const { data: items } = await supabase.storage.from('documents').list(folderPath, { limit: 1000 })
   const nodes: TreeNode[] = []
-  for (const item of items ?? []) {
-    if (!item.name || item.name === '.keep' || item.name === ARCHIVE_SEGMENT || item.metadata) continue
-    const displayName = lookup(item.name) ?? SYSTEM_FOLDER_LABELS[item.name]
-    nodes.push(folderNode(childPath(item.name), displayName ?? item.name, displayName))
+  for (const name of await listStorageFolderNames(supabase, folderPath)) {
+    const displayName = lookup(name) ?? SYSTEM_FOLDER_LABELS[name]
+    nodes.push(folderNode(childPath(name), displayName ?? name, displayName))
   }
   return sortNodes(nodes)
+}
+
+/**
+ * Additional (custom) storage folders below a house or apartment: everything in the storage listing that
+ * is neither a known system/database folder nor an orphaned UUID folder (apartment or tenant that no
+ * longer exists, as before the storage-based tree).
+ */
+async function listCustomFolderNodes(
+  supabase: any,
+  folderPath: string,
+  known: Set<string>,
+  childPath: (segment: string) => string,
+): Promise<TreeNode[]> {
+  const nodes: TreeNode[] = []
+  for (const name of await listStorageFolderNames(supabase, folderPath)) {
+    if (known.has(name) || UUID_PATTERN.test(name)) continue
+    nodes.push(folderNode(childPath(name), name, name))
+  }
+  return nodes
 }
 
 /** Alphabetical order, Miscellaneous last */
