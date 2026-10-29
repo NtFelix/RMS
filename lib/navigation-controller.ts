@@ -298,15 +298,8 @@ async function processNavigationRequest(
         // Import and call the file loader
         const { loadFiles } = await import('@/lib/file-loader')
 
-        // Current user id (shared paths do not contain it); set by the cloud storage component
-        const { useCloudStorageStore } = await import('@/hooks/use-cloud-storage-store')
-        const userId = useCloudStorageStore.getState().ownerUserId
-        if (!userId) {
-            throw new Error('Benutzer nicht gesetzt')
-        }
-
-        // Execute the request with timeout and abort handling
-        const dataPromise = loadFiles(userId, request.path, request.abortController.signal)
+        // Execute the request with timeout and abort handling (the API route takes the user from the session)
+        const dataPromise = loadFiles(request.path, request.abortController.signal)
         const result = await Promise.race([dataPromise, timeoutPromise, abortPromise])
 
         const loadTime = performance.now() - startTime

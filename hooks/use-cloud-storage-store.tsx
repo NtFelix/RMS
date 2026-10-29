@@ -124,11 +124,8 @@ interface CloudStorageState {
 
   // Archive actions
   archiveFile: (file: StorageObject) => Promise<void>
-  loadArchivedFiles: (userId: string) => Promise<void>
+  loadArchivedFiles: () => Promise<void>
 
-  // Identity of the current user (needed for server actions, not derivable from shared paths)
-  ownerUserId: string | null
-  setOwnerUserId: (userId: string | null) => void
   restoreFile: (archivedFile: StorageObject, targetPath?: string) => Promise<void>
   permanentlyDeleteFile: (archivedFile: StorageObject) => Promise<void>
   bulkArchiveFiles: (files: StorageObject[]) => Promise<void>
@@ -149,7 +146,6 @@ interface CloudStorageState {
 }
 
 const initialState = {
-  ownerUserId: null as string | null,
   currentPath: '',
   breadcrumbs: [],
   files: [],
@@ -172,12 +168,6 @@ export const useCloudStorageStore = create<CloudStorageState>()(
   immer((set, get) => ({
     ...initialState,
 
-    setOwnerUserId: (userId: string | null) => {
-      set((state) => {
-        state.ownerUserId = userId
-      })
-    },
-
     // Navigation actions
     navigateToPath: async (path: string) => {
       set((state) => {
@@ -187,14 +177,9 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       })
 
       try {
-        const userId = get().ownerUserId
-        if (!userId) {
-          throw new Error('Benutzer nicht gesetzt')
-        }
-
-        // Use server action to load files for the new path
+        // Use server action to load files for the new path (the user is the one of the session)
         const { loadFilesForPath } = await import('@/app/(dashboard)/dateien/actions')
-        const { files, folders, error } = await loadFilesForPath(userId, path)
+        const { files, folders, error } = await loadFilesForPath(path)
 
         if (error) {
           throw new Error(error)
@@ -505,14 +490,9 @@ export const useCloudStorageStore = create<CloudStorageState>()(
 
     deleteFolder: async (folder: VirtualFolder) => {
       try {
-        const userId = get().ownerUserId
-        if (!userId) {
-          throw new Error('Benutzer nicht gesetzt')
-        }
-
-        // Use server action to delete folder
+        // Use server action to delete folder (the user is the one of the session)
         const { deleteFolder } = await import('@/app/(dashboard)/dateien/actions')
-        const { success, error } = await deleteFolder(userId, folder.path)
+        const { success, error } = await deleteFolder(folder.path)
 
         if (!success) {
           throw new Error(error || 'Fehler beim Löschen des Ordners')
@@ -541,7 +521,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
     },
 
     // Archive actions
-    loadArchivedFiles: async (userId: string) => {
+    loadArchivedFiles: async () => {
       set((state) => {
         state.isArchiveLoading = true
         state.archiveError = null
@@ -549,7 +529,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
 
       try {
         const { listArchivedFiles } = await import('@/lib/storage-service')
-        const archivedFiles = await listArchivedFiles(userId)
+        const archivedFiles = await listArchivedFiles()
 
         set((state) => {
           state.archivedFiles = archivedFiles
@@ -841,14 +821,9 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       })
 
       try {
-        const userId = get().ownerUserId
-        if (!userId) {
-          throw new Error('Benutzer nicht gesetzt')
-        }
-
-        // Use server action to load files for the current path
+        // Use server action to load files for the current path (the user is the one of the session)
         const { loadFilesForPath } = await import('@/app/(dashboard)/dateien/actions')
-        const { files, folders, error } = await loadFilesForPath(userId, currentPath)
+        const { files, folders, error } = await loadFilesForPath(currentPath)
 
         if (error) {
           throw new Error(error)

@@ -29,9 +29,9 @@ describe('loadFiles', () => {
 
         // Make multiple concurrent requests
         const requests = [
-            loadFiles('123', 'org_org-1/folder1'),
-            loadFiles('123', 'org_org-1/folder1'),
-            loadFiles('123', 'org_org-1/folder1'),
+            loadFiles('org_org-1/folder1'),
+            loadFiles('org_org-1/folder1'),
+            loadFiles('org_org-1/folder1'),
         ]
 
         const results = await Promise.all(requests)
@@ -69,7 +69,7 @@ describe('loadFiles', () => {
         const abortController = new AbortController()
 
         // Start the request
-        const promise = loadFiles('123', 'org_org-1/folder1', abortController.signal)
+        const promise = loadFiles('org_org-1/folder1', abortController.signal)
 
         // Abort immediately
         abortController.abort()
@@ -97,6 +97,32 @@ describe('loadFiles', () => {
 
         // Should return cached value
         expect(getCachedBreadcrumbs('org_org-1/folder1')).toEqual(breadcrumbs)
+    })
+})
+
+describe('cancel', () => {
+    it('cancelAllPendingLoads aborts every pending request without a user id', async () => {
+        const signals: AbortSignal[] = []
+        global.fetch = jest.fn().mockImplementation((_url: string, init?: { signal?: AbortSignal }) => {
+            signals.push(init!.signal!)
+            return new Promise((_resolve, reject) => {
+                init!.signal!.addEventListener('abort', () => {
+                    const err = new Error('The operation was aborted')
+                    err.name = 'AbortError'
+                    reject(err)
+                })
+            })
+        })
+        const { loadFiles, cancelAllPendingLoads } = await import('@/lib/file-loader')
+
+        const first = loadFiles('org_org-1/folder1')
+        const second = loadFiles('org_org-1/folder2')
+        await new Promise(resolve => setTimeout(resolve, 0))
+        cancelAllPendingLoads()
+
+        expect((await first).error).toContain('cancelled')
+        expect((await second).error).toContain('cancelled')
+        expect(signals.every(signal => signal.aborted)).toBe(true)
     })
 })
 

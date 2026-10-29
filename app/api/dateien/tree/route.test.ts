@@ -55,7 +55,7 @@ const supabase = {
 }
 
 function request(path: string): NextRequest {
-  const url = `http://localhost/api/dateien/tree?userId=${USER_ID}&path=${encodeURIComponent(path)}`
+  const url = `http://localhost/api/dateien/tree?path=${encodeURIComponent(path)}`
   return { url } as unknown as NextRequest
 }
 
@@ -184,5 +184,21 @@ describe('GET /api/dateien/tree', () => {
     const children = await childrenOf(`org_${ORG_ID}/private/${USER_ID}`)
 
     expect(children.map((c) => c.name)).toEqual(['Archiv', 'Notizen'])
+  })
+
+  it('takes the user from the session and ignores a userId query parameter', async () => {
+    const url = `http://localhost/api/dateien/tree?userId=88888888-8888-4888-8888-888888888888&path=${encodeURIComponent(`org_${ORG_ID}/private`)}`
+    const response = await GET({ url } as unknown as NextRequest)
+
+    expect(response.status).toBe(200)
+    expect((await response.json()).children.map((c: { path: string }) => c.path)).toEqual([`org_${ORG_ID}/private/${USER_ID}`])
+  })
+
+  it('answers the root tree without any parameter', async () => {
+    const response = await GET({ url: 'http://localhost/api/dateien/tree' } as unknown as NextRequest)
+
+    expect(response.status).toBe(200)
+    const { tree } = await response.json()
+    expect(tree[0].children.map((c: { path: string }) => c.path)).toEqual([`org_${ORG_ID}/shared`, `org_${ORG_ID}/private/${USER_ID}`])
   })
 })

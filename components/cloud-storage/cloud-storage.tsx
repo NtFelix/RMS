@@ -129,15 +129,9 @@ export function CloudStorage({
     useEffect(() => {
         return () => {
             cancelAllNavigations()
-            cancelAllPendingLoads(userId)
+            cancelAllPendingLoads()
         }
-    }, [userId, cancelAllNavigations])
-
-    // Server actions need the current user id; shared paths do not contain it
-    const setOwnerUserId = useCloudStorageStore(state => state.setOwnerUserId)
-    useEffect(() => {
-        setOwnerUserId(userId)
-    }, [userId, setOwnerUserId])
+    }, [cancelAllNavigations])
 
     /**
      * Initialize component with initial data and set history state

@@ -30,7 +30,7 @@ export default async function DateienPathPage({ params }: { params: Promise<{ sl
     }
 
     // Load path contents on server for SSR using unified RPC
-    const { files, folders, breadcrumbs, totalSize, error: loadError } = await getFolderContents(user.id, initialPath)
+    const { files, folders, breadcrumbs, totalSize, error: loadError } = await getFolderContents(initialPath)
 
     if (loadError) {
         console.error('Error loading path contents:', loadError)

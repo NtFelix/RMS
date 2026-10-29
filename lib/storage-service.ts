@@ -93,7 +93,7 @@ export interface StorageService {
   createPlaceholder(path: string): Promise<void>;
   getFileUrl(path: string): Promise<string>;
   archiveFile(path: string): Promise<string>;
-  listArchivedFiles(userId: string): Promise<StorageObject[]>;
+  listArchivedFiles(): Promise<StorageObject[]>;
   restoreFile(archivePath: string, targetPath?: string): Promise<void>;
   permanentlyDeleteFile(path: string): Promise<void>;
   bulkArchiveFiles(paths: string[]): Promise<string[]>;
@@ -1090,11 +1090,9 @@ const ARCHIVE_PAGE_SIZE = 1000;
  * private: own archive). The house scope is applied afterwards on the parsed path, because `%` and `_`
  * are LIKE wildcards and the pattern alone would also match foreign paths. Each query is paged.
  */
-export async function listArchivedFiles(userId: string): Promise<StorageObject[]> {
+export async function listArchivedFiles(): Promise<StorageObject[]> {
+  // The user is the signed-in one (access context), never passed in by the caller
   const ctx = await getClientAccessContext();
-  if (ctx.userId !== userId) {
-    throw new Error('Access denied: path does not belong to current user');
-  }
   const supabase = createClient();
 
   const fetchAllRows = async (likePattern: string) => {

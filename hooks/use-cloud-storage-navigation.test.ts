@@ -1,5 +1,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { useCloudStorageNavigationStore, useNavigationState } from './use-cloud-storage-navigation'
+import { loadFilesForPath } from '@/app/(dashboard)/dateien/actions'
 
 // Mock the server action
 jest.mock('@/app/(dashboard)/dateien/actions', () => ({
@@ -132,5 +133,16 @@ describe('useCloudStorageNavigation', () => {
     expect(stats).toHaveProperty('viewPreferencesCount')
     expect(stats).toHaveProperty('scrollPositionsCount')
     expect(stats).toHaveProperty('cacheHitRate')
+  })
+
+  it('loads a directory with the path only, no owner user id involved', async () => {
+    const { result } = renderHook(() => useCloudStorageNavigationStore())
+
+    await act(async () => {
+      await result.current.navigateToPath('org_org-1/shared/house-1', { force: true })
+    })
+
+    expect(loadFilesForPath).toHaveBeenCalledWith('org_org-1/shared/house-1')
+    expect(result.current.currentPath).toBe('org_org-1/shared/house-1')
   })
 })

@@ -43,11 +43,11 @@ function logLoader(level: 'INFO' | 'DEBUG' | 'WARN', message: string, context?: 
  * Deduplicates requests - multiple simultaneous requests to the same path share a single network request
  */
 export async function loadFiles(
-    userId: string,
     path: string,
     abortSignal?: AbortSignal
 ): Promise<LoadResult> {
-    const cacheKey = `${userId}:${path}`
+    // The API route takes the user from the session, so the path alone identifies a request
+    const cacheKey = path
     const now = Date.now()
 
     // Check for existing in-flight request
@@ -72,7 +72,7 @@ export async function loadFiles(
         })
     }
 
-    const loadPromise = executeFileLoad(userId, path, abortController.signal)
+    const loadPromise = executeFileLoad(path, abortController.signal)
 
     pendingRequests.set(cacheKey, {
         promise: loadPromise,
@@ -97,29 +97,25 @@ export async function loadFiles(
 /**
  * Cancel all pending requests for a path
  */
-export function cancelPendingLoad(userId: string, path: string): void {
-    const cacheKey = `${userId}:${path}`
-    const pending = pendingRequests.get(cacheKey)
+export function cancelPendingLoad(path: string): void {
+    const pending = pendingRequests.get(path)
     if (pending) {
         pending.abortController.abort()
-        pendingRequests.delete(cacheKey)
+        pendingRequests.delete(path)
     }
 }
 
 /**
- * Cancel all pending requests for a user
+ * Cancel all pending requests
  */
-export function cancelAllPendingLoads(userId: string): void {
+export function cancelAllPendingLoads(): void {
     for (const [key, pending] of pendingRequests.entries()) {
-        if (key.startsWith(`${userId}:`)) {
-            pending.abortController.abort()
-            pendingRequests.delete(key)
-        }
+        pending.abortController.abort()
+        pendingRequests.delete(key)
     }
 }
 
 async function executeFileLoad(
-    userId: string,
     path: string,
     abortSignal: AbortSignal
 ): Promise<LoadResult> {
@@ -217,7 +213,6 @@ async function executeFileLoad(
  * Preload multiple paths in parallel with priority ordering
  */
 export async function preloadPaths(
-    userId: string,
     paths: string[],
     maxConcurrent: number = 2
 ): Promise<void> {
@@ -228,7 +223,7 @@ export async function preloadPaths(
 
     for (const chunk of chunks) {
         await Promise.allSettled(
-            chunk.map(path => loadFiles(userId, path))
+            chunk.map(path => loadFiles(path))
         )
     }
 }

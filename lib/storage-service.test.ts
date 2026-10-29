@@ -536,7 +536,7 @@ describe('Storage Service listArchivedFiles', () => {
           ],
     );
 
-    const result = await listArchivedFiles('test-user-123');
+    const result = await listArchivedFiles();
 
     expect(mockLike).toHaveBeenCalledTimes(2);
     // `_` of the literal parts is escaped, only the house level is a wildcard
@@ -556,7 +556,7 @@ describe('Storage Service listArchivedFiles', () => {
         : [],
     );
 
-    expect(await listArchivedFiles('test-user-123')).toHaveLength(2);
+    expect(await listArchivedFiles()).toHaveLength(2);
   });
 
   it('does not stop at 1000 rows but reads the next pages', async () => {
@@ -566,13 +566,17 @@ describe('Storage Service listArchivedFiles', () => {
     );
     mockArchiveRows((pattern) => (pattern.startsWith('org\\_org1/shared/') ? many : []));
 
-    expect(await listArchivedFiles('test-user-123')).toHaveLength(1001);
+    expect(await listArchivedFiles()).toHaveLength(1001);
   });
 
-  it('refuses a foreign user id', async () => {
+  it('takes the user from the session: the private archive is always the own one', async () => {
     mockOrgScope(null);
-    await expect(listArchivedFiles('someone-else')).rejects.toThrow('Access denied');
-    expect(mockLike).not.toHaveBeenCalled();
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'someone-else' } }, error: null });
+    mockArchiveRows(() => []);
+
+    await listArchivedFiles();
+
+    expect(mockLike).toHaveBeenCalledWith('dateipfad', 'org\\_org1/private/someone-else/\\_\\_archive\\_\\_/%');
   });
 });
 

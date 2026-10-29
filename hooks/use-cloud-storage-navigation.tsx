@@ -8,7 +8,6 @@ import type { StorageObject, VirtualFolder, BreadcrumbItem } from './use-cloud-s
 import { getDirectoryCache, type DirectoryContents as CacheDirectoryContents, type DirectoryCacheManager } from '@/lib/directory-cache'
 import { getCacheWarmingManager, type CacheWarmingManager } from '@/lib/cache-warming'
 import { useActiveStateStore } from './use-active-state-manager'
-import { useCloudStorageStore } from './use-cloud-storage-store'
 import { buildFallbackBreadcrumbs, storagePathFromUrl, storageUrlFor } from '@/lib/storage-navigation'
 import { orgRootOfPath } from '@/lib/storage-paths'
 
@@ -532,14 +531,9 @@ async function loadDirectoryContentsForCache(path: string): Promise<CacheDirecto
 // Helper function to load directory contents
 async function loadDirectoryContents(path: string): Promise<DirectoryContents> {
   try {
-    const userId = useCloudStorageStore.getState().ownerUserId
-    if (!userId) {
-      throw new Error('Benutzer nicht gesetzt')
-    }
-    
-    // Use server action to load files for the path
+    // Use server action to load files for the path (the user is the one of the session)
     const { loadFilesForPath } = await import('@/app/(dashboard)/dateien/actions')
-    const { files, folders, error } = await loadFilesForPath(userId, path)
+    const { files, folders, error } = await loadFilesForPath(path)
     
     if (error) {
       throw new Error(error)

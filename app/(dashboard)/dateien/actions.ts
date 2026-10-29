@@ -4,7 +4,7 @@ import { ensureAuth } from '@/lib/auth-utils'
 import { checkStoragePathAccess, getActiveOrgId } from '@/lib/storage-access'
 import { STORAGE_ROOT_LABEL } from '@/lib/storage-navigation'
 import { folderMetadataFilter, isPathInFolder, orgRoot, parseStoragePath } from '@/lib/storage-paths'
-import { redirect, unstable_rethrow } from 'next/navigation'
+import { unstable_rethrow } from 'next/navigation'
 
 /**
  * Unified Document Navigation Actions
@@ -106,19 +106,16 @@ export interface FolderContentsResult {
  * Unified function to get all folder contents via the database RPC.
  * This is the ONLY function needed to load files, folders, and breadcrumbs.
  * 
- * @param userId - The user's UUID
- * @param path - The current storage path (e.g., "org_{orgId}/shared/{houseId}/{apartmentId}")
+ * The user is always the one of the session (ensureAuth), it is never passed in by the caller.
+ *
+ * @param path - The current storage path (e.g., "org_{orgId}/shared/{houseId}/{apartmentId}"), default: the organisation root
  * @returns Complete folder contents including files, folders, breadcrumbs, and total storage size
  */
-export async function getFolderContents(userId: string, path?: string): Promise<FolderContentsResult> {
+export async function getFolderContents(path?: string): Promise<FolderContentsResult> {
     const startTime = performance.now()
 
     try {
         const { user, supabase } = await ensureAuth()
-
-        if (user.id !== userId) {
-            redirect('/auth/login')
-        }
 
         // Validate that the path belongs to the active organisation and an accessible house (the single
         // access check of all folder loads, loadFilesForPath goes through here). Without a path the
@@ -225,26 +222,26 @@ export async function getFolderContents(userId: string, path?: string): Promise<
  * Backward compatible alias for getFolderContents
  * Used by: dateien pages, cloud-storage.tsx
  */
-export async function getPathContents(userId: string, path?: string): Promise<FolderContentsResult> {
-    return getFolderContents(userId, path)
+export async function getPathContents(path?: string): Promise<FolderContentsResult> {
+    return getFolderContents(path)
 }
 
 /**
  * Backward compatible alias for getFolderContents
  * Used by: use-cloud-storage-store.tsx, use-cloud-storage-navigation.tsx
  */
-export async function loadFilesForPath(userId: string, path: string): Promise<FolderContentsResult> {
+export async function loadFilesForPath(path: string): Promise<FolderContentsResult> {
     // The path check (organisation and house scope) is part of getFolderContents
-    return getFolderContents(userId, path)
+    return getFolderContents(path)
 }
 
 /**
  * Get total storage usage for a user
  * This is included in the unified RPC response, but exposed separately for backward compatibility
  */
-export async function getTotalStorageUsage(userId: string): Promise<number> {
+export async function getTotalStorageUsage(): Promise<number> {
     try {
-        const result = await getFolderContents(userId)
+        const result = await getFolderContents()
         return result.totalSize
     } catch (error) {
         console.error('Error getting storage usage:', error)
@@ -256,19 +253,12 @@ export async function getTotalStorageUsage(userId: string): Promise<number> {
  * Delete a folder and all its contents
  * NOTE: This operation is separate from the navigation RPC for safety
  */
-export async function deleteFolder(userId: string, folderPath: string): Promise<{
+export async function deleteFolder(folderPath: string): Promise<{
     success: boolean
     error?: string
 }> {
     try {
         const { user, supabase } = await ensureAuth()
-
-        if (user.id !== userId) {
-            return {
-                success: false,
-                error: 'Nicht authentifiziert'
-            }
-        }
 
         const { hasPermission } = await import('@/lib/permissions')
         if (!(await hasPermission('dokumente', 'loeschen'))) {
@@ -279,7 +269,7 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
         }
 
         // Validate that the path belongs to the active organisation and an accessible house
-        const accessError = await checkStoragePathAccess(supabase, userId, folderPath, { mode: 'write' })
+        const accessError = await checkStoragePathAccess(supabase, user.id, folderPath, { mode: 'write' })
         if (accessError) {
             return {
                 success: false,

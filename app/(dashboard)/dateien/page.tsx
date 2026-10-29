@@ -19,7 +19,7 @@ async function CloudStorageContent({ userId }: { userId: string }) {
 
     // Load initial files, folders and breadcrumbs on the server using unified RPC
     const initialPath = orgRoot(orgId)
-    const { files, folders, breadcrumbs, totalSize, error: loadError } = await getFolderContents(userId, initialPath)
+    const { files, folders, breadcrumbs, totalSize, error: loadError } = await getFolderContents(initialPath)
 
     if (loadError) {
         console.error('Error loading initial files:', loadError)

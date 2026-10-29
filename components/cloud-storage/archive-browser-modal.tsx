@@ -30,7 +30,8 @@ import { useToast } from "@/hooks/use-toast"
 interface ArchiveBrowserModalProps {
   isOpen: boolean
   onClose: () => void
-  userId: string
+  /** Not used any more: the archive of the signed-in user is listed (kept for existing callers) */
+  userId?: string
 }
 
 interface ArchivedFileWithMetadata extends StorageObject {
@@ -39,7 +40,7 @@ interface ArchivedFileWithMetadata extends StorageObject {
   archiveDate: Date
 }
 
-export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserModalProps) {
+export function ArchiveBrowserModal({ isOpen, onClose }: ArchiveBrowserModalProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'originalPath'>('date')
@@ -59,10 +60,10 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
 
   // Load archived files when modal opens
   useEffect(() => {
-    if (isOpen && userId) {
-      loadArchivedFiles(userId)
+    if (isOpen) {
+      loadArchivedFiles()
     }
-  }, [isOpen, userId, loadArchivedFiles])
+  }, [isOpen, loadArchivedFiles])
 
   // Process archived files with metadata
   const processedFiles: ArchivedFileWithMetadata[] = archivedFiles.map(file => {

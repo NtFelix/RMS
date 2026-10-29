@@ -52,21 +52,14 @@ function archiveNode(zoneBase: string): TreeNode {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
+    // The user is the one of the session; a `userId` query parameter of older clients is ignored
     const path = searchParams.get('path')
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400, headers: NO_CACHE_HEADERS }
-      )
-    }
 
     const supabase = await createSupabaseServerClient()
 
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (authError || !user || user.id !== userId) {
+    if (authError || !user) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401, headers: NO_CACHE_HEADERS }
@@ -85,7 +78,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const ctx: PathAccessContext = { orgId, userId, accessibleHouseIds }
+    const ctx: PathAccessContext = { orgId, userId: user.id, accessibleHouseIds }
 
     if (path) {
       const children = await loadFolderChildren(supabase, ctx, path)

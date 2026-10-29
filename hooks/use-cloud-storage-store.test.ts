@@ -11,6 +11,15 @@ import {
   type UploadItem,
 } from './use-cloud-storage-store'
 
+const mockLoadFilesForPath = jest.fn()
+const mockDeleteFolder = jest.fn()
+
+// The server actions take the user from the session: the store passes nothing but the path
+jest.mock('@/app/(dashboard)/dateien/actions', () => ({
+  loadFilesForPath: (...args: unknown[]) => mockLoadFilesForPath(...args),
+  deleteFolder: (...args: unknown[]) => mockDeleteFolder(...args),
+}))
+
 // Mock file for testing
 const createMockFile = (name: string, size: number = 1024): File => {
   const file = new File(['test content'], name, { type: 'text/plain' })
@@ -373,6 +382,54 @@ describe('useCloudStorageStore', () => {
       // Since we don't have actual storage service yet, it should just manage loading state
       expect(result.current.isLoading).toBe(false)
     })
+  })
+})
+
+describe('Server actions without a user id', () => {
+  const PATH = 'org_org-1/shared/house-1'
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockLoadFilesForPath.mockResolvedValue({ files: [], folders: [], breadcrumbs: [], totalSize: 0 })
+    mockDeleteFolder.mockResolvedValue({ success: true })
+    act(() => {
+      useCloudStorageStore.getState().reset()
+    })
+  })
+
+  it('navigateToPath loads with the path only and never fails with "Benutzer nicht gesetzt"', async () => {
+    await act(async () => {
+      await useCloudStorageStore.getState().navigateToPath(PATH)
+    })
+
+    expect(mockLoadFilesForPath).toHaveBeenCalledWith(PATH)
+    expect(useCloudStorageStore.getState().error).toBeNull()
+    expect(useCloudStorageStore.getState().currentPath).toBe(PATH)
+  })
+
+  it('works right after reset(): nothing is lost that a parent effect would have to set again', async () => {
+    act(() => {
+      useCloudStorageStore.getState().setCurrentPath(PATH)
+      useCloudStorageStore.getState().reset()
+      useCloudStorageStore.getState().setCurrentPath(PATH)
+    })
+
+    await act(async () => {
+      await useCloudStorageStore.getState().refreshCurrentPath()
+    })
+
+    expect(mockLoadFilesForPath).toHaveBeenCalledWith(PATH)
+    expect(useCloudStorageStore.getState().error).toBeNull()
+  })
+
+  it('deleteFolder passes the folder path only', async () => {
+    await act(async () => {
+      await useCloudStorageStore.getState().deleteFolder({
+        name: 'Ordner', path: `${PATH}/Ordner`, type: 'storage', isEmpty: true, children: [], fileCount: 0,
+      })
+    })
+
+    expect(mockDeleteFolder).toHaveBeenCalledWith(`${PATH}/Ordner`)
   })
 })
 
