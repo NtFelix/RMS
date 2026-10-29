@@ -155,22 +155,10 @@ export function validateFile(file: File): { valid: boolean; error?: string } {
 }
 
 /**
- * Gets the current user ID from Supabase auth
- */
-async function getCurrentUserId(): Promise<string> {
-  const supabase = createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    throw new Error('User not authenticated');
-  }
-
-  return user.id;
-}
-
-/**
  * Access context of the current user for storage paths: active organisation and house scope.
  * Fail-closed: if the house scope cannot be resolved, an error is thrown.
+ * Costs three round trips (auth user, organisation, house scope): an operation that validates several
+ * paths (archive, restore, move folder, bulk) builds it once and passes it on to the internal helpers.
  */
 async function getClientAccessContext(): Promise<PathAccessContext> {
   const supabase = createClient();
@@ -201,9 +189,10 @@ async function getClientAccessContext(): Promise<PathAccessContext> {
  * Validates a storage path against the active organisation and the house scope
  * (see lib/storage-paths.ts). Throws StoragePathError on violation.
  * Reading may browse the zone roots, every write must target a house or the own private folder.
+ * Without `ctx` the access context is built for this one call, operations with several paths pass theirs.
  */
-async function validateStoragePath(path: string, mode: PathAccessMode = 'read'): Promise<void> {
-  assertPathAllowed(path, await getClientAccessContext(), mode);
+async function validateStoragePath(path: string, mode: PathAccessMode = 'read', ctx?: PathAccessContext): Promise<void> {
+  assertPathAllowed(path, ctx ?? await getClientAccessContext(), mode);
 }
 
 /**
@@ -213,6 +202,16 @@ export async function uploadFile(
   file: File,
   path: string,
   options: UploadOptions = {}
+): Promise<StorageResult> {
+  return uploadFileInContext(file, path, options);
+}
+
+/** uploadFile with an access context that the caller already resolved (createPlaceholder) */
+async function uploadFileInContext(
+  file: File,
+  path: string,
+  options: UploadOptions,
+  ctx?: PathAccessContext
 ): Promise<StorageResult> {
   const startTime = Date.now();
 
@@ -229,7 +228,7 @@ export async function uploadFile(
     // A new name is created here: normalise once (also strips slashes at both ends and double slashes),
     // then validate exactly this string and use it for the access check, storage and metadata
     const targetPath = pathUtils.sanitizePath(path);
-    await validateStoragePath(targetPath, 'write');
+    await validateStoragePath(targetPath, 'write', ctx);
 
     console.log('Storage service uploading file:', {
       originalPath: path,
@@ -275,7 +274,6 @@ export async function uploadFile(
             const pathSegments = targetPath.split('/');
             const fileName = pathSegments.pop() || file.name;
             const directoryPath = pathSegments.join('/');
-            const userId = await getCurrentUserId();
 
             // Check if file already exists in DB (for upsert)
             const { data: existingFile } = await supabase
@@ -381,17 +379,24 @@ export async function uploadFile(
 /**
  * Lists files with a given prefix using performance optimizations
  */
-export async function listFiles(prefix: string, options?: {
+export async function listFiles(prefix: string, options?: ListFilesOptions): Promise<StorageObject[]> {
+  return listFilesInContext(prefix, options);
+}
+
+interface ListFilesOptions {
   limit?: number;
   offset?: number;
   sortBy?: 'name' | 'updated_at' | 'size';
   sortOrder?: 'asc' | 'desc';
-}): Promise<StorageObject[]> {
+}
+
+/** listFiles with an access context that the caller already resolved (archiveFolder) */
+async function listFilesInContext(prefix: string, options?: ListFilesOptions, ctx?: PathAccessContext): Promise<StorageObject[]> {
   const startTime = Date.now();
 
   try {
     // The prefix is an existing folder path (from the database): validated as it is, never rewritten
-    await validateStoragePath(prefix);
+    await validateStoragePath(prefix, 'read', ctx);
 
     // Use circuit breaker to prevent cascading failures
     const result = await storageCircuitBreaker.execute(async () => {
@@ -554,12 +559,16 @@ export async function triggerFileDownload(path: string, filename?: string): Prom
  * private/{user}/__archive__/{timestamp}/... (see archivePathFor)
  */
 export async function archiveFile(path: string): Promise<string> {
-  await validateStoragePath(path, 'write');
+  return archiveFileInContext(path, await getClientAccessContext());
+}
+
+async function archiveFileInContext(path: string, ctx: PathAccessContext): Promise<string> {
+  await validateStoragePath(path, 'write', ctx);
 
   const archivePath = archivePathFor(path, archiveTimestamp());
-  await validateStoragePath(archivePath, 'write');
+  await validateStoragePath(archivePath, 'write', ctx);
 
-  await moveFile(path, archivePath);
+  await moveFileInContext(path, archivePath, ctx);
   return archivePath;
 }
 
@@ -636,8 +645,13 @@ export async function debugListDirectory(path: string): Promise<void> {
  * Moves a file from one path to another
  */
 export async function moveFile(oldPath: string, newPath: string): Promise<void> {
-  await validateStoragePath(oldPath, 'write');
-  await validateStoragePath(newPath, 'write');
+  return moveFileInContext(oldPath, newPath, await getClientAccessContext());
+}
+
+/** moveFile with the access context of the calling operation (archive, restore, rename, folder move) */
+async function moveFileInContext(oldPath: string, newPath: string, ctx: PathAccessContext): Promise<void> {
+  await validateStoragePath(oldPath, 'write', ctx);
+  await validateStoragePath(newPath, 'write', ctx);
 
   // Both paths are validated above (no leading/trailing or double slashes), they are used as they are.
   // cleanOldPath/cleanNewPath are only reassigned if the file name is corrected below.
@@ -1008,7 +1022,8 @@ export async function createSignedUrl(
  * Renames a file in the same directory
  */
 export async function renameFile(filePath: string, newName: string): Promise<void> {
-  await validateStoragePath(filePath, 'write');
+  const ctx = await getClientAccessContext();
+  await validateStoragePath(filePath, 'write', ctx);
 
   const pathSegments = filePath.split('/');
   const directory = pathSegments.slice(0, -1).join('/');
@@ -1022,7 +1037,7 @@ export async function renameFile(filePath: string, newName: string): Promise<voi
     newName: newName
   });
 
-  await moveFile(filePath, newPath);
+  await moveFileInContext(filePath, newPath, ctx);
 }
 
 /**
@@ -1031,12 +1046,13 @@ export async function renameFile(filePath: string, newName: string): Promise<voi
 export async function createPlaceholder(path: string): Promise<void> {
   // A new folder name is created here: normalise once, validate the folder, then upload the placeholder below it
   const folderPath = pathUtils.sanitizePath(path);
-  await validateStoragePath(folderPath, 'write');
+  const ctx = await getClientAccessContext();
+  await validateStoragePath(folderPath, 'write', ctx);
 
   const placeholderPath = `${folderPath}/.keep`;
   const placeholderFile = new File([''], '.keep', { type: 'text/plain' });
 
-  const result = await uploadFile(placeholderFile, placeholderPath, { upsert: true });
+  const result = await uploadFileInContext(placeholderFile, placeholderPath, { upsert: true }, ctx);
 
   if (!result.success) {
     throw new Error(`Failed to create placeholder: ${result.error}`);
@@ -1133,12 +1149,13 @@ export async function restoreFile(archivePath: string, targetPath?: string): Pro
   if (!parsed) {
     throw new Error('File is not in archive');
   }
-  await validateStoragePath(archivePath, 'write');
+  const ctx = await getClientAccessContext();
+  await validateStoragePath(archivePath, 'write', ctx);
 
   const restorePath = targetPath ?? parsed.originalPath;
-  await validateStoragePath(restorePath, 'write');
+  await validateStoragePath(restorePath, 'write', ctx);
 
-  await moveFile(archivePath, restorePath);
+  await moveFileInContext(archivePath, restorePath, ctx);
 }
 
 /**
@@ -1165,11 +1182,16 @@ export async function permanentlyDeleteFile(path: string): Promise<void> {
  * Archives multiple files (bulk operation)
  */
 export async function bulkArchiveFiles(paths: string[]): Promise<string[]> {
+  if (paths.length === 0) return [];
+  return bulkArchiveFilesInContext(paths, await getClientAccessContext());
+}
+
+async function bulkArchiveFilesInContext(paths: string[], ctx: PathAccessContext): Promise<string[]> {
   const archivedPaths: string[] = [];
 
   for (const path of paths) {
     try {
-      const archivePath = await archiveFile(path);
+      const archivePath = await archiveFileInContext(path, ctx);
       archivedPaths.push(archivePath);
     } catch (error) {
       console.error(`Failed to archive file ${path}:`, error);
@@ -1184,8 +1206,9 @@ export async function bulkArchiveFiles(paths: string[]): Promise<string[]> {
  * Moves a folder and all its contents to a new location
  */
 export async function moveFolder(oldFolderPath: string, newFolderPath: string): Promise<void> {
-  await validateStoragePath(oldFolderPath, 'write');
-  await validateStoragePath(newFolderPath, 'write');
+  const ctx = await getClientAccessContext();
+  await validateStoragePath(oldFolderPath, 'write', ctx);
+  await validateStoragePath(newFolderPath, 'write', ctx);
 
   // Both paths are validated above (no leading/trailing or double slashes), they are used as they are
   const cleanOldPath = oldFolderPath;
@@ -1247,7 +1270,7 @@ export async function moveFolder(oldFolderPath: string, newFolderPath: string): 
 
         console.log(`📄 Moving file ${movedCount + 1}/${allFiles.length}: ${file.name}`);
 
-        await moveFile(file.path, targetFilePath);
+        await moveFileInContext(file.path, targetFilePath, ctx);
         movedCount++;
 
         // Small delay to avoid overwhelming the server
@@ -1359,15 +1382,16 @@ async function cleanupEmptyFolders(folderPath: string): Promise<void> {
  * Archives all files in a folder (for folder deletion)
  */
 export async function archiveFolder(folderPath: string): Promise<string[]> {
-  await validateStoragePath(folderPath, 'write');
+  const ctx = await getClientAccessContext();
+  await validateStoragePath(folderPath, 'write', ctx);
 
   // List all files in the folder recursively
-  const files = await listFiles(folderPath);
+  const files = await listFilesInContext(folderPath, undefined, ctx);
   const filePaths = files
     .filter(file => !isKeepFile(file.name))
     .map(file => `${folderPath}/${file.name}`);
 
-  return await bulkArchiveFiles(filePaths);
+  return await bulkArchiveFilesInContext(filePaths, ctx);
 }
 
 // Default export with all storage operations

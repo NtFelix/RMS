@@ -35,6 +35,7 @@ describe('dateien/actions', () => {
   let mockQueryBuilder: {
     select: jest.Mock;
     or: jest.Mock;
+    like: jest.Mock;
     eq: jest.Mock;
     single: jest.Mock;
     then: jest.Mock;

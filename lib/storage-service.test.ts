@@ -18,6 +18,8 @@ import {
   listArchivedFiles,
   renameFile,
   moveFolder,
+  bulkArchiveFiles,
+  archiveFolder,
 } from './storage-service';
 import { folderMetadataFilter, assertPathAllowed } from './storage-paths';
 import { pathUtils } from './path-utils';
@@ -103,6 +105,7 @@ jest.mock('./path-utils', () => ({
     sanitizePath: jest.fn((path) => path),
     buildUserPath: jest.fn((...args) => args.join('/'))
   },
+  isKeepFile: jest.fn((name: string) => name === '.keep'),
   validatePath: jest.fn(() => true),
   isUserPath: jest.fn(() => true)
 }));
@@ -690,5 +693,124 @@ describe('Storage Service path normalisation', () => {
     expect(mockEq).toHaveBeenCalledWith('dateipfad', `${HOUSE_PATH}/Bericht: Q1`);
     const checkedPaths = (assertPathAllowed as jest.Mock).mock.calls.map(([path]) => path);
     expect(checkedPaths).toEqual([stored, stored, stored, `${HOUSE_PATH}/Bericht: Q1`]);
+  });
+});
+
+describe('Storage Service access context (one per operation)', () => {
+  const HOUSE = 'org_org1/shared/house456';
+  const ARCHIVE = `${HOUSE}/__archive__/2026-10-29T10-00-00-000Z`;
+  let consoleLogSpy: jest.SpyInstance;
+
+  /** One access context = one auth lookup and one call each of the two scope RPCs */
+  function expectOneContext() {
+    expect(mockGetUser).toHaveBeenCalledTimes(1);
+    expect(mockRpc.mock.calls.map(([name]) => name).sort()).toEqual(['current_organisation_id', 'get_accessible_haeuser_ids']);
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'test-user-123' } }, error: null });
+    mockOrgScope(['house456']);
+    mockMove.mockResolvedValue({ error: null });
+    mockDownload.mockResolvedValue({ data: new Blob(['x']), error: null });
+    mockUpload.mockResolvedValue({ data: { path: 'x' }, error: null });
+    mockInsert.mockResolvedValue({ error: null });
+    mockDefaultSingle = { data: { id: 'doc-1', dateiname: 'x.pdf', dateipfad: 'dir' }, error: null };
+  });
+
+  afterEach(() => {
+    consoleLogSpy.mockRestore();
+    mockDefaultSingle = { data: null, error: null };
+  });
+
+  it('archiveFile', async () => {
+    await archiveFile(`${HOUSE}/wohnung1/x.pdf`);
+    expectOneContext();
+  });
+
+  it('restoreFile', async () => {
+    await restoreFile(`${ARCHIVE}/wohnung1/x.pdf`);
+    expectOneContext();
+  });
+
+  it('renameFile', async () => {
+    await renameFile(`${HOUSE}/x.pdf`, 'y.pdf');
+    expectOneContext();
+  });
+
+  it('moveFile', async () => {
+    await moveFile(`${HOUSE}/x.pdf`, `${HOUSE}/Neu/x.pdf`);
+    expectOneContext();
+  });
+
+  it('bulkArchiveFiles: one context for all files', async () => {
+    const archived = await bulkArchiveFiles([`${HOUSE}/a.pdf`, `${HOUSE}/b.pdf`, `${HOUSE}/c.pdf`]);
+    expect(archived).toHaveLength(3);
+    expect(mockMove).toHaveBeenCalledTimes(3);
+    expectOneContext();
+  });
+
+  it('bulkArchiveFiles: nothing to do builds no context', async () => {
+    expect(await bulkArchiveFiles([])).toEqual([]);
+    expect(mockGetUser).not.toHaveBeenCalled();
+  });
+
+  it('bulkArchiveFiles: every file is still checked against the scope', async () => {
+    const archived = await bulkArchiveFiles([`${HOUSE}/a.pdf`, 'org_org1/shared/other-house/b.pdf', `${HOUSE}/c.pdf`]);
+    expect(archived).toHaveLength(2);
+    expect(mockMove).toHaveBeenCalledTimes(2);
+    expectOneContext();
+  });
+
+  it('moveFolder: one context for all files', async () => {
+    mockOr.mockResolvedValue({
+      data: [
+        { dateipfad: `${HOUSE}/Foo`, dateiname: 'a.pdf' },
+        { dateipfad: `${HOUSE}/Foo/Sub`, dateiname: 'b.pdf' },
+        { dateipfad: `${HOUSE}/Foo/Sub`, dateiname: 'c.pdf' },
+      ],
+      error: null,
+    });
+    await moveFolder(`${HOUSE}/Foo`, `${HOUSE}/Bar`);
+    expect(mockMove).toHaveBeenCalledTimes(3);
+    expectOneContext();
+  });
+
+  it('moveFolder: a target outside the scope is refused before anything moves', async () => {
+    await expect(moveFolder(`${HOUSE}/Foo`, 'org_org1/shared/other-house/Bar')).rejects.toBeDefined();
+    expect(mockMove).not.toHaveBeenCalled();
+    expect(mockOr).not.toHaveBeenCalled();
+  });
+
+  it('createPlaceholder: folder check and upload share one context', async () => {
+    await createPlaceholder(`${HOUSE}/Neu`);
+    expect(mockUpload).toHaveBeenCalled();
+    expectOneContext();
+  });
+
+  it('archiveFolder: folder check, listing and the archiving of every file share one context', async () => {
+    // listFiles reads the folder through `.order(...)`: two files and the placeholder
+    mockOrder.mockReturnValueOnce(
+      Promise.resolve({
+        data: [
+          { id: '1', dateiname: 'a.pdf', dateigroesse: 1, mime_type: 'application/pdf' },
+          { id: '2', dateiname: 'b.pdf', dateigroesse: 1, mime_type: 'application/pdf' },
+          { id: '3', dateiname: '.keep', dateigroesse: 0, mime_type: 'text/plain' },
+        ],
+        error: null,
+      }),
+    );
+    const archived = await archiveFolder(`${HOUSE}/Foo`);
+    expect(archived).toHaveLength(2);
+    expect(mockMove).toHaveBeenCalledTimes(2);
+    expectOneContext();
+  });
+
+  it('uploadFile does not ask the auth service for the user a second time', async () => {
+    const file = new File(['x'], 'x.pdf', { type: 'application/pdf' });
+    Object.defineProperty(file, 'size', { value: 1024 });
+    expect((await uploadFile(file, `${HOUSE}/x.pdf`)).success).toBe(true);
+    expectOneContext();
   });
 });
