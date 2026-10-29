@@ -7,8 +7,27 @@ const USER = 'user-1'
 const HOUSE_A = 'haus-a'
 const HOUSE_B = 'haus-b'
 
+/** Houses of the active organisation (RLS makes the Haeuser lookup see only these); `null` = the lookup fails */
+let existingHouses: string[] | null
+const mockHouseLookups: string[] = []
+
 const supabase = {
   rpc: async (name: string) => ({ data: name === 'current_organisation_id' ? ORG : null, error: null }),
+  from: (table: string) => {
+    const chain: Record<string, unknown> = {}
+    let houseId = ''
+    chain.select = () => chain
+    chain.eq = (_column: string, value: string) => {
+      houseId = value
+      return chain
+    }
+    chain.maybeSingle = async () => {
+      mockHouseLookups.push(`${table}:${houseId}`)
+      if (existingHouses === null) return { data: null, error: { message: 'invalid input syntax for type uuid' } }
+      return { data: existingHouses.includes(houseId) ? { id: houseId } : null, error: null }
+    }
+    return chain
+  },
 } as unknown as SupabaseClient
 
 function setScope(ids: string[] | null) {
@@ -17,6 +36,8 @@ function setScope(ids: string[] | null) {
 
 beforeEach(() => {
   setScope([HOUSE_A])
+  existingHouses = [HOUSE_A, HOUSE_B]
+  mockHouseLookups.length = 0
 })
 
 describe('checkStoragePathAccess', () => {
@@ -35,6 +56,50 @@ describe('checkStoragePathAccess', () => {
     expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${HOUSE_A}/x.pdf`, write)).toBeNull()
     expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${HOUSE_B}/x.pdf`, write)).not.toBeNull()
     expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/private/${USER}/x.md`, write)).toBeNull()
+  })
+
+  describe('house of a shared write path must exist in the organisation', () => {
+    const write = { mode: 'write' as const }
+    const INVENTED = 'haus-erfunden'
+
+    it('refuses writing below an invented house id even for a user without house restriction', async () => {
+      setScope(null)
+      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${INVENTED}/x.pdf`, write)).toBe('Invalid path')
+      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${INVENTED}`, write)).toBe('Invalid path')
+      expect(mockHouseLookups).toEqual([`Haeuser:${INVENTED}`, `Haeuser:${INVENTED}`])
+    })
+
+    it('allows writing below an existing house for a user without house restriction (one lookup)', async () => {
+      setScope(null)
+      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${HOUSE_B}/Ordner/x.pdf`, write)).toBeNull()
+      expect(mockHouseLookups).toEqual([`Haeuser:${HOUSE_B}`])
+    })
+
+    it('fails closed if the lookup errors', async () => {
+      setScope(null)
+      existingHouses = null
+      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${HOUSE_A}/x.pdf`, write)).toBe('Invalid path')
+    })
+
+    it('leaves reading unchanged: no lookup, browsing stays a matter of scope and RPC', async () => {
+      setScope(null)
+      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${INVENTED}/x.pdf`)).toBeNull()
+      expect(mockHouseLookups).toEqual([])
+    })
+
+    it('does not look up houses for private paths, roots or refused paths', async () => {
+      setScope(null)
+      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/private/${USER}/x.md`, write)).toBeNull()
+      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared`, write)).not.toBeNull()
+      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${HOUSE_A}/__archive__/2026-10-29T10-00-00-000Z/x.pdf`, write)).not.toBeNull()
+      expect(mockHouseLookups).toEqual([])
+    })
+
+    it('a house outside the scope is refused by the scope check before any lookup', async () => {
+      setScope([HOUSE_A])
+      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${HOUSE_B}/x.pdf`, write)).not.toBeNull()
+      expect(mockHouseLookups).toEqual([])
+    })
   })
 
   it('refuses writing into an archive, but allows reading it', async () => {

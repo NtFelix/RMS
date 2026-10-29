@@ -60,6 +60,7 @@ function tabelle(name: string) {
     Kautionen: "kaution",
     Mieter: "mieter",
     Wohnungen: "wohnung",
+    Haeuser: "haus",
   };
   const chain: Record<string, unknown> = {};
   chain.select = jest.fn(() => chain);
@@ -101,6 +102,8 @@ function vollstaendigeDb(): Record<string, Record<string, unknown> | null> {
     kaution: { mieter_id: MIETER_ID },
     mieter: { id: MIETER_ID, wohnung_id: WOHNUNG_ID },
     wohnung: { id: WOHNUNG_ID, haus_id: HAUS_ID },
+    // The house of the target folder (write access checks that it exists in the organisation)
+    haus: { id: HAUS_ID },
   };
 }
 

@@ -42,11 +42,20 @@ function metadataChain() {
   return chain
 }
 
+/** Haeuser lookup of the write check (the house of the target path exists in the organisation) */
+function houseChain() {
+  const chain: Record<string, unknown> = {}
+  chain.select = jest.fn(() => chain)
+  chain.eq = jest.fn(() => chain)
+  chain.maybeSingle = jest.fn(async () => ({ data: { id: HOUSE_ID }, error: null }))
+  return chain
+}
+
 const supabase = {
   auth: { getUser: async () => ({ data: { user: { id: USER_ID } }, error: null }) },
   rpc: async (name: string) => ({ data: name === 'current_organisation_id' ? ORG_ID : null, error: null }),
   storage: { from: () => ({ move: mockMove, copy: mockCopy, remove: mockRemove }) },
-  from: () => metadataChain(),
+  from: (table: string) => (table === 'Haeuser' ? houseChain() : metadataChain()),
 }
 
 function request(body: Record<string, unknown>): NextRequest {

@@ -40,6 +40,11 @@ describe('dateien/actions', () => {
     single: jest.Mock;
     then: jest.Mock;
   };
+  let mockHouseQuery: {
+    select: jest.Mock;
+    eq: jest.Mock;
+    maybeSingle: jest.Mock;
+  };
   let mockStorageBuilder: {
     createSignedUrl: jest.Mock;
     remove: jest.Mock;
@@ -58,6 +63,12 @@ describe('dateien/actions', () => {
       then: jest.fn((resolve: any) => resolve({ data: [], error: null })), // Default resolution for await builder
     } as any;
 
+    mockHouseQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: jest.fn().mockResolvedValue({ data: { id: HAUS }, error: null }),
+    };
+
     mockStorageBuilder = {
       createSignedUrl: jest.fn(),
       remove: jest.fn(),
@@ -68,7 +79,8 @@ describe('dateien/actions', () => {
         getUser: jest.fn(),
       },
       rpc: jest.fn(),
-      from: jest.fn(() => mockQueryBuilder),
+      // Haeuser: the write check looks up the house of the path (it exists unless a test says otherwise)
+      from: jest.fn((table: string) => (table === 'Haeuser' ? mockHouseQuery : mockQueryBuilder)),
       storage: {
         from: jest.fn(() => mockStorageBuilder),
       },
@@ -257,6 +269,20 @@ describe('dateien/actions', () => {
       expect(mockQueryBuilder.or).toHaveBeenCalledWith(folderMetadataFilter(folderPath));
       expect(mockQueryBuilder.like).not.toHaveBeenCalled();
       expect(mockStorageBuilder.remove).toHaveBeenNthCalledWith(1, [`${folderPath}/a.pdf`, `${folderPath}/2024/b.pdf`]);
+    });
+
+    it('refuses a folder below a house that does not exist in the organisation', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user123' } },
+        error: null,
+      });
+      mockHouseQuery.maybeSingle.mockResolvedValue({ data: null, error: null });
+
+      const result = await deleteFolder('user123', `org_${ORG_ID}/shared/haus-erfunden/folder`);
+
+      expect(result).toEqual({ success: false, error: 'Ungültiger Pfad' });
+      expect(mockQueryBuilder.or).not.toHaveBeenCalled();
+      expect(mockStorageBuilder.remove).not.toHaveBeenCalled();
     });
 
     it('should return error if user not authenticated', async () => {

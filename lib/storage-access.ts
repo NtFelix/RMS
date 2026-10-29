@@ -5,6 +5,7 @@ import {
   childPath,
   isArchivePath,
   isOwnLegacyPath,
+  parseStoragePath,
   StoragePathError,
   type PathAccessMode,
 } from '@/lib/storage-paths'
@@ -19,13 +20,20 @@ export async function getActiveOrgId(supabase: SupabaseClient): Promise<string |
   return orgId as string
 }
 
+/** True if a house with this id is visible to the user (RLS: only houses of the active organisation). Fails closed. */
+async function houseExists(supabase: SupabaseClient, houseId: string): Promise<boolean> {
+  const { data, error } = await supabase.from('Haeuser').select('id').eq('id', houseId).maybeSingle()
+  return !error && !!data
+}
+
 /**
  * Server-side access check for storage paths in API routes.
  * Uses the active organisation (current_organisation_id RPC) and the house scope
  * (getAccessibleHaeuserIds). Fails closed.
  *
  * mode 'read' (default) allows the browsable roots, mode 'write' only paths that can hold objects
- * and never `__archive__` (only archiveFile/restoreFile in the storage service write there).
+ * and never `__archive__` (only archiveFile/restoreFile in the storage service write there). In write mode
+ * the house of a `shared/{houseId}/...` path must exist in the active organisation (one lookup).
  *
  * Returns an error message for the client, or null if access is allowed.
  */
@@ -51,6 +59,14 @@ export async function checkStoragePathAccess(
     assertPathAllowed(path, { orgId, userId, accessibleHouseIds }, mode)
     if (mode === 'write' && isArchivePath(path)) {
       return 'Invalid path'
+    }
+    // A user without house restriction (accessibleHouseIds = null) passes the scope check for any house id:
+    // writing must not create folders below an invented one. RLS limits Haeuser to the active organisation.
+    if (mode === 'write') {
+      const { zone, houseId } = parseStoragePath(path)
+      if (zone === 'shared' && houseId !== undefined && !(await houseExists(supabase, houseId))) {
+        return 'Invalid path'
+      }
     }
     return null
   } catch (error) {

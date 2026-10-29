@@ -26,11 +26,20 @@ const mockUpload = jest.fn()
 const mockRemove = jest.fn()
 const mockInsert = jest.fn()
 
+/** Haeuser lookup of the write check (the house of the target path exists in the organisation) */
+function houseChain() {
+  const chain: Record<string, unknown> = {}
+  chain.select = jest.fn(() => chain)
+  chain.eq = jest.fn(() => chain)
+  chain.maybeSingle = jest.fn(async () => ({ data: { id: HOUSE_ID }, error: null }))
+  return chain
+}
+
 const supabase = {
   auth: { getUser: async () => ({ data: { user: { id: USER_ID } }, error: null }) },
   rpc: async (name: string) => ({ data: name === 'current_organisation_id' ? ORG_ID : null, error: null }),
   storage: { from: () => ({ list: mockList, upload: mockUpload, remove: mockRemove }) },
-  from: () => ({ insert: mockInsert }),
+  from: (table: string) => (table === 'Haeuser' ? houseChain() : { insert: mockInsert }),
 }
 
 function request(body: Record<string, unknown>): NextRequest {
