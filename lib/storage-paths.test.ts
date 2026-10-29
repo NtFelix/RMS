@@ -176,13 +176,66 @@ describe('assertPathAllowed', () => {
 
   it('denies all houses for an empty list', () => {
     expect(() => assertPathAllowed(`org_${ORG}/shared/${HOUSE_A}`, noHouses)).toThrow(StoragePathError);
-    expect(() => assertPathAllowed(`org_${ORG}/shared`, noHouses)).toThrow(StoragePathError);
+    expect(() => assertPathAllowed(`org_${ORG}/shared/${HOUSE_A}`, noHouses, 'write')).toThrow(StoragePathError);
   });
 
   it('allows the own private area only', () => {
     expect(() => assertPathAllowed(`org_${ORG}/private/${USER}/Rechnungen`, restricted)).not.toThrow();
     expect(() => assertPathAllowed(`org_${ORG}/private/other-user`, restricted)).toThrow(StoragePathError);
-    expect(() => assertPathAllowed(`org_${ORG}/private`, restricted)).toThrow(StoragePathError);
+    expect(() => assertPathAllowed(`org_${ORG}/private/other-user/x`, unrestricted, 'write')).toThrow(StoragePathError);
+  });
+
+  describe('mode read (default)', () => {
+    it.each([
+      ['restricted', restricted],
+      ['no houses', noHouses],
+      ['unrestricted', unrestricted],
+    ])('allows the browsable roots for %s users', (_label, ctx) => {
+      expect(() => assertPathAllowed(`org_${ORG}`, ctx, 'read')).not.toThrow();
+      expect(() => assertPathAllowed(`org_${ORG}/shared`, ctx, 'read')).not.toThrow();
+      expect(() => assertPathAllowed(`org_${ORG}/private`, ctx, 'read')).not.toThrow();
+      expect(() => assertPathAllowed(`org_${ORG}/shared`, ctx)).not.toThrow();
+    });
+
+    it('still checks the house scope and the own user below the zone roots', () => {
+      expect(() => assertPathAllowed(`org_${ORG}/shared/${HOUSE_B}`, restricted)).toThrow(StoragePathError);
+      expect(() => assertPathAllowed(`org_${ORG}/private/other-user`, unrestricted)).toThrow(StoragePathError);
+    });
+
+    it('denies the roots of another organisation', () => {
+      expect(() => assertPathAllowed('org_other-org/shared', unrestricted)).toThrow(StoragePathError);
+      expect(() => assertPathAllowed('org_other-org', unrestricted)).toThrow(StoragePathError);
+    });
+  });
+
+  describe('mode write', () => {
+    it.each([
+      ['org root', `org_${ORG}`],
+      ['shared root', `org_${ORG}/shared`],
+      ['private root', `org_${ORG}/private`],
+    ])('never allows the %s', (_label, path) => {
+      for (const ctx of [unrestricted, restricted, noHouses]) {
+        expect(() => assertPathAllowed(path, ctx, 'write')).toThrow(StoragePathError);
+      }
+    });
+
+    it('allows house folder (as parent) and below only for houses in scope', () => {
+      expect(() => assertPathAllowed(`org_${ORG}/shared/${HOUSE_A}`, restricted, 'write')).not.toThrow();
+      expect(() => assertPathAllowed(`org_${ORG}/shared/${HOUSE_A}/Rechnungen/x.pdf`, restricted, 'write')).not.toThrow();
+      expect(() => assertPathAllowed(`org_${ORG}/shared/${HOUSE_B}/x.pdf`, restricted, 'write')).toThrow(StoragePathError);
+      expect(() => assertPathAllowed(`org_${ORG}/shared/${HOUSE_B}/x.pdf`, unrestricted, 'write')).not.toThrow();
+    });
+
+    it('allows the own private folder and below only', () => {
+      expect(() => assertPathAllowed(`org_${ORG}/private/${USER}`, restricted, 'write')).not.toThrow();
+      expect(() => assertPathAllowed(`org_${ORG}/private/${USER}/Notizen/a.md`, noHouses, 'write')).not.toThrow();
+      expect(() => assertPathAllowed(`org_${ORG}/private/other-user/a.md`, restricted, 'write')).toThrow(StoragePathError);
+    });
+
+    it('denies the foreign organisation and legacy paths', () => {
+      expect(() => assertPathAllowed(`org_other-org/shared/${HOUSE_A}/x`, unrestricted, 'write')).toThrow(StoragePathError);
+      expect(() => assertPathAllowed(`user_${USER}/x`, unrestricted, 'write')).toThrow(StoragePathError);
+    });
   });
 
   it('denies paths of another organisation', () => {

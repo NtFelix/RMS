@@ -419,3 +419,51 @@ describe('Storage Service archive (zone layout)', () => {
     expect(mockMove).not.toHaveBeenCalled();
   });
 });
+
+describe('Storage Service read/write modes', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'test-user-123' } }, error: null });
+    mockUpload.mockResolvedValue({ data: { path: 'x' }, error: null });
+    mockRemove.mockResolvedValue({ error: null });
+    mockMove.mockResolvedValue({ error: null });
+    mockDefaultSingle = { data: { id: 'doc-1', dateiname: 'x.pdf', dateipfad: 'dir' }, error: null };
+  });
+
+  afterEach(() => {
+    mockDefaultSingle = { data: null, error: null };
+  });
+
+  it('lets a user with house scope read the shared root and the private root', async () => {
+    mockOrgScope(['house456']);
+    await expect(listFiles('org_org1/shared')).resolves.toBeDefined();
+    await expect(listFiles('org_org1/private')).resolves.toBeDefined();
+    await expect(listFiles('org_org1')).resolves.toBeDefined();
+  });
+
+  it('still refuses reading a house outside the scope', async () => {
+    mockOrgScope(['house456']);
+    await expect(listFiles('org_org1/shared/other-house')).rejects.toBeDefined();
+  });
+
+  it.each(['org_org1', 'org_org1/shared', 'org_org1/private'])('refuses every write at the root %s', async (root) => {
+    mockOrgScope(null);
+    const file = new File(['x'], 'x.pdf', { type: 'application/pdf' });
+    expect((await uploadFile(file, root)).success).toBe(false);
+    expect(mockUpload).not.toHaveBeenCalled();
+    await expect(createPlaceholder(root)).rejects.toBeDefined();
+    await expect(deleteFile(root)).rejects.toBeDefined();
+    await expect(moveFile(root, 'org_org1/shared/house456/x.pdf')).rejects.toBeDefined();
+    await expect(moveFile('org_org1/shared/house456/x.pdf', root)).rejects.toBeDefined();
+    expect(mockRemove).not.toHaveBeenCalled();
+    expect(mockMove).not.toHaveBeenCalled();
+  });
+
+  it('deleteFile checks the path before it removes anything', async () => {
+    mockOrgScope(['house456']);
+    await expect(deleteFile('org_org1/shared/other-house/x.pdf')).rejects.toBeDefined();
+    expect(mockRemove).not.toHaveBeenCalled();
+    await deleteFile('org_org1/shared/house456/x.pdf');
+    expect(mockRemove).toHaveBeenCalledWith(['org_org1/shared/house456/x.pdf']);
+  });
+});

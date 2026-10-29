@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
                 orgId,
                 userId: user.id,
                 accessibleHouseIds: await getAccessibleHaeuserIds(),
-            });
+            }, "write");
         } catch (pathError) {
             logger.warn("Finance upload target rejected by path check", {
                 code: pathError instanceof StoragePathError ? pathError.code : "UNKNOWN",

@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
     if (!dateipfad) return ablehnen(404, "Die Buchung wurde nicht gefunden.", "KA003");
 
     // Object scope: the folder must lie in a house the user may access. Writing has NO legacy exception.
-    const zugriff = await checkStoragePathAccess(supabase, user.id, dateipfad);
+    const zugriff = await checkStoragePathAccess(supabase, user.id, dateipfad, { mode: "write" });
     if (zugriff) return ablehnen(403, "Zugriff verweigert.", "42501");
 
     // 5. Upload under a unique, sanitized name

@@ -275,7 +275,7 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
         }
 
         // Validate that the path belongs to the active organisation and an accessible house
-        const accessError = await checkStoragePathAccess(supabase, userId, folderPath)
+        const accessError = await checkStoragePathAccess(supabase, userId, folderPath, { mode: 'write' })
         if (accessError) {
             return {
                 success: false,

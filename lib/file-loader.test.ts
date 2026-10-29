@@ -101,6 +101,25 @@ describe('loadFiles', () => {
 })
 
 describe('getPreloadPaths', () => {
+    it('only returns parents that the read check allows for a user with house scope', async () => {
+        const { getPreloadPaths } = await import('@/lib/file-loader')
+        const { assertPathAllowed } = await import('@/lib/storage-paths')
+        const ctx = { orgId: 'org-1', userId: '123', accessibleHouseIds: ['house1'] }
+
+        const candidates = [
+            ...getPreloadPaths('123', 'org_org-1/shared/house1'),
+            ...getPreloadPaths('123', 'org_org-1/private/123'),
+            ...getPreloadPaths('123', 'org_org-1/shared/house1/apartment1'),
+            ...getPreloadPaths('123', 'org_org-1'),
+        ]
+
+        expect(candidates).toEqual(expect.arrayContaining(['org_org-1/shared', 'org_org-1/private']))
+        for (const path of candidates) {
+            expect(() => assertPathAllowed(path, ctx, 'read')).not.toThrow()
+        }
+    })
+
+
     it('should include parent path for nested directories', async () => {
         const { getPreloadPaths } = await import('@/lib/file-loader')
 

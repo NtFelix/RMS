@@ -15,6 +15,7 @@ import {
   privateRoot,
   sharedPath,
   type PathAccessContext,
+  type PathAccessMode,
 } from '@/lib/storage-paths';
 import {
   optimizedListFiles,
@@ -187,9 +188,10 @@ async function getClientAccessContext(): Promise<PathAccessContext> {
 /**
  * Validates a storage path against the active organisation and the house scope
  * (see lib/storage-paths.ts). Throws StoragePathError on violation.
+ * Reading may browse the zone roots, every write must target a house or the own private folder.
  */
-async function validateStoragePath(path: string): Promise<void> {
-  assertPathAllowed(path, await getClientAccessContext());
+async function validateStoragePath(path: string, mode: PathAccessMode = 'read'): Promise<void> {
+  assertPathAllowed(path, await getClientAccessContext(), mode);
 }
 
 /**
@@ -213,7 +215,7 @@ export async function uploadFile(
     }
 
     // Validate and sanitize path
-    await validateStoragePath(path);
+    await validateStoragePath(path, 'write');
     let sanitizedPath = pathUtils.sanitizePath(path);
 
     // Clean up path to avoid issues with folder creation
@@ -542,10 +544,10 @@ export async function triggerFileDownload(path: string, filename?: string): Prom
  * private/{user}/__archive__/{timestamp}/... (see archivePathFor)
  */
 export async function archiveFile(path: string): Promise<string> {
-  await validateStoragePath(path);
+  await validateStoragePath(path, 'write');
 
   const archivePath = archivePathFor(path, archiveTimestamp());
-  await validateStoragePath(archivePath);
+  await validateStoragePath(archivePath, 'write');
 
   await moveFile(path, archivePath);
   return archivePath;
@@ -556,6 +558,7 @@ export async function archiveFile(path: string): Promise<string> {
  */
 export async function deleteFile(path: string): Promise<void> {
   try {
+    await validateStoragePath(path, 'write');
     const supabase = createClient();
 
     // Remove the leading slash if present (Supabase doesn't like it)
@@ -626,8 +629,8 @@ export async function debugListDirectory(path: string): Promise<void> {
  * Moves a file from one path to another
  */
 export async function moveFile(oldPath: string, newPath: string): Promise<void> {
-  await validateStoragePath(oldPath);
-  await validateStoragePath(newPath);
+  await validateStoragePath(oldPath, 'write');
+  await validateStoragePath(newPath, 'write');
 
   // Clean paths - remove leading slashes and normalize
   let cleanOldPath = oldPath.startsWith('/') ? oldPath.slice(1) : oldPath;
@@ -1001,7 +1004,7 @@ export async function createSignedUrl(
  * Renames a file in the same directory
  */
 export async function renameFile(filePath: string, newName: string): Promise<void> {
-  await validateStoragePath(filePath);
+  await validateStoragePath(filePath, 'write');
 
   // Clean the file path
   let cleanFilePath = filePath;
@@ -1027,7 +1030,7 @@ export async function renameFile(filePath: string, newName: string): Promise<voi
  * Creates a placeholder file for empty folders
  */
 export async function createPlaceholder(path: string): Promise<void> {
-  await validateStoragePath(path);
+  await validateStoragePath(path, 'write');
 
   const placeholderPath = `${pathUtils.sanitizePath(path)}/.keep`;
   const placeholderFile = new File([''], '.keep', { type: 'text/plain' });
@@ -1110,10 +1113,10 @@ export async function restoreFile(archivePath: string, targetPath?: string): Pro
   if (!parsed) {
     throw new Error('File is not in archive');
   }
-  await validateStoragePath(archivePath);
+  await validateStoragePath(archivePath, 'write');
 
   const restorePath = targetPath ?? parsed.originalPath;
-  await validateStoragePath(restorePath);
+  await validateStoragePath(restorePath, 'write');
 
   await moveFile(archivePath, restorePath);
 }
@@ -1125,7 +1128,7 @@ export async function permanentlyDeleteFile(path: string): Promise<void> {
   if (!parseArchivePath(path)) {
     throw new Error('Can only permanently delete files from archive');
   }
-  await validateStoragePath(path);
+  await validateStoragePath(path, 'write');
 
   const supabase = createClient();
 
@@ -1161,8 +1164,8 @@ export async function bulkArchiveFiles(paths: string[]): Promise<string[]> {
  * Moves a folder and all its contents to a new location
  */
 export async function moveFolder(oldFolderPath: string, newFolderPath: string): Promise<void> {
-  await validateStoragePath(oldFolderPath);
-  await validateStoragePath(newFolderPath);
+  await validateStoragePath(oldFolderPath, 'write');
+  await validateStoragePath(newFolderPath, 'write');
 
   // Clean paths
   let cleanOldPath = oldFolderPath.startsWith('/') ? oldFolderPath.slice(1) : oldFolderPath;
@@ -1336,7 +1339,7 @@ async function cleanupEmptyFolders(folderPath: string): Promise<void> {
  * Archives all files in a folder (for folder deletion)
  */
 export async function archiveFolder(folderPath: string): Promise<string[]> {
-  await validateStoragePath(folderPath);
+  await validateStoragePath(folderPath, 'write');
 
   // List all files in the folder recursively
   const files = await listFiles(folderPath);

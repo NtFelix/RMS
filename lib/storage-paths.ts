@@ -180,15 +180,25 @@ export function orgRootOfPath(path: string): string | null {
   return orgId === null ? null : orgRoot(orgId);
 }
 
+export type PathAccessMode = 'read' | 'write';
+
 /**
  * Checks whether the current user may access the given path.
  * - legacy `user_` paths are rejected with code LEGACY_PATH
  * - the path must belong to the active organisation
  * - private paths only for the own user id
  * - shared paths only for houses in accessibleHouseIds (null = all houses, [] = none)
+ *
+ * mode 'read' (default) additionally allows the browsable roots `org_X`, `org_X/shared` and
+ * `org_X/private` for every member of the organisation: they are the only entry into the house
+ * list and the own folder. What they contain is filtered by the get_folder_contents RPC.
+ * mode 'write' only allows paths deep enough to hold real objects: `shared/{house}[/...]`
+ * (house in scope) and `private/{ownUserId}[/...]`, never the three roots. The house/user folder
+ * itself is allowed as a parent folder of a new object.
+ *
  * Throws StoragePathError (code ACCESS_DENIED or INVALID_PATH / LEGACY_PATH) if not allowed.
  */
-export function assertPathAllowed(path: string, ctx: PathAccessContext): void {
+export function assertPathAllowed(path: string, ctx: PathAccessContext, mode: PathAccessMode = 'read'): void {
   const parsed = parseStoragePath(path);
 
   if (parsed.zone === 'legacy-user') {
@@ -201,9 +211,15 @@ export function assertPathAllowed(path: string, ctx: PathAccessContext): void {
 
   switch (parsed.zone) {
     case 'root':
+      if (mode === 'write') {
+        throw new StoragePathError('Schreiben im Wurzelordner nicht erlaubt', 'ACCESS_DENIED');
+      }
       return;
 
     case 'private':
+      if (parsed.userId === undefined && mode === 'read') {
+        return;
+      }
       if (parsed.userId !== ctx.userId) {
         throw new StoragePathError('Zugriff auf fremden privaten Bereich verweigert', 'ACCESS_DENIED');
       }
@@ -211,9 +227,9 @@ export function assertPathAllowed(path: string, ctx: PathAccessContext): void {
 
     case 'shared':
       if (parsed.houseId === undefined) {
-        // Listing all house folders is only allowed without house restriction
-        if (ctx.accessibleHouseIds !== null) {
-          throw new StoragePathError('Zugriff auf gemeinsamen Bereich verweigert', 'ACCESS_DENIED');
+        // The house list is the entry point for everybody (the RPC filters it by house scope)
+        if (mode === 'write') {
+          throw new StoragePathError('Schreiben im gemeinsamen Bereich ohne Haus nicht erlaubt', 'ACCESS_DENIED');
         }
         return;
       }
