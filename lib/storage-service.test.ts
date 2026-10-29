@@ -15,6 +15,7 @@ import {
   archiveFile,
   restoreFile,
   permanentlyDeleteFile,
+  renameFile,
 } from './storage-service';
 
 // Mock functions
@@ -465,5 +466,14 @@ describe('Storage Service read/write modes', () => {
     expect(mockRemove).not.toHaveBeenCalled();
     await deleteFile('org_org1/shared/house456/x.pdf');
     expect(mockRemove).toHaveBeenCalledWith(['org_org1/shared/house456/x.pdf']);
+  });
+
+  it('renameFile validates the new name before it moves', async () => {
+    mockOrgScope(null);
+    await expect(renameFile('org_org1/shared/house456/x.pdf', '../y.pdf')).rejects.toBeDefined();
+    await expect(renameFile('org_org1/shared/house456/x.pdf', 'a/b.pdf')).rejects.toBeDefined();
+    expect(mockMove).not.toHaveBeenCalled();
+    await renameFile('org_org1/shared/house456/x.pdf', 'Vertrag..pdf');
+    expect(mockMove).toHaveBeenCalledWith('org_org1/shared/house456/x.pdf', 'org_org1/shared/house456/Vertrag..pdf');
   });
 });

@@ -1,6 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAccessibleHaeuserIds } from '@/lib/object-scope'
-import { assertPathAllowed, isOwnLegacyPath, StoragePathError, type PathAccessMode } from '@/lib/storage-paths'
+import {
+  assertPathAllowed,
+  childPath,
+  isArchivePath,
+  isOwnLegacyPath,
+  StoragePathError,
+  type PathAccessMode,
+} from '@/lib/storage-paths'
 
 /**
  * Active organisation of the current user (verified server-side via the RPC).
@@ -17,7 +24,8 @@ export async function getActiveOrgId(supabase: SupabaseClient): Promise<string |
  * Uses the active organisation (current_organisation_id RPC) and the house scope
  * (getAccessibleHaeuserIds). Fails closed.
  *
- * mode 'read' (default) allows the browsable roots, mode 'write' only paths that can hold objects.
+ * mode 'read' (default) allows the browsable roots, mode 'write' only paths that can hold objects
+ * and never `__archive__` (only archiveFile/restoreFile in the storage service write there).
  *
  * Returns an error message for the client, or null if access is allowed.
  */
@@ -38,8 +46,12 @@ export async function checkStoragePathAccess(
     return 'Keine aktive Organisation'
   }
 
+  const mode = options.mode ?? 'read'
   try {
-    assertPathAllowed(path, { orgId, userId, accessibleHouseIds }, options.mode ?? 'read')
+    assertPathAllowed(path, { orgId, userId, accessibleHouseIds }, mode)
+    if (mode === 'write' && isArchivePath(path)) {
+      return 'Invalid path'
+    }
     return null
   } catch (error) {
     if (error instanceof StoragePathError) {
@@ -49,4 +61,31 @@ export async function checkStoragePathAccess(
     }
     throw error
   }
+}
+
+/**
+ * Resolves `parentPath/name` and checks access on exactly that target path. Routes use the returned
+ * path for the storage call and the metadata. An unsafe name gives status 400, a bad, foreign or
+ * non-writable parent/target gives status 403 (as the plain path check did before).
+ */
+export async function resolveChildPath(
+  supabase: SupabaseClient,
+  userId: string,
+  parentPath: string,
+  name: string,
+  options: { allowLegacyOwnRead?: boolean; mode?: PathAccessMode } = {},
+): Promise<{ path: string } | { error: string; status: 400 | 403 }> {
+  let target: string
+  try {
+    target = childPath(parentPath, name)
+  } catch (error) {
+    if (error instanceof StoragePathError) {
+      return error.code === 'INVALID_NAME'
+        ? { error: 'Invalid name', status: 400 }
+        : { error: error.code === 'LEGACY_PATH' ? 'Dieser Speicherpfad ist veraltet und nicht mehr verfügbar' : 'Invalid path', status: 403 }
+    }
+    throw error
+  }
+  const accessError = await checkStoragePathAccess(supabase, userId, target, options)
+  return accessError ? { error: accessError, status: 403 } : { path: target }
 }

@@ -38,7 +38,7 @@ export interface PathAccessContext {
   accessibleHouseIds: string[] | null;
 }
 
-export type StoragePathErrorCode = 'INVALID_PATH' | 'LEGACY_PATH' | 'ACCESS_DENIED';
+export type StoragePathErrorCode = 'INVALID_PATH' | 'INVALID_NAME' | 'LEGACY_PATH' | 'ACCESS_DENIED';
 
 export class StoragePathError extends Error {
   readonly code: StoragePathErrorCode;
@@ -178,6 +178,37 @@ export function orgIdOfPath(path: string): string | null {
 export function orgRootOfPath(path: string): string | null {
   const orgId = orgIdOfPath(path);
   return orgId === null ? null : orgRoot(orgId);
+}
+
+/**
+ * Child path `parentPath/name`: parses the parent, validates `name` as a single safe segment
+ * and returns the target path. Routes check access on exactly this string and use it for storage
+ * and metadata, so no unvalidated name ever reaches the storage call.
+ * Throws INVALID_NAME for an unsafe name, INVALID_PATH if the parent is the org root or a zone root
+ * (their children are house/user folders, never files or folders created by a user).
+ * Access is NOT checked here, callers pass the result to checkStoragePathAccess.
+ */
+export function childPath(parentPath: string, name: string): string {
+  const parsed = parseStoragePath(parentPath);
+  try {
+    assertSafeSegment(name, 'Name');
+  } catch (error) {
+    // Lets routes tell a bad name (400) from a bad or forbidden parent path (403)
+    if (error instanceof StoragePathError) {
+      throw new StoragePathError(error.message, 'INVALID_NAME');
+    }
+    throw error;
+  }
+  // Legacy `user_` parents pass through on purpose: the access check decides (read-only exception)
+  if (parsed.zone === 'root' || (parsed.zone === 'shared' && parsed.houseId === undefined) || (parsed.zone === 'private' && parsed.userId === undefined)) {
+    throw new StoragePathError('In diesem Ordner kann nichts angelegt werden', 'INVALID_PATH');
+  }
+  return joinChecked([parentPath, name]);
+}
+
+/** True if the path points into (or at) an `__archive__` folder of a zone */
+export function isArchivePath(path: string): boolean {
+  return parseStoragePath(path).rest[0] === ARCHIVE_SEGMENT;
 }
 
 export type PathAccessMode = 'read' | 'write';

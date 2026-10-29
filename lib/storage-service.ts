@@ -11,6 +11,7 @@ import {
   archivePathFor,
   archiveTimestamp,
   assertPathAllowed,
+  childPath,
   parseArchivePath,
   privateRoot,
   sharedPath,
@@ -1014,7 +1015,8 @@ export async function renameFile(filePath: string, newName: string): Promise<voi
 
   const pathSegments = cleanFilePath.split('/');
   const directory = pathSegments.slice(0, -1).join('/');
-  const newPath = `${directory}/${newName}`;
+  // Validates newName as a single segment (no traversal, no separator) before it reaches moveFile
+  const newPath = childPath(directory, newName);
 
   console.log('Storage service renaming:', {
     originalPath: cleanFilePath,

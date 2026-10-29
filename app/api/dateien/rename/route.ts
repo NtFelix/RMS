@@ -1,4 +1,4 @@
-import { checkStoragePathAccess } from "@/lib/storage-access"
+import { checkStoragePathAccess, resolveChildPath } from "@/lib/storage-access"
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
@@ -33,26 +33,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate that the path belongs to the current user
-    const accessError = await checkStoragePathAccess(supabase, user.id, filePath)
-    if (accessError) {
-      return NextResponse.json({ error: accessError }, { status: 403, headers: NO_CACHE_HEADERS })
+    // Source AND target must be writable: the target is built from the validated new name only
+    const sourceError = await checkStoragePathAccess(supabase, user.id, filePath, { mode: 'write' })
+    if (sourceError) {
+      return NextResponse.json({ error: sourceError }, { status: 403, headers: NO_CACHE_HEADERS })
     }
 
-    // Clean the file path
-    let cleanFilePath = filePath
-    if (cleanFilePath.startsWith('/')) {
-      cleanFilePath = cleanFilePath.slice(1)
-    }
-
-    // Get directory and filename
-    const pathSegments = cleanFilePath.split('/')
+    // Get directory and filename (filePath is a validated storage path: no leading slash, no empty segments)
+    const pathSegments = filePath.split('/')
     const directory = pathSegments.slice(0, -1).join('/')
     const currentFileName = pathSegments[pathSegments.length - 1]
-    const newPath = `${directory}/${newName}`
+
+    const target = await resolveChildPath(supabase, user.id, directory, newName, { mode: 'write' })
+    if ('error' in target) {
+      return NextResponse.json({ error: target.error }, { status: target.status, headers: NO_CACHE_HEADERS })
+    }
+    const newPath = target.path
 
     console.log('Simple rename attempt:', {
-      from: cleanFilePath,
+      from: filePath,
       to: newPath,
       directory,
       currentFileName,
@@ -62,7 +61,6 @@ export async function POST(request: NextRequest) {
     // Debug: Log the paths being used
     console.log('Rename operation details:', {
       originalFilePath: filePath,
-      cleanFilePath,
       directory,
       currentFileName,
       newName,
@@ -118,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     // Update paths with the actual filename found
     const actualFilePath = `${directory}/${actualFileName}`
-    const actualNewPath = `${directory}/${newName}`
+    const actualNewPath = newPath
 
     console.log('Using actual file paths:', {
       from: actualFilePath,

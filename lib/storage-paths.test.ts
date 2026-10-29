@@ -5,6 +5,8 @@ import {
   isOwnLegacyPath,
   parseArchivePath,
   assertPathAllowed,
+  childPath,
+  isArchivePath,
   orgIdOfPath,
   orgRootOfPath,
   privateRoot,
@@ -264,6 +266,64 @@ describe('assertPathAllowed', () => {
 
   it('allows the org root for any member', () => {
     expect(() => assertPathAllowed(`org_${ORG}`, noHouses)).not.toThrow();
+  });
+});
+
+describe('childPath', () => {
+  it('joins parent and a safe name', () => {
+    expect(childPath(`org_${ORG}/shared/${HOUSE_A}/Rechnungen`, 'x.pdf')).toBe(`org_${ORG}/shared/${HOUSE_A}/Rechnungen/x.pdf`);
+    expect(childPath(`org_${ORG}/shared/${HOUSE_A}`, 'Vertrag..pdf')).toBe(`org_${ORG}/shared/${HOUSE_A}/Vertrag..pdf`);
+    expect(childPath(`org_${ORG}/private/${USER}`, 'Notizen')).toBe(`org_${ORG}/private/${USER}/Notizen`);
+  });
+
+  it.each([
+    ['dot-dot', '..'],
+    ['dot', '.'],
+    ['empty', ''],
+    ['separator', 'a/b'],
+    ['leading traversal', '../x'],
+    ['trailing traversal', 'x/..'],
+    ['NUL byte', 'a\u0000b'],
+    ['too long', 'a'.repeat(256)],
+  ])(
+    'rejects the unsafe name: %s',
+    (_label, name) => {
+      try {
+        childPath(`org_${ORG}/shared/${HOUSE_A}`, name);
+        throw new Error('expected to throw');
+      } catch (error) {
+        expect(error).toBeInstanceOf(StoragePathError);
+        expect((error as StoragePathError).code).toBe('INVALID_NAME');
+      }
+    },
+  );
+
+  it('rejects an invalid parent', () => {
+    expect(() => childPath(`org_${ORG}/shared/../x`, 'a')).toThrow(StoragePathError);
+    expect(() => childPath('', 'a')).toThrow(StoragePathError);
+  });
+
+  it('rejects the org root and the zone roots as parent (their children are house and user folders)', () => {
+    expect(() => childPath(`org_${ORG}`, HOUSE_A)).toThrow(StoragePathError);
+    expect(() => childPath(`org_${ORG}/shared`, HOUSE_A)).toThrow(StoragePathError);
+    expect(() => childPath(`org_${ORG}/private`, USER)).toThrow(StoragePathError);
+  });
+
+  it('passes a legacy parent through so that the access check can decide', () => {
+    expect(childPath(`user_${USER}/haus`, 'x.pdf')).toBe(`user_${USER}/haus/x.pdf`);
+  });
+});
+
+describe('isArchivePath', () => {
+  it('recognises paths in or at an archive folder', () => {
+    expect(isArchivePath(`org_${ORG}/shared/${HOUSE_A}/__archive__`)).toBe(true);
+    expect(isArchivePath(`org_${ORG}/shared/${HOUSE_A}/__archive__/2026/x.pdf`)).toBe(true);
+    expect(isArchivePath(`org_${ORG}/private/${USER}/__archive__/2026/x.pdf`)).toBe(true);
+  });
+
+  it('is false for normal paths, also if a deeper folder has the archive name', () => {
+    expect(isArchivePath(`org_${ORG}/shared/${HOUSE_A}/Rechnungen/__archive__`)).toBe(false);
+    expect(isArchivePath(`org_${ORG}/shared/${HOUSE_A}`)).toBe(false);
   });
 });
 
