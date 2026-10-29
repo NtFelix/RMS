@@ -6,6 +6,7 @@ import { useCloudStorageNavigation } from '@/hooks/use-cloud-storage-navigation'
 import { getDirectoryCache } from '@/lib/directory-cache'
 import { useToast } from '@/hooks/use-toast'
 import { orgRoot } from '@/lib/storage-paths'
+import { storagePathFromUrl, storageUrlFor } from '@/lib/storage-navigation'
 
 export interface NavigationInterceptorProps {
   orgId: string
@@ -93,20 +94,6 @@ export function NavigationInterceptor({
   }, [orgId, directoryCache])
 
   /**
-   * Converts storage path to SSR URL
-   */
-  const pathToHref = useCallback((path: string): string => {
-    const base = orgRoot(orgId)
-    if (!path || path === base) return "/dateien"
-    const prefix = `${base}/`
-    if (path.startsWith(prefix)) {
-      const rest = path.slice(prefix.length)
-      return `/dateien/${rest}`
-    }
-    return "/dateien"
-  }, [orgId])
-
-  /**
    * Performs client-side navigation with error handling
    */
   const performClientNavigation = useCallback(async (
@@ -152,13 +139,13 @@ export function NavigationInterceptor({
     } finally {
       navigationInProgress.current = false
     }
-  }, [navigation, pathToHref, onNavigate, toast])
+  }, [navigation, onNavigate, toast])
 
   /**
    * Performs SSR navigation fallback
    */
   const performSSRNavigation = useCallback((path: string, replace = false) => {
-    const url = pathToHref(path)
+    const url = storageUrlFor(path)
     
     navigationStats.current.fallbackToSSR++
     
@@ -167,7 +154,7 @@ export function NavigationInterceptor({
     } else {
       router.push(url)
     }
-  }, [router, pathToHref])
+  }, [router])
 
   /**
    * Main navigation handler with debouncing and fallback logic
@@ -283,7 +270,7 @@ export function NavigationInterceptor({
         
         if (pathMatch) {
           const urlPath = pathMatch[1] || ''
-          const storagePath = urlPath ? `${orgRoot(orgId)}/${urlPath}` : orgRoot(orgId)
+          const storagePath = storagePathFromUrl(orgRoot(orgId), urlPath)
           
           // Only navigate if it's different from current path
           if (storagePath !== navigation.currentPath) {
@@ -411,17 +398,6 @@ export function useFolderNavigation(orgId: string) {
   const router = useRouter()
   const pathname = usePathname()
   
-  const pathToHref = useCallback((path: string): string => {
-    const base = orgRoot(orgId)
-    if (!path || path === base) return "/dateien"
-    const prefix = `${base}/`
-    if (path.startsWith(prefix)) {
-      const rest = path.slice(prefix.length)
-      return `/dateien/${rest}`
-    }
-    return "/dateien"
-  }, [orgId])
-  
   const handleFolderClick = useCallback(async (
     folderPath: string,
     options: NavigationOptions = {}
@@ -439,7 +415,7 @@ export function useFolderNavigation(orgId: string) {
         await navigation.navigateToPath(folderPath, options)
       } else {
         // Fall back to SSR navigation
-        const url = pathToHref(folderPath)
+        const url = storageUrlFor(folderPath)
         if (options.replace) {
           router.replace(url)
         } else {
@@ -456,15 +432,15 @@ export function useFolderNavigation(orgId: string) {
         variant: "destructive"
       })
       
-      const url = pathToHref(folderPath)
+      const url = storageUrlFor(folderPath)
       router.push(url)
     }
-  }, [orgId, navigation, pathToHref, router, toast])
+  }, [orgId, navigation, router, toast])
   
   return {
     handleFolderClick,
     isNavigating: navigation.isNavigating,
-    pathToHref
+    pathToHref: storageUrlFor
   }
 }
 

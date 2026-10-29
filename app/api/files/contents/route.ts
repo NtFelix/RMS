@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logRpcCall, type FolderContentsResult } from '@/app/(dashboard)/dateien/actions'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 import { checkStoragePathAccess } from '@/lib/storage-access'
+import { STORAGE_ROOT_LABEL } from '@/lib/storage-navigation'
 
 
 /**
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
                 {
                     files: [],
                     folders: [],
-                    breadcrumbs: [{ name: 'Cloud Storage', path: rootPath, type: 'root' }],
+                    breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                     totalSize: 0,
                     error: `Fehler beim Laden: ${error.message}`
                 },
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
                 {
                     files: [],
                     folders: [],
-                    breadcrumbs: [{ name: 'Cloud Storage', path: rootPath, type: 'root' }],
+                    breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                     totalSize: 0,
                     error: result.error
                 },
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             files: result.files || [],
             folders: result.folders || [],
-            breadcrumbs: result.breadcrumbs || [{ name: 'Cloud Storage', path: rootPath, type: 'root' }],
+            breadcrumbs: result.breadcrumbs || [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
             totalSize: result.totalSize || 0
         }, { headers: NO_CACHE_HEADERS })
 

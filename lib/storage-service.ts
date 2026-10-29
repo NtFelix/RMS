@@ -7,7 +7,9 @@
 import { createClient } from '@/utils/supabase/client';
 import { pathUtils, isKeepFile } from './path-utils';
 import {
+  ARCHIVE_SEGMENT,
   archivePathFor,
+  archiveTimestamp,
   assertPathAllowed,
   parseArchivePath,
   privateRoot,
@@ -39,6 +41,20 @@ export interface StorageObject {
   last_accessed_at: string;
   metadata: Record<string, any>;
   size: number;
+}
+
+/** Maps a Dokumente_Metadaten row to a StorageObject (extra: e.g. the full path for archive listings) */
+function toStorageObject(item: any, extra?: Partial<StorageObject>): StorageObject {
+  return {
+    name: item.dateiname,
+    ...extra,
+    id: item.id,
+    updated_at: item.aktualisierungsdatum || new Date().toISOString(),
+    created_at: item.erstellungsdatum || new Date().toISOString(),
+    last_accessed_at: item.letzter_zugriff || new Date().toISOString(),
+    metadata: { mimetype: item.mime_type, size: item.dateigroesse },
+    size: Number(item.dateigroesse) || 0,
+  };
 }
 
 export interface StorageResult {
@@ -100,7 +116,6 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 // Storage bucket name
 const STORAGE_BUCKET = 'documents';
-const ARCHIVE_FOLDER = '__archive__';
 
 /**
  * Validates file type and size
@@ -151,12 +166,13 @@ async function getClientAccessContext(): Promise<PathAccessContext> {
     throw new Error('User not authenticated');
   }
 
-  const { data: orgId, error: orgError } = await supabase.rpc('current_organisation_id');
+  const [{ data: orgId, error: orgError }, { data: houseIds, error: houseError }] = await Promise.all([
+    supabase.rpc('current_organisation_id'),
+    supabase.rpc('get_accessible_haeuser_ids'),
+  ]);
   if (orgError || !orgId) {
     throw new Error('No active organisation');
   }
-
-  const { data: houseIds, error: houseError } = await supabase.rpc('get_accessible_haeuser_ids');
   if (houseError) {
     throw new Error('Could not resolve house scope');
   }
@@ -402,18 +418,7 @@ export async function listFiles(prefix: string, options?: {
         throw mapError(error, 'list_files');
       }
 
-      return (data || []).map(item => ({
-        name: item.dateiname,
-        id: item.id,
-        updated_at: item.aktualisierungsdatum || new Date().toISOString(),
-        created_at: item.erstellungsdatum || new Date().toISOString(),
-        last_accessed_at: item.letzter_zugriff || new Date().toISOString(),
-        metadata: {
-          mimetype: item.mime_type,
-          size: item.dateigroesse
-        },
-        size: Number(item.dateigroesse) || 0,
-      }));
+      return (data || []).map((item) => toStorageObject(item));
     });
 
     const endTime = Date.now();
@@ -539,8 +544,7 @@ export async function triggerFileDownload(path: string, filename?: string): Prom
 export async function archiveFile(path: string): Promise<string> {
   await validateStoragePath(path);
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const archivePath = archivePathFor(path, timestamp);
+  const archivePath = archivePathFor(path, archiveTimestamp());
   await validateStoragePath(archivePath);
 
   await moveFile(path, archivePath);
@@ -1078,7 +1082,7 @@ export async function listArchivedFiles(userId: string): Promise<StorageObject[]
   const roots = [
     privateRoot(ctx.orgId, ctx.userId),
     ...houseIds.map((houseId) => sharedPath(ctx.orgId, houseId)),
-  ].map((zoneRoot) => `${zoneRoot}/${ARCHIVE_FOLDER}`);
+  ].map((zoneRoot) => `${zoneRoot}/${ARCHIVE_SEGMENT}`);
 
   const result: StorageObject[] = [];
   for (const root of roots) {
@@ -1091,17 +1095,7 @@ export async function listArchivedFiles(userId: string): Promise<StorageObject[]
     }
     for (const item of data ?? []) {
       if (!item.dateipfad.startsWith(`${root}/`)) continue;
-      const fullPath = `${item.dateipfad}/${item.dateiname}`;
-      result.push({
-        name: item.dateiname,
-        path: fullPath,
-        id: item.id,
-        updated_at: item.aktualisierungsdatum || new Date().toISOString(),
-        created_at: item.erstellungsdatum || new Date().toISOString(),
-        last_accessed_at: item.letzter_zugriff || new Date().toISOString(),
-        metadata: { mimetype: item.mime_type, size: item.dateigroesse },
-        size: Number(item.dateigroesse) || 0,
-      });
+      result.push(toStorageObject(item, { path: `${item.dateipfad}/${item.dateiname}` }));
     }
   }
   return result;

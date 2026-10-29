@@ -9,7 +9,7 @@ import { getDirectoryCache, type DirectoryContents as CacheDirectoryContents, ty
 import { getCacheWarmingManager, type CacheWarmingManager } from '@/lib/cache-warming'
 import { useActiveStateStore } from './use-active-state-manager'
 import { useCloudStorageStore } from './use-cloud-storage-store'
-import { buildFallbackBreadcrumbs, storageUrlFor } from '@/lib/storage-navigation'
+import { buildFallbackBreadcrumbs, storagePathFromUrl, storageUrlFor } from '@/lib/storage-navigation'
 import { orgRootOfPath } from '@/lib/storage-paths'
 
 // Enable Map and Set support in Immer
@@ -618,7 +618,7 @@ export function useCloudStorageNavigation() {
           const root = orgRootOfPath(store.currentPath || '')
           
           if (root) {
-            const storagePath = urlPath ? `${root}/${urlPath}` : root
+            const storagePath = storagePathFromUrl(root, urlPath)
             
             // Only handle if it's different from current path
             if (storagePath !== store.currentPath) {
@@ -644,7 +644,7 @@ export function useCloudStorageNavigation() {
         const root = orgRootOfPath(store.currentPath)
         
         if (root) {
-          const expectedStoragePath = urlPath ? `${root}/${urlPath}` : root
+          const expectedStoragePath = storagePathFromUrl(root, urlPath)
           
           // Ensure URL matches current path
           if (expectedStoragePath !== store.currentPath) {

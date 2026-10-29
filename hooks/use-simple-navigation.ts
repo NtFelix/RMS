@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
-import { orgRoot } from '@/lib/storage-paths'
+import { storageUrlFor } from '@/lib/storage-navigation'
 
 interface NavigationState {
   currentPath: string
@@ -42,21 +42,6 @@ export function useSimpleNavigation(orgId: string) {
   const lastNavigationTime = useRef<number>(0)
   
   /**
-   * Convert storage path to URL path
-   */
-  const pathToUrl = useCallback((path: string): string => {
-    const base = orgRoot(orgId)
-    if (!path || path === base) return "/dateien"
-    
-    const prefix = `${base}/`
-    if (path.startsWith(prefix)) {
-      const rest = path.slice(prefix.length)
-      return `/dateien/${rest}`
-    }
-    return "/dateien"
-  }, [orgId])
-  
-  /**
    * Perform efficient navigation with proper error handling
    */
   const navigate = useCallback(async (path: string, options: NavigationOptions = {}) => {
@@ -90,7 +75,7 @@ export function useSimpleNavigation(orgId: string) {
     }))
     
     try {
-      const url = pathToUrl(path)
+      const url = storageUrlFor(path)
       
       // Use client-side navigation by default for efficiency
       if (options.clientOnly !== false) {
@@ -145,7 +130,7 @@ export function useSimpleNavigation(orgId: string) {
       if (options.clientOnly !== false) {
         console.log('Client-side navigation failed, falling back to server-side')
         try {
-          const url = pathToUrl(path)
+          const url = storageUrlFor(path)
           router.push(url)
         } catch (fallbackError) {
           toast({
@@ -164,7 +149,7 @@ export function useSimpleNavigation(orgId: string) {
     } finally {
       navigationInProgress.current = false
     }
-  }, [state.currentPath, pathToUrl, router, toast])
+  }, [state.currentPath, router, toast])
   
   /**
    * Set current path (for initialization)
@@ -230,7 +215,7 @@ export function useSimpleNavigation(orgId: string) {
     clearError,
     
     // Utilities
-    pathToUrl,
+    pathToUrl: storageUrlFor,
     isNavigationInProgress: () => navigationInProgress.current
   }
 }

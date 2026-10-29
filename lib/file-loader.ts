@@ -9,6 +9,7 @@
  */
 
 import type { StorageObject, VirtualFolder, BreadcrumbItem } from '@/hooks/use-cloud-storage-store'
+import { STORAGE_ROOT_LABEL } from '@/lib/storage-navigation'
 import { orgIdOfPath, orgRoot, orgRootOfPath, privateRoot, sharedRoot } from '@/lib/storage-paths'
 
 // In-memory request deduplication
@@ -130,7 +131,7 @@ async function executeFileLoad(
             return {
                 files: [],
                 folders: [],
-                breadcrumbs: [{ name: 'Cloud Storage', path: orgRootOfPath(path) ?? path, type: 'root' }],
+                breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: orgRootOfPath(path) ?? path, type: 'root' }],
                 totalSize: 0,
                 error: 'Request cancelled',
             }
@@ -151,7 +152,7 @@ async function executeFileLoad(
             return {
                 files: [],
                 folders: [],
-                breadcrumbs: [{ name: 'Cloud Storage', path: orgRootOfPath(path) ?? path, type: 'root' }],
+                breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: orgRootOfPath(path) ?? path, type: 'root' }],
                 totalSize: 0,
                 error: 'Request cancelled',
             }
@@ -194,7 +195,7 @@ async function executeFileLoad(
             return {
                 files: [],
                 folders: [],
-                breadcrumbs: [{ name: 'Cloud Storage', path: orgRootOfPath(path) ?? path, type: 'root' }],
+                breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: orgRootOfPath(path) ?? path, type: 'root' }],
                 totalSize: 0,
                 error: 'Request cancelled',
                 loadTime,
@@ -204,7 +205,7 @@ async function executeFileLoad(
         return {
             files: [],
             folders: [],
-            breadcrumbs: [{ name: 'Cloud Storage', path: orgRootOfPath(path) ?? path, type: 'root' }],
+            breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: orgRootOfPath(path) ?? path, type: 'root' }],
             totalSize: 0,
             error: error instanceof Error ? error.message : 'Failed to load files',
             loadTime,

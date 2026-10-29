@@ -244,6 +244,18 @@ export function archivePathFor(path: string, timestamp: string): string {
   throw new StoragePathError('Pfad liegt nicht in einer archivierbaren Zone', 'INVALID_PATH');
 }
 
+/** Timestamp segment of an archive folder, e.g. `2026-10-29T10-00-00-000Z` (ISO string without `:` and `.`) */
+export function archiveTimestamp(date: Date = new Date()): string {
+  return date.toISOString().replace(/[:.]/g, '-');
+}
+
+/** Inverse of archiveTimestamp, null if the segment is not a valid archive timestamp */
+export function archiveTimestampToDate(timestamp: string): Date | null {
+  const iso = timestamp.replace(/^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/, '$1T$2:$3:$4.$5Z');
+  const date = new Date(iso);
+  return isNaN(date.getTime()) ? null : date;
+}
+
 /**
  * Reads an archive path. Returns the original path (zone + relative path) and the archive
  * timestamp, or null if the path is not an archive path. Throws on invalid paths.

@@ -91,11 +91,8 @@ export function anzeigeNameAusDateiname(dateiname: string): string {
  */
 export function baueBelegOrdner(ids: { orgId: string; hausId: string; wohnungId: string; mieterId: string }): string | null {
   if (!isUuid(ids.orgId) || !isUuid(ids.hausId) || !isUuid(ids.wohnungId) || !isUuid(ids.mieterId)) return null;
-  try {
-    return sharedPath(ids.orgId, ids.hausId, ids.wohnungId, ids.mieterId);
-  } catch {
-    return null;
-  }
+  // isUuid already guarantees valid path segments, so sharedPath cannot throw here
+  return sharedPath(ids.orgId, ids.hausId, ids.wohnungId, ids.mieterId);
 }
 
 /** Storage key of a receipt: folder (`dateipfad`) plus file name (`dateiname`), as the document management uses it. */

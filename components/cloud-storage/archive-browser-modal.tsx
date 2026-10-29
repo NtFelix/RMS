@@ -20,12 +20,8 @@ import {
   Loader2
 } from "lucide-react"
 import { useCloudStorageArchive, StorageObject } from "@/hooks/use-cloud-storage-store"
-import { parseArchivePath } from "@/lib/storage-paths"
+import { archiveTimestampToDate, parseArchivePath } from "@/lib/storage-paths"
 
-/** Archive timestamps are written as 2026-10-29T10-00-00-000Z (see archiveFile) */
-function archiveTimestampToIso(timestamp: string): string {
-  return timestamp.replace(/^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/, "$1T$2:$3:$4.$5Z")
-}
 import { formatDistanceToNow } from "date-fns"
 import { de } from "date-fns/locale"
 import { cn } from "@/lib/utils"
@@ -81,8 +77,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
     } catch {
       // Not a valid archive path: shown without original path
     }
-    const isoDate = timestamp ? new Date(archiveTimestampToIso(timestamp)) : null
-    const archiveDate = isoDate && !isNaN(isoDate.getTime()) ? isoDate : new Date(file.created_at)
+    const archiveDate = archiveTimestampToDate(timestamp) ?? new Date(file.created_at)
 
     return {
       ...file,

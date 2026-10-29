@@ -260,7 +260,9 @@ describe('dateien/actions', () => {
 
       expect((await deleteFolder('user123', `org_${ORG_ID}`)).success).toBe(false);
       expect((await deleteFolder('user123', `org_${ORG_ID}/shared`)).success).toBe(false);
-      expect((await deleteFolder('user123', `org_${ORG_ID}/shared/${HAUS}`)).success).toBe(false);
+      const houseResult = await deleteFolder('user123', `org_${ORG_ID}/shared/${HAUS}`);
+      expect(houseResult.success).toBe(false);
+      expect(houseResult.error).toContain('Systemordner');
       expect(mockStorageBuilder.remove).not.toHaveBeenCalled();
     });
   });

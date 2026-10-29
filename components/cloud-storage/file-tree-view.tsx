@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { ChevronRight, ChevronDown, Folder, FolderOpen, Home, Building, Users, FileText, AlertCircle, Archive, Search, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCloudStorageStore, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
-import { orgRoot, sharedRoot, sharedPath, privateRoot, privatePath } from "@/lib/storage-paths"
-import { buildFallbackBreadcrumbs } from "@/lib/storage-navigation"
+import { orgRoot, sharedRoot, sharedPath, privateRoot, privatePath, ARCHIVE_SEGMENT } from "@/lib/storage-paths"
+import { buildFallbackBreadcrumbs, STORAGE_ROOT_LABEL, SYSTEM_FOLDER_LABELS, ZONE_LABELS } from "@/lib/storage-navigation"
 import { usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
 import { useFolderNavigation } from "@/components/common/navigation-interceptor"
 import { useDirectoryActiveState } from "@/hooks/use-active-state-manager"
@@ -54,7 +54,7 @@ export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTr
     const buildTreeStructure = (): TreeNode[] => {
       const rootNode: TreeNode = {
         id: 'root',
-        name: 'Cloud Storage',
+        name: STORAGE_ROOT_LABEL,
         path: orgRoot(orgId),
         type: 'root',
         icon: Home,
@@ -68,7 +68,7 @@ export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTr
       const categories = [
         {
           id: 'haeuser',
-          name: 'Gemeinsam',
+          name: ZONE_LABELS.shared,
           path: sharedRoot(orgId),
           type: 'category' as const,
           icon: Building,
@@ -89,12 +89,12 @@ export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTr
         {
           id: 'archive',
           name: 'Archiv',
-          path: privatePath(orgId, userId, '__archive__'),
+          path: privatePath(orgId, userId, ARCHIVE_SEGMENT),
           type: 'archive' as const,
           icon: Archive,
           children: [] as TreeNode[],
-          fileCount: getFileCountFromStore(privatePath(orgId, userId, '__archive__')),
-          isEmpty: getFileCountFromStore(privatePath(orgId, userId, '__archive__')) === 0
+          fileCount: getFileCountFromStore(privatePath(orgId, userId, ARCHIVE_SEGMENT)),
+          isEmpty: getFileCountFromStore(privatePath(orgId, userId, ARCHIVE_SEGMENT)) === 0
         }
       ]
 
@@ -119,7 +119,7 @@ export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTr
         const houseDocsFileCount = getFileCountFromStore(houseDocsPath)
         const houseDocsNode: TreeNode = {
           id: `house-docs-${house.id}`,
-          name: 'Hausdokumente',
+          name: SYSTEM_FOLDER_LABELS.house_documents,
           path: houseDocsPath,
           type: 'category',
           icon: FileText,
@@ -150,7 +150,7 @@ export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTr
           const apartmentDocsFileCount = getFileCountFromStore(apartmentDocsPath)
           const apartmentDocsNode: TreeNode = {
             id: `apartment-docs-${apartment.id}`,
-            name: 'Wohnungsdokumente',
+            name: SYSTEM_FOLDER_LABELS.apartment_documents,
             path: apartmentDocsPath,
             type: 'category',
             icon: FileText,
@@ -208,7 +208,7 @@ export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTr
       const privateZone = categories.filter(c => c.id === 'miscellaneous' || c.id === 'archive')
       const privateNode = {
         id: 'private',
-        name: 'Privat',
+        name: ZONE_LABELS.private,
         path: privateRootPath,
         type: 'category' as const,
         icon: Folder,

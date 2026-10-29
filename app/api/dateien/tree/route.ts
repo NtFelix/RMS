@@ -4,6 +4,7 @@ import { unstable_rethrow } from 'next/navigation'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 import { getAccessibleHaeuserIds } from '@/lib/object-scope'
 import { getActiveOrgId } from '@/lib/storage-access'
+import { STORAGE_ROOT_LABEL, SYSTEM_FOLDER_LABELS, ZONE_LABELS } from '@/lib/storage-navigation'
 import {
   assertPathAllowed,
   ARCHIVE_SEGMENT,
@@ -28,17 +29,14 @@ interface TreeNode {
   fileCount?: number
 }
 
-/** Archive node below a zone (house or private area), shown instead of the raw __archive__ folder */
-function archiveNode(zoneBase: string): TreeNode {
-  const path = `${zoneBase}/${ARCHIVE_SEGMENT}`
-  return { id: path, name: 'Archiv', path, type: 'folder', displayName: 'Archiv', children: [], isEmpty: false, fileCount: 0 }
+/** Folder node without children loaded yet (children only for the root node) */
+function folderNode(path: string, name: string, displayName?: string, children: TreeNode[] = []): TreeNode {
+  return { id: path, name, path, type: 'folder', displayName, children, isEmpty: false, fileCount: 0 }
 }
 
-/** Labels for system folders below a house or apartment */
-const SYSTEM_FOLDER_LABELS: Record<string, string> = {
-  house_documents: 'Hausdokumente',
-  apartment_documents: 'Wohnungsdokumente',
-  Rechnungen: 'Rechnungen',
+/** Archive node below a zone (house or private area), shown instead of the raw __archive__ folder */
+function archiveNode(zoneBase: string): TreeNode {
+  return folderNode(`${zoneBase}/${ARCHIVE_SEGMENT}`, 'Archiv', 'Archiv')
 }
 
 export async function GET(request: NextRequest) {
@@ -65,7 +63,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const orgId = await getActiveOrgId(supabase)
+    // The house scope is only needed to list a folder, the root tree does not use it
+    const [orgId, accessibleHouseIds] = await Promise.all([
+      getActiveOrgId(supabase),
+      path ? getAccessibleHaeuserIds() : Promise.resolve(null),
+    ])
     if (!orgId) {
       return NextResponse.json(
         { error: 'No active organisation' },
@@ -73,11 +75,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const ctx: PathAccessContext = {
-      orgId,
-      userId,
-      accessibleHouseIds: await getAccessibleHaeuserIds(),
-    }
+    const ctx: PathAccessContext = { orgId, userId, accessibleHouseIds }
 
     if (path) {
       const children = await loadFolderChildren(supabase, ctx, path)
@@ -98,25 +96,13 @@ export async function GET(request: NextRequest) {
 
 function zoneNodes(ctx: PathAccessContext): TreeNode[] {
   return [
-    { id: sharedRoot(ctx.orgId), name: 'Gemeinsam', path: sharedRoot(ctx.orgId), type: 'folder', displayName: 'Gemeinsam', children: [], isEmpty: false, fileCount: 0 },
-    { id: privateRoot(ctx.orgId, ctx.userId), name: 'Privat', path: privateRoot(ctx.orgId, ctx.userId), type: 'folder', displayName: 'Privat', children: [], isEmpty: false, fileCount: 0 },
+    folderNode(sharedRoot(ctx.orgId), ZONE_LABELS.shared, ZONE_LABELS.shared),
+    folderNode(privateRoot(ctx.orgId, ctx.userId), ZONE_LABELS.private, ZONE_LABELS.private),
   ]
 }
 
 function loadRootTree(ctx: PathAccessContext): TreeNode[] {
-  const rootPath = orgRoot(ctx.orgId)
-  return [
-    {
-      id: rootPath,
-      name: 'Cloud Storage',
-      path: rootPath,
-      type: 'folder',
-      displayName: 'Cloud Storage',
-      children: zoneNodes(ctx),
-      isEmpty: false,
-      fileCount: 0,
-    },
-  ]
+  return [folderNode(orgRoot(ctx.orgId), STORAGE_ROOT_LABEL, STORAGE_ROOT_LABEL, zoneNodes(ctx))]
 }
 
 /**
@@ -145,10 +131,9 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
       query = query.in('id', ctx.accessibleHouseIds)
     }
     const { data: houses } = await query
-    const nodes: TreeNode[] = (houses ?? []).map((h: { id: string; name: string | null }) => {
-      const path = sharedPath(orgId, h.id)
-      return { id: path, name: h.name || h.id, path, type: 'folder', displayName: h.name || undefined, children: [], isEmpty: false, fileCount: 0 }
-    })
+    const nodes: TreeNode[] = (houses ?? []).map((h: { id: string; name: string | null }) =>
+      folderNode(sharedPath(orgId, h.id), h.name || h.id, h.name || undefined),
+    )
     return sortNodes(nodes)
   }
 
@@ -156,9 +141,9 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
     const houseId = parsed.houseId
     const { data: apartments } = await supabase.from('Wohnungen').select('id, name').eq('haus_id', houseId)
     const names = new Map<string, string>((apartments ?? []).map((a: { id: string; name: string | null }) => [a.id, a.name || a.id]))
-    const nodes = await listFolderNodes(supabase, folderPath, (segment) => names.get(segment), (segment) => ({
-      path: sharedPath(orgId, houseId, segment),
-    }))
+    const nodes = await listFolderNodes(supabase, folderPath, (segment) => names.get(segment), (segment) =>
+      sharedPath(orgId, houseId, segment),
+    )
     return [archiveNode(sharedPath(orgId, houseId)), ...nodes]
   }
 
@@ -166,14 +151,12 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
     const apartmentId = parsed.rest[0]
     const { data: tenants } = await supabase.from('Mieter').select('id, name').eq('wohnung_id', apartmentId)
     const names = new Map<string, string>((tenants ?? []).map((t: { id: string; name: string | null }) => [t.id, t.name || t.id]))
-    return listFolderNodes(supabase, folderPath, (segment) => names.get(segment), (segment) => ({
-      path: sharedPath(orgId, parsed.houseId as string, apartmentId, segment),
-    }))
+    return listFolderNodes(supabase, folderPath, (segment) => names.get(segment), (segment) =>
+      sharedPath(orgId, parsed.houseId as string, apartmentId, segment),
+    )
   }
 
-  const nodes = await listFolderNodes(supabase, folderPath, () => undefined, (segment) => ({
-    path: `${folderPath}/${segment}`,
-  }))
+  const nodes = await listFolderNodes(supabase, folderPath, () => undefined, (segment) => `${folderPath}/${segment}`)
   if (parsed.zone === 'private' && parsed.rest.length === 0) {
     return [archiveNode(folderPath), ...nodes]
   }
@@ -188,24 +171,14 @@ async function listFolderNodes(
   supabase: any,
   folderPath: string,
   lookup: (segment: string) => string | undefined,
-  childPath: (segment: string) => { path: string },
+  childPath: (segment: string) => string,
 ): Promise<TreeNode[]> {
   const { data: items } = await supabase.storage.from('documents').list(folderPath, { limit: 1000 })
   const nodes: TreeNode[] = []
   for (const item of items ?? []) {
     if (!item.name || item.name === '.keep' || item.name === ARCHIVE_SEGMENT || item.metadata) continue
     const displayName = lookup(item.name) ?? SYSTEM_FOLDER_LABELS[item.name]
-    const { path } = childPath(item.name)
-    nodes.push({
-      id: path,
-      name: displayName ?? item.name,
-      path,
-      type: 'folder',
-      displayName: displayName,
-      children: [],
-      isEmpty: false,
-      fileCount: 0,
-    })
+    nodes.push(folderNode(childPath(item.name), displayName ?? item.name, displayName))
   }
   return sortNodes(nodes)
 }

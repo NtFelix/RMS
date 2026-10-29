@@ -1,5 +1,7 @@
 import {
   archivePathFor,
+  archiveTimestamp,
+  archiveTimestampToDate,
   isOwnLegacyPath,
   parseArchivePath,
   assertPathAllowed,
@@ -238,5 +240,18 @@ describe('archive paths', () => {
     expect(isOwnLegacyPath(`user_${USER}/haus/x.pdf`, 'other')).toBe(false);
     expect(isOwnLegacyPath(`org_${ORG}/private/${USER}/x`, USER)).toBe(false);
     expect(isOwnLegacyPath('user_/x', USER)).toBe(false);
+  });
+
+  it('round-trips archive timestamps', () => {
+    const date = new Date('2026-10-29T10:00:00.123Z');
+    const ts = archiveTimestamp(date);
+    expect(ts).toBe('2026-10-29T10-00-00-123Z');
+    expect(archiveTimestampToDate(ts)?.getTime()).toBe(date.getTime());
+    expect(archiveTimestampToDate(archiveTimestamp())).toBeInstanceOf(Date);
+  });
+
+  it('returns null for invalid archive timestamps', () => {
+    expect(archiveTimestampToDate('')).toBeNull();
+    expect(archiveTimestampToDate('not-a-timestamp')).toBeNull();
   });
 });

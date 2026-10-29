@@ -31,17 +31,13 @@ export async function checkStoragePathAccess(
     return null
   }
 
-  const orgId = await getActiveOrgId(supabase)
+  const [orgId, accessibleHouseIds] = await Promise.all([getActiveOrgId(supabase), getAccessibleHaeuserIds()])
   if (!orgId) {
     return 'Keine aktive Organisation'
   }
 
   try {
-    assertPathAllowed(path, {
-      orgId,
-      userId,
-      accessibleHouseIds: await getAccessibleHaeuserIds(),
-    })
+    assertPathAllowed(path, { orgId, userId, accessibleHouseIds })
     return null
   } catch (error) {
     if (error instanceof StoragePathError) {

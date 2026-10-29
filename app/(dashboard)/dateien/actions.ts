@@ -2,6 +2,7 @@
 
 import { ensureAuth } from '@/lib/auth-utils'
 import { checkStoragePathAccess, getActiveOrgId } from '@/lib/storage-access'
+import { STORAGE_ROOT_LABEL } from '@/lib/storage-navigation'
 import { orgRoot, parseStoragePath } from '@/lib/storage-paths'
 import { redirect, unstable_rethrow } from 'next/navigation'
 
@@ -145,7 +146,7 @@ export async function getFolderContents(userId: string, path?: string): Promise<
             return {
                 files: [],
                 folders: [],
-                breadcrumbs: [{ name: 'Cloud Storage', path: rootPath, type: 'root' }],
+                breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                 totalSize: 0,
                 error: `Fehler beim Laden der Ordnerinhalte: ${error.message}`
             }
@@ -167,7 +168,7 @@ export async function getFolderContents(userId: string, path?: string): Promise<
             return {
                 files: [],
                 folders: [],
-                breadcrumbs: [{ name: 'Cloud Storage', path: rootPath, type: 'root' }],
+                breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                 totalSize: 0,
                 error: result.error
             }
@@ -183,7 +184,7 @@ export async function getFolderContents(userId: string, path?: string): Promise<
         return {
             files: result.files || [],
             folders: result.folders || [],
-            breadcrumbs: result.breadcrumbs || [{ name: 'Cloud Storage', path: rootPath, type: 'root' }],
+            breadcrumbs: result.breadcrumbs || [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
             totalSize: result.totalSize || 0
         }
 
@@ -285,11 +286,8 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
         // Protect zone roots, house folders and system folders at their structural position
         const parsed = parseStoragePath(folderPath)
         const rest = parsed.rest
-        if (parsed.zone === 'root' || parsed.zone === 'shared' && rest.length === 0 || parsed.zone === 'private' && rest.length === 0) {
+        if (parsed.zone === 'root' || rest.length === 0) {
             return { success: false, error: 'Dieser Ordner ist ein Systemordner und kann nicht gelöscht werden.' }
-        }
-        if (parsed.zone === 'shared' && parsed.houseId !== undefined && rest.length === 0) {
-            return { success: false, error: 'Hausordner können nicht gelöscht werden.' }
         }
         if (parsed.zone === 'private' && rest[0] === 'Miscellaneous' && rest.length === 1) {
             return { success: false, error: 'Der Ordner "Sonstiges" ist ein Systemordner und kann nicht gelöscht werden.' }

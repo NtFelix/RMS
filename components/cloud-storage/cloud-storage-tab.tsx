@@ -38,7 +38,7 @@ import { useErrorBoundary } from "@/lib/storage-error-handling"
 import { performanceMonitor } from "@/lib/storage-performance"
 import { useRouter } from "next/navigation"
 import { orgRoot } from '@/lib/storage-paths'
-import { buildFallbackBreadcrumbs, storageUrlFor } from '@/lib/storage-navigation'
+import { buildFallbackBreadcrumbs, STORAGE_ROOT_LABEL, storageUrlFor } from '@/lib/storage-navigation'
 
 interface VirtualFolder {
   name: string
@@ -83,8 +83,6 @@ export function CloudStorageTab({ userId, orgId, initialFiles, initialFolders }:
   } = useCloudStorageStore()
   const router = useRouter()
 
-  // Map storage path like org_<id>/shared/<house>/a to SSR route /dateien/shared/<house>/a
-  const pathToHref = (path: string) => storageUrlFor(path)
   const orgRootPath = orgId ? orgRoot(orgId) : null
 
   // Enhanced navigation function that routes to SSR URL
@@ -95,7 +93,7 @@ export function CloudStorageTab({ userId, orgId, initialFiles, initialFolders }:
       setFiles([])
       setFolders([])
     }
-    router.push(pathToHref(path))
+    router.push(storageUrlFor(path))
   }
   
   const {
@@ -137,7 +135,7 @@ export function CloudStorageTab({ userId, orgId, initialFiles, initialFolders }:
   useEffect(() => {
     if (!currentPath && orgRootPath) {
       navigateToPath(orgRootPath)
-      setBreadcrumbs([{ name: 'Cloud Storage', path: orgRootPath, type: 'root' }])
+      setBreadcrumbs([{ name: STORAGE_ROOT_LABEL, path: orgRootPath, type: 'root' }])
     }
   }, [orgRootPath, currentPath, navigateToPath, setBreadcrumbs])
 

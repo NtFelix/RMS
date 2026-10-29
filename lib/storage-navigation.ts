@@ -10,9 +10,16 @@ export interface StorageBreadcrumb {
 export const STORAGE_ROOT_LABEL = 'Cloud Storage'
 
 /** UI labels of the two zones below the org root */
-const ZONE_LABELS: Record<string, string> = {
+export const ZONE_LABELS: Record<string, string> = {
   shared: 'Gemeinsam',
   private: 'Privat',
+}
+
+/** UI labels of the system folders below a house or apartment */
+export const SYSTEM_FOLDER_LABELS: Record<string, string> = {
+  house_documents: 'Hausdokumente',
+  apartment_documents: 'Wohnungsdokumente',
+  Rechnungen: 'Rechnungen',
 }
 
 /** URL of a storage path below `/dateien` (org root maps to `/dateien`) */
@@ -22,12 +29,13 @@ export function storageUrlFor(path: string): string {
   return `/dateien/${path.slice(root.length + 1)}`
 }
 
-/**
- * Label of one path segment, never an ID if a name is known:
- * display_name (from RPC) ?? zone label (first segment) ?? raw segment
- */
-export function resolveSegmentLabel(segment: string, index: number, displayName?: string | null): string {
-  if (displayName) return displayName
+/** Storage path of a `/dateien` URL path (without the `/dateien` prefix), counterpart of storageUrlFor */
+export function storagePathFromUrl(root: string, urlPath: string): string {
+  return urlPath ? `${root}/${urlPath}` : root
+}
+
+/** Label of one path segment: zone label (first segment) ?? raw segment */
+export function resolveSegmentLabel(segment: string, index: number): string {
   if (index === 0 && ZONE_LABELS[segment]) return ZONE_LABELS[segment]
   return segment
 }
