@@ -54,10 +54,12 @@ function assertSafeSegment(segment: string, label: string): string {
   if (typeof segment !== 'string' || segment.length === 0) {
     throw new StoragePathError(`${label} darf nicht leer sein`, 'INVALID_PATH');
   }
-  if (segment.includes('..') || segment === '.') {
+  // Only the whole segment may not be a traversal element: file names like `Vertrag..pdf` are legitimate.
+  // Since '/' is the only separator and is rejected below, `..` inside a name cannot climb up a level.
+  if (segment === '..' || segment === '.') {
     throw new StoragePathError(`${label} enthält unzulässige Pfadelemente`, 'INVALID_PATH');
   }
-  if (segment.includes('/') || segment.includes('\\')) {
+  if (segment.includes('/')) {
     throw new StoragePathError(`${label} enthält einen Pfadtrenner`, 'INVALID_PATH');
   }
   if (CONTROL_CHARS.test(segment)) {

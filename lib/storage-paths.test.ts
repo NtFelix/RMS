@@ -47,12 +47,18 @@ describe('storage-paths builders', () => {
 
   it('rejects traversal, separators and control characters in any segment', () => {
     expect(() => sharedPath(ORG, HOUSE_A, '..')).toThrow(StoragePathError);
-    expect(() => sharedPath(ORG, HOUSE_A, 'a..b')).toThrow(StoragePathError);
     expect(() => sharedPath(ORG, HOUSE_A, '.')).toThrow(StoragePathError);
     expect(() => sharedPath(ORG, HOUSE_A, 'a/b')).toThrow(StoragePathError);
-    expect(() => sharedPath(ORG, HOUSE_A, 'a\\b')).toThrow(StoragePathError);
+    expect(() => sharedPath(ORG, HOUSE_A, '../x')).toThrow(StoragePathError);
     expect(() => privatePath(ORG, USER, 'a\u0000b')).toThrow(StoragePathError);
     expect(() => privatePath(ORG, USER, 'a\nb')).toThrow(StoragePathError);
+  });
+
+  it('allows ".." inside a name and backslashes (only the whole segment ".." is traversal)', () => {
+    expect(sharedPath(ORG, HOUSE_A, 'Vertrag..pdf')).toBe('org_org-1/shared/haus-a/Vertrag..pdf');
+    expect(sharedPath(ORG, HOUSE_A, 'Rechnung 12..2025.pdf')).toBe('org_org-1/shared/haus-a/Rechnung 12..2025.pdf');
+    expect(sharedPath(ORG, HOUSE_A, '...')).toBe('org_org-1/shared/haus-a/...');
+    expect(privatePath(ORG, USER, 'a\\b.pdf')).toBe('org_org-1/private/user-1/a\\b.pdf');
   });
 
   it('rejects empty ids and empty segments', () => {
@@ -103,6 +109,15 @@ describe('parseStoragePath', () => {
     });
   });
 
+  it('accepts ".." inside a file name and keeps it unchanged', () => {
+    expect(parseStoragePath('org_org-1/shared/haus-a/Vertrag..pdf')).toEqual({
+      zone: 'shared',
+      orgId: 'org-1',
+      houseId: 'haus-a',
+      rest: ['Vertrag..pdf'],
+    });
+  });
+
   it('round-trips builder output', () => {
     const path = sharedPath(ORG, HOUSE_A, 'wohnung-1', 'mieter-1');
     expect(parseStoragePath(path)).toEqual({
@@ -119,9 +134,9 @@ describe('parseStoragePath', () => {
     ['trailing slash', 'org_org-1/shared/haus-a/'],
     ['double slash', 'org_org-1//shared/haus-a'],
     ['traversal segment', 'org_org-1/shared/../private/user-1'],
-    ['traversal inside name', 'org_org-1/shared/haus-a/a..b'],
+    ['traversal at the end', 'org_org-1/shared/haus-a/..'],
+    ['current-dir segment', 'org_org-1/shared/./haus-a'],
     ['NUL byte', 'org_org-1/shared/haus\u0000a'],
-    ['backslash', 'org_org-1\\shared\\haus-a'],
     ['unknown prefix', 'docs/org_org-1/shared'],
     ['unknown zone', 'org_org-1/public/haus-a'],
     ['empty org id', 'org_/shared/haus-a'],
