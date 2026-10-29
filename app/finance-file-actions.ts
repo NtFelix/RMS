@@ -1,12 +1,13 @@
 "use server";
 
 import { ensureAuth } from "@/lib/auth-utils";
+import { privatePath, sharedPath } from "@/lib/storage-paths";
 import { revalidatePath } from "next/cache";
 
 /**
- * Get the storage folder path based on wohnung_id
- * Returns: user_{userId}/Rechnungen/{houseName}/{apartmentName}
- * Or: user_{userId}/Rechnungen/Allgemein if no wohnung
+ * Get the storage folder path based on wohnung_id (ID-based, org layout)
+ * Returns: org_{orgId}/shared/{houseId}/Rechnungen/{apartmentId}
+ * Or: org_{orgId}/private/{userId}/Rechnungen/Allgemein if no wohnung
  */
 export async function getFinanceDocumentPath(
     wohnungId?: string | null
@@ -31,21 +32,19 @@ export async function getFinanceDocumentPath(
         }
     }
 
-    const basePath = `user_${user.id}/Rechnungen`;
-
-    if (!wohnungId) {
-        return { success: true, path: `${basePath}/Allgemein` };
+    const { data: orgId, error: orgError } = await supabase.rpc("current_organisation_id");
+    if (orgError || !orgId) {
+        return { success: false, error: "Keine aktive Organisation gefunden" };
     }
 
-    // Fetch apartment with house info
+    if (!wohnungId) {
+        return { success: true, path: privatePath(orgId, user.id, "Rechnungen", "Allgemein") };
+    }
+
+    // Fetch apartment to determine its house (ID-based path, no names)
     const { data: wohnung, error: wohnungError } = await supabase
         .from("Wohnungen")
-        .select(`
-      id,
-      name,
-      haus_id,
-      Haeuser(id, name)
-    `)
+        .select("id, haus_id")
         .eq("id", wohnungId)
         .single();
 
@@ -54,34 +53,20 @@ export async function getFinanceDocumentPath(
         return { success: false, error: "Wohnung konnte nicht gefunden werden, um den Dateipfad zu erstellen." };
     }
 
-    // Build path: Rechnungen/HouseName/ApartmentName
-    // Haeuser is a to-one relationship, returned as object
-    const house = wohnung.Haeuser as unknown as { name: string } | null;
-    const houseName = house?.name || "Unbekannt";
-    const apartmentName = wohnung.name || "Unbekannt";
+    try {
+        if (!wohnung.haus_id) {
+            // Apartment without house relation: fall back to the personal area
+            return { success: true, path: privatePath(orgId, user.id, "Rechnungen", "Allgemein") };
+        }
 
-    // Sanitize folder names for Supabase Storage (no special chars, no spaces)
-    const sanitizeForStorage = (name: string): string => {
-        return name
-            .replace(/ä/g, "ae")
-            .replace(/ö/g, "oe")
-            .replace(/ü/g, "ue")
-            .replace(/Ä/g, "Ae")
-            .replace(/Ö/g, "Oe")
-            .replace(/Ü/g, "Ue")
-            .replace(/ß/g, "ss")
-            .replace(/\s+/g, "_")           // Replace spaces with underscores
-            .replace(/[^a-zA-Z0-9\-_]/g, "") // Remove any remaining special chars
-            .trim();
-    };
-
-    const sanitizedHouse = sanitizeForStorage(houseName);
-    const sanitizedApartment = sanitizeForStorage(apartmentName);
-
-    return {
-        success: true,
-        path: `${basePath}/${sanitizedHouse}/${sanitizedApartment}`
-    };
+        return {
+            success: true,
+            path: sharedPath(orgId, wohnung.haus_id, "Rechnungen", wohnung.id)
+        };
+    } catch (pathError: unknown) {
+        console.error("Invalid storage path segment:", pathError);
+        return { success: false, error: "Dateipfad konnte nicht erstellt werden." };
+    }
 }
 
 /**

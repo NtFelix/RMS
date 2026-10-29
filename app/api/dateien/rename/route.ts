@@ -1,3 +1,4 @@
+import { checkStoragePathAccess } from "@/lib/storage-access"
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
@@ -33,14 +34,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate that the path belongs to the current user
-    if (!filePath.startsWith(`user_${user.id}`)) {
-      return NextResponse.json(
-        { error: 'Zugriff verweigert' },
-        {
-          status: 403,
-          headers: NO_CACHE_HEADERS,
-        }
-      )
+    const accessError = await checkStoragePathAccess(supabase, user.id, filePath)
+    if (accessError) {
+      return NextResponse.json({ error: accessError }, { status: 403, headers: NO_CACHE_HEADERS })
     }
 
     // Clean the file path

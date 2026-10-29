@@ -17,6 +17,13 @@ jest.mock('next/navigation', () => ({
   redirect: jest.fn(),
 }));
 
+const ORG_ID = 'org1';
+const HAUS = 'haus-a';
+let mockFolderRpcResult: { data: unknown; error: unknown } = { data: null, error: null };
+function mockFolderRpc(result: { data: unknown; error: unknown }) {
+  mockFolderRpcResult = result;
+}
+
 describe('dateien/actions', () => {
   let mockSupabase: {
     auth: { getUser: jest.Mock };
@@ -65,6 +72,14 @@ describe('dateien/actions', () => {
     };
 
     (createSupabaseServerClient as jest.Mock).mockResolvedValue(mockSupabase);
+
+    // Dispatch by RPC name; folder RPC results are set per test via mockFolderRpc
+    mockFolderRpcResult = { data: null, error: null };
+    mockSupabase.rpc.mockImplementation((name: string) => {
+      if (name === 'current_organisation_id') return Promise.resolve({ data: ORG_ID, error: null });
+      if (name === 'get_accessible_haeuser_ids') return Promise.resolve({ data: null, error: null });
+      return Promise.resolve(mockFolderRpcResult);
+    });
   });
 
   describe('getFolderContents', () => {
@@ -82,7 +97,7 @@ describe('dateien/actions', () => {
         error: null,
       };
 
-      mockSupabase.rpc.mockResolvedValue({ data: mockData, error: null });
+      mockFolderRpc({ data: mockData, error: null });
 
       const result = await getFolderContents('user123', 'path/to/folder');
 
@@ -103,7 +118,7 @@ describe('dateien/actions', () => {
         error: null,
       });
 
-      mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'RPC error' } });
+      mockFolderRpc({ data: null, error: { message: 'RPC error' } });
 
       const result = await getFolderContents('user123', 'path/to/folder');
 
@@ -132,7 +147,7 @@ describe('dateien/actions', () => {
         data: { user: { id: 'user123' } },
         error: null,
       });
-      mockSupabase.rpc.mockResolvedValue({
+      mockFolderRpc({
         data: {
           files: [], folders: [], breadcrumbs: [], totalSize: 0, error: null
         }, error: null
@@ -147,7 +162,11 @@ describe('dateien/actions', () => {
 
   describe('loadFilesForPath', () => {
     it('should validate path ownership', async () => {
-      const result = await loadFilesForPath('user123', 'user_other/path');
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user123' } },
+        error: null,
+      });
+      const result = await loadFilesForPath('user123', `org_${ORG_ID}/private/other/path`);
       expect(result.error).toBe('Ungültiger Pfad');
     });
 
@@ -156,15 +175,15 @@ describe('dateien/actions', () => {
         data: { user: { id: 'user123' } },
         error: null,
       });
-      mockSupabase.rpc.mockResolvedValue({
+      mockFolderRpc({
         data: {
           files: [], folders: [], breadcrumbs: [], totalSize: 0, error: null
         }, error: null
       });
 
-      await loadFilesForPath('user123', 'user_user123/path');
+      await loadFilesForPath('user123', `org_${ORG_ID}/private/user123/path`);
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-        p_current_path: 'user_user123/path',
+        p_current_path: `org_${ORG_ID}/private/user123/path`,
       });
     });
   });
@@ -175,7 +194,7 @@ describe('dateien/actions', () => {
         data: { user: { id: 'user123' } },
         error: null,
       });
-      mockSupabase.rpc.mockResolvedValue({
+      mockFolderRpc({
         data: {
           files: [], folders: [], breadcrumbs: [], totalSize: 500, error: null
         }, error: null
@@ -205,7 +224,7 @@ describe('dateien/actions', () => {
 
       mockStorageBuilder.remove.mockResolvedValue({ error: null });
 
-      const result = await deleteFolder('user123', 'user_user123/folder');
+      const result = await deleteFolder('user123', `org_${ORG_ID}/shared/${HAUS}/folder`);
 
       expect(result).toEqual({ success: true });
       expect(mockStorageBuilder.remove).toHaveBeenCalled();
@@ -217,7 +236,7 @@ describe('dateien/actions', () => {
         error: { message: 'Auth error' },
       });
 
-      const result = await deleteFolder('user123', 'user_user123/folder');
+      const result = await deleteFolder('user123', `org_${ORG_ID}/shared/${HAUS}/folder`);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Nicht authentifiziert');
     });
@@ -228,9 +247,21 @@ describe('dateien/actions', () => {
         error: null,
       });
 
-      const result = await deleteFolder('user123', 'user_user123/Miscellaneous');
+      const result = await deleteFolder('user123', `org_${ORG_ID}/private/user123/Miscellaneous`);
       expect(result.success).toBe(false);
       expect(result.error).toContain('Systemordner');
+    });
+
+    it('should never delete the org root or a house folder', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user123' } },
+        error: null,
+      });
+
+      expect((await deleteFolder('user123', `org_${ORG_ID}`)).success).toBe(false);
+      expect((await deleteFolder('user123', `org_${ORG_ID}/shared`)).success).toBe(false);
+      expect((await deleteFolder('user123', `org_${ORG_ID}/shared/${HAUS}`)).success).toBe(false);
+      expect(mockStorageBuilder.remove).not.toHaveBeenCalled();
     });
   });
 });
