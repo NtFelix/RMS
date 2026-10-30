@@ -81,8 +81,8 @@ export const MAX_SIGNED_URL_SECONDS = 7 * 24 * 60 * 60;
  */
 export interface StorageContext extends PathAccessContext {
   supabase: SupabaseClient;
-  /** Houses of the active organisation that were looked up in this operation (write mode, see validateStoragePath) */
-  knownHouses: Set<string>;
+  /** House lookups of this operation (write mode, see validateStoragePath), shared by concurrent validations */
+  knownHouses: Map<string, Promise<boolean>>;
 }
 
 export async function getStorageContext(): Promise<StorageContext> {
@@ -104,7 +104,7 @@ export async function getStorageContext(): Promise<StorageContext> {
     orgId: orgId as string,
     userId: user.id,
     accessibleHouseIds: (houseIds as string[] | null) ?? null,
-    knownHouses: new Set(),
+    knownHouses: new Map(),
   };
 }
 
@@ -122,13 +122,19 @@ export async function validateStoragePath(path: string, mode: PathAccessMode = '
 
   if (mode === 'write') {
     const { zone, houseId } = parseStoragePath(path);
-    if (zone === 'shared' && houseId !== undefined && !context.knownHouses.has(houseId)) {
-      // RLS limits Haeuser to the active organisation
-      const { data, error } = await context.supabase.from('Haeuser').select('id').eq('id', houseId).maybeSingle();
-      if (error || !data) {
+    if (zone === 'shared' && houseId !== undefined) {
+      let lookup = context.knownHouses.get(houseId);
+      if (!lookup) {
+        // RLS limits Haeuser to the active organisation
+        lookup = (async () => {
+          const { data, error } = await context.supabase.from('Haeuser').select('id').eq('id', houseId).maybeSingle();
+          return !error && !!data;
+        })();
+        context.knownHouses.set(houseId, lookup);
+      }
+      if (!(await lookup)) {
         throw new StoragePathError('Haus nicht gefunden', 'ACCESS_DENIED');
       }
-      context.knownHouses.add(houseId);
     }
   }
 }
@@ -356,20 +362,20 @@ export async function removeFiles(
   if (paths.length === 0) return { removed: [], denied: [] };
   const context = ctx ?? await getStorageContext();
 
-  const allowed: string[] = [];
-  const denied: string[] = [];
-  for (const path of paths) {
+  const checks = await Promise.all(paths.map(async (path) => {
     try {
       if (options.onlyArchived && !parseArchivePath(path)) {
         throw new StoragePathError('Can only permanently delete files from archive', 'ACCESS_DENIED');
       }
       await validateStoragePath(path, 'write', context);
-      allowed.push(path);
+      return true;
     } catch (error) {
       if (!(error instanceof StoragePathError)) throw error;
-      denied.push(path);
+      return false;
     }
-  }
+  }));
+  const allowed = paths.filter((_, i) => checks[i]);
+  const denied = paths.filter((_, i) => !checks[i]);
 
   if (allowed.length > 0) {
     const { error } = await context.supabase.storage.from(STORAGE_BUCKET).remove(allowed);
@@ -572,12 +578,12 @@ async function moveFileInContext(oldPath: string, newPath: string, ctx: StorageC
  */
 export async function copyFile(sourcePath: string, targetPath: string, ctx?: StorageContext): Promise<void> {
   const context = ctx ?? await getStorageContext();
-  for (const path of [sourcePath, targetPath]) {
+  await Promise.all([sourcePath, targetPath].map(async (path) => {
     await validateStoragePath(path, 'write', context);
     if (isArchivePath(path)) {
       throw new StoragePathError('Das Archiv kann nicht kopiert werden', 'ACCESS_DENIED');
     }
-  }
+  }));
 
   const source = splitPath(sourcePath);
   const { data: sourceRow, error: sourceError } = await context.supabase
@@ -629,17 +635,18 @@ export async function createSignedUrls(
     : DEFAULT_SIGNED_URL_SECONDS;
 
   const results = new Map<string, SignedUrlResult>();
-  const allowed: string[] = [];
-  for (const path of paths) {
+  const checks = await Promise.all(paths.map(async (path) => {
     try {
       // Existing path from the database: validated as it is, never rewritten
       await validateStoragePath(path, 'read', context);
-      allowed.push(path);
+      return true;
     } catch (error) {
       if (!(error instanceof StoragePathError)) throw error;
       results.set(path, { path, url: null, error: 'Invalid path' });
+      return false;
     }
-  }
+  }));
+  const allowed = paths.filter((_, i) => checks[i]);
 
   if (allowed.length > 0) {
     const { data, error } = await context.supabase.storage

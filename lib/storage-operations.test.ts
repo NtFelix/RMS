@@ -362,6 +362,13 @@ describe('removeFiles', () => {
     });
   });
 
+  it('looks up a house once even though its paths are validated concurrently', async () => {
+    mockOrgScope(['house456']);
+    await removeFiles([`${HOUSE}/a.pdf`, `${HOUSE}/b.pdf`, `${HOUSE}/c.pdf`]);
+
+    expect(mockHouseLookup).toHaveBeenCalledTimes(1);
+  });
+
   it('removes nothing if every path is denied', async () => {
     const result = await removeFiles(['org_other/shared/h/a.pdf', 'org_org1/shared']);
     expect(mockRemove).not.toHaveBeenCalled();
