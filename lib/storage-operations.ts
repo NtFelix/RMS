@@ -776,7 +776,7 @@ async function bulkArchiveFilesInContext(paths: string[], ctx: StorageContext): 
       const archivePath = await archiveFileInContext(path, ctx);
       archivedPaths.push(archivePath);
     } catch (error) {
-      console.error(`Failed to archive file ${path}:`, error);
+      console.error('Failed to archive file %s:', path, error);
       // Continue with other files even if one fails
     }
   }
@@ -828,7 +828,7 @@ export async function moveFolder(oldFolderPath: string, newFolderPath: string, c
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     } catch (error) {
-      console.error(`❌ Failed to move file ${file.name}:`, error);
+      console.error('Failed to move file %s:', file.name, error);
       errorCount++;
     }
   }
@@ -853,7 +853,7 @@ async function getAllFilesInFolder(ctx: StorageContext, folderPath: string): Pro
     .or(folderMetadataFilter(folderPath));
 
   if (error) {
-    console.warn(`Could not scan folder ${folderPath} from DB:`, error);
+    console.warn('Could not scan folder %s from DB:', folderPath, error);
     return [];
   }
 
