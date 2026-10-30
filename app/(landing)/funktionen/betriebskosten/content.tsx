@@ -297,7 +297,7 @@ function SpreadsheetHero() {
         >
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
-              Sag <span className="text-primary italic">Chaos Ade.</span>
+              Sag <span className="text-primary font-bold">Chaos Ade.</span>
             </h1>
             <p className="text-lg sm:text-xl text-muted-foreground mt-4 mb-10 max-w-2xl mx-auto">
               Spare Zeit und exportiere deine Abrechnungen einfach mit klarer Übersicht.
@@ -350,7 +350,7 @@ function TransitionQuoteSection() {
         >
           <span className="text-xs font-semibold text-primary">Der Wechsel</span>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mt-3 mb-6">
-            Tabellen weg. <span className="text-primary italic">Überblick her.</span>
+            Tabellen weg. <span className="text-primary font-bold">Überblick her.</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             Statt Excel-Zeilen und manuellen Formeln unterstützt Mietevo Sie 
@@ -378,7 +378,7 @@ function DonutBreakdownSection() {
           <div>
             <span className="text-xs font-semibold text-primary">Transparenz</span>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mt-3 mb-4">
-              Jede Kostenart <span className="text-primary italic">im Blick.</span>
+              Jede Kostenart <span className="text-primary font-bold">im Blick.</span>
             </h2>
             <p className="text-muted-foreground leading-relaxed">
               Von Heizung bis Versicherung: Mietevo zeigt Ihnen die genaue Verteilung 
@@ -470,7 +470,7 @@ function DonutBreakdownSection() {
       >
         <span className="text-xs font-semibold text-primary">Immobilien-Dashboard</span>
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mt-3 mb-6">
-          Mehrere Häuser. Mehrere Jahre. <span className="text-primary italic">Ein Dashboard.</span>
+          Mehrere Häuser. Mehrere Jahre. <span className="text-primary font-bold">Ein Dashboard.</span>
         </h2>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
           Behalten Sie die Betriebskosten aller Liegenschaften im Blick – im Jahresvergleich, 
@@ -639,7 +639,7 @@ function TimelineGuideSection() {
       <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 max-w-7xl relative z-10">
         <div className="py-20 first:pt-0 relative">
           <div className="text-center w-full max-w-3xl mx-auto mb-24">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">In 4 Schritten <span className="text-primary italic">zur Abrechnung.</span></h2>
+            <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">In 4 Schritten <span className="text-primary font-bold">zur Abrechnung.</span></h2>
             <p className="text-lg text-muted-foreground leading-relaxed">
               Der einfache Leitfaden zur Erstellung Ihrer Betriebskostenabrechnung – Schritt für Schritt.
             </p>
@@ -761,7 +761,7 @@ function BentoGridSection() {
           viewport={{ once: true }}
           className="opacity-0 translate-y-5 text-center max-w-3xl mx-auto mb-20"
         >
-          <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Alle Funktionen <span className="text-primary italic">im Gesamtüberblick.</span></h2>
+          <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Alle Funktionen <span className="text-primary font-bold">im Gesamtüberblick.</span></h2>
           <p className="text-lg text-muted-foreground">Ein nahtloser Workflow, der Zeit spart und Fehler eliminiert.</p>
         </m.div>
 
