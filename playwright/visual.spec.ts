@@ -76,19 +76,45 @@ const dashboardPages = [
 ];
 
 const pagesWithTabs: Record<string, Array<{ tabKey: string; tabText: string }>> = {
-  '/finanzen': [
-    { tabKey: 'finanzen', tabText: 'Finanzen' },
-    { tabKey: 'uebersicht', tabText: 'Übersicht' },
-  ],
-  '/mieter': [
-    { tabKey: 'mieter', tabText: 'Mieter' },
+  '/haeuser': [
+    { tabKey: 'haeuser', tabText: 'Häuser' },
     { tabKey: 'uebersicht', tabText: 'Übersicht' },
   ],
   '/wohnungen': [
     { tabKey: 'wohnungen', tabText: 'Wohnungen' },
     { tabKey: 'uebersicht', tabText: 'Übersicht' },
   ],
+  '/mieter': [
+    { tabKey: 'mieter', tabText: 'Mieter' },
+    { tabKey: 'uebersicht', tabText: 'Übersicht' },
+  ],
+  '/finanzen': [
+    { tabKey: 'finanzen', tabText: 'Finanzen' },
+    { tabKey: 'uebersicht', tabText: 'Übersicht' },
+  ],
+  '/betriebskosten': [
+    { tabKey: 'betriebskosten', tabText: 'Betriebskosten' },
+    { tabKey: 'uebersicht', tabText: 'Übersicht' },
+  ],
 };
+
+interface DashboardTestCase {
+  pathStr: string;
+  tabInfo?: { tabKey: string; tabText: string };
+}
+
+const dashboardTestCases: DashboardTestCase[] = [];
+
+for (const pathStr of dashboardPages) {
+  const tabs = pagesWithTabs[pathStr];
+  if (tabs) {
+    for (const tabInfo of tabs) {
+      dashboardTestCases.push({ pathStr, tabInfo });
+    }
+  } else {
+    dashboardTestCases.push({ pathStr });
+  }
+}
 
 const themes = ['light', 'dark'] as const;
 
@@ -148,86 +174,57 @@ for (const theme of themes) {
       await acceptCookieConsent(page);
     });
 
-    for (const pathStr of dashboardPages) {
-      const tabs = pagesWithTabs[pathStr];
+    for (const { pathStr, tabInfo } of dashboardTestCases) {
+      const baseFilename = tabInfo
+        ? `dashboard-${pathStr.replace(/^\//, '').replace(/\//g, '-')}-${tabInfo.tabKey}`
+        : `dashboard-${pathStr.replace(/^\//, '').replace(/\//g, '-')}`;
+      const filename = `${baseFilename}-${theme}.png`;
+      const testTitle = tabInfo
+        ? `Dashboard Page: ${pathStr} - ${tabInfo.tabText}`
+        : `Dashboard Page: ${pathStr}`;
 
-      if (tabs) {
-        for (const tabInfo of tabs) {
-          const baseFilename = `dashboard-${pathStr.replace(/^\//, '').replace(/\//g, '-')}-${tabInfo.tabKey}`;
-          const filename = `${baseFilename}-${theme}.png`;
+      test(testTitle, async ({ page }, testInfo) => {
+        await page.goto(pathStr);
+        // Dashboard pages keep background requests open (e.g. slow external APIs); a request that never
+        // settles must not fail the test, the waits for main content below decide when the page is ready
+        await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+        await disableAnimations(page);
 
-          test(`Dashboard Page: ${pathStr} - ${tabInfo.tabText}`, async ({ page }, testInfo) => {
-            await page.goto(pathStr);
-            // Dashboard pages keep background requests open (e.g. slow external APIs); a request that never
-            // settles must not fail the test, the waits for main content below decide when the page is ready
-            await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
-            await disableAnimations(page);
+        // Force the theme using classList.toggle
+        await page.evaluate((t) => {
+          document.documentElement.classList.toggle('dark', t === 'dark');
+          document.documentElement.classList.toggle('light', t === 'light');
+        }, theme);
 
-            // Force the theme using classList.toggle
-            await page.evaluate((t) => {
-              document.documentElement.classList.toggle('dark', t === 'dark');
-              document.documentElement.classList.toggle('light', t === 'light');
-            }, theme);
-
-            await page.locator('button').filter({ hasText: tabInfo.tabText }).first().click();
-            await page.waitForTimeout(500);
-
-            // Scroll the page to trigger all animations
-            await triggerScrollAnimations(page);
-
-            await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
-
-            // Instead of a hard timeout, wait for main content or chart containers
-            // This is much faster and more reliable
-            await page.locator('main').waitFor({ state: 'visible' });
-            // Optional: wait for charts if they exist (common in dashboards)
-            await page.locator('.recharts-wrapper, canvas').first().waitFor({ state: 'visible' }).catch(() => {});
-
-            // Capture screenshot for PostHog Visual Review
-            await page.screenshot({
-              path: path.join(snapshotDir, `${testInfo.project.name}-${filename}`),
-              fullPage: true,
-            });
-          });
+        if (tabInfo) {
+          // Scope button selection to main content and match exact accessible name to avoid colliding with action buttons
+          await page.locator('main').getByRole('button', { name: tabInfo.tabText, exact: true }).click();
         }
-      } else {
-        const baseFilename = `dashboard-${pathStr.replace(/^\//, '').replace(/\//g, '-')}`;
-        const filename = `${baseFilename}-${theme}.png`;
 
-        test(`Dashboard Page: ${pathStr}`, async ({ page }, testInfo) => {
-          await page.goto(pathStr);
-          // Dashboard pages keep background requests open (e.g. slow external APIs); a request that never
-          // settles must not fail the test, the waits for main content below decide when the page is ready
-          await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
-          await disableAnimations(page);
+        // Small wait to allow theme switch and tab transitions to settle
+        await page.waitForTimeout(500);
 
-          // Force the theme using classList.toggle
-          await page.evaluate((t) => {
-            document.documentElement.classList.toggle('dark', t === 'dark');
-            document.documentElement.classList.toggle('light', t === 'light');
-          }, theme);
+        // Scroll the page to trigger all animations
+        await triggerScrollAnimations(page);
 
-          // Small wait to allow theme switch JS to settle
-          await page.waitForTimeout(500);
+        await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
 
-          // Scroll the page to trigger all animations
-          await triggerScrollAnimations(page);
+        // Instead of a hard timeout, wait for main content
+        await page.locator('main').waitFor({ state: 'visible' });
 
-          await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+        // Optional: wait for charts if they exist (with short timeout to avoid stalling on table pages)
+        const hasCharts = tabInfo?.tabKey === 'uebersicht' || pathStr === '/dashboard';
+        await page.locator('.recharts-wrapper, canvas').first().waitFor({
+          state: 'visible',
+          timeout: hasCharts ? 5000 : 1500,
+        }).catch(() => {});
 
-          // Instead of a hard timeout, wait for main content or chart containers
-          // This is much faster and more reliable
-          await page.locator('main').waitFor({ state: 'visible' });
-          // Optional: wait for charts if they exist (common in dashboards)
-          await page.locator('.recharts-wrapper, canvas').first().waitFor({ state: 'visible' }).catch(() => {});
-
-          // Capture screenshot for PostHog Visual Review
-          await page.screenshot({
-            path: path.join(snapshotDir, `${testInfo.project.name}-${filename}`),
-            fullPage: true,
-          });
+        // Capture screenshot for PostHog Visual Review
+        await page.screenshot({
+          path: path.join(snapshotDir, `${testInfo.project.name}-${filename}`),
+          fullPage: true,
         });
-      }
+      });
     }
   });
 }
