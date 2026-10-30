@@ -23,7 +23,7 @@ import {
 import { MAX_FILE_SIZE } from "@/lib/finance-file-constants";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
 
-const USER_ID = "77777777-7777-4777-8777-777777777777";
+const ORG_ID = "22222222-2222-4222-8222-222222222222";
 const HAUS_ID = "55555555-5555-4555-8555-555555555555";
 const WOHNUNG_ID = "66666666-6666-4666-8666-666666666666";
 const MIETER_ID = "11111111-1111-4111-8111-111111111111";
@@ -87,23 +87,24 @@ describe("erzeugeBelegDateiname und anzeigeNameAusDateiname", () => {
 });
 
 describe("baueBelegOrdner und baueBelegPfad", () => {
-  it("baut den Ordner user_<uid>/<haus>/<wohnung>/<mieter> aus den IDs", () => {
-    expect(baueBelegOrdner({ userId: USER_ID, hausId: HAUS_ID, wohnungId: WOHNUNG_ID, mieterId: MIETER_ID })).toBe(
-      `user_${USER_ID}/${HAUS_ID}/${WOHNUNG_ID}/${MIETER_ID}`
+  it("baut den Ordner org_<org>/shared/<haus>/<wohnung>/<mieter> aus den IDs", () => {
+    expect(baueBelegOrdner({ orgId: ORG_ID, hausId: HAUS_ID, wohnungId: WOHNUNG_ID, mieterId: MIETER_ID })).toBe(
+      `org_${ORG_ID}/shared/${HAUS_ID}/${WOHNUNG_ID}/${MIETER_ID}`
     );
   });
 
   it.each([
+    ["eine fehlerhafte Org-ID", { orgId: "../etc" }],
     ["eine fehlerhafte Haus-ID", { hausId: "../etc" }],
     ["eine fehlende Mieter-ID", { mieterId: "" }],
     ["eine Wohnungs-ID mit Pfadteil", { wohnungId: `${WOHNUNG_ID}/../x` }],
   ])("liefert null bei %s, damit kein Pfad aus unsicheren Werten entsteht", (_label, aenderung) => {
-    const ids = { userId: USER_ID, hausId: HAUS_ID, wohnungId: WOHNUNG_ID, mieterId: MIETER_ID, ...aenderung };
+    const ids = { orgId: ORG_ID, hausId: HAUS_ID, wohnungId: WOHNUNG_ID, mieterId: MIETER_ID, ...aenderung };
     expect(baueBelegOrdner(ids)).toBeNull();
   });
 
   it("verbindet Ordner und Dateiname mit einem Schrägstrich (Speicherschlüssel)", () => {
-    expect(baueBelegPfad("user_x/h/w/m", "1765000000000_Beleg.pdf")).toBe("user_x/h/w/m/1765000000000_Beleg.pdf");
+    expect(baueBelegPfad("org_x/shared/h/w/m", "1765000000000_Beleg.pdf")).toBe("org_x/shared/h/w/m/1765000000000_Beleg.pdf");
   });
 
   it("hat eine Downloadgültigkeit von 300 Sekunden", () => {

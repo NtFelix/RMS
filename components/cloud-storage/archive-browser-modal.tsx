@@ -20,7 +20,8 @@ import {
   Loader2
 } from "lucide-react"
 import { useCloudStorageArchive, StorageObject } from "@/hooks/use-cloud-storage-store"
-import { extractArchiveTimestamp, reconstructOriginalPath } from "@/lib/path-utils"
+import { archiveTimestampToDate, parseArchivePath } from "@/lib/storage-paths"
+
 import { formatDistanceToNow } from "date-fns"
 import { de } from "date-fns/locale"
 import { cn } from "@/lib/utils"
@@ -29,7 +30,8 @@ import { useToast } from "@/hooks/use-toast"
 interface ArchiveBrowserModalProps {
   isOpen: boolean
   onClose: () => void
-  userId: string
+  /** Not used any more: the archive of the signed-in user is listed (kept for existing callers) */
+  userId?: string
 }
 
 interface ArchivedFileWithMetadata extends StorageObject {
@@ -38,7 +40,7 @@ interface ArchivedFileWithMetadata extends StorageObject {
   archiveDate: Date
 }
 
-export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserModalProps) {
+export function ArchiveBrowserModal({ isOpen, onClose }: ArchiveBrowserModalProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'originalPath'>('date')
@@ -58,16 +60,25 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
 
   // Load archived files when modal opens
   useEffect(() => {
-    if (isOpen && userId) {
-      loadArchivedFiles(userId)
+    if (isOpen) {
+      loadArchivedFiles()
     }
-  }, [isOpen, userId, loadArchivedFiles])
+  }, [isOpen, loadArchivedFiles])
 
   // Process archived files with metadata
   const processedFiles: ArchivedFileWithMetadata[] = archivedFiles.map(file => {
-    const timestamp = extractArchiveTimestamp(file.name) || ''
-    const originalPath = reconstructOriginalPath(file.name)
-    const archiveDate = timestamp ? new Date(timestamp.replace(/-/g, ':')) : new Date(file.created_at)
+    let timestamp = ''
+    let originalPath: string | null = null
+    try {
+      const parsed = parseArchivePath(file.path ?? file.name)
+      if (parsed) {
+        timestamp = parsed.timestamp
+        originalPath = parsed.originalPath
+      }
+    } catch {
+      // Not a valid archive path: shown without original path
+    }
+    const archiveDate = archiveTimestampToDate(timestamp) ?? new Date(file.created_at)
 
     return {
       ...file,

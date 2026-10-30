@@ -18,6 +18,7 @@ import { logAction } from "@/lib/logging-middleware";
 import { MAX_FILE_SIZE } from "@/lib/finance-file-constants";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
 import { POST } from "./route";
+import { getAccessibleHaeuserIds } from "@/lib/object-scope";
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 jest.mock("@/lib/logging-middleware", () => ({ logAction: jest.fn() }));
@@ -32,7 +33,10 @@ const KAUTION_ID = "22222222-2222-4222-8222-222222222222";
 const BEWEGUNG_ID = "33333333-3333-4333-8333-333333333333";
 const DOKUMENT_ID = "99999999-9999-4999-8999-999999999999";
 const ZEITSTEMPEL = 1765000000000;
-const ORDNER = `user_${USER_ID}/${HAUS_ID}/${WOHNUNG_ID}/${MIETER_ID}`;
+const ORG_ID = "44444444-4444-4444-8444-444444444444";
+const ORDNER = `org_${ORG_ID}/shared/${HAUS_ID}/${WOHNUNG_ID}/${MIETER_ID}`;
+/** Houses the user may access (null = all houses). Changed per test for the scope cases. */
+let zugaenglicheHaeuser: string[] | null = null;
 
 const mockEnsureAuth = ensureAuth as jest.Mock;
 const mockHasPermission = hasPermission as jest.Mock;
@@ -56,6 +60,7 @@ function tabelle(name: string) {
     Kautionen: "kaution",
     Mieter: "mieter",
     Wohnungen: "wohnung",
+    Haeuser: "haus",
   };
   const chain: Record<string, unknown> = {};
   chain.select = jest.fn(() => chain);
@@ -78,7 +83,11 @@ function tabelle(name: string) {
 
 const mockSupabase = {
   from: (name: string) => tabelle(name),
-  rpc: (name: string, args: unknown) => mockRpc(name, args),
+  rpc: (name: string, args: unknown) => {
+    // Organisation and house scope are resolved by the helpers; the booking RPCs go to `mockRpc`.
+    if (name === "current_organisation_id") return Promise.resolve({ data: ORG_ID, error: null });
+    return mockRpc(name, args);
+  },
   storage: {
     from: (bucket: string) => ({
       upload: (...args: unknown[]) => mockUpload(bucket, ...args),
@@ -93,6 +102,8 @@ function vollstaendigeDb(): Record<string, Record<string, unknown> | null> {
     kaution: { mieter_id: MIETER_ID },
     mieter: { id: MIETER_ID, wohnung_id: WOHNUNG_ID },
     wohnung: { id: WOHNUNG_ID, haus_id: HAUS_ID },
+    // The house of the target folder (write access checks that it exists in the organisation)
+    haus: { id: HAUS_ID },
   };
 }
 
@@ -124,6 +135,8 @@ beforeEach(() => {
   jest.spyOn(Date, "now").mockReturnValue(ZEITSTEMPEL);
   mockEnsureAuth.mockResolvedValue({ user: { id: USER_ID }, supabase: mockSupabase });
   mockHasPermission.mockResolvedValue(true);
+  zugaenglicheHaeuser = null;
+  (getAccessibleHaeuserIds as jest.Mock).mockImplementation(async () => zugaenglicheHaeuser);
   db = vollstaendigeDb();
   metadatenAntwort = { data: { id: DOKUMENT_ID }, error: null };
   mockRpc.mockResolvedValue({ data: null, error: null });
@@ -261,6 +274,16 @@ describe("Ordner aus der Datenbank", () => {
 
     expect(response.status).toBe(404);
     expect(mockUpload).not.toHaveBeenCalled();
+  });
+
+  it("lehnt den Upload ab, wenn das Haus nicht im Haus-Scope des Nutzers liegt (kein Upload, keine Metadaten)", async () => {
+    zugaenglicheHaeuser = ["99999999-0000-4000-8000-000000000000"];
+
+    const response = await POST(anfrage({ bewegungId: BEWEGUNG_ID, file: pdf() }));
+
+    expect(response.status).toBe(403);
+    expect(mockUpload).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalledWith("kaution_beleg_zuordnen", expect.anything());
   });
 
   it("nimmt den Ordner aus der Datenbank und nie aus den Feldern des Clients", async () => {

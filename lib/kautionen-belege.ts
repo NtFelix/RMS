@@ -17,6 +17,7 @@
 import { MAX_FILE_SIZE, MAX_FILE_SIZE_LABEL, isSupportedMimeType } from "@/lib/finance-file-constants";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE, mapKautionError, type KautionRpcError } from "@/lib/kautionen-errors";
 import { isUuid } from "@/lib/kautionen-validation";
+import { sharedPath } from "@/lib/storage-paths";
 
 /** Storage bucket for all documents (same bucket as the finance documents). */
 export const BELEG_STORAGE_BUCKET = "documents";
@@ -80,12 +81,18 @@ export function anzeigeNameAusDateiname(dateiname: string): string {
 }
 
 /**
- * Folder of a receipt: `user_<uid>/<haus>/<wohnung>/<mieter>` (convention of the document management, `dateien`).
+ * Folder of a receipt: `org_{orgId}/shared/{haus}/{wohnung}/{mieter}` (GH-27: ID-based, house-scoped, see `lib/storage-paths.ts`).
  * Returns `null` if one of the IDs is not a UUID, so no folder is built from malformed values.
+ *
+ * TRANSITION (GH-27 PR 2 -> PR 3): receipts uploaded before this layout are stored under `user_{uid}/...`. Their path is
+ * read from the database (`Dokumente_Metadaten.dateipfad`) and is never rebuilt. Only NEW uploads use this function.
+ * Reads of legacy receipts are allowed for their own uploader only (`checkStoragePathAccess` with
+ * `allowLegacyOwnRead`); deleting them is not allowed. TODO(GH-27 PR3): backfill, then remove the legacy rule.
  */
-export function baueBelegOrdner(ids: { userId: string; hausId: string; wohnungId: string; mieterId: string }): string | null {
-  if (!isUuid(ids.userId) || !isUuid(ids.hausId) || !isUuid(ids.wohnungId) || !isUuid(ids.mieterId)) return null;
-  return `user_${ids.userId}/${ids.hausId}/${ids.wohnungId}/${ids.mieterId}`;
+export function baueBelegOrdner(ids: { orgId: string; hausId: string; wohnungId: string; mieterId: string }): string | null {
+  if (!isUuid(ids.orgId) || !isUuid(ids.hausId) || !isUuid(ids.wohnungId) || !isUuid(ids.mieterId)) return null;
+  // isUuid already guarantees valid path segments, so sharedPath cannot throw here
+  return sharedPath(ids.orgId, ids.hausId, ids.wohnungId, ids.mieterId);
 }
 
 /** Storage key of a receipt: folder (`dateipfad`) plus file name (`dateiname`), as the document management uses it. */

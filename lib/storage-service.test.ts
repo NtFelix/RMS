@@ -1,5 +1,6 @@
 /**
- * Unit tests for storage service
+ * Unit tests for the browser side of the storage service: every operation is a server action,
+ * only the byte transfer of an upload runs in the browser with a signed upload token
  */
 
 import {
@@ -7,329 +8,282 @@ import {
   uploadFile,
   listFiles,
   downloadFile,
+  triggerFileDownload,
   deleteFile,
   moveFile,
+  renameFile,
   createPlaceholder,
+  createSignedUrl,
   getFileUrl,
+  archiveFile,
+  bulkArchiveFiles,
+  permanentlyDeleteFile,
   storageService,
 } from './storage-service';
 
-// Mock functions
-const mockUpload = jest.fn();
-const mockList = jest.fn();
-const mockDownload = jest.fn();
-const mockMove = jest.fn();
-const mockRemove = jest.fn();
-const mockCreateSignedUrl = jest.fn();
-const mockGetUser = jest.fn();
-const mockSelect = jest.fn();
-const mockInsert = jest.fn();
-const mockUpdate = jest.fn();
-const mockEq = jest.fn();
-const mockSingle = jest.fn();
-const mockOrder = jest.fn();
-const mockLimit = jest.fn();
-const mockRange = jest.fn();
+const actionNames = [
+  'archiveFolderObjects',
+  'archiveObject',
+  'archiveObjects',
+  'createDownloadUrls',
+  'createFolderPlaceholder',
+  'createUploadTarget',
+  'listArchivedObjects',
+  'listObjects',
+  'moveFolderObjects',
+  'moveObject',
+  'permanentlyDeleteObjects',
+  'registerUploadedFile',
+  'removeObjects',
+  'renameObject',
+  'restoreObject',
+] as const;
 
-// Mock Supabase client
+jest.mock('@/app/(dashboard)/dateien/storage-actions', () => {
+  const names = [
+    'archiveFolderObjects', 'archiveObject', 'archiveObjects', 'createDownloadUrls', 'createFolderPlaceholder',
+    'createUploadTarget', 'listArchivedObjects', 'listObjects', 'moveFolderObjects', 'moveObject',
+    'permanentlyDeleteObjects', 'registerUploadedFile', 'removeObjects', 'renameObject', 'restoreObject',
+  ];
+  return Object.fromEntries(names.map((name) => [name, jest.fn()]));
+});
+
+const actions = jest.requireMock('@/app/(dashboard)/dateien/storage-actions') as Record<
+  (typeof actionNames)[number],
+  jest.Mock
+>;
+
+// The browser client is only used for uploadToSignedUrl (the token is the credential, no cookie is needed)
+const mockUploadToSignedUrl = jest.fn();
+const mockStorageFrom = jest.fn(() => ({ uploadToSignedUrl: mockUploadToSignedUrl }));
+const mockClientFrom = jest.fn();
 jest.mock('@/utils/supabase/client', () => ({
-  createClient: jest.fn(() => {
-    // Helper to allow chaining
-    const queryBuilder = {
-      select: mockSelect,
-      insert: mockInsert,
-      update: mockUpdate,
-      delete: jest.fn().mockReturnThis(),
-      eq: mockEq,
-      single: mockSingle,
-      order: mockOrder,
-      limit: mockLimit,
-      range: mockRange
-    };
-
-    // Make functions return the builder for chaining
-    mockSelect.mockReturnValue(queryBuilder);
-    mockInsert.mockReturnValue(queryBuilder);
-    mockUpdate.mockReturnValue(queryBuilder);
-    mockEq.mockReturnValue(queryBuilder);
-    mockSingle.mockReturnValue(Promise.resolve({ data: null, error: null }));
-    mockOrder.mockReturnValue(queryBuilder);
-    mockLimit.mockReturnValue(queryBuilder);
-    mockRange.mockReturnValue(Promise.resolve({ data: [], error: null }));
-
-    return {
-      auth: {
-        getUser: mockGetUser
-      },
-      storage: {
-        from: jest.fn(() => ({
-          upload: mockUpload,
-          list: mockList,
-          download: mockDownload,
-          move: mockMove,
-          remove: mockRemove,
-          createSignedUrl: mockCreateSignedUrl
-        }))
-      },
-      from: jest.fn(() => queryBuilder)
-    };
-  })
+  createClient: jest.fn(() => ({
+    storage: { from: (...args: unknown[]) => (mockStorageFrom as (...a: unknown[]) => unknown)(...args) },
+    from: (...args: unknown[]) => mockClientFrom(...args),
+    rpc: (...args: unknown[]) => mockClientFrom(...args),
+  })),
 }));
 
-// Mock path utils
-jest.mock('./path-utils', () => ({
-  pathUtils: {
-    sanitizePath: jest.fn((path) => path),
-    buildUserPath: jest.fn((...args) => args.join('/'))
-  },
-  validatePath: jest.fn(() => true),
-  isUserPath: jest.fn(() => true)
-}));
+const PATH = 'org_org1/shared/house1/x.pdf';
+const ok = <T,>(data: T) => ({ success: true as const, data });
+const fail = (error: string) => ({ success: false as const, error });
 
-describe('Storage Service', () => {
-  // Mock console methods to suppress logs during tests
-  let consoleLogSpy: jest.SpyInstance;
-  let consoleErrorSpy: jest.SpyInstance;
+const pdf = (size = 1024) => {
+  const file = new File(['x'], 'x.pdf', { type: 'application/pdf' });
+  Object.defineProperty(file, 'size', { value: size });
+  return file;
+};
 
-  beforeAll(() => {
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-  });
-
-  afterAll(() => {
-    consoleLogSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
-  });
-
+describe('storage service (browser)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(console, 'error').mockImplementation();
+    jest.spyOn(console, 'log').mockImplementation();
+  });
 
-    // Set up default mock implementations
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: 'test-user-123' } },
-      error: null
-    });
-
-    mockUpload.mockResolvedValue({
-      data: { path: 'test-path' },
-      error: null
-    });
-
-    // Mock DB response for listFiles
-    const mockFiles = [
-      {
-        dateiname: 'test-file.txt',
-        id: 'file-123',
-        aktualisierungsdatum: '2024-01-01T00:00:00Z',
-        erstellungsdatum: '2024-01-01T00:00:00Z',
-        letzter_zugriff: '2024-01-01T00:00:00Z',
-        dateigroesse: 1024,
-        mime_type: 'text/plain'
-      }
-    ];
-
-    mockRange.mockResolvedValue({
-      data: mockFiles,
-      error: null
-    });
-
-    // Also mock the promise resolution of the query builder itself
-    // because listFiles might await the query builder directly if no limit/range is applied
-    const queryBuilder = {
-      select: mockSelect,
-      insert: mockInsert,
-      update: mockUpdate,
-      delete: jest.fn().mockReturnThis(),
-      eq: mockEq,
-      single: mockSingle,
-      order: mockOrder,
-      limit: mockLimit,
-      range: mockRange,
-      then: function (resolve: any) { resolve({ data: mockFiles, error: null }); }
-    };
-
-    // Update the factory to use this builder structure
-    mockEq.mockReturnValue(queryBuilder);
-    mockOrder.mockReturnValue(queryBuilder);
-    mockSelect.mockReturnValue(queryBuilder);
-    mockLimit.mockReturnValue(queryBuilder);
-
-    mockDownload.mockResolvedValue({
-      data: new Blob(['test content']),
-      error: null
-    });
-
-    mockMove.mockResolvedValue({ error: null });
-
-    mockRemove.mockResolvedValue({ error: null });
-
-    mockCreateSignedUrl.mockResolvedValue({
-      data: { signedUrl: 'https://example.com/signed-url' },
-      error: null
-    });
-
-    // Default mocks for DB operations
-    mockSingle.mockResolvedValue({ data: null, error: null }); // File doesn't exist by default
-    mockInsert.mockResolvedValue({ error: null });
-    mockUpdate.mockResolvedValue({ error: null });
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('validateFile', () => {
-    it('should validate file size', () => {
-      const smallFile = new File(['test'], 'test.txt', { type: 'text/plain' });
-      Object.defineProperty(smallFile, 'size', { value: 1024 });
-
-      const result = validateFile(smallFile);
-      expect(result.valid).toBe(true);
+    it('accepts a small supported file', () => {
+      expect(validateFile(pdf()).valid).toBe(true);
     });
 
-    it('should reject files that are too large', () => {
-      const largeFile = new File(['test'], 'test.txt', { type: 'text/plain' });
-      Object.defineProperty(largeFile, 'size', { value: 11 * 1024 * 1024 }); // 11MB
-
-      const result = validateFile(largeFile);
+    it('rejects files that are too large', () => {
+      const result = validateFile(pdf(11 * 1024 * 1024));
       expect(result.valid).toBe(false);
       expect(result.error).toContain('exceeds maximum allowed size');
     });
 
-    it('should validate supported file types', () => {
-      const pdfFile = new File(['test'], 'test.pdf', { type: 'application/pdf' });
-      Object.defineProperty(pdfFile, 'size', { value: 1024 });
-
-      const result = validateFile(pdfFile);
-      expect(result.valid).toBe(true);
-    });
-
-    it('should reject unsupported file types', () => {
-      const unsupportedFile = new File(['test'], 'test.exe', { type: 'application/x-executable' });
-      Object.defineProperty(unsupportedFile, 'size', { value: 1024 });
-
-      const result = validateFile(unsupportedFile);
+    it('rejects unsupported file types', () => {
+      const file = new File(['test'], 'test.exe', { type: 'application/x-executable' });
+      const result = validateFile(file);
       expect(result.valid).toBe(false);
       expect(result.error).toContain('is not supported');
     });
   });
 
   describe('uploadFile', () => {
-    it('should upload a valid file successfully', async () => {
-      const file = new File(['test content'], 'test.txt', { type: 'text/plain' });
-      Object.defineProperty(file, 'size', { value: 1024 });
-
-      const result = await uploadFile(file, 'user_test-user-123/test.txt');
-
-      expect(result.success).toBe(true);
-      expect(result.data).toEqual({ path: 'test-path' });
-      expect(mockInsert).toHaveBeenCalled(); // Should insert metadata
+    beforeEach(() => {
+      actions.createUploadTarget.mockResolvedValue(ok({ path: PATH, token: 'tok-1' }));
+      mockUploadToSignedUrl.mockResolvedValue({ data: { path: PATH, fullPath: `documents/${PATH}` }, error: null });
+      actions.registerUploadedFile.mockResolvedValue(ok({ path: PATH, size: 1024, mimeType: 'application/pdf' }));
     });
 
-    it('should reject invalid files', async () => {
-      const invalidFile = new File(['test'], 'test.exe', { type: 'application/x-executable' });
-      Object.defineProperty(invalidFile, 'size', { value: 1024 });
+    it('asks the server for a target, transfers the bytes with the token, then registers the file', async () => {
+      const file = pdf();
 
-      const result = await uploadFile(invalidFile, 'user_test-user-123/test.exe');
+      const result = await uploadFile(file, PATH);
+
+      expect(result.success).toBe(true);
+      expect(actions.createUploadTarget).toHaveBeenCalledWith(PATH, { upsert: false });
+      expect(mockStorageFrom).toHaveBeenCalledWith('documents');
+      expect(mockUploadToSignedUrl).toHaveBeenCalledWith(PATH, 'tok-1', file, { upsert: false, contentType: 'application/pdf' });
+      expect(actions.registerUploadedFile).toHaveBeenCalledWith(PATH, { upsert: false });
+      // the order matters: the metadata is written after the bytes are in storage
+      expect(actions.createUploadTarget.mock.invocationCallOrder[0]).toBeLessThan(mockUploadToSignedUrl.mock.invocationCallOrder[0]);
+      expect(mockUploadToSignedUrl.mock.invocationCallOrder[0]).toBeLessThan(actions.registerUploadedFile.mock.invocationCallOrder[0]);
+    });
+
+    it('uploads and registers the path the server returned (it normalises a new name)', async () => {
+      actions.createUploadTarget.mockResolvedValue(ok({ path: 'org_org1/shared/house1/Bericht Q1/x.pdf', token: 'tok-2' }));
+
+      await uploadFile(pdf(), 'org_org1/shared/house1/Bericht: Q1/x.pdf', { upsert: true, contentType: 'application/pdf' });
+
+      expect(actions.createUploadTarget).toHaveBeenCalledWith('org_org1/shared/house1/Bericht: Q1/x.pdf', { upsert: true });
+      expect(mockUploadToSignedUrl).toHaveBeenCalledWith('org_org1/shared/house1/Bericht Q1/x.pdf', 'tok-2', expect.anything(), expect.objectContaining({ upsert: true }));
+      expect(actions.registerUploadedFile).toHaveBeenCalledWith('org_org1/shared/house1/Bericht Q1/x.pdf', { upsert: true });
+    });
+
+    it('never reads or writes the database from the browser', async () => {
+      await uploadFile(pdf(), PATH);
+      expect(mockClientFrom).not.toHaveBeenCalled();
+    });
+
+    it('rejects an invalid file without calling the server', async () => {
+      const file = new File(['test'], 'test.exe', { type: 'application/x-executable' });
+
+      const result = await uploadFile(file, PATH);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('is not supported');
+      expect(actions.createUploadTarget).not.toHaveBeenCalled();
     });
 
-    it('should handle upload errors', async () => {
-      mockUpload.mockResolvedValueOnce({
-        data: null,
-        error: { message: 'Upload failed' }
-      });
+    it('does not transfer anything when the server refuses the target', async () => {
+      actions.createUploadTarget.mockResolvedValue(fail('Invalid path'));
 
-      const file = new File(['test content'], 'test.txt', { type: 'text/plain' });
-      Object.defineProperty(file, 'size', { value: 1024 });
-
-      const result = await uploadFile(file, 'user_test-user-123/test.txt');
+      const result = await uploadFile(pdf(), PATH);
 
       expect(result.success).toBe(false);
-      // Error message is mapped through mapError which returns German user message
+      expect(mockUploadToSignedUrl).not.toHaveBeenCalled();
+      expect(actions.registerUploadedFile).not.toHaveBeenCalled();
+    });
+
+    it('fails when the transfer fails and registers nothing', async () => {
+      mockUploadToSignedUrl.mockResolvedValue({ data: null, error: { message: 'Upload failed' } });
+
+      const result = await uploadFile(pdf(), PATH);
+
+      expect(result.success).toBe(false);
+      // Error message is mapped through mapError which returns a German user message
       expect(result.error).toContain('Ein Fehler ist aufgetreten');
+      expect(actions.registerUploadedFile).not.toHaveBeenCalled();
+    });
+
+    it('fails when the server rejects the uploaded file (it removes it again)', async () => {
+      actions.registerUploadedFile.mockResolvedValue(fail('File size 11.00MB exceeds maximum allowed size of 10MB'));
+
+      const result = await uploadFile(pdf(), PATH);
+
+      expect(result.success).toBe(false);
     });
   });
 
-  describe('listFiles', () => {
-    // TODO: Re-enable once listFiles implementation is stabilized.
-    // Currently skipped because the function's pagination and DB query structure
-    // changed, requiring a more complex mock setup for the chained Supabase calls.
-    // See integration tests for coverage of this functionality.
-    it.skip('should list files successfully', async () => {
-      const files = await listFiles('user_test-user-123/house456');
+  describe('reads', () => {
+    it('listFiles returns the objects of the server', async () => {
+      actions.listObjects.mockResolvedValue(ok([{ name: 'x.pdf' }]));
+      expect(await listFiles('org_org1/shared/house1')).toEqual([{ name: 'x.pdf' }]);
+    });
 
-      expect(files).toHaveLength(1);
-      expect(files[0]).toEqual({
-        name: 'test-file.txt',
-        id: 'file-123',
-        updated_at: '2024-01-01T00:00:00Z',
-        created_at: '2024-01-01T00:00:00Z',
-        last_accessed_at: '2024-01-01T00:00:00Z',
-        metadata: { mimetype: 'text/plain', size: 1024 },
-        size: 1024
-      });
+    it('listFiles throws the message of the server', async () => {
+      actions.listObjects.mockResolvedValue(fail('Invalid path'));
+      await expect(listFiles('org_other')).rejects.toThrow('Invalid path');
+    });
+
+    it('createSignedUrl asks for one URL with the lifetime and download option', async () => {
+      actions.createDownloadUrls.mockResolvedValue(ok([{ path: PATH, url: 'https://example.com/signed-url' }]));
+
+      expect(await createSignedUrl(PATH, 600, { download: true })).toBe('https://example.com/signed-url');
+      expect(actions.createDownloadUrls).toHaveBeenCalledWith([PATH], { expiresIn: 600, download: true });
+    });
+
+    it('getFileUrl uses a lifetime of one hour', async () => {
+      actions.createDownloadUrls.mockResolvedValue(ok([{ path: PATH, url: 'https://example.com/u' }]));
+      await getFileUrl(PATH);
+      expect(actions.createDownloadUrls).toHaveBeenCalledWith([PATH], { expiresIn: 3600, download: undefined });
+    });
+
+    it('createSignedUrl fails when the server gives no URL for the path', async () => {
+      actions.createDownloadUrls.mockResolvedValue(ok([{ path: PATH, url: null, error: 'Invalid path' }]));
+      await expect(createSignedUrl(PATH)).rejects.toThrow('Invalid path');
+    });
+
+    it('downloadFile fetches the signed URL', async () => {
+      actions.createDownloadUrls.mockResolvedValue(ok([{ path: PATH, url: 'https://example.com/u' }]));
+      const blob = new Blob(['content']);
+      const fetchMock = jest.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) });
+      (global as unknown as { fetch: unknown }).fetch = fetchMock;
+
+      expect(await downloadFile(PATH)).toBe(blob);
+      expect(fetchMock).toHaveBeenCalledWith('https://example.com/u');
+    });
+
+    it('triggerFileDownload names the download in the signed URL and clicks a link', async () => {
+      actions.createDownloadUrls.mockResolvedValue(ok([{ path: PATH, url: 'https://example.com/u' }]));
+      const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation();
+
+      await triggerFileDownload(PATH);
+
+      expect(actions.createDownloadUrls).toHaveBeenCalledWith([PATH], { expiresIn: 60, download: 'x.pdf' });
+      expect(click).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe('downloadFile', () => {
-    it('should download file successfully', async () => {
-      const blob = await downloadFile('user_test-user-123/test.txt');
+  describe('writes', () => {
+    it('deleteFile removes the path through the server and fails if the server denies it', async () => {
+      actions.removeObjects.mockResolvedValueOnce(ok({ removed: [PATH], denied: [] }));
+      await expect(deleteFile(PATH)).resolves.toBeUndefined();
+      expect(actions.removeObjects).toHaveBeenCalledWith([PATH]);
 
-      expect(blob).toBeInstanceOf(Blob);
+      actions.removeObjects.mockResolvedValueOnce(ok({ removed: [], denied: [PATH] }));
+      await expect(deleteFile(PATH)).rejects.toThrow('Invalid path');
     });
 
-    it('should handle download errors', async () => {
-      mockDownload.mockResolvedValueOnce({
-        data: null,
-        error: { message: 'Download failed' }
-      });
-
-      // Error is mapped through mapError which returns a StorageError object
-      await expect(downloadFile('user_test-user-123/test.txt')).rejects.toMatchObject({
-        type: expect.any(String),
-        message: expect.stringContaining('Download failed')
-      });
-    });
-  });
-
-  describe('deleteFile', () => {
-    // Note: deleteFile test removed due to complex archive logic
-    // The function is tested through integration tests
-    it('placeholder test', () => {
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('moveFile', () => {
-    // Note: moveFile tests removed due to complex file existence checking logic
-    // The function is tested through integration tests
-    it('placeholder test', () => {
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('createPlaceholder', () => {
-    it('should create placeholder file', async () => {
-      await createPlaceholder('user_test-user-123/empty-folder');
-
-      expect(mockUpload).toHaveBeenCalled();
-      expect(mockInsert).toHaveBeenCalled();
-    });
-  });
-
-  describe('getFileUrl', () => {
-    it('should get signed URL successfully', async () => {
-      const url = await getFileUrl('user_test-user-123/test.txt');
-
-      expect(url).toBe('https://example.com/signed-url');
+    it('permanentlyDeleteFile fails for a path outside an archive', async () => {
+      actions.permanentlyDeleteObjects.mockResolvedValue(ok({ removed: [], denied: [PATH] }));
+      await expect(permanentlyDeleteFile(PATH)).rejects.toThrow('Can only permanently delete files from archive');
     });
 
-    it('should handle URL generation errors', async () => {
-      mockCreateSignedUrl.mockResolvedValueOnce({
-        data: null,
-        error: { message: 'URL generation failed' }
-      });
+    it('moveFile, renameFile, createPlaceholder and archiveFile call their action', async () => {
+      actions.moveObject.mockResolvedValue(ok(undefined));
+      actions.renameObject.mockResolvedValue(ok(undefined));
+      actions.createFolderPlaceholder.mockResolvedValue(ok(undefined));
+      actions.archiveObject.mockResolvedValue(ok('org_org1/shared/house1/__archive__/t/x.pdf'));
 
-      await expect(getFileUrl('user_test-user-123/test.txt')).rejects.toThrow('Failed to get file URL: URL generation failed');
+      await moveFile(PATH, 'org_org1/shared/house1/y.pdf');
+      await renameFile(PATH, 'y.pdf');
+      await createPlaceholder('org_org1/shared/house1/Neu');
+
+      expect(await archiveFile(PATH)).toBe('org_org1/shared/house1/__archive__/t/x.pdf');
+      expect(actions.moveObject).toHaveBeenCalledWith(PATH, 'org_org1/shared/house1/y.pdf');
+      expect(actions.renameObject).toHaveBeenCalledWith(PATH, 'y.pdf');
+      expect(actions.createFolderPlaceholder).toHaveBeenCalledWith('org_org1/shared/house1/Neu');
+    });
+
+    it('a failed action becomes an error with the message of the server', async () => {
+      actions.moveObject.mockResolvedValue(fail('Source file not found: x.pdf in dir'));
+      await expect(moveFile(PATH, 'org_org1/shared/house1/y.pdf')).rejects.toThrow('Source file not found');
+    });
+
+    it('bulkArchiveFiles: one server call for a normal number of files, none for no files', async () => {
+      actions.archiveObjects.mockResolvedValue(ok(['a', 'b']));
+
+      expect(await bulkArchiveFiles([])).toEqual([]);
+      expect(actions.archiveObjects).not.toHaveBeenCalled();
+
+      expect(await bulkArchiveFiles([PATH, `${PATH}2`])).toEqual(['a', 'b']);
+      expect(actions.archiveObjects).toHaveBeenCalledTimes(1);
+    });
+
+    it('bulkArchiveFiles: sends large lists in chunks of the size the server accepts', async () => {
+      actions.archiveObjects.mockImplementation((paths: string[]) => Promise.resolve(ok(paths)));
+      const paths = Array.from({ length: 450 }, (_, index) => `${PATH}${index}`);
+
+      expect(await bulkArchiveFiles(paths)).toHaveLength(450);
+      expect(actions.archiveObjects.mock.calls.map(([chunk]) => chunk.length)).toEqual([200, 200, 50]);
     });
   });
 

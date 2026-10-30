@@ -34,7 +34,7 @@ export function ActiveDirectoryIndicator({
       if (pathParts.length <= 1) {
         setDisplayPath('Cloud Storage')
       } else {
-        // Remove user_ prefix and format nicely
+        // Drop the org root segment and format nicely
         const meaningfulParts = pathParts.slice(1).map(part => {
           // Decode any URL encoding and format
           return decodeURIComponent(part).replace(/_/g, ' ')

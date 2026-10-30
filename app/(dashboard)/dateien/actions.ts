@@ -1,7 +1,10 @@
 'use server'
 
 import { ensureAuth } from '@/lib/auth-utils'
-import { redirect, unstable_rethrow } from 'next/navigation'
+import { checkStoragePathAccess, getActiveOrgId } from '@/lib/storage-access'
+import { STORAGE_ROOT_LABEL } from '@/lib/storage-navigation'
+import { folderMetadataFilter, isPathInFolder, orgRoot, parseStoragePath } from '@/lib/storage-paths'
+import { unstable_rethrow } from 'next/navigation'
 
 /**
  * Unified Document Navigation Actions
@@ -103,20 +106,45 @@ export interface FolderContentsResult {
  * Unified function to get all folder contents via the database RPC.
  * This is the ONLY function needed to load files, folders, and breadcrumbs.
  * 
- * @param userId - The user's UUID
- * @param path - The current storage path (e.g., "user_uuid/house_uuid/apartment_uuid")
+ * The user is always the one of the session (ensureAuth), it is never passed in by the caller.
+ *
+ * @param path - The current storage path (e.g., "org_{orgId}/shared/{houseId}/{apartmentId}"), default: the organisation root
  * @returns Complete folder contents including files, folders, breadcrumbs, and total storage size
  */
-export async function getFolderContents(userId: string, path?: string): Promise<FolderContentsResult> {
-    const targetPath = path || `user_${userId}`
+export async function getFolderContents(path?: string): Promise<FolderContentsResult> {
     const startTime = performance.now()
 
     try {
         const { user, supabase } = await ensureAuth()
 
-        if (user.id !== userId) {
-            redirect('/auth/login')
+        // Validate that the path belongs to the active organisation and an accessible house (the single
+        // access check of all folder loads, loadFilesForPath goes through here). Without a path the
+        // organisation root is loaded, which is derived from the active organisation below.
+        if (path) {
+            const accessError = await checkStoragePathAccess(supabase, user.id, path, { allowLegacyOwnRead: true })
+            if (accessError) {
+                return {
+                    files: [],
+                    folders: [],
+                    breadcrumbs: [],
+                    totalSize: 0,
+                    error: 'Ungültiger Pfad'
+                }
+            }
         }
+
+        const orgId = await getActiveOrgId(supabase)
+        if (!orgId) {
+            return {
+                files: [],
+                folders: [],
+                breadcrumbs: [],
+                totalSize: 0,
+                error: 'Keine aktive Organisation'
+            }
+        }
+        const rootPath = orgRoot(orgId)
+        const targetPath = path || rootPath
 
         // Call the unified RPC function
         const { data, error } = await supabase.rpc('get_folder_contents', {
@@ -131,7 +159,7 @@ export async function getFolderContents(userId: string, path?: string): Promise<
             return {
                 files: [],
                 folders: [],
-                breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+                breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                 totalSize: 0,
                 error: `Fehler beim Laden der Ordnerinhalte: ${error.message}`
             }
@@ -153,7 +181,7 @@ export async function getFolderContents(userId: string, path?: string): Promise<
             return {
                 files: [],
                 folders: [],
-                breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+                breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                 totalSize: 0,
                 error: result.error
             }
@@ -169,21 +197,21 @@ export async function getFolderContents(userId: string, path?: string): Promise<
         return {
             files: result.files || [],
             folders: result.folders || [],
-            breadcrumbs: result.breadcrumbs || [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+            breadcrumbs: result.breadcrumbs || [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
             totalSize: result.totalSize || 0
         }
 
     } catch (error) {
         unstable_rethrow(error)
 
-        await logRpcCall('get_folder_contents', targetPath, startTime, false, {
+        await logRpcCall('get_folder_contents', path ?? '', startTime, false, {
             error: error instanceof Error ? error.message : 'Unknown error'
         })
         console.error('Unexpected error in getFolderContents:', error)
         return {
             files: [],
             folders: [],
-            breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+            breadcrumbs: [],
             totalSize: 0,
             error: error instanceof Error ? error.message : 'Unerwarteter Fehler beim Laden der Ordnerinhalte'
         }
@@ -194,36 +222,26 @@ export async function getFolderContents(userId: string, path?: string): Promise<
  * Backward compatible alias for getFolderContents
  * Used by: dateien pages, cloud-storage.tsx
  */
-export async function getPathContents(userId: string, path?: string): Promise<FolderContentsResult> {
-    return getFolderContents(userId, path)
+export async function getPathContents(path?: string): Promise<FolderContentsResult> {
+    return getFolderContents(path)
 }
 
 /**
  * Backward compatible alias for getFolderContents
  * Used by: use-cloud-storage-store.tsx, use-cloud-storage-navigation.tsx
  */
-export async function loadFilesForPath(userId: string, path: string): Promise<FolderContentsResult> {
-    // Validate that the path belongs to the user
-    if (!path.startsWith(`user_${userId}`)) {
-        return {
-            files: [],
-            folders: [],
-            breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
-            totalSize: 0,
-            error: 'Ungültiger Pfad'
-        }
-    }
-
-    return getFolderContents(userId, path)
+export async function loadFilesForPath(path: string): Promise<FolderContentsResult> {
+    // The path check (organisation and house scope) is part of getFolderContents
+    return getFolderContents(path)
 }
 
 /**
  * Get total storage usage for a user
  * This is included in the unified RPC response, but exposed separately for backward compatibility
  */
-export async function getTotalStorageUsage(userId: string): Promise<number> {
+export async function getTotalStorageUsage(): Promise<number> {
     try {
-        const result = await getFolderContents(userId)
+        const result = await getFolderContents()
         return result.totalSize
     } catch (error) {
         console.error('Error getting storage usage:', error)
@@ -235,19 +253,12 @@ export async function getTotalStorageUsage(userId: string): Promise<number> {
  * Delete a folder and all its contents
  * NOTE: This operation is separate from the navigation RPC for safety
  */
-export async function deleteFolder(userId: string, folderPath: string): Promise<{
+export async function deleteFolder(folderPath: string): Promise<{
     success: boolean
     error?: string
 }> {
     try {
         const { user, supabase } = await ensureAuth()
-
-        if (user.id !== userId) {
-            return {
-                success: false,
-                error: 'Nicht authentifiziert'
-            }
-        }
 
         const { hasPermission } = await import('@/lib/permissions')
         if (!(await hasPermission('dokumente', 'loeschen'))) {
@@ -257,69 +268,35 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             }
         }
 
-        // Validate that the path belongs to the user
-        if (!folderPath.startsWith(`user_${userId}`)) {
+        // Validate that the path belongs to the active organisation and an accessible house
+        const accessError = await checkStoragePathAccess(supabase, user.id, folderPath, { mode: 'write' })
+        if (accessError) {
             return {
                 success: false,
                 error: 'Ungültiger Pfad'
             }
         }
 
-        const pathSegments = folderPath.split('/')
-        const depth = pathSegments.length
-
-        // Protect system folders at their specific path depths
-        // Path format: user_uuid/[segment1]/[segment2]/[segment3]
-        // depth 1: user_uuid
-        // depth 2: user_uuid/house_uuid OR user_uuid/Miscellaneous
-        // depth 3: user_uuid/house_uuid/apartment_uuid OR user_uuid/house_uuid/house_documents
-        // depth 4: user_uuid/house_uuid/apartment_uuid/tenant_uuid OR .../apartment_documents
-
-        if (depth === 2 && pathSegments[1] === 'Miscellaneous') {
-            return {
-                success: false,
-                error: 'Der Ordner "Sonstiges" ist ein Systemordner und kann nicht gelöscht werden.'
-            }
+        // Protect zone roots, house folders and system folders at their structural position
+        const parsed = parseStoragePath(folderPath)
+        const rest = parsed.rest
+        if (parsed.zone === 'root' || rest.length === 0) {
+            return { success: false, error: 'Dieser Ordner ist ein Systemordner und kann nicht gelöscht werden.' }
         }
-        if (depth === 3 && pathSegments[2] === 'house_documents') {
-            return {
-                success: false,
-                error: 'Der Ordner "Hausdokumente" ist ein Systemordner und kann nicht gelöscht werden.'
-            }
+        if (parsed.zone === 'private' && rest[0] === 'Miscellaneous' && rest.length === 1) {
+            return { success: false, error: 'Der Ordner "Sonstiges" ist ein Systemordner und kann nicht gelöscht werden.' }
         }
-        if (depth === 4 && pathSegments[3] === 'apartment_documents') {
-            return {
-                success: false,
-                error: 'Der Ordner "Wohnungsdokumente" ist ein Systemordner und kann nicht gelöscht werden.'
-            }
+        if (parsed.zone === 'shared' && rest.length === 1 && rest[0] === 'house_documents') {
+            return { success: false, error: 'Der Ordner "Hausdokumente" ist ein Systemordner und kann nicht gelöscht werden.' }
+        }
+        if (parsed.zone === 'shared' && rest.length === 2 && rest[1] === 'apartment_documents') {
+            return { success: false, error: 'Der Ordner "Wohnungsdokumente" ist ein Systemordner und kann nicht gelöscht werden.' }
         }
 
-        // Check for virtual folders (house/apartment/tenant) based on their expected depth
-        if (depth === 2) {
-            // Potential house folder at user_uuid/house_uuid
-            const houseId = pathSegments[1]
-            const { data: house } = await supabase
-                .from('Haeuser')
-                .select('id')
-                .eq('id', houseId)
-                .maybeSingle()
-
-            if (house) {
-                const { verifyEntityInScope } = await import('@/lib/api-permissions')
-                if (!(await verifyEntityInScope(houseId))) {
-                    return {
-                        success: false,
-                        error: 'Zugriff verweigert (Haus nicht im Scope)'
-                    }
-                }
-                return {
-                    success: false,
-                    error: 'Hausordner können nicht gelöscht werden, solange das Haus existiert.'
-                }
-            }
-        } else if (depth === 3) {
-            // Potential apartment folder at user_uuid/house_uuid/apartment_uuid
-            const apartmentId = pathSegments[2]
+        // Check for virtual folders (apartment/tenant) based on their position below the house
+        if (parsed.zone === 'shared' && rest.length === 1) {
+            // Potential apartment folder at org/shared/house/apartment
+            const apartmentId = rest[0]
             const { data: apartment } = await supabase
                 .from('Wohnungen')
                 .select('id, haus_id')
@@ -339,9 +316,9 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
                     error: 'Wohnungsordner können nicht gelöscht werden, solange die Wohnung existiert.'
                 }
             }
-        } else if (depth === 4) {
-            // Potential tenant folder at user_uuid/house_uuid/apartment_uuid/tenant_uuid
-            const tenantId = pathSegments[3]
+        } else if (parsed.zone === 'shared' && rest.length === 2) {
+            // Potential tenant folder at org/shared/house/apartment/tenant
+            const tenantId = rest[1]
             const { data: tenant } = await supabase
                 .from('Mieter')
                 .select('id, wohnung_id')
@@ -363,11 +340,12 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             }
         }
 
-        // Get all files to delete from the database
-        const { data: filesToDelete, error: listError } = await supabase
+        // Get all files to delete from the database: exactly this folder and its sub-folders, never a
+        // sibling with the same prefix (Rechnungen vs. Rechnungen2) and no LIKE wildcards from the name
+        const { data: folderRows, error: listError } = await supabase
             .from('Dokumente_Metadaten')
             .select('dateipfad, dateiname')
-            .like('dateipfad', `${folderPath}%`)
+            .or(folderMetadataFilter(folderPath))
 
         if (listError) {
             return {
@@ -375,9 +353,11 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
                 error: `Fehler beim Auflisten der Dateien: ${listError.message}`
             }
         }
+        // PostgREST turns a literal `*` of a LIKE value into a wildcard: the exact check is repeated on the rows
+        const filesToDelete = (folderRows ?? []).filter(file => isPathInFolder(file.dateipfad, folderPath))
 
         // Delete files from storage
-        if (filesToDelete && filesToDelete.length > 0) {
+        if (filesToDelete.length > 0) {
             const storagePaths = filesToDelete.map(file => `${file.dateipfad}/${file.dateiname}`)
 
             const { error: deleteError } = await supabase.storage

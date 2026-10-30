@@ -298,15 +298,8 @@ async function processNavigationRequest(
         // Import and call the file loader
         const { loadFiles } = await import('@/lib/file-loader')
 
-        // Extract userId from path - handle both user_ID and user_ID/subpath formats
-        const userIdMatch = request.path.match(/^user_([^/]+)/)
-        if (!userIdMatch) {
-            throw new Error('Invalid path format: expected user_ID prefix')
-        }
-        const userId = userIdMatch[1]
-
-        // Execute the request with timeout and abort handling
-        const dataPromise = loadFiles(userId, request.path, request.abortController.signal)
+        // Execute the request with timeout and abort handling (the API route takes the user from the session)
+        const dataPromise = loadFiles(request.path, request.abortController.signal)
         const result = await Promise.race([dataPromise, timeoutPromise, abortPromise])
 
         const loadTime = performance.now() - startTime

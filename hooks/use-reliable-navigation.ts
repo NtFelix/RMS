@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
 import { useCloudStorageStore } from './use-cloud-storage-store'
+import { storageUrlFor } from '@/lib/storage-navigation'
 
 interface NavigationState {
   currentPath: string
@@ -28,7 +29,7 @@ interface NavigationOptions {
  * - Proper error handling and recovery
  * - Debouncing to prevent rapid navigation attempts
  */
-export function useReliableNavigation(userId: string) {
+export function useReliableNavigation(orgId: string) {
   const router = useRouter()
   const { toast } = useToast()
   const cloudStorageStore = useCloudStorageStore()
@@ -45,21 +46,6 @@ export function useReliableNavigation(userId: string) {
   const lastNavigationPath = useRef<string>('')
   const lastNavigationTime = useRef<number>(0)
   const debounceTimer = useRef<NodeJS.Timeout | null>(null)
-  
-  /**
-   * Convert storage path to URL path
-   */
-  const pathToUrl = useCallback((path: string): string => {
-    const base = `user_${userId}`
-    if (!path || path === base) return "/dateien"
-    
-    const prefix = `${base}/`
-    if (path.startsWith(prefix)) {
-      const rest = path.slice(prefix.length)
-      return `/dateien/${rest}`
-    }
-    return "/dateien"
-  }, [userId])
   
   /**
    * Check if navigation should be debounced
@@ -117,7 +103,7 @@ export function useReliableNavigation(userId: string) {
     }))
     
     try {
-      const url = pathToUrl(path)
+      const url = storageUrlFor(path)
       
       // Use client-side navigation by default for efficiency
       if (options.clientOnly !== false) {
@@ -185,7 +171,7 @@ export function useReliableNavigation(userId: string) {
       if (options.clientOnly !== false) {
         console.log('Client-side navigation failed, falling back to server-side')
         try {
-          const url = pathToUrl(path)
+          const url = storageUrlFor(path)
           router.push(url)
         } catch (fallbackError) {
           toast({
@@ -204,7 +190,7 @@ export function useReliableNavigation(userId: string) {
     } finally {
       navigationInProgress.current = false
     }
-  }, [state.currentPath, pathToUrl, router, shouldDebounce, toast])
+  }, [state.currentPath, router, shouldDebounce, toast])
   
   /**
    * Navigate to parent directory
@@ -316,7 +302,7 @@ export function useReliableNavigation(userId: string) {
     clearError,
     
     // Utilities
-    pathToUrl,
+    pathToUrl: storageUrlFor,
     isNavigationInProgress: () => navigationInProgress.current
   }
 }

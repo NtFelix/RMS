@@ -11,6 +11,15 @@ import {
   type UploadItem,
 } from './use-cloud-storage-store'
 
+const mockLoadFilesForPath = jest.fn()
+const mockDeleteFolder = jest.fn()
+
+// The server actions take the user from the session: the store passes nothing but the path
+jest.mock('@/app/(dashboard)/dateien/actions', () => ({
+  loadFilesForPath: (...args: unknown[]) => mockLoadFilesForPath(...args),
+  deleteFolder: (...args: unknown[]) => mockDeleteFolder(...args),
+}))
+
 // Mock file for testing
 const createMockFile = (name: string, size: number = 1024): File => {
   const file = new File(['test content'], name, { type: 'text/plain' })
@@ -60,10 +69,10 @@ describe('useCloudStorageStore', () => {
       const { result } = renderHook(() => useCloudStorageStore())
       
       await act(async () => {
-        await result.current.navigateToPath('user_123/test/path')
+        await result.current.navigateToPath('org_org-1/test/path')
       })
       
-      expect(result.current.currentPath).toBe('user_123/test/path')
+      expect(result.current.currentPath).toBe('org_org-1/test/path')
       // Note: error might not be null if the path doesn't exist in the mock
       // Just check that currentPath was updated
     })
@@ -94,12 +103,12 @@ describe('useCloudStorageStore', () => {
       
       // Navigate to new path should clear error initially
       await act(async () => {
-        await result.current.navigateToPath('user_123/new/path')
+        await result.current.navigateToPath('org_org-1/new/path')
       })
       
       // Error is cleared at the start of navigation
       // (it might be set again if navigation fails, but that's expected behavior)
-      expect(result.current.currentPath).toBe('user_123/new/path')
+      expect(result.current.currentPath).toBe('org_org-1/new/path')
     })
   })
 
@@ -373,6 +382,85 @@ describe('useCloudStorageStore', () => {
       // Since we don't have actual storage service yet, it should just manage loading state
       expect(result.current.isLoading).toBe(false)
     })
+  })
+})
+
+describe('Server actions without a user id', () => {
+  const PATH = 'org_org-1/shared/house-1'
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockLoadFilesForPath.mockResolvedValue({ files: [], folders: [], breadcrumbs: [], totalSize: 0 })
+    mockDeleteFolder.mockResolvedValue({ success: true })
+    act(() => {
+      useCloudStorageStore.getState().reset()
+    })
+  })
+
+  it('navigateToPath loads with the path only and never fails with "Benutzer nicht gesetzt"', async () => {
+    await act(async () => {
+      await useCloudStorageStore.getState().navigateToPath(PATH)
+    })
+
+    expect(mockLoadFilesForPath).toHaveBeenCalledWith(PATH)
+    expect(useCloudStorageStore.getState().error).toBeNull()
+    expect(useCloudStorageStore.getState().currentPath).toBe(PATH)
+  })
+
+  it('works right after reset(): nothing is lost that a parent effect would have to set again', async () => {
+    act(() => {
+      useCloudStorageStore.getState().setCurrentPath(PATH)
+      useCloudStorageStore.getState().reset()
+      useCloudStorageStore.getState().setCurrentPath(PATH)
+    })
+
+    await act(async () => {
+      await useCloudStorageStore.getState().refreshCurrentPath()
+    })
+
+    expect(mockLoadFilesForPath).toHaveBeenCalledWith(PATH)
+    expect(useCloudStorageStore.getState().error).toBeNull()
+  })
+
+  it('deleteFolder passes the folder path only', async () => {
+    await act(async () => {
+      await useCloudStorageStore.getState().deleteFolder({
+        name: 'Ordner', path: `${PATH}/Ordner`, type: 'storage', isEmpty: true, children: [], fileCount: 0,
+      })
+    })
+
+    expect(mockDeleteFolder).toHaveBeenCalledWith(`${PATH}/Ordner`)
+  })
+
+  it('navigateToPath adopts the breadcrumbs of the RPC (names instead of ids)', async () => {
+    const rpcBreadcrumbs: BreadcrumbItem[] = [
+      { name: 'Cloud Storage', path: 'org_org-1', type: 'root' },
+      { name: 'Haus Eins', path: PATH, type: 'house' },
+    ]
+    mockLoadFilesForPath.mockResolvedValue({ files: [], folders: [], breadcrumbs: rpcBreadcrumbs, totalSize: 0 })
+
+    await act(async () => {
+      await useCloudStorageStore.getState().navigateToPath(PATH)
+    })
+
+    expect(useCloudStorageStore.getState().breadcrumbs).toEqual(rpcBreadcrumbs)
+  })
+
+  it('navigateToPath falls back to path-derived breadcrumbs only if the RPC delivers none', async () => {
+    mockLoadFilesForPath.mockResolvedValue({ files: [], folders: [], breadcrumbs: [], totalSize: 0 })
+
+    await act(async () => {
+      await useCloudStorageStore.getState().navigateToPath(`${PATH}/house_documents`)
+    })
+
+    const breadcrumbs = useCloudStorageStore.getState().breadcrumbs
+    expect(breadcrumbs.map((crumb) => crumb.path)).toEqual([
+      'org_org-1',
+      'org_org-1/shared',
+      PATH,
+      `${PATH}/house_documents`,
+    ])
+    expect(breadcrumbs[3].type).toBe('category')
   })
 })
 

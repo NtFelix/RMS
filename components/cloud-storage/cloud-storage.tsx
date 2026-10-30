@@ -31,9 +31,12 @@ import { DocumentsSummaryCards } from "@/components/common/documents-summary-car
 import { useStorageUsage } from "@/hooks/use-storage-usage"
 import { getStorageUsageState, NO_STORAGE_MESSAGE, STORAGE_FULL_MESSAGE } from "@/lib/storage-usage"
 import { useUserProfile } from "@/hooks/use-user-profile"
+import { orgRoot } from "@/lib/storage-paths"
+import { storagePathFromUrl, storageUrlFor } from "@/lib/storage-navigation"
 
 interface CloudStorageProps {
     userId: string
+    orgId: string
     initialFiles?: StorageObject[]
     initialFolders?: VirtualFolder[]
     initialPath?: string
@@ -56,9 +59,10 @@ type FilterType = 'all' | 'folders' | 'images' | 'documents' | 'recent'
  */
 export function CloudStorage({
     userId,
+    orgId,
     initialFiles = [],
     initialFolders = [],
-    initialPath = `user_${userId}`,
+    initialPath = orgRoot(orgId),
     initialBreadcrumbs = [],
     initialTotalSize = 0,
     initialStorageLimit
@@ -125,24 +129,9 @@ export function CloudStorage({
     useEffect(() => {
         return () => {
             cancelAllNavigations()
-            cancelAllPendingLoads(userId)
+            cancelAllPendingLoads()
         }
-    }, [userId, cancelAllNavigations])
-
-    /**
-     * Convert storage path to URL path
-     */
-    const pathToUrl = useCallback((path: string): string => {
-        const base = `user_${userId}`
-        if (!path || path === base) return "/dateien"
-
-        const prefix = `${base}/`
-        if (path.startsWith(prefix)) {
-            const rest = path.slice(prefix.length)
-            return `/dateien/${rest}`
-        }
-        return "/dateien"
-    }, [userId])
+    }, [cancelAllNavigations])
 
     /**
      * Initialize component with initial data and set history state
@@ -161,14 +150,14 @@ export function CloudStorage({
             setLoading(false)
 
             // Replace the current history state so back/forward works from the initial page
-            const url = pathToUrl(initialPath)
+            const url = storageUrlFor(initialPath)
             window.history.replaceState(
                 { path: initialPath, clientNavigation: true, timestamp: Date.now() },
                 '',
                 url
             )
         }
-    }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading, pathToUrl])
+    }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading])
 
     /**
      * Handle efficient navigation using the navigation controller
@@ -201,7 +190,7 @@ export function CloudStorage({
                 // Update URL AFTER successful data load using native History API
                 // Skip for popstate (back/forward) navigation since browser already handles URL
                 if (!skipHistoryPush) {
-                    const url = pathToUrl(path)
+                    const url = storageUrlFor(path)
                     window.history.pushState(
                         { path, clientNavigation: true, timestamp: Date.now() },
                         '',
@@ -210,7 +199,7 @@ export function CloudStorage({
                 }
             }
         }
-    }, [currentPath, navigate, pathToUrl, router, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, startTransition])
+    }, [currentPath, navigate, router, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, startTransition])
 
     // Synchronize with external navigation store changes (e.g. sidebar file tree click)
     const navCurrentPath = useCloudStorageNavigationStore(state => state.currentPath)
@@ -299,7 +288,7 @@ export function CloudStorage({
                 const pathMatch = pathname.match(/^\/dateien(?:\/(.+))?$/)
                 if (pathMatch) {
                     const urlPath = pathMatch[1] || ''
-                    const storagePath = urlPath ? `user_${userId}/${urlPath}` : `user_${userId}`
+                    const storagePath = storagePathFromUrl(orgRoot(orgId), urlPath)
                     if (storagePath !== currentPath) {
                         handleNavigate(storagePath, true, true)
                     }
@@ -309,7 +298,7 @@ export function CloudStorage({
 
         window.addEventListener('popstate', handlePopState)
         return () => window.removeEventListener('popstate', handlePopState)
-    }, [handleNavigate, userId, currentPath])
+    }, [handleNavigate, orgId, currentPath])
 
     /**
      * Filter and sort items
