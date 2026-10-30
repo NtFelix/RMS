@@ -2,7 +2,7 @@
  * LEGACY: Path utilities for the old `user_{uid}` storage layout.
  *
  * New paths are built and validated in `lib/storage-paths.ts` (org_{orgId}/shared/... and
- * org_{orgId}/private/...). The only productive use left is lib/storage-service.ts
+ * org_{orgId}/private/...). The only productive use left is lib/storage-operations.ts
  * (`pathUtils.sanitizePath` and `isKeepFile`); the archive feature and file-tree-view.tsx
  * work with lib/storage-paths.ts. Do not use this file for new code.
  */

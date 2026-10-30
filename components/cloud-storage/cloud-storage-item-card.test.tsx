@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event'
 import { CloudStorageItemCard } from '@/components/cloud-storage/cloud-storage-item-card'
 import { useModalStore } from '@/hooks/use-modal-store'
 import { useCloudStorageStore } from '@/hooks/use-cloud-storage-store'
-import { createClient } from '@/utils/supabase/client'
 
 // Mock the hooks
 jest.mock('@/hooks/use-modal-store', () => ({
@@ -16,18 +15,10 @@ jest.mock('@/hooks/use-toast', () => ({
   }))
 }))
 
-// Mock Supabase storage
-const mockCreateSignedUrl = jest.fn().mockResolvedValue({ data: { signedUrl: 'http://example.com/file.pdf' }, error: null })
-const mockStorageFrom = jest.fn().mockReturnValue({
-  createSignedUrl: mockCreateSignedUrl
-})
-
-jest.mock('@/utils/supabase/client', () => ({
-  createClient: jest.fn(() => ({
-    storage: {
-      from: mockStorageFrom
-    }
-  }))
+// The file is opened through a signed URL of the server (the browser has no access to the bucket)
+const mockCreateSignedUrl = jest.fn().mockResolvedValue('http://example.com/file.pdf')
+jest.mock('@/lib/storage-service', () => ({
+  createSignedUrl: (...args: unknown[]) => mockCreateSignedUrl(...args)
 }))
 
 jest.mock('@/hooks/use-cloud-storage-store', () => ({
@@ -52,9 +43,6 @@ describe('CloudStorageItemCard', () => {
         renameFile: mockRenameFile
       })
   })
-
-  // Re-mock createClient inside beforeEach if needed? 
-  // No, the factory above handles the return value, and we verify mocks being called.
 
   const mockFile = {
     name: 'test-document.pdf',
@@ -157,8 +145,8 @@ describe('CloudStorageItemCard', () => {
       await user.click(card as Element)
     }
 
-    expect(mockStorageFrom).toHaveBeenCalledWith('documents')
-    expect(mockCreateSignedUrl).toHaveBeenCalledWith('org_org-1/documents/test-document.pdf', 3600)
+    expect(mockCreateSignedUrl).toHaveBeenCalledWith('org_org-1/documents/test-document.pdf', 300)
+    expect(window.open).toHaveBeenCalledWith('http://example.com/file.pdf', '_blank', 'noopener,noreferrer')
 
     window.open = originalOpen
   })
