@@ -10,7 +10,12 @@ import DateienLoading from './loading'
 
 
 
-async function CloudStorageContent({ userId }: { userId: string }) {
+async function CloudStorageContent() {
+    // Authentication and permission are request-time work: they run inside the Suspense boundary so that
+    // the page itself stays a static shell (cacheComponents)
+    const { user } = await requireAuthenticatedUser()
+    await requirePermission('dokumente', 'ansehen')
+
     const supabase = await createSupabaseServerClient()
     const orgId = await getActiveOrgId(supabase)
     if (!orgId) {
@@ -27,7 +32,7 @@ async function CloudStorageContent({ userId }: { userId: string }) {
 
     return (
         <CloudStorage
-            userId={userId}
+            userId={user.id}
             orgId={orgId}
             initialPath={initialPath}
             initialFiles={files}
@@ -38,13 +43,10 @@ async function CloudStorageContent({ userId }: { userId: string }) {
     )
 }
 
-export default async function DateienPage() {
-    const { user } = await requireAuthenticatedUser()
-    await requirePermission('dokumente', 'ansehen')
-
+export default function DateienPage() {
     return (
         <Suspense fallback={<DateienLoading />}>
-            <CloudStorageContent userId={user.id} />
+            <CloudStorageContent />
         </Suspense>
     )
 }

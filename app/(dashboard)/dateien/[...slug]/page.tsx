@@ -3,11 +3,13 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { checkStoragePathAccess, getActiveOrgId } from "@/lib/storage-access"
 import { orgRoot } from "@/lib/storage-paths"
 import { redirect } from "next/navigation"
+import { Suspense } from "react"
 import { getFolderContents } from "../actions"
+import DateienLoading from "../loading"
 
 
 
-export default async function DateienPathPage({ params }: { params: Promise<{ slug: string[] }> }) {
+async function CloudStoragePathContent({ params }: { params: Promise<{ slug: string[] }> }) {
     const supabase = await createSupabaseServerClient()
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) {
@@ -46,5 +48,14 @@ export default async function DateienPathPage({ params }: { params: Promise<{ sl
             initialBreadcrumbs={breadcrumbs}
             initialTotalSize={totalSize}
         />
+    )
+}
+
+export default function DateienPathPage({ params }: { params: Promise<{ slug: string[] }> }) {
+    // Request-time work (auth, organisation, folder contents) runs inside the Suspense boundary
+    return (
+        <Suspense fallback={<DateienLoading />}>
+            <CloudStoragePathContent params={params} />
+        </Suspense>
     )
 }
