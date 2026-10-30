@@ -131,6 +131,21 @@ describe('GET /api/dateien/tree', () => {
     expect(queries.filter((q) => q.table === 'Wohnungen')).toHaveLength(0)
   })
 
+  it('shows the folders below Rechnungen with the name of their apartment, not the id', async () => {
+    tables.Wohnungen = [
+      { id: APARTMENT_ID, name: 'Wohnung 1', haus_id: HOUSE_ID },
+      { id: ORPHAN_ID, name: 'Wohnung eines anderen Hauses', haus_id: OTHER_HOUSE_ID },
+    ]
+    mockList.mockResolvedValue({ data: [folder(APARTMENT_ID), folder('Allgemein'), folder(ORPHAN_ID)], error: null })
+
+    const children = await childrenOf(`${HOUSE_PATH}/Rechnungen`)
+
+    expect(children.find((c) => c.path === `${HOUSE_PATH}/Rechnungen/${APARTMENT_ID}`)?.displayName).toBe('Wohnung 1')
+    // Folders without an apartment of this house keep their storage name, a foreign apartment name is never used
+    expect(children.find((c) => c.path === `${HOUSE_PATH}/Rechnungen/${ORPHAN_ID}`)).toMatchObject({ name: ORPHAN_ID })
+    expect(children.find((c) => c.path === `${HOUSE_PATH}/Rechnungen/Allgemein`)).toMatchObject({ name: 'Allgemein' })
+  })
+
   it('returns nothing for an apartment UUID that does not belong to the house', async () => {
     tables.Wohnungen = [{ id: APARTMENT_ID, name: 'Wohnung 1', haus_id: OTHER_HOUSE_ID }]
 

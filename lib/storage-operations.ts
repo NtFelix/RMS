@@ -139,6 +139,26 @@ export async function validateStoragePath(path: string, mode: PathAccessMode = '
   }
 }
 
+/**
+ * Write check of the public operations (upload, move, rename, copy, placeholder, folder move): like
+ * validateStoragePath in write mode, but never inside `__archive__` - only archiveFile/restoreFile
+ * (internal, they call validateStoragePath) move files in and out of an archive. `notFolderRoot` also refuses
+ * the root folder of a house or of the own private zone (moving it would take its archive along).
+ */
+async function validateWritablePath(
+  path: string,
+  ctx: StorageContext,
+  options: { notFolderRoot?: boolean } = {},
+): Promise<void> {
+  await validateStoragePath(path, 'write', ctx);
+  if (isArchivePath(path)) {
+    throw new StoragePathError('Das Archiv kann nicht direkt verändert werden', 'ACCESS_DENIED');
+  }
+  if (options.notFolderRoot && parseStoragePath(path).rest.length === 0) {
+    throw new StoragePathError('Der Wurzelordner kann nicht verändert werden', 'ACCESS_DENIED');
+  }
+}
+
 /** Splits a path into its directory and file name (as stored in Dokumente_Metadaten) */
 function splitPath(path: string): { directory: string; fileName: string } {
   const segments = path.split('/');
@@ -173,6 +193,29 @@ async function saveMetadata(ctx: StorageContext, path: string, size: number, mim
   }
 }
 
+/** Whether Dokumente_Metadaten already has a row for the path (the file existed before this upload) */
+async function hasMetadata(ctx: StorageContext, path: string): Promise<boolean> {
+  const { directory, fileName } = splitPath(path);
+  const { data } = await ctx.supabase
+    .from('Dokumente_Metadaten')
+    .select('id')
+    .eq('dateipfad', directory)
+    .eq('dateiname', fileName)
+    .single();
+  return !!data;
+}
+
+/**
+ * Removes the object of a failed upload, but only a NEW one: without upsert the token cannot overwrite, so the
+ * object is the one just uploaded. With upsert (or an existing metadata row) the path may hold a file the user
+ * already had, a rejected overwrite must not delete it.
+ */
+async function removeUploadIfNew(ctx: StorageContext, path: string, upsert: boolean | undefined): Promise<void> {
+  if (!upsert && !(await hasMetadata(ctx, path))) {
+    await removeOrphan(ctx, path);
+  }
+}
+
 /** Removes an object after a failed step so that no file without metadata stays behind (the delete trigger removes the metadata row) */
 async function removeOrphan(ctx: StorageContext, path: string): Promise<void> {
   try {
@@ -199,11 +242,7 @@ export async function prepareUpload(
   // A new name is created here: normalise once (also strips slashes at both ends and double slashes),
   // then validate exactly this string and use it for the access check, storage and metadata
   const targetPath = pathUtils.sanitizePath(path);
-  await validateStoragePath(targetPath, 'write', context);
-  // Only archiveFile/restoreFile write into `__archive__`
-  if (isArchivePath(targetPath)) {
-    throw new StoragePathError('Uploads in das Archiv sind nicht erlaubt', 'ACCESS_DENIED');
-  }
+  await validateWritablePath(targetPath, context);
 
   const { data, error } = await context.supabase.storage
     .from(STORAGE_BUCKET)
@@ -217,18 +256,17 @@ export async function prepareUpload(
 
 /**
  * Second step of an upload: size and type are read from storage (never taken from the client), the
- * Dokumente_Metadaten row is written. A file that breaks the rules or whose metadata cannot be stored is removed again.
+ * Dokumente_Metadaten row is written. A new file that breaks the rules or whose metadata cannot be stored is removed
+ * again; an overwrite (`upsert`) is never deleted, the error is only reported (the new bytes then stay in place).
  */
 export async function completeUpload(
   path: string,
+  options: { upsert?: boolean } = {},
   ctx?: StorageContext,
 ): Promise<{ path: string; size: number; mimeType: string }> {
   const context = ctx ?? await getStorageContext();
   // The path comes from prepareUpload: validated as it is, never rewritten
-  await validateStoragePath(path, 'write', context);
-  if (isArchivePath(path)) {
-    throw new StoragePathError('Uploads in das Archiv sind nicht erlaubt', 'ACCESS_DENIED');
-  }
+  await validateWritablePath(path, context);
 
   const { data: info, error } = await context.supabase.storage.from(STORAGE_BUCKET).info(path);
   if (error || !info) {
@@ -239,7 +277,7 @@ export async function completeUpload(
   const mimeType = info.contentType ?? '';
   const validation = validateFileInfo({ size, type: mimeType });
   if (!validation.valid) {
-    await removeOrphan(context, path);
+    await removeUploadIfNew(context, path, options.upsert);
     throw new Error(validation.error);
   }
 
@@ -247,7 +285,7 @@ export async function completeUpload(
     await saveMetadata(context, path, size, mimeType);
   } catch (dbError) {
     console.error('Failed to update Dokumente_Metadaten:', dbError);
-    await removeOrphan(context, path);
+    await removeUploadIfNew(context, path, options.upsert);
     throw new Error('Failed to save file metadata');
   }
 
@@ -392,7 +430,9 @@ export async function removeFiles(
  * Moves a file from one path to another
  */
 export async function moveFile(oldPath: string, newPath: string, ctx?: StorageContext): Promise<void> {
-  return moveFileInContext(oldPath, newPath, ctx ?? await getStorageContext());
+  const context = ctx ?? await getStorageContext();
+  await Promise.all([oldPath, newPath].map((path) => validateWritablePath(path, context)));
+  return moveFileInContext(oldPath, newPath, context);
 }
 
 /** moveFile with the access context of the calling operation (archive, restore, rename, folder move) */
@@ -578,12 +618,7 @@ async function moveFileInContext(oldPath: string, newPath: string, ctx: StorageC
  */
 export async function copyFile(sourcePath: string, targetPath: string, ctx?: StorageContext): Promise<void> {
   const context = ctx ?? await getStorageContext();
-  await Promise.all([sourcePath, targetPath].map(async (path) => {
-    await validateStoragePath(path, 'write', context);
-    if (isArchivePath(path)) {
-      throw new StoragePathError('Das Archiv kann nicht kopiert werden', 'ACCESS_DENIED');
-    }
-  }));
+  await Promise.all([sourcePath, targetPath].map((path) => validateWritablePath(path, context)));
 
   const source = splitPath(sourcePath);
   const { data: sourceRow, error: sourceError } = await context.supabase
@@ -669,7 +704,7 @@ export async function createSignedUrls(
  */
 export async function renameFile(filePath: string, newName: string, ctx?: StorageContext): Promise<void> {
   const context = ctx ?? await getStorageContext();
-  await validateStoragePath(filePath, 'write', context);
+  await validateWritablePath(filePath, context);
 
   const { directory } = splitPath(filePath);
   // Validates newName as a single segment (no traversal, no separator) before it reaches moveFile
@@ -685,7 +720,7 @@ export async function createPlaceholder(path: string, ctx?: StorageContext): Pro
   const context = ctx ?? await getStorageContext();
   // A new folder name is created here: normalise once, validate the folder, then upload the placeholder below it
   const folderPath = pathUtils.sanitizePath(path);
-  await validateStoragePath(folderPath, 'write', context);
+  await validateWritablePath(folderPath, context);
 
   await uploadFromServer(context, `${folderPath}/.keep`, new Blob(['']), 'text/plain');
 }
@@ -796,8 +831,7 @@ async function bulkArchiveFilesInContext(paths: string[], ctx: StorageContext): 
  */
 export async function moveFolder(oldFolderPath: string, newFolderPath: string, ctx?: StorageContext): Promise<void> {
   const context = ctx ?? await getStorageContext();
-  await validateStoragePath(oldFolderPath, 'write', context);
-  await validateStoragePath(newFolderPath, 'write', context);
+  await Promise.all([oldFolderPath, newFolderPath].map((path) => validateWritablePath(path, context, { notFolderRoot: true })));
 
   // Both paths are validated above (no leading/trailing or double slashes), they are used as they are
   const cleanOldPath = oldFolderPath;
@@ -860,8 +894,9 @@ async function getAllFilesInFolder(ctx: StorageContext, folderPath: string): Pro
     .or(folderMetadataFilter(folderPath));
 
   if (error) {
-    console.warn('Could not scan folder %s from DB:', folderPath, error);
-    return [];
+    // Not "empty": the caller would report a successful move of a folder whose files stay behind
+    console.error('Could not scan folder %s from DB:', folderPath, error);
+    throw new Error(`Could not scan folder: ${error.message}`);
   }
 
   if (!rows) return [];

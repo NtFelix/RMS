@@ -124,7 +124,7 @@ export async function uploadFile(
     }
 
     // Size and type are taken from storage by the server (a file that breaks the rules is removed again)
-    unwrap(await registerUploadedFile(target.path));
+    unwrap(await registerUploadedFile(target.path, { upsert: options.upsert === true }));
 
     cacheManager.invalidatePrefix(directoryOf(target.path));
 

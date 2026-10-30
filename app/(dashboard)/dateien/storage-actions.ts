@@ -83,12 +83,13 @@ export async function createUploadTarget(
   return run('createUploadTarget', (ctx) => prepareUpload(path, { upsert: options?.upsert === true }, ctx))
 }
 
-/** Second step of an upload: size and type come from storage, the metadata row is written */
+/** Second step of an upload: size and type come from storage, the metadata row is written (`upsert` as in step one: an overwrite is never deleted) */
 export async function registerUploadedFile(
   path: string,
+  options?: { upsert?: boolean },
 ): Promise<StorageActionResult<{ path: string; size: number; mimeType: string }>> {
   if (!isPath(path)) return invalidInput('registerUploadedFile')
-  return run('registerUploadedFile', (ctx) => completeUpload(path, ctx))
+  return run('registerUploadedFile', (ctx) => completeUpload(path, { upsert: options?.upsert === true }, ctx))
 }
 
 /** Signed URLs for existing files (open, download, share link); the lifetime is capped on the server */

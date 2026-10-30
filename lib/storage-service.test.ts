@@ -121,7 +121,7 @@ describe('storage service (browser)', () => {
       expect(actions.createUploadTarget).toHaveBeenCalledWith(PATH, { upsert: false });
       expect(mockStorageFrom).toHaveBeenCalledWith('documents');
       expect(mockUploadToSignedUrl).toHaveBeenCalledWith(PATH, 'tok-1', file, { upsert: false, contentType: 'application/pdf' });
-      expect(actions.registerUploadedFile).toHaveBeenCalledWith(PATH);
+      expect(actions.registerUploadedFile).toHaveBeenCalledWith(PATH, { upsert: false });
       // the order matters: the metadata is written after the bytes are in storage
       expect(actions.createUploadTarget.mock.invocationCallOrder[0]).toBeLessThan(mockUploadToSignedUrl.mock.invocationCallOrder[0]);
       expect(mockUploadToSignedUrl.mock.invocationCallOrder[0]).toBeLessThan(actions.registerUploadedFile.mock.invocationCallOrder[0]);
@@ -134,7 +134,7 @@ describe('storage service (browser)', () => {
 
       expect(actions.createUploadTarget).toHaveBeenCalledWith('org_org1/shared/house1/Bericht: Q1/x.pdf', { upsert: true });
       expect(mockUploadToSignedUrl).toHaveBeenCalledWith('org_org1/shared/house1/Bericht Q1/x.pdf', 'tok-2', expect.anything(), expect.objectContaining({ upsert: true }));
-      expect(actions.registerUploadedFile).toHaveBeenCalledWith('org_org1/shared/house1/Bericht Q1/x.pdf');
+      expect(actions.registerUploadedFile).toHaveBeenCalledWith('org_org1/shared/house1/Bericht Q1/x.pdf', { upsert: true });
     });
 
     it('never reads or writes the database from the browser', async () => {

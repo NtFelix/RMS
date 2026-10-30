@@ -268,6 +268,32 @@ describe('completeUpload', () => {
     expect(mockInsert).not.toHaveBeenCalled();
   });
 
+  it('keeps the file of an overwrite (upsert) that breaks the rules: an existing file is never deleted', async () => {
+    mockInfo.mockResolvedValue({ data: { size: 10, contentType: 'application/x-executable' }, error: null });
+    await expect(completeUpload(`${HOUSE}/x.pdf`, { upsert: true })).rejects.toThrow('is not supported');
+    expect(mockRemove).not.toHaveBeenCalled();
+    expect(mockInsert).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('keeps the file if a metadata row already exists, whatever the client says about upsert', async () => {
+    mockDefaultSingle = { data: { id: 'doc-1' }, error: null };
+    mockInfo.mockResolvedValue({ data: { size: 11 * 1024 * 1024, contentType: 'application/pdf' }, error: null });
+    await expect(completeUpload(`${HOUSE}/x.pdf`, { upsert: false })).rejects.toThrow('exceeds maximum allowed size');
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  it('keeps the file of an overwrite whose metadata cannot be stored', async () => {
+    mockInsert.mockResolvedValue({ error: { message: 'insert failed' } });
+    await expect(completeUpload(`${HOUSE}/x.pdf`, { upsert: true })).rejects.toThrow('Failed to save file metadata');
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  it('refuses uploads into an archive', async () => {
+    await expect(completeUpload(`${HOUSE}/__archive__/2026-10-29T10-00-00-000Z/a.pdf`)).rejects.toBeDefined();
+    expect(mockInfo).not.toHaveBeenCalled();
+  });
+
   it('removes a file of an unsupported type', async () => {
     mockInfo.mockResolvedValue({ data: { size: 10, contentType: 'application/x-executable' }, error: null });
     await expect(completeUpload(`${HOUSE}/x.exe`)).rejects.toThrow('is not supported');
@@ -450,6 +476,48 @@ describe('createPlaceholder', () => {
     expect(mockInsert).toHaveBeenCalledWith(
       expect.objectContaining({ dateipfad: 'org_org1/private/test-user-123/empty-folder', dateiname: '.keep', dateigroesse: 0 }),
     );
+  });
+});
+
+describe('writes never reach `__archive__` or a folder root (only archiveFile/restoreFile move there)', () => {
+  const ARCHIVE = `${HOUSE}/__archive__/2026-10-29T10-00-00-000Z`;
+
+  beforeEach(() => {
+    resetDefaults();
+    mockOrgScope(['house456']);
+  });
+
+  afterEach(() => {
+    expect(mockMove).not.toHaveBeenCalled();
+    expect(mockUpload).not.toHaveBeenCalled();
+    expect(mockCreateSignedUploadUrl).not.toHaveBeenCalled();
+  });
+
+  it('moveFile: neither out of nor into an archive', async () => {
+    await expect(moveFile(`${ARCHIVE}/a.pdf`, `${HOUSE}/a.pdf`)).rejects.toBeDefined();
+    await expect(moveFile(`${HOUSE}/a.pdf`, `${ARCHIVE}/a.pdf`)).rejects.toBeDefined();
+  });
+
+  it('renameFile: not a file in an archive', async () => {
+    await expect(renameFile(`${ARCHIVE}/a.pdf`, 'b.pdf')).rejects.toBeDefined();
+  });
+
+  it('createPlaceholder: not in an archive', async () => {
+    await expect(createPlaceholder(`${ARCHIVE}/Neu`)).rejects.toBeDefined();
+    await expect(createPlaceholder(`${HOUSE}/__archive__`)).rejects.toBeDefined();
+  });
+
+  it('prepareUpload: not in an archive', async () => {
+    await expect(prepareUpload(`${ARCHIVE}/a.pdf`)).rejects.toBeDefined();
+  });
+
+  it('moveFolder: not the archive, not into it and not the root folder of a house or of the private zone', async () => {
+    await expect(moveFolder(`${HOUSE}/__archive__`, `${HOUSE}/Archiv`)).rejects.toBeDefined();
+    await expect(moveFolder(`${ARCHIVE}/Ordner`, `${HOUSE}/Ordner`)).rejects.toBeDefined();
+    await expect(moveFolder(`${HOUSE}/Ordner`, `${ARCHIVE}/Ordner`)).rejects.toBeDefined();
+    await expect(moveFolder(HOUSE, 'org_org1/shared/house456b')).rejects.toBeDefined();
+    await expect(moveFolder('org_org1/private/test-user-123', `${HOUSE}/Privat`)).rejects.toBeDefined();
+    expect(mockOr).not.toHaveBeenCalled();
   });
 });
 
@@ -714,6 +782,15 @@ describe('Storage Service moveFolder', () => {
 
   afterEach(() => {
     mockDefaultSingle = { data: null, error: null };
+  });
+
+  it('fails if the folder cannot be scanned instead of reporting a move of an "empty" folder', async () => {
+    mockOr.mockResolvedValue({ data: null, error: { message: 'timeout' } });
+
+    await expect(moveFolder(FOLDER, 'org_org1/shared/house456/Bar')).rejects.toThrow('Could not scan folder');
+    expect(mockMove).not.toHaveBeenCalled();
+    expect(mockUpload).not.toHaveBeenCalled();
+    expect(mockRemove).not.toHaveBeenCalled();
   });
 
   it('moves exactly the files of the folder and its sub-folders, not those of a sibling with the same prefix', async () => {

@@ -36,6 +36,8 @@ function folderNode(path: string, name: string, displayName?: string, children: 
 
 const HOUSE_DOCUMENTS = 'house_documents'
 const APARTMENT_DOCUMENTS = 'apartment_documents'
+/** Finance documents folder of a house, its sub-folders are named after the apartment id */
+const FINANCE_FOLDER = 'Rechnungen'
 /** Apartment and tenant folders are named after their database id */
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -189,7 +191,17 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
     ]
   }
 
-  const nodes = await listFolderNodes(supabase, folderPath, () => undefined, (segment) => `${folderPath}/${segment}`)
+  // Finance documents: `Rechnungen/{apartmentId}` folders are shown with the name of the apartment
+  let lookup: (segment: string) => string | undefined = () => undefined
+  if (parsed.zone === 'shared' && parsed.houseId !== undefined && parsed.rest.length === 1 && parsed.rest[0] === FINANCE_FOLDER) {
+    const { data: apartments } = await supabase.from('Wohnungen').select('id, name').eq('haus_id', parsed.houseId)
+    const names = new Map<string, string>(
+      (apartments ?? []).filter((a: { name: string | null }) => a.name).map((a: { id: string; name: string }) => [a.id, a.name]),
+    )
+    lookup = (segment) => names.get(segment)
+  }
+
+  const nodes = await listFolderNodes(supabase, folderPath, lookup, (segment) => `${folderPath}/${segment}`)
   if (parsed.zone === 'private' && parsed.rest.length === 0) {
     return [archiveNode(folderPath), ...nodes]
   }

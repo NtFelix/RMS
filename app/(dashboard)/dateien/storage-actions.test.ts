@@ -103,7 +103,10 @@ describe('storage actions', () => {
       const result = await registerUploadedFile(PATH)
 
       expect(result).toEqual({ success: true, data: { path: PATH, size: 5, mimeType: 'application/pdf' } })
-      expect(mockOps.completeUpload).toHaveBeenCalledWith(PATH, CTX)
+      expect(mockOps.completeUpload).toHaveBeenCalledWith(PATH, { upsert: false }, CTX)
+
+      await registerUploadedFile(PATH, { upsert: true })
+      expect(mockOps.completeUpload).toHaveBeenLastCalledWith(PATH, { upsert: true }, CTX)
     })
   })
 
