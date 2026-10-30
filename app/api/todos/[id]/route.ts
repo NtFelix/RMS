@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
@@ -8,7 +7,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient();
   
   try {
     const { id } = await params
@@ -36,7 +35,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient();
   
   try {
     const { id } = await params
@@ -78,15 +77,15 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient();
   
   try {
     const { id } = await params
     
-    const { error } = await supabase
-      .from("Aufgaben")
-      .delete()
-      .eq("id", id)
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Aufgaben',
+      p_record_id: id,
+    });
     
     if (error) throw error
     

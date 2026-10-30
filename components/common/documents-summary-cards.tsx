@@ -5,6 +5,7 @@ import { Upload, FolderPlus, HardDrive, Lock } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { formatFileSize, getStorageUsageState, NO_STORAGE_MESSAGE, STORAGE_FULL_MESSAGE } from "@/lib/storage-usage"
 import {
   Tooltip,
   TooltipContent,
@@ -12,23 +13,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-const NO_STORAGE_MESSAGE = "Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten. Bitte wechseln Sie zu einem höheren Tarif.";
-const STORAGE_FULL_MESSAGE = "Ihr Speicherlimit ist erreicht. Bitte löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif.";
-
 interface DocumentsSummaryCardsProps {
   totalSize: number
   storageLimit?: number // Storage limit in bytes, 0 or undefined means no storage access
   isLoadingLimit?: boolean
   onUpload: (files: File[]) => void
   onCreateFolder: () => void
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
 }
 
 export function DocumentsSummaryCards({
@@ -43,16 +33,17 @@ export function DocumentsSummaryCards({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
 
-  // Calculate usage percentage and warning states
-  // hasLimit means there's a positive storage limit (> 0)
-  const hasLimit = typeof storageLimit === 'number' && storageLimit > 0
-  const hasNoStorageAccess = typeof storageLimit === 'number' && storageLimit === 0
-  const usagePercentage = hasLimit ? Math.min((totalSize / storageLimit!) * 100, 100) : (hasNoStorageAccess ? 100 : 0)
-  const isOverLimit = (hasLimit && totalSize >= storageLimit!) || hasNoStorageAccess
-  const isNearLimit = hasLimit && usagePercentage >= 80 && !isOverLimit
+  // hasLimit means there's a positive storage limit (> 0), 0 means no storage access
+  const {
+    hasLimit,
+    hasNoStorageAccess,
+    percentage: usagePercentage,
+    isOverLimit,
+    isNearLimit,
+  } = getStorageUsageState(totalSize, storageLimit)
 
   // Upload is disabled when no storage access or storage is full
-  const isUploadDisabled = hasNoStorageAccess || (hasLimit && totalSize >= storageLimit!)
+  const isUploadDisabled = isOverLimit
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -242,7 +233,7 @@ export function DocumentsSummaryCards({
               </h3>
               <HardDrive className={cn(
                 "h-4 w-4",
-                isOverLimit || hasNoStorageAccess ? "text-destructive" : isNearLimit ? "text-amber-500" : "text-muted-foreground"
+                isOverLimit ? "text-destructive" : isNearLimit ? "text-amber-500" : "text-muted-foreground"
               )} />
             </div>
             <div>

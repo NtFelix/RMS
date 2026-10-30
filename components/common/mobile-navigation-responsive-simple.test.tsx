@@ -412,6 +412,7 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
         // Should have hydration-safe classes
         expect(mobileNav).toHaveClass('hydration-safe-mobile')
         expect(mobileNav).toHaveClass('prevent-layout-shift')
+        expect(mobileNav).toHaveStyle({ display: 'block' })
       })
     })
 
@@ -425,8 +426,8 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
         // Check mobile navigation CSS classes
         const mobileNav = screen.getByRole('navigation', { name: /main mobile navigation/i })
         expect(mobileNav).toHaveClass('mobile-nav-responsive')
-        expect(mobileNav).toHaveClass('mobile-nav-safe-area')
-        expect(mobileNav).toHaveClass('mobile-nav-container')
+        expect(mobileNav).toHaveClass('hydration-safe-mobile')
+        expect(mobileNav).toHaveClass('prevent-layout-shift')
       })
     })
   })
@@ -460,7 +461,9 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
 
       await waitFor(() => {
         const mobileNav = screen.getByRole('navigation', { name: /main mobile navigation/i })
-        expect(mobileNav).toHaveClass('mobile-nav-safe-area')
+        expect(mobileNav).toBeInTheDocument()
+        // Safe area handled via inline style
+        expect(mobileNav).toHaveStyle({ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' })
       })
     })
 

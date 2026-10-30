@@ -1,4 +1,4 @@
-import { getApartmentOccupants, isTenantActiveInMonth, computeWgFactorsByTenant } from './wg-cost-calculations';
+import { getApartmentOccupants, computeWgFactorsByTenant } from './wg-cost-calculations';
 import { Mieter } from '@/lib/data-fetching';
 
 describe('wg-cost-calculations', () => {
@@ -13,72 +13,8 @@ describe('wg-cost-calculations', () => {
     telefonnummer: null,
     notiz: null,
     nebenkosten: null,
-    user_id: 'user-123',
+    erstellt_von: 'user-123',
     ...overrides
-  });
-
-  describe('isTenantActiveInMonth', () => {
-    it('should return true if tenant is active for the entire month', () => {
-      const tenant = createMockTenant({
-        einzug: '2023-01-01',
-        auszug: null
-      });
-      // Check for March 2023 (Year 2023, Month Index 2)
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(true);
-    });
-
-    it('should return false if tenant moved in after the month', () => {
-      const tenant = createMockTenant({
-        einzug: '2023-04-01',
-        auszug: null
-      });
-      // Check for March 2023
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(false);
-    });
-
-    it('should return false if tenant moved out before the month', () => {
-      const tenant = createMockTenant({
-        einzug: '2023-01-01',
-        auszug: '2023-02-28'
-      });
-      // Check for March 2023
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(false);
-    });
-
-    it('should return true if tenant moved in during the month', () => {
-      const tenant = createMockTenant({
-        einzug: '2023-03-15',
-        auszug: null
-      });
-      // Check for March 2023
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(true);
-    });
-
-    it('should return true if tenant moved out during the month', () => {
-      const tenant = createMockTenant({
-        einzug: '2023-01-01',
-        auszug: '2023-03-15'
-      });
-      // Check for March 2023
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(true);
-    });
-
-    it('should return false if einzug is null', () => {
-      const tenant = createMockTenant({
-        einzug: null,
-        auszug: null
-      });
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(false);
-    });
-
-    it('should handle invalid auszug date gracefully', () => {
-      const tenant = createMockTenant({
-        einzug: '2023-01-01',
-        auszug: 'invalid-date'
-      });
-      // Should still be active since invalid auszug is treated as null
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(true);
-    });
   });
 
   describe('getApartmentOccupants', () => {
@@ -250,6 +186,15 @@ describe('wg-cost-calculations', () => {
         expect(factors['tenant1']).toBeLessThan(0.6);
       });
 
+      it('should count the move-in day when einzug carries a time component', () => {
+        const tenants = [
+          createMockTenant({ id: 'tenant1', wohnung_id: 'apt1', einzug: '2023-06-16T10:00:00Z', auszug: null })
+        ];
+
+        const factors = computeWgFactorsByTenant(tenants, '2023-06-01', '2023-06-30');
+        expect(factors['tenant1']).toBeCloseTo(15 / 30, 5);
+      });
+
       it('should throw error if end date is missing', () => {
         const tenants = [createMockTenant()];
         expect(() => {
@@ -290,8 +235,84 @@ describe('wg-cost-calculations', () => {
         ];
 
         const factors = computeWgFactorsByTenant(tenants, 2023);
-        // Tenant with null einzug is treated as if they started very early
-        expect(factors['tenant1']).toBeDefined();
+        // No move-in date means no occupancy, matching calculateTenantOccupancy
+        expect(factors['tenant1']).toBe(0);
+      });
+    });
+
+    // All expected values are worked out by hand from the Rechentage rules (rechentage.ts)
+    describe('360-day basis (Rechentage)', () => {
+      const P2026 = ['2026-01-01', '2026-12-31'] as const;
+
+      it('gives a full-year tenant a factor of 1', () => {
+        const tenants = [createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2020-01-01', auszug: null })];
+        const factors = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        expect(factors['t1']).toBe(1);
+      });
+
+      it('splits a full-year WG equally', () => {
+        const tenants = [
+          createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2020-01-01', auszug: null }),
+          createMockTenant({ id: 't2', wohnung_id: 'w1', einzug: '2020-01-01', auszug: null })
+        ];
+        const factors = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        expect(factors['t1']).toBe(0.5);
+        expect(factors['t2']).toBe(0.5);
+      });
+
+      it('splits a seamless month-aligned handover without a gap or overlap', () => {
+        // t1 leaves on 30.06. (end of the month), t2 moves in on 01.07.: no shared or missing day
+        const tenants = [
+          createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2020-01-01', auszug: '2026-06-30' }),
+          createMockTenant({ id: 't2', wohnung_id: 'w1', einzug: '2026-07-01', auszug: null })
+        ];
+        const factors = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        expect(factors['t1']).toBeCloseTo(0.5, 10);
+        expect(factors['t2']).toBeCloseTo(0.5, 10);
+        expect(factors['t1'] + factors['t2']).toBeCloseTo(1, 10);
+      });
+
+      it('splits an overlapping WG: solo Rechentage full, shared Rechentage by half', () => {
+        // t1 all year (360 Rechentage). t2 joins 01.07. and stays (180 Rechentage).
+        // Jan-Jun (180) solo for t1; Jul-Dec (180) shared: t1 = 180 + 90 = 270, t2 = 90
+        const tenants = [
+          createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2020-01-01', auszug: null }),
+          createMockTenant({ id: 't2', wohnung_id: 'w1', einzug: '2026-07-01', auszug: null })
+        ];
+        const factors = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        expect(factors['t1']).toBeCloseTo(270 / 360, 10);
+        expect(factors['t2']).toBeCloseTo(90 / 360, 10);
+      });
+
+      it('leaves vacant Rechentage with the landlord (factor stays below 1)', () => {
+        // Tenant moves in 01.07.: only the second half of the year (180 of 360) is occupied
+        const tenants = [createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2026-07-01', auszug: null })];
+        const factors = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        expect(factors['t1']).toBeCloseTo(0.5, 10);
+      });
+
+      it('treats tenants in different apartments independently', () => {
+        const tenants = [
+          createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2020-01-01', auszug: null }),
+          createMockTenant({ id: 't2', wohnung_id: 'w2', einzug: '2026-07-01', auszug: null })
+        ];
+        const factors = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        expect(factors['t1']).toBe(1);
+        expect(factors['t2']).toBeCloseTo(0.5, 10);
+      });
+
+      it('gives a tenant without a move-in date a factor of 0, as on the calendar basis', () => {
+        const tenants = [createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: null, auszug: null })];
+        expect(computeWgFactorsByTenant(tenants, ...P2026, '360_tage')['t1']).toBe(0);
+      });
+
+      it('defaults to the calendar basis when rechenbasis is omitted', () => {
+        const tenants = [createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2026-07-01', auszug: null })];
+        const calendarFactor = computeWgFactorsByTenant(tenants, ...P2026);
+        const rechentageFactor = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        // 2026-07-01..12-31 is 184 of 365 calendar days, but exactly half (180/360) of the Rechentage
+        expect(calendarFactor['t1']).toBeCloseTo(184 / 365, 10);
+        expect(rechentageFactor['t1']).toBeCloseTo(0.5, 10);
       });
     });
   });

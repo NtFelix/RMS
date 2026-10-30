@@ -1,8 +1,7 @@
-
 import { getUserSubscriptionContext, getPlanApartmentLimit, getUserApartmentCount } from '@/app/user-actions';
 import { fetchUserProfile, getCurrentWohnungenCount } from '@/lib/data-fetching';
 import { getPlanDetails } from '@/lib/stripe-server';
-import { createClient } from '@/utils/supabase/server';
+import { ensureAuth } from '@/lib/auth-utils';
 
 // Mock dependencies
 jest.mock('@/lib/data-fetching', () => ({
@@ -14,13 +13,17 @@ jest.mock('@/lib/stripe-server', () => ({
   getPlanDetails: jest.fn()
 }));
 
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn()
+jest.mock('@/lib/auth-utils', () => ({
+  ensureAuth: jest.fn()
 }));
 
 describe('user-actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (ensureAuth as jest.Mock).mockResolvedValue({
+      user: { id: 'u1' },
+      supabase: {}
+    });
   });
 
   describe('getUserSubscriptionContext', () => {
@@ -83,12 +86,8 @@ describe('user-actions', () => {
 
   describe('getUserApartmentCount', () => {
     it('returns count for authenticated user', async () => {
-      const mockSupabase = {
-        auth: {
-          getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'u1' } }, error: null })
-        }
-      };
-      (createClient as jest.Mock).mockResolvedValue(mockSupabase);
+      const mockSupabase = {};
+      (ensureAuth as jest.Mock).mockResolvedValue({ user: { id: 'u1' }, supabase: mockSupabase });
       (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(10);
 
       const result = await getUserApartmentCount();
@@ -98,12 +97,7 @@ describe('user-actions', () => {
     });
 
     it('returns error if user not authenticated', async () => {
-      const mockSupabase = {
-        auth: {
-          getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: { message: 'No Auth' } })
-        }
-      };
-      (createClient as jest.Mock).mockResolvedValue(mockSupabase);
+      (ensureAuth as jest.Mock).mockRejectedValue(new Error('User not found'));
 
       const result = await getUserApartmentCount();
 

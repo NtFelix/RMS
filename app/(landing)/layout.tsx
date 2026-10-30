@@ -4,6 +4,13 @@ import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from 'next-themes';
 import { HomePageJsonLd } from '@/components/seo/json-ld';
 
+import { Suspense } from 'react';
+
+// Marketing pages must stay fully static: the build fails if request-time data (cookies, headers,
+// uncached fetches) sneaks into any route under this layout. Remove or relax only on purpose.
+// This is validated in `next dev` and `next build` even while an ancestor sets `instant = false`.
+export const ensureStatic = 'navigation';
+
 export default function LandingLayout({
   children,
 }: {
@@ -13,11 +20,15 @@ export default function LandingLayout({
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <HomePageJsonLd />
       <div className="min-h-screen flex flex-col">
-        <Navigation />
+        <Suspense fallback={null}>
+          <Navigation />
+        </Suspense>
         <main className="flex-1">
           {children}
         </main>
-        <Footer />
+        <Suspense fallback={null}>
+          <Footer />
+        </Suspense>
         <Toaster />
       </div>
     </ThemeProvider>

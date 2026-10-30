@@ -1,144 +1,82 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
-import { usePathname } from "next/navigation"
+import { useSyncExternalStore } from "react"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
+import { DashboardLayoutSkeleton } from "@/components/dashboard/dashboard-layout-skeleton"
+import {
+  DASHBOARD_CARD_CLASS,
+  DASHBOARD_MAIN_CLASS,
+  DASHBOARD_ROOT_CLASS,
+  DASHBOARD_SIDEBAR_CLASS,
+} from "@/components/dashboard/dashboard-layout-classes"
 import MobileBottomNavigation from "@/components/common/mobile-bottom-navigation"
 import { cn } from "@/lib/utils"
-import { SidebarUserData } from "@/lib/server/user-data"
+import type { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { TaskDndProvider } from "@/components/tasks/task-dnd-provider"
+import dynamic from "next/dynamic"
+import { useAIChatStore } from "@/hooks/use-ai-chat-store"
+import { useMediaQuery } from "@/hooks/use-media-query"
+import { TABLET_BREAKPOINT } from "@/lib/constants"
 
-export function DashboardLayout({ 
+const emptySubscribe = () => () => {}
+
+const SupportLauncher = dynamic(
+  () => import("@/components/support/support-launcher").then((mod) => mod.SupportLauncher),
+  { ssr: false },
+)
+
+export function DashboardLayout({
   children,
   sidebarData
-}: { 
+}: {
   children: React.ReactNode
   sidebarData: SidebarUserData
 }) {
-  const pathname = usePathname()
-  const [mounted, setMounted] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false)
+  const isMobile = useMediaQuery("(max-width: 767px)")
+  const isTabletCollapsed = useMediaQuery(TABLET_BREAKPOINT)
   const { preference } = useSidebarStore()
+  const { isOpen, displayMode } = useAIChatStore()
+  const isPushMode = mounted && isOpen && displayMode === 'push' && !isMobile
+  const isCollapsed = isTabletCollapsed || preference === 'collapsed'
 
-  // Prevent hydration errors and handle responsive behavior
-  useEffect(() => {
-    setMounted(true)
-
-    // Check initial screen size with proper breakpoint detection
-    const checkScreenSize = () => {
-      const newIsMobile = window.innerWidth < 768
-      setIsMobile(newIsMobile)
-      return newIsMobile
-    }
-
-    // Set initial state
-    checkScreenSize()
-
-    // Add resize listener for responsive behavior with debouncing
-    let resizeTimeout: NodeJS.Timeout
-    const handleResize = () => {
-      clearTimeout(resizeTimeout)
-      resizeTimeout = setTimeout(() => {
-        checkScreenSize()
-      }, 150) // Debounce resize events to prevent excessive re-renders
-    }
-
-    window.addEventListener('resize', handleResize, { passive: true })
-
-    return () => {
-      window.removeEventListener('resize', handleResize)
-      clearTimeout(resizeTimeout)
-    }
-  }, [])
-
-  // Render CSS-only fallback during hydration to prevent mismatches
+  // Render the CSS-only skeleton during hydration to prevent mismatches (same markup as the Suspense fallback)
   if (!mounted) {
-    return (
-      <div className="flex min-h-screen bg-background">
-        {/* CSS-only fallback layout with enhanced responsive behavior */}
-        <div className="desktop-sidebar-responsive hydration-safe-desktop w-64 prevent-layout-shift h-screen sticky top-0">
-          <div className="flex h-full flex-col">
-            {/* Sidebar placeholder with basic structure */}
-            <div className="flex h-14 items-center border-b px-4">
-              <div className="h-8 w-32 bg-muted rounded animate-pulse" />
-            </div>
-            <div className="flex-1 p-4 space-y-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-10 bg-muted rounded animate-pulse" />
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-1 flex-col">
-
-        <main className="flex flex-1 flex-col min-h-0 p-4 responsive-transition prevent-layout-shift">
-            <div className="flex-1 rounded-2xl border shadow-xs mb-0">
-              <div className="p-6">
-                <div className="flex flex-col gap-4">
-                  <div className="h-8 bg-muted rounded animate-pulse" />
-                  <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
-                  <div className="h-4 bg-muted rounded animate-pulse w-1/2" />
-                </div>
-              </div>
-            </div>
-          </main>
-        </div>
-        {/* Mobile navigation placeholder with enhanced CSS-only responsive behavior */}
-        <nav
-          className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border mobile-nav-responsive hydration-safe-mobile prevent-layout-shift"
-          role="navigation"
-          aria-label="Main mobile navigation"
-        >
-          {/* Main navigation items placeholder */}
-          <div className="flex items-center justify-around px-2 py-2 h-16">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1">
-                <div className="size-5 mb-1 bg-muted rounded animate-pulse" />
-                <div className="w-8 h-3 bg-muted rounded animate-pulse" />
-              </div>
-            ))}
-          </div>
-        </nav>
-      </div>
-    )
+    return <DashboardLayoutSkeleton />
   }
 
   return (
     <TaskDndProvider>
-      <div className="flex min-h-screen bg-background w-full max-w-full">
+      <div className={DASHBOARD_ROOT_CLASS}>
         {/* Desktop sidebar */}
-        <div 
-          className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out overflow-hidden h-screen sticky top-0"
+        <div
+          className={DASHBOARD_SIDEBAR_CLASS}
           style={{
-            width: preference === 'expanded' ? "16rem" : "5rem"
+            width: isCollapsed ? "4.5rem" : "16rem"
           }}
         >
           <DashboardSidebar sidebarData={sidebarData} />
         </div>
 
-        <div className="flex flex-1 flex-col min-w-0">
-          <main className={cn(
-            "flex flex-1 flex-col min-h-0 min-w-0",
-            "responsive-transition",
-            "p-4"
+        <main className={cn(
+          DASHBOARD_MAIN_CLASS,
+          // JavaScript-enhanced responsive padding
+          isMobile ? "pb-20 pt-3 px-3" : "py-3 pr-3 pl-0",
+          // Push mode: shift content by adding right margin matching sidebar width
+          isPushMode && "md:mr-[450px]"
+        )}>
+          <div className={cn(
+            DASHBOARD_CARD_CLASS,
+            isMobile && "pb-20"
           )}>
-            <div className={cn(
-              "flex-1 border shadow-xs bg-white dark:bg-[#181818] relative overflow-hidden",
-              "rounded-[2rem] md:rounded-[2.5rem]",
-              "responsive-transition",
-              "prevent-layout-shift",
-              "mobile-smooth-scroll",
-              "mb-0",
-              isMobile && "pb-20"
-            )}>
-              {children}
-            </div>
-          </main>
-        </div>
+            {children}
+          </div>
+        </main>
 
-        {mounted && isMobile && <MobileBottomNavigation />}
+        {mounted && isMobile && <MobileBottomNavigation sidebarData={sidebarData} />}
+        <SupportLauncher />
       </div>
     </TaskDndProvider>
   )

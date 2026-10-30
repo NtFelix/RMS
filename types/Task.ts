@@ -6,7 +6,7 @@ export interface Task {
   ist_erledigt: boolean
   erstellungsdatum: string
   aenderungsdatum: string
-  user_id?: string
+  erstellt_von?: string
   faelligkeitsdatum?: string | null
 }
 

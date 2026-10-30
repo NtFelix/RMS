@@ -42,7 +42,11 @@ export function DashboardTenantContextMenu({
       <ContextMenuContent className="w-64">
         {tenantData.apartmentId && (
           <ContextMenuItem 
-            onClick={() => openApartmentModal(tenantData.apartmentId!)}
+            onClick={() => {
+              setTimeout(() => {
+                openApartmentModal(tenantData.apartmentId!);
+              }, 0);
+            }}
             className="flex items-center gap-2 cursor-pointer"
           >
             <Home className="h-4 w-4" />
@@ -53,7 +57,11 @@ export function DashboardTenantContextMenu({
           <>
             <ContextMenuSeparator />
             <ContextMenuItem 
-              onClick={() => openTenantModal(tenantData.tenantId!)}
+              onClick={() => {
+                setTimeout(() => {
+                  openTenantModal(tenantData.tenantId!);
+                }, 0);
+              }}
               className="flex items-center gap-2 cursor-pointer"
             >
               <User className="h-4 w-4" />

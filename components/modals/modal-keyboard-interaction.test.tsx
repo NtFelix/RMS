@@ -125,7 +125,7 @@ describe('Modal Keyboard and Click Interactions', () => {
       const dialog = screen.getByRole('dialog');
       expect(dialog).toBeInTheDocument();
       
-      const closeButton = screen.getByRole('button', { name: /close/i });
+      const closeButton = screen.getByRole('button', { name: /schließen/i });
       expect(closeButton).toBeInTheDocument();
       
       // Click the close button
@@ -234,7 +234,7 @@ describe('Modal Keyboard and Click Interactions', () => {
       const dialog = screen.getByRole('dialog');
       expect(dialog).toBeInTheDocument();
       
-      const closeButton = screen.getByRole('button', { name: /close/i });
+      const closeButton = screen.getByRole('button', { name: /schließen/i });
       expect(closeButton).toBeInTheDocument();
       
       // Click the close button
@@ -287,7 +287,7 @@ describe('Modal Keyboard and Click Interactions', () => {
       render(<WohnungOverviewModal />);
       
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText(/Test Wohnung/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Test Wohnung/).length).toBeGreaterThan(0);
     });
   });
 
@@ -320,7 +320,7 @@ describe('Modal Keyboard and Click Interactions', () => {
       const dialog = screen.getByRole('dialog');
       expect(dialog).toBeInTheDocument();
       
-      const closeButton = screen.getByRole('button', { name: /close/i });
+      const closeButton = screen.getByRole('button', { name: /schließen/i });
       expect(closeButton).toBeInTheDocument();
       
       // Click the close button
@@ -438,7 +438,7 @@ describe('Modal Keyboard and Click Interactions', () => {
       render(<HausOverviewModal />);
       
       // The close button should be present (from DialogContent)
-      const closeButton = screen.getByRole('button', { name: /close/i });
+      const closeButton = screen.getByRole('button', { name: /schließen/i });
       expect(closeButton).toBeInTheDocument();
     });
   });

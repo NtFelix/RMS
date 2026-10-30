@@ -2,7 +2,6 @@ import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
-export const runtime = 'edge'
 
 /**
  * Check if a user's email has been verified by querying Supabase admin API using their ID.

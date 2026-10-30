@@ -1,5 +1,4 @@
 'use server';
-import { createClient } from "@/utils/supabase/server";
 import { ensureAuth } from "@/lib/auth-utils";
 
 import Stripe from 'stripe';
@@ -104,7 +103,7 @@ export async function getBillingAddress(
     const stripe = getStripe();
     const customer = await stripe.customers.retrieve(stripeCustomerId);
 
-    if ('deleted' in customer) {
+    if ('deleted' in customer && customer.deleted) {
       return { error: 'Customer not found' };
     }
 

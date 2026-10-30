@@ -2,8 +2,6 @@ import { MetadataRoute } from 'next'
 import { createClient } from '@supabase/supabase-js'
 import { getFeatureFlagsForSEO } from '@/lib/posthog-feature-flags'
 
-// Required for Cloudflare Pages deployment
-export const runtime = 'edge'
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de'
 

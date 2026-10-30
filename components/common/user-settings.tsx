@@ -1,22 +1,46 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { LogOut, Settings, FileText } from "lucide-react"
+import { LogOut, Settings, FileText, Trash2, MessageCircle } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { motion } from "framer-motion"
+import { m } from "framer-motion"
 import { trackLogout } from "@/lib/posthog-auth-events"
+import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
+import { useSupportStore } from "@/hooks/use-support-store"
+
+const triggerVariants = {
+  expanded: {
+    width: "100%",
+    height: "auto",
+    borderRadius: "24px", // rounded-2xl
+    paddingLeft: "12px",
+    paddingRight: "12px",
+    paddingTop: "10px",
+    paddingBottom: "10px",
+    transition: { duration: 0 }
+  },
+  collapsed: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "9999px", // rounded-full
+    paddingLeft: "0px",
+    paddingRight: "0px",
+    paddingTop: "0px",
+    paddingBottom: "0px",
+    transition: { duration: 0 }
+  }
+} as const;
+
 
 import { useUserProfile } from "@/hooks/use-user-profile"
 import { useApartmentUsage } from "@/hooks/use-apartment-usage"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ARIA_LABELS } from "@/lib/accessibility-constants"
-import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
-import { SettingsModal } from "@/components/modals/settings-modal"
 import { SidebarUserData } from "@/lib/server/user-data"
 import {
   CustomDropdown,
@@ -25,28 +49,50 @@ import {
   CustomDropdownSeparator,
 } from "@/components/ui/custom-dropdown"
 
+export interface OrganisationItem {
+  organisation_id: string;
+  owner_id: string;
+  rolle: 'owner' | 'admin' | 'mitarbeiter';
+  name: string;
+}
+
+const DEFAULT_ORGANISATIONS: OrganisationItem[] = [];
+
 export function UserSettings({ 
   collapsed,
-  initialData 
+  initialData,
+  organisations = DEFAULT_ORGANISATIONS,
+  currentOrgId = null
 }: { 
   collapsed?: boolean;
   initialData: SidebarUserData;
+  organisations?: OrganisationItem[];
+  currentOrgId?: string | null;
 }) {
   const router = useRouter()
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
   const supabase = createClient()
-  const [openModal, setOpenModal] = useState(false)
-  const { openTemplatesModal } = useModalStore()
+  const { openTemplatesModal, openTrashBinModal } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
+  const supportButtonEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
+  const openSupport = useSupportStore((state) => state.openSupport)
+  const supportUnreadCount = useSupportStore((state) => state.unreadCount)
+
 
   // Use custom hooks for data fetching
   const {
     user,
     userName,
-    userEmail,
     userInitials,
     isLoading: isLoadingUser
   } = useUserProfile(initialData)
+
+  const activeOrg = currentOrgId ? organisations.find(o => o.organisation_id === currentOrgId) : null;
+  const isOrgAdminOrOwner = currentOrgId === null 
+    ? true 
+    : activeOrg 
+    ? (activeOrg.rolle === 'owner' || activeOrg.rolle === 'admin') 
+    : (organisations.length > 0 ? false : initialData.hasOrganisationPermission);
 
   const {
     count: apartmentCount,
@@ -93,7 +139,7 @@ export function UserSettings({
       setIsLoadingLogout(false);
 
       // Redirect to home
-      window.location.href = '/';
+      window.location.replace('/');
     }
   }
 
@@ -103,69 +149,61 @@ export function UserSettings({
         align={collapsed ? "start" : "end"}
         className="w-56"
         trigger={
-          <div
+          <m.div
+            variants={triggerVariants}
+            animate={collapsed ? "collapsed" : "expanded"}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
             className={cn(
-              "flex items-center cursor-pointer transition-all duration-300 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-lg dark:hover:shadow-zinc-950/20 w-full overflow-hidden",
-              collapsed 
-                ? "justify-center rounded-xl px-0 py-1 bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 h-12" 
-                : "px-3 py-2.5 rounded-2xl bg-zinc-100/50 dark:bg-zinc-900/40 hover:bg-white/80 dark:hover:bg-zinc-900/70"
+              "flex items-center cursor-pointer transition-colors duration-200 select-none outline-none hover:bg-hover-bg data-[state=open]:bg-hover-bg rounded-xl",
+              collapsed ? "justify-center p-0" : "pl-1 pr-2 p-1 w-full justify-start"
             )}
             aria-label="User menu"
           >
-            <div className="relative shrink-0">
+            <m.div 
+              className="relative shrink-0"
+            >
               <Avatar className="size-10 border border-zinc-200/40 dark:border-zinc-800/40 shadow-xs">
                 <AvatarFallback className="bg-accent text-accent-foreground font-semibold">
                   {isLoadingUser ? "" : userInitials}
                 </AvatarFallback>
               </Avatar>
-            </div>
-            <motion.div
-              initial={false}
-              variants={{
-                expanded: {
-                  opacity: 1,
-                  width: "auto",
-                  marginLeft: "12px",
-                  display: "flex",
-                  transition: { duration: 0.2 }
-                },
-                collapsed: {
-                  opacity: 0,
-                  width: 0,
-                  marginLeft: "0px",
-                  transitionEnd: { display: "none" },
-                  transition: { duration: 0.2 }
-                }
-              }}
-              animate={collapsed ? "collapsed" : "expanded"}
-              className="flex flex-col flex-1 text-left min-w-0 overflow-hidden shrink-0"
-            >
-              <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                {isLoadingUser ? "Lade..." : userName}
-              </span>
-              {!isLoadingUser && !isLoadingApartmentData && apartmentLimit !== null && apartmentLimit !== Infinity && (
-                <div className="flex flex-col gap-1 mt-1 w-full">
-                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                    <span className="truncate">{apartmentCount} / {apartmentLimit} Wohnungen</span>
-                  </div>
-                  <Progress
-                    value={progressPercentage}
-                    className="h-1.5 bg-gray-200 dark:bg-gray-700 [&>div]:bg-accent"
-                  />
-                </div>
+              {supportButtonEnabled && supportUnreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-accent ring-2 ring-white dark:ring-[#181818]" />
               )}
-              {!isLoadingUser && !isLoadingApartmentData && (apartmentLimit === null || apartmentLimit === Infinity) && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                  Unbegrenzte Wohnungen
+            </m.div>
+            {!collapsed && (
+              <m.div
+                initial={false}
+                animate="expanded"
+                className="flex flex-col flex-1 text-left min-w-0 overflow-hidden shrink-0 ml-3"
+              >
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                  {isLoadingUser ? "Lade..." : userName}
                 </span>
-              )}
-              {(isLoadingUser || isLoadingApartmentData) && (
-                <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mt-1.5 w-full">
-                  <div className="h-full bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse w-1/2"></div>
-                </div>
-              )}
-            </motion.div>
-          </div>
+                {!isLoadingUser && !isLoadingApartmentData && apartmentLimit !== null && apartmentLimit !== Infinity && (
+                  <div className="flex flex-col gap-1 mt-1 w-full">
+                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                      <span className="truncate">{apartmentCount} / {apartmentLimit} Wohnungen</span>
+                    </div>
+                    <Progress
+                      value={progressPercentage}
+                      className="h-1.5 bg-gray-200 dark:bg-gray-700 [&>div]:bg-accent"
+                    />
+                  </div>
+                )}
+                {!isLoadingUser && !isLoadingApartmentData && (apartmentLimit === null || apartmentLimit === Infinity) && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    Unbegrenzte Wohnungen
+                  </span>
+                )}
+                {(isLoadingUser || isLoadingApartmentData) && (
+                  <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mt-1.5 w-full">
+                    <div className="h-full bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse w-1/2"></div>
+                  </div>
+                )}
+              </m.div>
+            )}
+          </m.div>
         }
       >
         <CustomDropdownLabel>Mein Konto</CustomDropdownLabel>
@@ -179,10 +217,28 @@ export function UserSettings({
             <span>Vorlagen</span>
           </CustomDropdownItem>
         )}
-        <CustomDropdownItem onClick={() => setOpenModal(true)}>
+        <CustomDropdownItem onClick={() => router.push('/einstellungen/profil')}>
           <Settings className="mr-2 size-4" />
           <span>Einstellungen</span>
         </CustomDropdownItem>
+        {isOrgAdminOrOwner && (
+          <CustomDropdownItem onClick={() => openTrashBinModal()}>
+            <Trash2 className="mr-2 size-4" />
+            <span>Papierkorb</span>
+          </CustomDropdownItem>
+        )}
+        {supportButtonEnabled && (
+          // Defer so the dropdown finishes dismissing before the support sheet mounts (avoids conflicting DismissableLayers).
+          <CustomDropdownItem onClick={() => setTimeout(openSupport, 0)}>
+            <MessageCircle className="mr-2 size-4" />
+            <span>Support</span>
+            {supportUnreadCount > 0 && (
+              <span className="ml-auto text-[10px] font-semibold bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full">
+                {supportUnreadCount > 99 ? '99+' : supportUnreadCount} neu
+              </span>
+            )}
+          </CustomDropdownItem>
+        )}
         <CustomDropdownSeparator />
         <CustomDropdownItem
           onClick={handleLogout}
@@ -192,7 +248,6 @@ export function UserSettings({
           <span>{isLoadingLogout ? "Wird abgemeldet..." : "Abmelden"}</span>
         </CustomDropdownItem>
       </CustomDropdown>
-      <SettingsModal open={openModal} onOpenChange={setOpenModal} />
     </>
   )
 }

@@ -37,6 +37,7 @@ export function CookieConsentBanner() {
     } else {
       // Ensure analytics are disabled when only necessary cookies are accepted
       posthog?.opt_out_capturing?.();
+      posthog?.set_config?.({ tracing_headers: [] });
       console.log('PostHog tracking disabled - only necessary cookies accepted');
     }
   };
@@ -45,6 +46,7 @@ export function CookieConsentBanner() {
 
   return (
     <div
+      data-nosnippet
       className="fixed inset-x-4 bottom-4 sm:inset-x-auto sm:right-4 sm:max-w-md p-6 bg-card text-card-foreground rounded-2xl shadow-lg border border-border z-50"
       role="dialog"
       aria-modal="true"

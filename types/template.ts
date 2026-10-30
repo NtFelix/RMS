@@ -6,11 +6,17 @@ export interface Template {
   id: string;
   titel: string;
   inhalt: JSONContent; // TipTap JSON format
-  user_id: string;
+  erstellt_von: string;
+  organisation_id: string;
   kategorie: TemplateCategory;
   kontext_anforderungen: string[];
   erstellungsdatum: string;
   aktualisiert_am: string;
+  erstellt_am?: string;
+  geaendert_am?: string | null;
+  geaendert_von?: string | null;
+  geloescht_am?: string | null;
+  geloescht_von?: string | null;
 }
 
 // Template creation/update payload

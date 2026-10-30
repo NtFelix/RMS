@@ -12,7 +12,8 @@
  * @see .kiro/specs/betriebskosten-performance-optimization/design.md
  */
 
-import type { Nebenkosten, Mieter, WasserZaehler, WasserAblesung, Rechnung, Finanzen } from "@/lib/types";
+import type { Nebenkosten, Mieter, Zaehler, ZaehlerAblesung, Rechnung, Finanzen, HaeuserAddress } from "@/lib/types";
+import type { Rechenbasis } from "@/utils/rechentage";
 
 /**
  * OptimizedNebenkosten extends the existing Nebenkosten type with calculated fields
@@ -30,7 +31,7 @@ export type OptimizedNebenkosten = {
   zaehlerkosten: Record<string, number> | null; // JSONB: { [zaehlerTyp]: cost }
   zaehlerverbrauch: Record<string, number> | null; // JSONB: { [zaehlerTyp]: usage }
   haeuser_id: string;
-  user_id: string;
+  erstellt_von: string;
 
   // Calculated fields returned by database function (not stored in tables)
   haus_name: string;
@@ -39,11 +40,12 @@ export type OptimizedNebenkosten = {
   anzahl_mieter: number;
 
   // Compatibility fields for existing components
-  Haeuser?: { name: string } | null;
+  Haeuser?: HaeuserAddress | null;
   gesamtFlaeche?: number;
   anzahlWohnungen?: number;
   anzahlMieter?: number;
   vorauszahlungs_art?: 'soll' | 'ist';
+  rechenbasis?: Rechenbasis;
 };
 
 /**
@@ -80,9 +82,17 @@ export type AbrechnungModalData = {
   nebenkosten_data: Nebenkosten;  // From existing Nebenkosten table
   tenants: Mieter[];              // From existing Mieter table
   rechnungen: Rechnung[];         // From existing Rechnungen table
-  meters: WasserZaehler[];        // From Zaehler table (generic)
-  readings: WasserAblesung[];     // From Zaehler_Ablesungen table (generic)
+  meters: Zaehler[];        // From Zaehler table (generic)
+  readings: ZaehlerAblesung[];     // From Zaehler_Ablesungen table (generic)
   actualPayments?: Finanzen[];    // Actual financial entries if in IST mode
+  houseApartments?: HouseApartment[]; // All apartments of the house, vacant ones included
+};
+
+/** An apartment of the house, as needed for vacancy costs */
+export type HouseApartment = {
+  id: string;
+  name: string;
+  groesse: number | null;
 };
 
 /**
@@ -98,7 +108,7 @@ export type OptimizedActionResponse<T> = {
  * Parameters for the get_nebenkosten_with_metrics database function
  */
 export type GetNebenkostenWithMetricsParams = {
-  user_id: string;
+  erstellt_von: string;
 };
 
 /**
@@ -106,7 +116,7 @@ export type GetNebenkostenWithMetricsParams = {
  */
 export type GetMeterModalDataParams = {
   nebenkosten_id: string;
-  user_id: string;
+  erstellt_von: string;
   meter_types?: string[];
 };
 
@@ -115,7 +125,7 @@ export type GetMeterModalDataParams = {
  */
 export type GetAbrechnungModalDataParams = {
   nebenkosten_id: string;
-  user_id: string;
+  erstellt_von: string;
 };
 
 /**
@@ -269,6 +279,29 @@ export type OccupancyCalculation = {
   moveOutDate?: string;
   effectivePeriodStart: string;
   effectivePeriodEnd: string;
+  /**
+   * Set on the 360-day basis ('360_tage'). daysOccupied and daysInPeriod are then Rechentage
+   * (e.g. 75 of 360), and effectivePeriodStart/End are the rounded, billed days.
+   */
+  rechentage?: RechentageDetails;
+};
+
+/**
+ * How a tenant's Rechentage came about, for the rounding note in the dialog and the PDF
+ * (a settlement must explain its distribution key, BGH VIII ZR 84/07).
+ */
+export type RechentageDetails = {
+  rechentage: number;
+  totalRechentage: number;
+  /** Inclusive calendar days the Rechentage stand for; empty when rechentage is 0 */
+  billedFromIso: string;
+  billedToIso: string;
+  /** Whether rounding moved the move-in / move-out date */
+  einzugGerundet: boolean;
+  auszugGerundet: boolean;
+  /** Rounded move-in (first billed day) / move-out (last billed day), when inside the period */
+  einzugGerundetIso?: string;
+  auszugGerundetIso?: string;
 };
 
 /**
@@ -288,6 +321,8 @@ export type TenantCalculationResult = {
   prepayments: PrepaymentBreakdown;
   finalSettlement: number;
   recommendedPrepayment?: number;
+  /** Set on the 360-day basis; daysOccupied / daysInPeriod are then Rechentage */
+  rechentage?: RechentageDetails;
 };
 
 /**

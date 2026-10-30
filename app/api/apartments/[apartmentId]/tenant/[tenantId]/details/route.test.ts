@@ -1,10 +1,10 @@
 import { GET } from './route';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { NextResponse } from 'next/server';
 
 // Mock the Supabase client
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }));
 
 // Mock NextResponse
@@ -17,7 +17,7 @@ jest.mock('next/server', () => ({
   },
 }));
 
-const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>;
+const mockCreateClient = createSupabaseServerClient as jest.MockedFunction<typeof createSupabaseServerClient>;
 const mockNextResponse = NextResponse as jest.Mocked<typeof NextResponse>;
 
 describe('/api/apartments/[apartmentId]/tenant/[tenantId]/details', () => {
@@ -76,6 +76,7 @@ describe('/api/apartments/[apartmentId]/tenant/[tenantId]/details', () => {
     };
 
     // Mock apartment fetch
+    const mieterSelect = jest.fn().mockReturnThis();
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'Wohnungen') {
         return {
@@ -89,7 +90,7 @@ describe('/api/apartments/[apartmentId]/tenant/[tenantId]/details', () => {
       }
       if (table === 'Mieter') {
         return {
-          select: jest.fn().mockReturnThis(),
+          select: mieterSelect,
           eq: jest.fn().mockReturnThis(),
           single: jest.fn().mockResolvedValue({
             data: mockTenant,
@@ -107,6 +108,11 @@ describe('/api/apartments/[apartmentId]/tenant/[tenantId]/details', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
+    // Leak-Schließung Altfeld: explizite Spaltenliste, kein Wildcard und keine Kaution
+    expect(mieterSelect).toHaveBeenCalledTimes(1);
+    expect(mieterSelect.mock.calls[0][0]).not.toMatch(/\*|kaution/i);
+    expect(data.tenant).not.toHaveProperty('kautionData');
+    expect(JSON.stringify(data)).not.toMatch(/kaution/i);
     expect(data).toMatchObject({
       apartment: {
         id: apartmentId,
@@ -130,11 +136,6 @@ describe('/api/apartments/[apartmentId]/tenant/[tenantId]/details', () => {
         leaseTerms: undefined,
         paymentHistory: [],
         notes: 'Zuverlässiger Mieter',
-        kautionData: {
-          amount: 2400,
-          paymentDate: '2022-12-15',
-          status: 'paid',
-        },
       },
       financialInfo: {
         currentRent: 1200,
@@ -327,7 +328,7 @@ describe('/api/apartments/[apartmentId]/tenant/[tenantId]/details', () => {
     expect(data.tenant.kautionData).toBeUndefined();
   });
 
-  it('should handle invalid kaution JSON gracefully', async () => {
+  it('should never expose the legacy kaution field, even if the row carries it', async () => {
     const apartmentId = '550e8400-e29b-41d4-a716-446655440000';
     const tenantId = '660e8400-e29b-41d4-a716-446655440000';
     
@@ -344,6 +345,7 @@ describe('/api/apartments/[apartmentId]/tenant/[tenantId]/details', () => {
       },
     };
 
+    // Selbst wenn eine Zeile das Altfeld enthielte (z. B. kaputtes JSON), darf es nie in der Antwort erscheinen
     const mockTenant = {
       id: tenantId,
       name: 'Max Mustermann',
@@ -387,6 +389,7 @@ describe('/api/apartments/[apartmentId]/tenant/[tenantId]/details', () => {
 
     expect(response.status).toBe(200);
     expect(data.tenant.kautionData).toBeUndefined();
+    expect(JSON.stringify(data)).not.toMatch(/kaution|invalid-json-string/i);
   });
 
   it('should handle database errors gracefully', async () => {

@@ -347,7 +347,6 @@ export default function ApartmentManagementPage() {
         description="Entdecken Sie, wie unsere Plattform Ihnen hilft, Ihre Wohnungen effizienter zu verwalten und Zeit zu sparen."
         badgeText="Bereit für den Start?"
         primaryButtonText="14 Tage kostenlos testen"
-        secondaryButtonText="Demo anfordern"
       />
     </div>
   );

@@ -58,6 +58,7 @@ node_modules/
 # next-agents-md
 .next-docs/
 
-# AI Agent Skills references (documentation)
-.agents/skills/*/references/
-.agents/skills/*/rules/
+# AI Agent Skills (installed via npx skills add)
+.agents/skills/
+agent/skills/
+.claude/

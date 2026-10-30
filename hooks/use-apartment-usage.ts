@@ -39,8 +39,7 @@ export function useApartmentUsage(user: User | null, initialData?: Partial<Apart
         // Fetch apartment count
         const { count, error: countError } = await supabase
           .from('Wohnungen')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
+          .select('*', { count: 'exact', head: true });
 
         if (countError) throw countError;
 

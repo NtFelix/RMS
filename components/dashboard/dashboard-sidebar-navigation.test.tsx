@@ -27,6 +27,13 @@ jest.mock('@/utils/supabase/client', () => ({
   })),
 }))
 
+const mockToast = jest.fn()
+jest.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: mockToast,
+  }),
+}))
+
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>
 
 const mockSidebarData: SidebarUserData = {
@@ -36,6 +43,9 @@ const mockSidebarData: SidebarUserData = {
   userInitials: 'TU',
   apartmentCount: 5,
   apartmentLimit: 10,
+  hasOrganisationPermission: true,
+  isOrganisationHidden: false,
+  modulePermissions: null,
 }
 
 describe('DashboardSidebar Navigation', () => {
@@ -82,6 +92,25 @@ describe('DashboardSidebar Navigation', () => {
     expect(cloudStorageLink).not.toHaveClass('bg-accent')
   })
 
+  it('switches the active entry in one render and does not fade colours on an active-state change', () => {
+    mockUsePathname.mockReturnValue('/mieter')
+    const { container, rerender } = render(<DashboardSidebar sidebarData={mockSidebarData} />)
+    const mieter = container.querySelector('a[href="/mieter"]') as HTMLElement
+    const haeuser = container.querySelector('a[href="/haeuser"]') as HTMLElement
+    expect(mieter).toHaveAttribute('data-active', 'true')
+
+    mockUsePathname.mockReturnValue('/haeuser')
+    rerender(<DashboardSidebar sidebarData={mockSidebarData} />)
+
+    expect(mieter).toHaveAttribute('data-active', 'false')
+    expect(haeuser).toHaveAttribute('data-active', 'true')
+    // A plain `transition-colors` would fade the old entry out and the new one in for 200ms; only the hover of an
+    // inactive entry is animated.
+    expect(haeuser).not.toHaveClass('transition-colors')
+    expect(mieter).not.toHaveClass('transition-colors')
+    expect(mieter).toHaveClass('data-[active=false]:hover:transition-colors')
+  })
+
   it('renders primary navigation items in correct order', () => {
     const { container } = render(<DashboardSidebar sidebarData={mockSidebarData} />)
 
@@ -93,6 +122,8 @@ describe('DashboardSidebar Navigation', () => {
 
     expect(hrefs).toEqual([
       '/dashboard',
+      '/suche',
+      '/organisation',
       '/haeuser',
       '/wohnungen',
       '/mieter',
@@ -100,23 +131,8 @@ describe('DashboardSidebar Navigation', () => {
       '/betriebskosten',
       '/todos',
       '/dateien',
-      '/mails'
+      '/mails',
+      '/agenten'
     ])
-  })
-
-  it('renders logistics sidebar sections and links on desktop when expanded', () => {
-    const { container } = render(<DashboardSidebar sidebarData={mockSidebarData} />)
-
-    // Expanded desktop renders Logistics header and details cards
-    expect(screen.getByText('Logistics')).toBeInTheDocument()
-    expect(screen.getByText('Deliveries')).toBeInTheDocument()
-    expect(screen.getByText('On the way')).toBeInTheDocument()
-
-    // Logistics pages links
-    const logisticsHrefs = ['/user-profile', '/vehicle', '/inventory', '/tracking', '/warehouse', '/order']
-    logisticsHrefs.forEach(href => {
-      const link = container.querySelector(`a[href="${href}"]`)
-      expect(link).toBeInTheDocument()
-    })
   })
 })

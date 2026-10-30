@@ -1,6 +1,5 @@
-export const runtime = 'edge';
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createRequestLogger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
@@ -39,7 +38,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { id: wohnungId } = await params;
 
     // Validate input parameters
@@ -93,6 +92,14 @@ export async function GET(
       );
     }
 
+    const { verifyEntityInScope } = await import("@/lib/api-permissions");
+    if (wohnungData.haus_id && !(await verifyEntityInScope(wohnungData.haus_id))) {
+      return NextResponse.json(
+        { error: "Permission denied" },
+        { status: 403, headers: NO_CACHE_HEADERS }
+      );
+    }
+
     // Fetch all Mieter for this Wohnung (current and historical)
     const { data: mieterData, error: mieterError } = await supabase
       .from('Mieter')
@@ -115,7 +122,14 @@ export async function GET(
     }
 
     // Process Mieter with status and validate data
-    const today = new Date();
+    // Get today's date in YYYY-MM-DD format in local time
+    const now = new Date()
+    const todayStr = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-')
+
     const mieter: MieterOverviewData[] = (mieterData || []).map(mieterItem => {
       // Validate required fields
       if (!mieterItem.id || !mieterItem.name) {
@@ -131,7 +145,7 @@ export async function GET(
       }
 
       // Determine if tenant is active or moved out
-      const isActive = !mieterItem.auszug || new Date(mieterItem.auszug) > today;
+      const isActive = !mieterItem.auszug || mieterItem.auszug > todayStr;
 
       return {
         id: mieterItem.id,

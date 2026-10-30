@@ -3,6 +3,7 @@ import React, { ReactNode, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCountUp } from "@/hooks/use-count-up";
 import { formatCurrency } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
@@ -87,6 +88,17 @@ const CardWrapper = ({ children, hoverDetails, title, formatHoverValue }: CardWr
   return <>{children}</>;
 };
 
+// SummaryCardPlaceholder and the Finanzen skeleton rely on this class string for the card height, so a change
+// here changes the skeleton too.
+const SUMMARY_CARD_CLASS = cn(
+  // Main-Style-Äquivalent: abgeleitet von main, ohne Opacity-Loading (Skeleton übernimmt)
+  "relative overflow-hidden rounded-3xl shadow-xs transition-opacity duration-200",
+  // Background color matching dashboard cards
+  "bg-gray-50 dark:bg-[#22272e]",
+  // sichtbare Border wie im Main-Design
+  "border border-gray-200 dark:border-[#3C4251]"
+);
+
 export function SummaryCard({
   title,
   value,
@@ -103,6 +115,12 @@ export function SummaryCard({
     return valueFormatter ? valueFormatter(num) : num.toString();
   }, [hoverDetails?.isCurrency, valueFormatter]);
 
+  // Called before the loading return to keep the hook order stable; it only starts once the value is shown.
+  const animatedValue = useCountUp(typeof value === "number" ? value : undefined, {
+    enabled: !isLoading,
+    memoryKey: `summary-card:${title}`,
+  });
+
   if (isLoading) {
     return <SummaryCardSkeleton className={className} />;
   }
@@ -111,12 +129,7 @@ export function SummaryCard({
     <CardWrapper hoverDetails={hoverDetails} title={title} formatHoverValue={formatHoverValue}>
       <Card
         className={cn(
-          // Main-Style-Äquivalent: abgeleitet von main, ohne Opacity-Loading (Skeleton übernimmt)
-          "relative overflow-hidden rounded-3xl shadow-xs transition-opacity duration-200",
-          // Background color matching dashboard cards
-          "bg-gray-50 dark:bg-[#22272e]",
-          // sichtbare Border wie im Main-Design
-          "border border-gray-200 dark:border-[#3C4251]",
+          SUMMARY_CARD_CLASS,
           // Add cursor pointer and hover scale when onClick is provided
           onClick && "cursor-pointer hover:scale-[1.02] transition-transform duration-200",
           className
@@ -139,8 +152,8 @@ export function SummaryCard({
               : icon}
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
-            {valueFormatter(value)}
+          <div className="text-2xl font-bold tabular-nums">
+            {valueFormatter(typeof value === "number" ? animatedValue : value)}
           </div>
 
           {hoverDetails && (
@@ -157,6 +170,35 @@ export function SummaryCard({
         </CardContent>
       </Card>
     </CardWrapper>
+  );
+}
+
+// Loading twin of SummaryCard that already shows the (static) title, icon and description and only holds the
+// value back, so the card keeps its height when the number arrives. Pass the same `description` as the real card.
+export function SummaryCardPlaceholder({
+  title,
+  icon,
+  description,
+  className,
+}: {
+  title: string;
+  icon: ReactNode;
+  description?: string;
+  className?: string;
+}) {
+  return (
+    <Card className={cn(SUMMARY_CARD_CLASS, className)} aria-busy="true">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">
+          <Skeleton className="h-8 w-28" />
+        </div>
+        {description ? <p className="text-xs text-muted-foreground mt-1">{description}</p> : null}
+      </CardContent>
+    </Card>
   );
 }
 

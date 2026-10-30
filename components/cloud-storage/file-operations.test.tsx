@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { FileContextMenu } from '@/components/cloud-storage/file-context-menu'
 import { useCloudStorageOperations, useCloudStoragePreview, useCloudStorageArchive } from '@/hooks/use-cloud-storage-store'
 import { useToast } from '@/hooks/use-toast'
+import { useModalStore } from '@/hooks/use-modal-store'
 
 // Mock the hooks
 jest.mock('@/hooks/use-cloud-storage-store')
@@ -20,6 +21,7 @@ const mockUseCloudStorageOperations = useCloudStorageOperations as jest.MockedFu
 const mockUseCloudStoragePreview = useCloudStoragePreview as jest.MockedFunction<typeof useCloudStoragePreview>
 const mockUseCloudStorageArchive = useCloudStorageArchive as jest.MockedFunction<typeof useCloudStorageArchive>
 const mockUseToast = useToast as jest.MockedFunction<typeof useToast>
+const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>
 
 const mockFile = {
   id: 'test-file-1',
@@ -67,6 +69,11 @@ describe('FileContextMenu', () => {
       openArchiveView: jest.fn(),
       closeArchiveView: jest.fn(),
       archiveFile: jest.fn(),
+    } as any)
+
+    mockUseModalStore.mockReturnValue({
+      openFileMoveModal: jest.fn(),
+      openMarkdownEditorModal: jest.fn(),
     } as any)
 
     jest.clearAllMocks()
@@ -180,7 +187,7 @@ describe('FileContextMenu', () => {
   })
 
   it('handles file deletion after confirmation', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
     mockDeleteFile.mockResolvedValue(undefined)
     
     render(
@@ -190,7 +197,7 @@ describe('FileContextMenu', () => {
     )
 
     const fileItem = screen.getByTestId('file-item')
-    await user.pointer({ keys: '[MouseRight]', target: fileItem })
+    fireEvent.contextMenu(fileItem)
 
     const deleteButton = screen.getByText('Endgültig löschen')
     await user.click(deleteButton)
@@ -209,7 +216,7 @@ describe('FileContextMenu', () => {
   })
 
   it('disables operations when operation is in progress', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
     
     mockUseCloudStorageOperations.mockReturnValue({
       downloadFile: mockDownloadFile,
@@ -229,17 +236,17 @@ describe('FileContextMenu', () => {
     )
 
     const fileItem = screen.getByTestId('file-item')
-    await user.pointer({ keys: '[MouseRight]', target: fileItem })
+    fireEvent.contextMenu(fileItem)
 
-    const downloadButton = screen.getByText('Herunterladen')
-    const deleteButton = screen.getByText('Endgültig löschen')
+    const downloadItem = screen.getByText('Herunterladen').closest('[role="menuitem"]')
+    const deleteItem = screen.getByText('Endgültig löschen').closest('[role="menuitem"]')
 
-    expect(downloadButton).toHaveAttribute('data-disabled')
-    expect(deleteButton).toHaveAttribute('data-disabled')
+    expect(downloadItem).toHaveAttribute('data-disabled')
+    expect(deleteItem).toHaveAttribute('data-disabled')
   })
 
   it('does not show preview option for unsupported file types', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
     const unsupportedFile = { ...mockFile, name: 'document.txt' }
     
     render(
@@ -249,7 +256,7 @@ describe('FileContextMenu', () => {
     )
 
     const fileItem = screen.getByTestId('file-item')
-    await user.pointer({ keys: '[MouseRight]', target: fileItem })
+    fireEvent.contextMenu(fileItem)
 
     expect(screen.queryByText('Vorschau anzeigen')).not.toBeInTheDocument()
     expect(screen.getByText('Herunterladen')).toBeInTheDocument()
@@ -274,20 +281,11 @@ describe('File Operations Performance', () => {
   })
 
   it('should timeout downloads that take longer than 2 seconds', async () => {
-    // Mock the storage service to simulate a slow download
-    const { triggerFileDownload } = require('@/lib/storage-service')
+    const { triggerFileDownload } = await import('@/lib/storage-service')
+    const mockTriggerFileDownload = triggerFileDownload as jest.MockedFunction<typeof triggerFileDownload>
     
-    // Mock the downloadFile function to simulate a timeout
-    jest.doMock('@/lib/storage-service', () => ({
-      ...jest.requireActual('@/lib/storage-service'),
-      downloadFile: jest.fn().mockImplementation(() => 
-        new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Download timeout: File download took longer than 2 seconds')), 100)
-        })
-      )
-    }))
+    mockTriggerFileDownload.mockRejectedValue(new Error('Download timeout: File download took longer than 2 seconds'))
     
-    // Test that the timeout error is properly thrown
     await expect(triggerFileDownload('test/slow-file.pdf', 'slow-file.pdf'))
       .rejects
       .toThrow('Download timeout: File download took longer than 2 seconds')

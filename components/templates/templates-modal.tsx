@@ -362,7 +362,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <FileText className="h-12 w-12 text-muted-foreground mb-4" />
       <h3 className="text-lg font-medium mb-2">
-        {searchQuery || selectedCategory ? 'Keine Vorlagen gefunden' : 'Noch keine Vorlagen erstellt'}
+        {searchQuery || (selectedCategory && selectedCategory !== 'all') ? 'Keine Vorlagen gefunden' : 'Noch keine Vorlagen erstellt'}
       </h3>
       <p className="text-muted-foreground mb-4">
         {searchQuery || (selectedCategory && selectedCategory !== 'all')

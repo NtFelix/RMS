@@ -13,6 +13,7 @@ import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Apartment as ApartmentTableType } from "@/components/tables/apartment-table";
+import { STAT_CARD_ROW_CLASS } from "@/components/skeletons/stat-cards-skeleton";
 import { StatCard } from "@/components/common/stat-card";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,9 +22,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
+import { useTabParams } from "@/hooks/use-tab-params";
 import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRentPerSqmBarChart } from "@/components/dashboard/dashboard-charts";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
+import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -33,6 +36,10 @@ interface WohnungenClientViewProps {
   serverApartmentLimit: number;
   serverUserIsEligibleToAdd: boolean;
   serverLimitReason: 'trial' | 'subscription' | 'none';
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canViewMeters?: boolean;
 }
 
 const currencyFormatter = new Intl.NumberFormat("de-DE", {
@@ -41,6 +48,8 @@ const currencyFormatter = new Intl.NumberFormat("de-DE", {
 });
 
 // This is the new main client component, previously WohnungenPageClientComponent in page.tsx
+const VALID_WOHNUNGEN_TABS = ["apartments", "overview"] as const;
+
 export default function WohnungenClientView({
   initialWohnungenData,
   housesData,
@@ -48,9 +57,13 @@ export default function WohnungenClientView({
   serverApartmentLimit,
   serverUserIsEligibleToAdd,
   serverLimitReason,
+  canCreate = true,
+  canEdit = true,
+  canDelete = true,
+  canViewMeters = true,
 }: WohnungenClientViewProps) {
   const router = useRouter()
-  const [currentTab, setCurrentTab] = useState<"apartments" | "overview">("apartments");
+  const [currentTab, setCurrentTab] = useTabParams<"apartments" | "overview">("apartments", VALID_WOHNUNGEN_TABS);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const reloadRef = useRef<(() => void) | null>(null);
@@ -109,10 +122,12 @@ export default function WohnungenClientView({
   }, [apartments]);
 
   const limitReached = serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity;
-  const isAddButtonDisabled = !serverUserIsEligibleToAdd || limitReached;
+  const isAddButtonDisabled = !canCreate || !serverUserIsEligibleToAdd || limitReached;
 
   let buttonTooltipMessage = "";
-  if (!serverUserIsEligibleToAdd) {
+  if (!canCreate) {
+    buttonTooltipMessage = "Keine Berechtigung zum Erstellen";
+  } else if (!serverUserIsEligibleToAdd) {
     buttonTooltipMessage = "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen.";
   } else if (limitReached) {
     if (serverLimitReason === 'trial') {
@@ -198,14 +213,15 @@ export default function WohnungenClientView({
         throw new Error(errorData.error || 'Fehler beim Löschen der Wohnungen.');
       }
 
-      const { successCount } = await response.json();
+      // Teilerfolg (z. B. ein Mieter mit hinterlegter Kaution in der Wohnung): die Route nennt die Gründe der abgelehnten Löschungen.
+      const { successCount, reasons = [] } = await response.json();
 
       setShowBulkDeleteConfirm(false);
       setSelectedApartments(new Set());
 
       toast({
         title: "Erfolg",
-        description: `${successCount} Wohnungen erfolgreich gelöscht.`,
+        description: `${successCount} Wohnungen erfolgreich gelöscht${formatBulkDeleteSuffix(selectedIds.length - successCount, reasons)}`,
         variant: "success",
       });
 
@@ -222,6 +238,14 @@ export default function WohnungenClientView({
       setIsBulkDeleting(false);
     }
   }, [selectedApartments, router, refreshTable]);
+
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  const handleBulkDeleteClick = useCallback(() => {
+    void starteLoeschenMitKautionen("Wohnungen", Array.from(selectedApartments), {
+      einfach: () => setShowBulkDeleteConfirm(true),
+      loeschen: handleBulkDelete,
+    });
+  }, [selectedApartments, handleBulkDelete]);
 
   const handleAssignHouse = useCallback(async () => {
     if (selectedHouse === "none") {
@@ -308,6 +332,12 @@ export default function WohnungenClientView({
 
   const handleEditWohnung = useCallback(async (apartment: ApartmentTableType) => {
     try {
+      const existingApt = apartments.find(a => a.id === apartment.id);
+      if (existingApt) {
+        openWohnungModal(existingApt, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd);
+        return;
+      }
+
       const supabase = createBrowserClient();
       const { data: aptToEdit, error } = await supabase.from('Wohnungen').select('*, Haeuser(name)').eq('id', apartment.id).single();
       if (error || !aptToEdit) {
@@ -319,7 +349,12 @@ export default function WohnungenClientView({
     } catch (error) {
       console.error('Fehler beim Laden der Wohnung für Bearbeitung:', error);
     }
-  }, [openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
+  }, [apartments, openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
+
+  const handleEditWohnungRef = useRef(handleEditWohnung);
+  handleEditWohnungRef.current = handleEditWohnung;
+  const apartmentsRef = useRef(apartments);
+  apartmentsRef.current = apartments;
 
   useEffect(() => {
     const handleEditApartmentListener = async (event: Event) => {
@@ -327,65 +362,38 @@ export default function WohnungenClientView({
       const apartmentId = customEvent.detail?.id;
       if (!apartmentId) return;
       try {
+        const existingApt = apartmentsRef.current.find(a => a.id === apartmentId);
+        if (existingApt) {
+          handleEditWohnungRef.current(existingApt);
+          return;
+        }
+
         const supabase = createBrowserClient();
         const { data: aptToEdit, error } = await supabase.from('Wohnungen').select('*, Haeuser(name)').eq('id', apartmentId).single();
         if (error || !aptToEdit) { console.error('Wohnung nicht gefunden oder Fehler:', error?.message); return; }
         const transformedApt = { ...aptToEdit, Haeuser: Array.isArray(aptToEdit.Haeuser) ? aptToEdit.Haeuser[0] : aptToEdit.Haeuser } as Wohnung;
-        handleEditWohnung(transformedApt);
+        handleEditWohnungRef.current(transformedApt);
       } catch (error) { console.error('Fehler beim Laden der Wohnung für Event-Edit:', error); }
     };
     window.addEventListener('edit-apartment', handleEditApartmentListener);
     return () => window.removeEventListener('edit-apartment', handleEditApartmentListener);
-  }, [handleEditWohnung]);
+  }, []);
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
-      {/* 2-way sliding toggle */}
-      <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
-        <motion.button
-          layout
-          type="button"
-          onClick={() => setCurrentTab("apartments")}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            currentTab === "apartments" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {currentTab === "apartments" && (
-            <motion.div
-              layoutId="active-wohnungen-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <Home className="size-4 shrink-0 transition-transform duration-300" />
-          <span>Wohnungen</span>
-        </motion.button>
-
-        <motion.button
-          layout
-          type="button"
-          onClick={() => setCurrentTab("overview")}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {currentTab === "overview" && (
-            <motion.div
-              layoutId="active-wohnungen-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
-          <span>Übersicht</span>
-        </motion.button>
-      </div>
+      <AnimatedPillToggle
+        tabs={[
+          { value: "apartments", label: "Wohnungen", icon: Home },
+          { value: "overview", label: "Übersicht", icon: BarChart3 },
+        ]}
+        activeTab={currentTab}
+        onTabChange={setCurrentTab}
+        layoutId="active-wohnungen-tab-pill"
+      />
 
       {currentTab === "apartments" ? (
         <>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4 animate-in fade-in duration-300">
+          <div className={`${STAT_CARD_ROW_CLASS} animate-in fade-in duration-300`}>
             <StatCard
               title="Wohnungen gesamt"
               value={summary.total}
@@ -517,8 +525,8 @@ export default function WohnungenClientView({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setShowBulkDeleteConfirm(true)}
-                        disabled={isBulkDeleting}
+                        onClick={handleBulkDeleteClick}
+                        disabled={isBulkDeleting || !canDelete}
                         className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                       >
                         {isBulkDeleting ? (
@@ -548,6 +556,9 @@ export default function WohnungenClientView({
                 reloadRef={reloadRef}
                 selectedApartments={selectedApartments}
                 onSelectionChange={setSelectedApartments}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                canViewMeters={canViewMeters}
               />
             </CardContent>
           </Card>
@@ -664,7 +675,7 @@ export default function WohnungenClientView({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={() => handleBulkDelete()} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
               {isBulkDeleting ? "Lösche..." : `${selectedApartments.size} Wohnungen löschen`}
             </AlertDialogAction>
           </AlertDialogFooter>

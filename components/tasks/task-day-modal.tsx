@@ -26,6 +26,9 @@ interface TaskDayModalProps {
     onTaskToggle: (taskId: string, completed: boolean) => void;
     onTaskDelete: (taskId: string) => void;
     onAddTask: (date: Date) => void;
+    canCreate?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
 
 export function TaskDayModal({
@@ -37,6 +40,9 @@ export function TaskDayModal({
     onTaskToggle,
     onTaskDelete,
     onAddTask,
+    canCreate = true,
+    canEdit = true,
+    canDelete = true,
 }: TaskDayModalProps) {
     // Filter tasks for the selected date
     const tasksForDate = useMemo(() => {
@@ -80,6 +86,7 @@ export function TaskDayModal({
                             onAddTask(date);
                         }}
                         className="gap-1"
+                        disabled={!canCreate}
                     >
                         <Plus className="h-4 w-4" />
                         <span className="hidden sm:inline">Aufgabe</span>
@@ -98,6 +105,7 @@ export function TaskDayModal({
                                     onAddTask(date);
                                 }}
                                 className="mt-2"
+                                disabled={!canCreate}
                             >
                                 Aufgabe hinzufügen
                             </Button>
@@ -120,6 +128,8 @@ export function TaskDayModal({
                                                 onTaskToggle={onTaskToggle}
                                                 onTaskDelete={onTaskDelete}
                                                 onClose={() => onOpenChange(false)}
+                                                canEdit={canEdit}
+                                                canDelete={canDelete}
                                             />
                                         ))}
                                     </div>
@@ -142,6 +152,8 @@ export function TaskDayModal({
                                                 onTaskToggle={onTaskToggle}
                                                 onTaskDelete={onTaskDelete}
                                                 onClose={() => onOpenChange(false)}
+                                                canEdit={canEdit}
+                                                canDelete={canDelete}
                                             />
                                         ))}
                                     </div>
@@ -161,6 +173,8 @@ interface TaskDayItemProps {
     onTaskToggle: (taskId: string, completed: boolean) => void;
     onTaskDelete: (taskId: string) => void;
     onClose: () => void;
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
 
 function TaskDayItem({
@@ -169,6 +183,8 @@ function TaskDayItem({
     onTaskToggle,
     onTaskDelete,
     onClose,
+    canEdit = true,
+    canDelete = true,
 }: TaskDayItemProps) {
     return (
         <div
@@ -181,11 +197,16 @@ function TaskDayItem({
                 checked={task.ist_erledigt}
                 onCheckedChange={(checked) => onTaskToggle(task.id, checked as boolean)}
                 className="mt-0.5 shrink-0"
+                disabled={!canEdit}
             />
 
             <div
-                className="flex-1 min-w-0 cursor-pointer"
+                className={cn(
+                    "flex-1 min-w-0",
+                    canEdit ? "cursor-pointer" : "cursor-default"
+                )}
                 onClick={() => {
+                    if (!canEdit) return;
                     onClose();
                     onTaskClick(task);
                 }}
@@ -210,6 +231,7 @@ function TaskDayItem({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
+                    disabled={!canEdit}
                     onClick={() => {
                         onClose();
                         onTaskClick(task);
@@ -221,6 +243,7 @@ function TaskDayItem({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 text-destructive hover:text-destructive"
+                    disabled={!canDelete}
                     onClick={() => onTaskDelete(task.id)}
                 >
                     <Trash2 className="h-3.5 w-3.5" />

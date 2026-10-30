@@ -4,9 +4,11 @@ import { defineConfig, devices } from '@playwright/test';
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
  */
-// import dotenv from 'dotenv';
-// import path from 'path';
-// dotenv.config({ path: path.resolve(__dirname, '.env') });
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '.env.local') });
+
+const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -23,18 +25,36 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   /* Use 2 workers in CI to avoid overwhelming the server */
   workers: process.env.CI ? 2 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  /* Reporter to use. See https://playwright.dev/docs/test-reporters
+   * CI: list für das Log, github für Annotations, json für die Step-Summary (scripts/e2e-summary.mjs), html für das Artefakt. */
+  reporter: process.env.CI
+    ? [
+        ['list'],
+        ['github'],
+        ['json', { outputFile: 'test-results/results.json' }],
+        ['html', { open: 'never' }],
+      ]
+    : 'html',
+  expect: {
+    /* Firefox/WebKit rendern auf den CI-Runnern merklich langsamer als Chromium */
+    timeout: 10000,
+  },
   /* Global timeout for all tests */
   timeout: 60000, // 60 seconds per test
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.BASE_URL ?? 'http://localhost:3000',
+    baseURL,
+    /* Cookie-Banner für jeden Context aus dem page-Fixture abwählen (Schlüssel: components/common/cookie-consent-banner.tsx) */
+    storageState: {
+      cookies: [],
+      origins: [{ origin: new URL(baseURL).origin, localStorage: [{ name: 'cookieConsent', value: 'necessary' }] }],
+    },
     /* Set larger viewport to "zoom out" and see more of the app */
     viewport: { width: 1920, height: 1080 },
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
+    /* Traces enthalten Login-Request und Tokens und landen als Artefakte; deshalb nur für Wiederholungen.
+     * Den Erstversuch deckt e2e/diagnostics.ts ab. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
 
     /* Capture screenshot on failure */

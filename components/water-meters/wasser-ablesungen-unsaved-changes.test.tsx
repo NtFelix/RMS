@@ -86,7 +86,7 @@ describe('AblesungenModal - Unsaved Changes Detection', () => {
     render(<AblesungenModal />)
 
     await waitFor(() => {
-      expect(screen.getByText('123,45 m³')).toBeInTheDocument()
+      expect(screen.getByText('123,450 m³')).toBeInTheDocument()
     })
 
     // Click edit button
@@ -119,7 +119,7 @@ describe('AblesungenModal - Unsaved Changes Detection', () => {
     render(<AblesungenModal />)
 
     await waitFor(() => {
-      expect(screen.getByText('123,45 m³')).toBeInTheDocument()
+      expect(screen.getByText('123,450 m³')).toBeInTheDocument()
     })
 
     // Click edit button
@@ -175,8 +175,8 @@ describe('AblesungenModal - Unsaved Changes Detection', () => {
     })
 
     // Find and click close button
-    const closeButton = screen.getByText(/Schließen/i)
-    fireEvent.click(closeButton)
+    const closeButtons = screen.getAllByText(/Schließen/i)
+    fireEvent.click(closeButtons[0])
 
     // Should set dirty state to false when closing
     await waitFor(() => {
@@ -188,7 +188,7 @@ describe('AblesungenModal - Unsaved Changes Detection', () => {
     render(<AblesungenModal />)
 
     await waitFor(() => {
-      expect(screen.getByText('123,45 m³')).toBeInTheDocument()
+      expect(screen.getByText('123,450 m³')).toBeInTheDocument()
     })
 
     // Initially should not be dirty (or set to false)
@@ -203,7 +203,7 @@ describe('AblesungenModal - Unsaved Changes Detection', () => {
     render(<AblesungenModal />)
 
     await waitFor(() => {
-      expect(screen.getByText('123,45 m³')).toBeInTheDocument()
+      expect(screen.getByText('123,450 m³')).toBeInTheDocument()
     })
 
     // Click edit button
@@ -240,7 +240,7 @@ describe('AblesungenModal - Unsaved Changes Detection', () => {
     render(<AblesungenModal />)
 
     await waitFor(() => {
-      expect(screen.getByText('123,45 m³')).toBeInTheDocument()
+      expect(screen.getByText('123,450 m³')).toBeInTheDocument()
     })
 
     // Click edit button
@@ -254,12 +254,12 @@ describe('AblesungenModal - Unsaved Changes Detection', () => {
       fireEvent.click(editButton)
 
       await waitFor(() => {
-        const editInput = screen.getByDisplayValue('15,5')
+        const editInput = screen.getByDisplayValue('15,500')
         expect(editInput).toBeInTheDocument()
       })
 
       // Change the verbrauch value
-      const verbrauchInput = screen.getByDisplayValue('15,5')
+      const verbrauchInput = screen.getByDisplayValue('15,500')
       fireEvent.change(verbrauchInput, { target: { value: '20.0' } })
 
       // Should set dirty state to true

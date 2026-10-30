@@ -5,9 +5,13 @@ import { useCloudStorageNavigation } from '@/hooks/use-cloud-storage-navigation'
 import { getDirectoryCache } from '@/lib/directory-cache'
 import { useToast } from '@/hooks/use-toast'
 
+const mockUsePathname = jest.fn(() => '/')
+
 // Mock dependencies
 jest.mock('next/navigation', () => ({
-  useRouter: jest.fn()
+  useRouter: jest.fn(),
+  usePathname: () => mockUsePathname(),
+  useSearchParams: () => new URLSearchParams()
 }))
 
 jest.mock('@/hooks/use-cloud-storage-navigation', () => ({
@@ -195,7 +199,9 @@ describe('useFolderNavigation', () => {
     )
   }
   
-  it('provides folder navigation functionality', async () => {
+    it('provides folder navigation functionality', async () => {
+    mockUsePathname.mockReturnValue('/dateien');
+    
     render(<TestComponent userId="123" />)
     
     const button = screen.getByTestId('navigate-btn')

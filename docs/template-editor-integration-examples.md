@@ -871,10 +871,10 @@ export function DocumentGenerator({ templates, tenants, apartments }: DocumentGe
 ```typescript
 // app/api/templates/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export async function GET() {
-  const supabase = createClient();
+  const supabase = await createSupabaseServerClient();
   
   try {
     const { data: templates, error } = await supabase

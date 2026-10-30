@@ -15,9 +15,17 @@ export async function register() {
     });
   }
 
-  // Initialize PostHog logging (OpenTelemetry-based)
+  // Initialize PostHog observability (OpenTelemetry-based logging + tracing)
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { initLogger, posthogLogger } = await import('./lib/posthog-logger');
+    // Tracing first: HttpInstrumentation patches http when it is created, before the other modules load.
+    const { initTracing } = await import('./lib/posthog-tracing');
+    initTracing();
+
+    const [{ initMetrics }, { initLogger, posthogLogger }] = await Promise.all([
+      import('./lib/posthog-metrics-init'),
+      import('./lib/posthog-logger'),
+    ]);
+    initMetrics();
     initLogger();
 
     // Log application startup
@@ -32,6 +40,17 @@ export async function register() {
 
 export const onRequestError = async (err, request, context) => {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    // Count the failure (low-cardinality attributes only)
+    try {
+      const { count } = await import('./lib/posthog-metrics');
+      count('request.errors', 1, {
+        'context.routeType': context?.routeType || 'unknown',
+        'request.method': request?.method || 'unknown',
+      });
+    } catch (metricsError) {
+      console.error('Failed to record request error metric:', metricsError);
+    }
+
     // Log to PostHog logs
     try {
       const { posthogLogger } = await import('./lib/posthog-logger');
@@ -53,22 +72,9 @@ export const onRequestError = async (err, request, context) => {
     try {
       const { getPostHogServer } = require('./app/posthog-server')
       const posthog = await getPostHogServer()
-      let distinctId = null
-      if (request.headers.cookie) {
-        const cookieString = request.headers.cookie
-        const postHogCookieMatch =
-          cookieString.match(/ph_phc_.*?_posthog=([^;]+)/)
-        if (postHogCookieMatch && postHogCookieMatch[1]) {
-          try {
-            const decodedCookie = decodeURIComponent(postHogCookieMatch[1])
-            const postHogData = JSON.parse(decodedCookie)
-            distinctId = postHogData.distinct_id
-          } catch (e) {
-            console.error('Error parsing PostHog cookie:', e)
-          }
-        }
-      }
-      await posthog.captureException(err, distinctId || undefined)
+      const { extractPostHogContextFromHeaders } = require('./lib/posthog-context-extractor')
+      const { distinctId } = extractPostHogContextFromHeaders(request?.headers)
+      await posthog.captureException(err, distinctId)
     } catch (posthogError) {
       console.error('Failed to capture exception in PostHog:', posthogError);
     }

@@ -94,6 +94,8 @@ describe('fetchMeterReadingsByHausAndDateRange', () => {
     // Verify Query Structure (Joins)
     const mieterSelect = mieterChain.select.mock.calls[0][0];
     expect(mieterSelect).toContain('Wohnungen!inner(id)');
+    // Leak-Schließung Altfeld: Mieterzeilen gehen an den Browser, daher explizite Spalten ohne "kaution"
+    expect(mieterSelect).not.toMatch(/\*|kaution/i);
 
     const readingsSelect = readingsChain.select.mock.calls[0][0];
     expect(readingsSelect).toContain('Zaehler!inner');

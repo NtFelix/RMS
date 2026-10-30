@@ -1,11 +1,12 @@
 /**
- * PostHog Feature Flag Fetcher for Build-Time SEO
- * 
+ * PostHog Feature Flag Fetcher for SEO
+ *
  * This utility fetches feature flag values directly from PostHog API
- * during the build process, enabling conditional sitemap generation
- * based on feature flag state.
+ * (at build time and again on every cache revalidation at runtime), enabling
+ * conditional sitemap generation and indexability based on feature flag state.
  */
 
+import { cacheLife, cacheTag } from 'next/cache'
 import { POSTHOG_FEATURE_FLAGS } from './constants'
 import resolvePostHogHost from './posthog-host'
 
@@ -18,45 +19,61 @@ interface FeatureFlagResult {
     showProdukte: boolean
 }
 
-/**
- * Fetches feature flag values from PostHog API for a generic/anonymous user
- * Used during build time to determine which pages should be in the sitemap
- * 
- * Note: This uses an anonymous distinct_id since we want to check the
- * default/public state of the feature flags, not user-specific overrides.
- */
-export async function getFeatureFlagsForSEO(): Promise<FeatureFlagResult> {
-    const defaultResult: FeatureFlagResult = {
-        showLoesungen: false,
-        showProdukte: false,
-    }
+// Upper bound for the PostHog request so a hanging connection can't stall prerendering
+const POSTHOG_TIMEOUT_MS = 5000
 
-    if (!POSTHOG_API_KEY) {
-        console.warn('[SEO] PostHog API key not configured - feature-flag-controlled pages will not be indexed')
-        return defaultResult
-    }
+const DEFAULT_FLAGS: FeatureFlagResult = {
+    showLoesungen: false,
+    showProdukte: false,
+}
+
+// Last successfully fetched flags of this server instance. Used as stale-on-error fallback so a
+// transient PostHog failure doesn't flip an enabled feature to noindex / out of the sitemap.
+// Per-process on purpose: a `use cache` function cannot read its previous cache entry, so a fresh
+// instance whose first fetch fails still falls back to all-false until the next retry (minutes).
+let lastKnownFlags: FeatureFlagResult | null = null
+
+// Logged once per process: the check runs on every metadata/sitemap call, not just once per cache entry
+let warnedMissingKey = false
+
+// Cached for minutes only so the failure is retried soon instead of being pinned for hours
+function fallbackFlags(): FeatureFlagResult {
+    cacheLife('minutes')
+    return { ...(lastKnownFlags ?? DEFAULT_FLAGS) }
+}
+
+/**
+ * Cached fetch of the SEO feature flags.
+ *
+ * This function must never throw: an error inside a `use cache` scope is reported as a
+ * prerender error and fails `next build`, even when the caller catches it. On failure it
+ * returns the last known flags of this instance (all-false defaults if there are none) with a
+ * short cache lifetime, so the fallback is retried soon rather than pinned for hours.
+ */
+async function fetchFeatureFlagsForSEO(): Promise<FeatureFlagResult> {
+    'use cache'
+    cacheTag('posthog:flags:seo')
 
     try {
         // Use PostHog's /decide endpoint to evaluate feature flags
-        // Use cache: 'no-store' to ensure fresh flags on each build
         const response = await fetch(`${POSTHOG_HOST}/decide?v=3`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            cache: 'no-store',
             body: JSON.stringify({
                 api_key: POSTHOG_API_KEY,
-                // Use a fixed distinct_id for build-time evaluation
+                // Use a fixed distinct_id for evaluation (at build time and on every cache revalidation)
                 // This gets the "default" feature flag state for new users
                 distinct_id: 'seo-build-time-check',
                 groups: {},
             }),
+            signal: AbortSignal.timeout(POSTHOG_TIMEOUT_MS),
         })
 
         if (!response.ok) {
-            console.warn(`[SEO] PostHog API returned ${response.status} - using default feature flag values`)
-            return defaultResult
+            console.warn(`[SEO] PostHog /decide returned HTTP ${response.status} - using fallback flags`)
+            return fallbackFlags()
         }
 
         const data = await response.json()
@@ -68,32 +85,37 @@ export async function getFeatureFlagsForSEO(): Promise<FeatureFlagResult> {
         }
 
         console.log('[SEO] Feature flags fetched for sitemap:', result)
+        lastKnownFlags = result
+        cacheLife('hours')
         return result
-
     } catch (error) {
-        console.error('[SEO] Error fetching feature flags from PostHog:', error)
-        return defaultResult
+        console.warn('[SEO] Error fetching feature flags from PostHog - using fallback flags:', error)
+        return fallbackFlags()
     }
 }
 
 /**
- * Cached version that fetches flags once and reuses the result
- * Useful when multiple pages need to check the same flags during a single build
+ * Fetches feature flag values from PostHog API for a generic/anonymous user
+ * Used to determine which pages should be in the sitemap and which pages
+ * are indexable.
+ *
+ * The result is cached via `use cache` (see fetchFeatureFlagsForSEO) under the tag
+ * `posthog:flags:seo`: hours on success, minutes when the request failed and the fallback
+ * (last known flags, else all-false) is returned. The tag is not revalidated anywhere yet, so
+ * flag changes only show up once the cache lifetime has elapsed. Without an API key the
+ * all-false defaults are returned directly.
+ *
+ * Note: This uses an anonymous distinct_id since we want to check the
+ * default/public state of the feature flags, not user-specific overrides.
  */
-let cachedFlags: FeatureFlagResult | null = null
-
-export async function getFeatureFlagsForSEOCached(): Promise<FeatureFlagResult> {
-    if (cachedFlags) {
-        return cachedFlags
+export async function getFeatureFlagsForSEO(): Promise<FeatureFlagResult> {
+    if (!POSTHOG_API_KEY) {
+        if (!warnedMissingKey) {
+            warnedMissingKey = true
+            console.warn('[SEO] PostHog API key not configured - feature-flag-controlled pages will not be indexed')
+        }
+        return { ...DEFAULT_FLAGS }
     }
 
-    cachedFlags = await getFeatureFlagsForSEO()
-    return cachedFlags
-}
-
-/**
- * Clears the cached flags - useful for testing
- */
-export function clearFeatureFlagCache(): void {
-    cachedFlags = null
+    return fetchFeatureFlagsForSEO()
 }

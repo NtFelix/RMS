@@ -1,8 +1,7 @@
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from 'next/server'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,7 +28,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
 
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -103,8 +102,8 @@ export async function POST(request: NextRequest) {
           dateipfad: newFolderPath,
           dateiname: '.keep',
           dateigroesse: 0,
-          mime_type: 'text/plain',
-          user_id: user.id
+          mime_type: 'text/plain'
+          // organisation_id and erstellt_von are set by column defaults
         })
 
       if (dbInsertError) {

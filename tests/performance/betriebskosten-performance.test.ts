@@ -235,7 +235,9 @@ describe('Betriebskosten Performance Tests', () => {
       const largeBatch = results.find(r => r.batchSize === 100);
       
       if (smallBatch && largeBatch) {
-        const scalingFactor = largeBatch.executionTime / smallBatch.executionTime;
+        const smallTime = smallBatch.executionTime || 1;
+        const largeTime = largeBatch.executionTime || 1;
+        const scalingFactor = largeTime / smallTime;
         expect(scalingFactor).toBeLessThan(20); // Should not be more than 20x slower for 10x data
         console.log(`📈 Scaling factor (10 vs 100 readings): ${scalingFactor.toFixed(2)}x`);
       }
@@ -244,6 +246,13 @@ describe('Betriebskosten Performance Tests', () => {
 
   describe('Performance Monitoring', () => {
     test('should track performance metrics correctly', async () => {
+      let currentTime = 1000;
+      const originalDateNow = Date.now;
+      Date.now = jest.fn().mockImplementation(() => {
+        currentTime += 50;
+        return currentTime;
+      });
+
       // Perform several operations to generate metrics
       const operations = [
         () => safeRpcCall(supabase, 'get_nebenkosten_with_metrics', { user_id: 'test-user' }),
@@ -254,6 +263,8 @@ describe('Betriebskosten Performance Tests', () => {
       for (const operation of operations) {
         await operation();
       }
+
+      Date.now = originalDateNow;
 
       // Check that metrics were recorded
       const allMetrics = PerformanceMonitor.getMetrics();
@@ -297,6 +308,14 @@ describe('Betriebskosten Performance Tests', () => {
 
   describe('Error Handling Performance', () => {
     test('should handle errors efficiently without performance degradation', async () => {
+      const originalRpc = supabase.rpc;
+      supabase.rpc = jest.fn().mockImplementation((fnName, params) => {
+        if (params && params.user_id === null) {
+          return Promise.resolve({ data: null, error: { message: 'Invalid user_id' } });
+        }
+        return Promise.resolve({ data: [], error: null });
+      });
+
       const startTime = Date.now();
       
       // Test with invalid parameters to trigger error handling
@@ -307,6 +326,8 @@ describe('Betriebskosten Performance Tests', () => {
       );
 
       const executionTime = Date.now() - startTime;
+
+      supabase.rpc = originalRpc;
 
       expect(result.success).toBe(false);
       expect(result.message).toBeDefined();

@@ -1,5 +1,5 @@
 
-import { formatNumber, formatCurrency } from './format';
+import { formatNumber, formatCurrency, formatMonthlyPrepayment } from './format';
 
 describe('format utils', () => {
   describe('formatNumber', () => {
@@ -43,6 +43,33 @@ describe('format utils', () => {
     it('should handle zero and negative amounts', () => {
       expect(formatCurrency(0)).toBe('0,00 €');
       expect(formatCurrency(-50)).toBe('-50,00 €');
+    });
+  });
+
+  describe('formatMonthlyPrepayment', () => {
+    it('shows the formatted amount for an active month', () => {
+      expect(formatMonthlyPrepayment({ amount: 100, isActiveMonth: true })).toBe('100,00 €');
+    });
+
+    it('shows the formatted amount for an inactive month with a credited payment (e.g. 360-basis Ist mode)', () => {
+      expect(formatMonthlyPrepayment({ amount: 100, isActiveMonth: false })).toBe('100,00 €');
+    });
+
+    it('shows the formatted amount for a negative payment (e.g. a refund) on an inactive month', () => {
+      expect(formatMonthlyPrepayment({ amount: -50, isActiveMonth: false })).toBe('-50,00 €');
+    });
+
+    it('shows a dash for an inactive month without a payment', () => {
+      expect(formatMonthlyPrepayment({ amount: 0, isActiveMonth: false })).toBe('-');
+    });
+
+    it('shows the formatted zero amount for an active month with no payment', () => {
+      expect(formatMonthlyPrepayment({ amount: 0, isActiveMonth: true })).toBe('0,00 €');
+    });
+
+    it('uses the given formatter', () => {
+      expect(formatMonthlyPrepayment({ amount: 12.5, isActiveMonth: false }, v => `EUR ${v}`)).toBe('EUR 12.5');
+      expect(formatMonthlyPrepayment({ amount: 0, isActiveMonth: false }, v => `EUR ${v}`)).toBe('-');
     });
   });
 });

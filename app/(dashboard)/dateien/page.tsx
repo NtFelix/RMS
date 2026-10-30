@@ -1,10 +1,11 @@
 import { Suspense } from 'react'
 import { CloudStorage } from "@/components/cloud-storage/cloud-storage"
 import { requireAuthenticatedUser } from "@/lib/server/route-access"
+import { requirePermission } from "@/lib/permissions"
 import { getFolderContents } from "./actions"
 import DateienLoading from './loading'
 
-export const runtime = 'edge'
+
 
 async function CloudStorageContent({ userId }: { userId: string }) {
     // Load initial files, folders and breadcrumbs on the server using unified RPC
@@ -29,6 +30,7 @@ async function CloudStorageContent({ userId }: { userId: string }) {
 
 export default async function DateienPage() {
     const { user } = await requireAuthenticatedUser()
+    await requirePermission('dokumente', 'ansehen')
 
     return (
         <Suspense fallback={<DateienLoading />}>

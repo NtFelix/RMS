@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import {
-  Sparkles, ListTodo, FileText, Download, ShieldCheck,
+  Sparkles, Hammer, ListTodo, FileText, Download, ShieldCheck,
   FolderOpen, FileSpreadsheet, History, CheckCircle2, Server
 } from "lucide-react"
 import Image from "next/image"
@@ -180,7 +180,7 @@ export default function FeatureSections() {
               transition={{ duration: 0.5 }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/10 backdrop-blur-xs mb-6"
             >
-              <Sparkles className="w-4 h-4 text-primary" />
+              <Hammer className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium text-primary">Mehr Features</span>
             </motion.div>
 
@@ -216,7 +216,7 @@ export default function FeatureSections() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className={`group relative rounded-3xl overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500 ${feature.colSpan}`}
+                className={`group relative rounded-[3.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-shadow duration-500 ${feature.colSpan}`}
               >
                 {/* Card Background Gradient */}
                 <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
@@ -236,7 +236,7 @@ export default function FeatureSections() {
                   </div>
 
                   {/* Mock UI Container */}
-                  <div className="flex-1 relative min-h-[220px] mt-2 overflow-hidden bg-black/5 dark:bg-black/20 mx-6 mb-6 rounded-2xl border border-black/5 dark:border-white/5">
+                  <div className="flex-1 relative min-h-[220px] mt-2 overflow-hidden bg-black/5 dark:bg-black/20 mx-6 mb-6 rounded-[2rem] border border-black/5 dark:border-white/5">
                     {/* The Mock Component */}
                     <div className="w-full h-full transform transition-transform duration-500 group-hover:scale-[1.02]">
                       {feature.mock}

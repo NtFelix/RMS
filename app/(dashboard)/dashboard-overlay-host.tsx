@@ -5,7 +5,7 @@ import { useCallback } from "react"
 import { CommandMenu } from "@/components/search/command-menu"
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
 import { useModalStore } from "@/hooks/use-modal-store"
-import { handleSubmit as tenantServerAction, updateKautionAction } from "@/app/mieter-actions"
+import { handleSubmit as tenantServerAction } from "@/app/mieter-actions"
 import { handleSubmit as houseServerAction } from "@/app/(dashboard)/haeuser/actions"
 import { financeServerAction } from "@/app/finanzen-actions"
 import { wohnungServerAction } from "@/app/wohnungen-actions"
@@ -45,10 +45,6 @@ const ZaehlerModal = dynamic(
 )
 const WasserzaehlerModal = dynamic(
   () => import("@/components/water-meters/wasserzaehler-modal").then((mod) => mod.WasserzaehlerModal),
-  { ssr: false },
-)
-const KautionModal = dynamic(
-  () => import("@/components/tenants/kaution-modal").then((mod) => mod.KautionModal),
   { ssr: false },
 )
 const HausOverviewModal = dynamic(
@@ -103,10 +99,6 @@ const TenantMailTemplatesModal = dynamic(
   () => import("@/components/tenants/tenant-mail-templates-modal").then((mod) => mod.TenantMailTemplatesModal),
   { ssr: false },
 )
-const AIAssistantModal = dynamic(
-  () => import("@/components/ai/ai-assistant-modal").then((mod) => mod.AIAssistantModal),
-  { ssr: false },
-)
 const TenantPaymentEditModal = dynamic(
   () => import("@/components/tenants/tenant-payment-edit-modal"),
   { ssr: false },
@@ -157,7 +149,7 @@ export default function DashboardOverlayHost() {
     if (confirmationModalConfig?.onConfirm) {
       confirmationModalConfig.onConfirm()
     }
-  }, [confirmationModalConfig?.onConfirm])
+  }, [confirmationModalConfig])
 
   return (
     <>
@@ -177,7 +169,6 @@ export default function DashboardOverlayHost() {
       <ZaehlerModal />
       <WasserzaehlerModal />
       <AblesungenModal />
-      <KautionModal serverAction={updateKautionAction} />
       <HausOverviewModal />
       <WohnungOverviewModal />
       <ApartmentTenantDetailsModal />
@@ -259,7 +250,6 @@ export default function DashboardOverlayHost() {
         tenantName={tenantMailTemplatesModalData?.tenantName}
         tenantEmail={tenantMailTemplatesModalData?.tenantEmail}
       />
-      <AIAssistantModal />
       <TenantPaymentEditModal />
       <TenantPaymentOverviewModal />
       {isConfirmationModalOpen && confirmationModalConfig && (

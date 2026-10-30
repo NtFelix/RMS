@@ -11,18 +11,89 @@ export interface LogAttributes {
 }
 
 // Configuration constants
+import { trace } from '@opentelemetry/api';
 import resolvePostHogHost from './posthog-host';
 
+/**
+ * Capture the active span context (trace_id / span_id) from the
+ * currently executing OpenTelemetry span, if any.
+ */
+export function getSpanContext(): { traceId?: string; spanId?: string } {
+    const currentSpan = trace.getActiveSpan();
+    if (!currentSpan) return {};
+    const ctx = currentSpan.spanContext();
+    if (!ctx || !ctx.traceId || ctx.traceId === '00000000000000000000000000000000') return {};
+    return { traceId: ctx.traceId, spanId: ctx.spanId };
+}
+
 export const SERVICE_NAME = 'mietevo';
-export const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY;
+export const POSTHOG_API_KEY = (() => {
+    const key = process.env.POSTHOG_API_KEY;
+    if (key && !key.startsWith('phx_')) {
+        return key;
+    }
+    return process.env.NEXT_PUBLIC_POSTHOG_KEY;
+})();
 export const POSTHOG_HOST = resolvePostHogHost();
+
+function getOtlpEndpoint(signal: 'logs' | 'traces' | 'metrics'): string {
+    const host = POSTHOG_HOST.replace(/\/$/, ''); // Remove trailing slash
+    return `${host}/i/v1/${signal}`;
+}
 
 /**
  * Get the PostHog logs endpoint from the configured host
  */
 export function getLogsEndpoint(): string {
-    const host = POSTHOG_HOST.replace(/\/$/, ''); // Remove trailing slash
-    return `${host}/i/v1/logs`;
+    return getOtlpEndpoint('logs');
+}
+
+/**
+ * Get the PostHog traces endpoint from the configured host
+ */
+export function getTracesEndpoint(): string {
+    return getOtlpEndpoint('traces');
+}
+
+/**
+ * Resource attributes shared by the trace and metric SDKs, so both describe the same service.
+ */
+export function getSdkResourceAttributes(): Record<string, string> {
+    return {
+        'service.name': SERVICE_NAME,
+        'deployment.environment': process.env.NODE_ENV || 'development',
+        'service.version': process.env.npm_package_version || '1.0.0',
+    };
+}
+
+const shutdownHooks: Array<() => Promise<void>> = [];
+let signalHandlersInstalled = false;
+
+/**
+ * Run `shutdown` (flush + close an SDK) on SIGTERM/SIGINT. All registered SDKs are flushed first.
+ * A listener replaces Node's default exit, so the signal is re-raised afterwards, but only when no
+ * other listener (e.g. Next.js's own handler) is left to exit the process.
+ */
+export function registerShutdownHandler(shutdown: () => Promise<void>): void {
+    shutdownHooks.push(shutdown);
+    if (signalHandlersInstalled) return;
+    signalHandlersInstalled = true;
+
+    for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+        process.once(signal, () => {
+            Promise.allSettled(shutdownHooks.map((hook) => hook()))
+                .finally(() => {
+                    if (process.listenerCount(signal) === 0) process.kill(process.pid, signal);
+                });
+        });
+    }
+}
+
+/**
+ * Get the PostHog metrics endpoint from the configured host
+ */
+export function getMetricsEndpoint(): string {
+    return getOtlpEndpoint('metrics');
 }
 
 /**
@@ -71,9 +142,10 @@ export function formatAttributeValue(value: unknown): Record<string, unknown> {
  * Build the resource attributes section for OTLP payload
  */
 export function buildResourceAttributes() {
+    const shared = getSdkResourceAttributes();
     return [
-        { key: 'service.name', value: { stringValue: SERVICE_NAME } },
-        { key: 'deployment.environment', value: { stringValue: process.env.NODE_ENV || 'development' } },
+        { key: 'service.name', value: { stringValue: shared['service.name'] } },
+        { key: 'deployment.environment', value: { stringValue: shared['deployment.environment'] } },
         { key: 'telemetry.sdk.name', value: { stringValue: 'posthog-logger' } },
         { key: 'telemetry.sdk.version', value: { stringValue: '1.0.0' } },
     ];
@@ -116,6 +188,7 @@ export function buildOTLPPayloadSingle(
                     severityNumber: getSeverityNumber(severityText),
                     severityText: severityText.toUpperCase(),
                     body: { stringValue: message },
+                    ...getSpanContext(),
                     attributes: Object.entries(enrichedAttributes)
                         .filter(([, v]) => v !== null && v !== undefined)
                         .map(([key, value]) => ({
@@ -136,6 +209,7 @@ export function buildOTLPPayloadBatch(logs: Array<{
     severityText: string;
     body: string;
     attributes: Record<string, unknown>;
+    traceContext?: { traceId?: string; spanId?: string };
 }>) {
     return {
         resourceLogs: [{
@@ -150,6 +224,7 @@ export function buildOTLPPayloadBatch(logs: Array<{
                     severityNumber: getSeverityNumber(log.severityText),
                     severityText: log.severityText.toUpperCase(),
                     body: { stringValue: log.body },
+                    ...(log.traceContext ?? getSpanContext()),
                     attributes: Object.entries(log.attributes)
                         .filter(([, v]) => v !== null && v !== undefined)
                         .map(([key, value]) => ({

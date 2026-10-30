@@ -14,7 +14,7 @@ import {
 export interface ComboboxOption {
   value: string;
   label: string;
-  disabled?: boolean; // Added to allow disabling specific options
+  disabled?: boolean;
 }
 
 interface CustomComboboxProps {
@@ -24,9 +24,181 @@ interface CustomComboboxProps {
   placeholder?: string;
   searchPlaceholder?: string;
   emptyText?: string;
-  width?: string; // e.g., "w-[200px]", "w-full"
-  disabled?: boolean; // For disabling the entire combobox
-  id?: string; // For accessibility - connects with Label htmlFor
+  width?: string;
+  disabled?: boolean;
+  id?: string;
+  triggerClassName?: string;
+}
+
+interface ComboboxState {
+  open: boolean;
+  inputValue: string;
+  highlightedIndex: number;
+  isKeyboardNavigation: boolean;
+  portalContainer: HTMLElement | null;
+}
+
+type ComboboxAction =
+  | { type: 'OPEN'; portalContainer: HTMLElement | null; selectedIndex: number }
+  | { type: 'CLOSE' }
+  | { type: 'SET_INPUT_VALUE'; value: string }
+  | { type: 'SET_HIGHLIGHTED_INDEX'; index: number; isKeyboard?: boolean }
+  | { type: 'RESET_KEYBOARD_NAV' }
+
+function comboboxReducer(state: ComboboxState, action: ComboboxAction): ComboboxState {
+  switch (action.type) {
+    case 'OPEN':
+      return {
+        ...state,
+        open: true,
+        portalContainer: action.portalContainer,
+        highlightedIndex: action.selectedIndex >= 0 ? action.selectedIndex : 0,
+        isKeyboardNavigation: false,
+      }
+    case 'CLOSE':
+      return {
+        ...state,
+        open: false,
+        inputValue: "",
+        highlightedIndex: -1,
+        isKeyboardNavigation: false,
+        portalContainer: null,
+      }
+    case 'SET_INPUT_VALUE':
+      return {
+        ...state,
+        inputValue: action.value,
+        highlightedIndex: 0,
+        isKeyboardNavigation: true,
+      }
+    case 'SET_HIGHLIGHTED_INDEX':
+      return {
+        ...state,
+        highlightedIndex: action.index,
+        isKeyboardNavigation: action.isKeyboard !== undefined ? action.isKeyboard : state.isKeyboardNavigation,
+      }
+    case 'RESET_KEYBOARD_NAV':
+      return {
+        ...state,
+        isKeyboardNavigation: false,
+      }
+    default:
+      return state
+  }
+}
+
+// Subcomponent: Search Input
+interface ComboboxSearchInputProps {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  inputValue: string;
+  searchPlaceholder: string;
+  onChange: (value: string) => void;
+}
+
+function ComboboxSearchInput({
+  inputRef,
+  inputValue,
+  searchPlaceholder,
+  onChange,
+}: ComboboxSearchInputProps) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-border bg-popover px-2 mx-1 mt-1">
+      <input
+        ref={inputRef}
+        type="text"
+        role="searchbox"
+        data-combobox-input=""
+        aria-label="Search options"
+        placeholder={searchPlaceholder}
+        value={inputValue}
+        onChange={(e) => {
+          e.stopPropagation()
+          onChange(e.target.value)
+        }}
+        className="flex h-9 w-full rounded-md bg-transparent px-2 py-2 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck="false"
+      />
+    </div>
+  )
+}
+
+// Subcomponent: Options List
+interface ComboboxOptionsListProps {
+  filteredOptions: ComboboxOption[];
+  value: string | null;
+  highlightedIndex: number;
+  optionRefs: React.MutableRefObject<(HTMLDivElement | null)[]>;
+  emptyText: string;
+  onSelect: (val: string) => void;
+  onMouseEnter: (index: number) => void;
+  onMouseMove: () => void;
+}
+
+function ComboboxOptionsList({
+  filteredOptions,
+  value,
+  highlightedIndex,
+  optionRefs,
+  emptyText,
+  onSelect,
+  onMouseEnter,
+  onMouseMove,
+}: ComboboxOptionsListProps) {
+  return (
+    <div
+      role="listbox"
+      className="flex max-h-[300px] flex-col gap-1 overflow-y-auto p-1 custom-scrollbar"
+      style={{ overscrollBehavior: 'contain' }}
+    >
+      {filteredOptions.length === 0 ? (
+        <div
+          className="rounded-lg px-4 py-6 text-center text-sm text-muted-foreground font-medium"
+          role="option"
+          aria-disabled="true"
+        >
+          {emptyText}
+        </div>
+      ) : (
+        filteredOptions.map((option, index) => (
+          <div
+            key={option.value}
+            ref={(el) => {
+              optionRefs.current[index] = el
+            }}
+            role="option"
+            aria-selected={value === option.value}
+            aria-disabled={option.disabled}
+            className={cn(
+              "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-lg p-2 text-sm outline-hidden transition-all duration-150 active:scale-[0.98]",
+              option.disabled
+                ? "pointer-events-none opacity-50"
+                : [
+                  highlightedIndex === index ? "bg-hover-bg text-foreground" : "text-foreground hover:bg-hover-bg"
+                ]
+            )}
+            onClick={() => {
+              if (!option.disabled) {
+                onSelect(option.value)
+              }
+            }}
+            onMouseEnter={() => onMouseEnter(index)}
+            onMouseMove={onMouseMove}
+          >
+            <Check
+              className={cn(
+                "h-4 w-4 transition-all duration-200",
+                value === option.value ? "opacity-100 scale-100" : "opacity-0 scale-50"
+              )}
+            />
+            <span className="truncate">{option.label}</span>
+          </div>
+        ))
+      )}
+    </div>
+  )
 }
 
 export function CustomCombobox({
@@ -39,15 +211,18 @@ export function CustomCombobox({
   width = "w-[200px]",
   disabled = false,
   id,
+  triggerClassName,
 }: CustomComboboxProps) {
-  const [open, setOpen] = React.useState(false)
-  const [inputValue, setInputValue] = React.useState("")
-  const [highlightedIndex, setHighlightedIndex] = React.useState(-1)
-  const [isKeyboardNavigation, setIsKeyboardNavigation] = React.useState(false)
+  const [state, dispatch] = React.useReducer(comboboxReducer, {
+    open: false,
+    inputValue: "",
+    highlightedIndex: -1,
+    isKeyboardNavigation: false,
+    portalContainer: null,
+  })
 
-  const closeCombobox = React.useCallback(() => {
-    setOpen(false)
-  }, [])
+  const { open, inputValue, highlightedIndex, isKeyboardNavigation, portalContainer } = state
+
   const buttonRef = React.useRef<HTMLButtonElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const optionRefs = React.useRef<(HTMLDivElement | null)[]>([])
@@ -61,34 +236,47 @@ export function CustomCombobox({
     ), [options, inputValue]
   )
 
-  // Shared keyboard navigation logic used by both global handler and input handler
-  // This eliminates code duplication and ensures consistent navigation behavior
+  const handleOpenChange = React.useCallback((nextOpen: boolean) => {
+    if (nextOpen) {
+      const dialogContent = buttonRef.current?.closest('[role="dialog"], [data-sheet-content="true"], [data-dialog-content="true"]') as HTMLElement | null
+      const selectedIndex = filteredOptions.findIndex(option => option.value === value)
+      dispatch({ type: 'OPEN', portalContainer: dialogContent, selectedIndex })
+    } else {
+      dispatch({ type: 'CLOSE' })
+    }
+  }, [filteredOptions, value])
+
+  const closeCombobox = React.useCallback(() => {
+    handleOpenChange(false)
+  }, [handleOpenChange])
+
+  // Shared keyboard navigation logic
   const handleNavigationKey = React.useCallback((key: string, event: KeyboardEvent | React.KeyboardEvent) => {
     switch (key) {
       case 'ArrowDown':
         event.preventDefault()
-        setIsKeyboardNavigation(true)
-        setHighlightedIndex(prev => {
-          const nextIndex = prev < filteredOptions.length - 1 ? prev + 1 : 0
-          return nextIndex
+        dispatch({
+          type: 'SET_HIGHLIGHTED_INDEX',
+          index: highlightedIndex < filteredOptions.length - 1 ? highlightedIndex + 1 : 0,
+          isKeyboard: true
         })
         break
 
       case 'ArrowUp':
         event.preventDefault()
-        setIsKeyboardNavigation(true)
-        setHighlightedIndex(prev => {
-          const nextIndex = prev > 0 ? prev - 1 : filteredOptions.length - 1
-          return nextIndex
+        dispatch({
+          type: 'SET_HIGHLIGHTED_INDEX',
+          index: highlightedIndex > 0 ? highlightedIndex - 1 : filteredOptions.length - 1,
+          isKeyboard: true
         })
         break
 
       case 'Enter':
         event.preventDefault()
         if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
-          const selectedOption = filteredOptions[highlightedIndex]
-          if (!selectedOption.disabled) {
-            onChange(selectedOption.value === value ? null : selectedOption.value)
+          const opt = filteredOptions[highlightedIndex]
+          if (!opt.disabled) {
+            onChange(opt.value === value ? null : opt.value)
             closeCombobox()
           }
         }
@@ -101,58 +289,63 @@ export function CustomCombobox({
 
       case 'Home':
         event.preventDefault()
-        setIsKeyboardNavigation(true)
-        setHighlightedIndex(0)
+        dispatch({ type: 'SET_HIGHLIGHTED_INDEX', index: 0, isKeyboard: true })
         break
 
       case 'End':
         event.preventDefault()
-        setIsKeyboardNavigation(true)
-        setHighlightedIndex(filteredOptions.length - 1)
+        dispatch({ type: 'SET_HIGHLIGHTED_INDEX', index: filteredOptions.length - 1, isKeyboard: true })
         break
 
       case 'Tab':
-        // Allow tab to close dropdown and move focus
         closeCombobox()
         break
     }
   }, [filteredOptions, highlightedIndex, value, onChange, closeCombobox])
 
-  // Effect 1: Handle Open/Close state and input focus
+  // Ref-based useEffectEvent simulation to avoid global keydown re-subscriptions
+  const handleNavigationKeyRef = React.useRef(handleNavigationKey)
   React.useEffect(() => {
-    if (!open) {
-      setInputValue("")
-      setHighlightedIndex(-1)
-      setIsKeyboardNavigation(false)
-    } else {
-      // When opening:
-      // Start in mouse mode by default
-      setIsKeyboardNavigation(false)
+    handleNavigationKeyRef.current = handleNavigationKey
+  }, [handleNavigationKey])
 
-      // Focus the input
-      // Use requestAnimationFrame to ensure the element is mounted and ready
-      requestAnimationFrame(() => {
-        if (inputRef.current) {
-          inputRef.current.focus({ preventScroll: true })
+  // Global keydown listener to support keyboard navigation when open
+  React.useEffect(() => {
+    if (!open) return
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const navigationKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Home', 'End', 'Tab']
+      if (navigationKeys.includes(e.key)) {
+        if (
+          document.activeElement === inputRef.current ||
+          document.activeElement === buttonRef.current ||
+          buttonRef.current?.contains(document.activeElement)
+        ) {
+          if (e.key !== 'Tab') {
+            e.preventDefault()
+          }
+          handleNavigationKeyRef.current(e.key, e)
         }
-      })
-    }
-  }, [open])
-
-  // Effect 2: Handle Highlighting synchronization
-  React.useEffect(() => {
-    if (open) {
-      // Only update highlight based on value if we are NOT actively searching (inputValue is empty)
-      // If the user is typing (inputValue !== ""), the onChange handler takes care of setting the index to 0 (top result)
-      // and we shouldn't override that with the currently selected value's index.
-      if (inputValue === "") {
-        const currentIndex = filteredOptions.findIndex(option => option.value === value)
-        setHighlightedIndex(currentIndex >= 0 ? currentIndex : 0)
+      } else if (
+        e.key.length === 1 &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        (document.activeElement === buttonRef.current || (inputRef.current && document.activeElement === inputRef.current && inputRef.current.value === ""))
+      ) {
+        e.preventDefault()
+        if (inputRef.current) {
+          inputRef.current.focus()
+          dispatch({ type: 'SET_INPUT_VALUE', value: e.key })
+        }
       }
     }
-  }, [open, value, filteredOptions, inputValue])
 
-
+    document.addEventListener('keydown', handleGlobalKeyDown, true)
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyDown, true)
+    }
+  }, [open])
 
   // Scroll highlighted option into view
   React.useEffect(() => {
@@ -164,23 +357,8 @@ export function CustomCombobox({
     }
   }, [highlightedIndex, open])
 
-  // Handle mouse hover to update highlighted index
-  const handleOptionMouseEnter = (index: number) => {
-    // Only update highlight on mouse hover if we're not in keyboard navigation mode
-    if (!isKeyboardNavigation) {
-      setHighlightedIndex(index)
-    }
-  }
-
-  // Reset keyboard navigation mode when mouse moves
-  const handleOptionMouseMove = () => {
-    if (isKeyboardNavigation) {
-      setIsKeyboardNavigation(false)
-    }
-  }
-
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={true}>
+    <Popover open={open} onOpenChange={handleOpenChange} modal={false}>
       <PopoverTrigger asChild>
         <Button
           ref={buttonRef}
@@ -190,110 +368,69 @@ export function CustomCombobox({
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-label={id ? undefined : (selectedOption ? `Selected: ${selectedOption.label}` : placeholder)}
-          className={cn("justify-between px-3 min-h-[40px] h-auto cursor-pointer", width, !value && "text-muted-foreground")}
+          className={cn("justify-between px-3 min-h-[40px] h-auto cursor-pointer", width, !value && "text-muted-foreground", triggerClassName)}
           disabled={disabled}
           id={id}
           data-dropdown-trigger
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              if (!open) {
+                handleOpenChange(true)
+              }
+            }
+          }}
         >
           <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        container={portalContainer}
         className={cn("p-2 border border-border rounded-2xl shadow-2xl backdrop-blur-xs bg-popover z-100", width)}
         align="start"
         sideOffset={8}
-        // Removed onOpenAutoFocus prevention to allow natural focus behavior
-        // Also added data attribute for dialog interaction handling
+        onOpenAutoFocus={(e) => {
+          e.preventDefault()
+          setTimeout(() => {
+            inputRef.current?.focus({ preventScroll: true })
+          }, 0)
+        }}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault()
+          buttonRef.current?.focus({ preventScroll: true })
+        }}
         data-combobox-dropdown=""
       >
         <div className="flex flex-col gap-2">
-          {/* Custom search input with aggressive focus management */}
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-popover px-2 mx-1 mt-1">
-            <input
-              ref={inputRef}
-              type="text"
-              role="searchbox"
-              aria-label="Search options"
-              placeholder={searchPlaceholder}
-              value={inputValue}
-              onChange={(e) => {
-                e.stopPropagation()
-                setInputValue(e.target.value)
-                // Reset highlighted index when searching and enable keyboard navigation
-                setIsKeyboardNavigation(true)
-                setHighlightedIndex(0)
-              }}
-              onKeyDown={(e) => {
-                // Handle navigation keys using shared helper
-                const navigationKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Home', 'End', 'Tab']
+          <ComboboxSearchInput
+            inputRef={inputRef}
+            inputValue={inputValue}
+            searchPlaceholder={searchPlaceholder}
+            onChange={(val) => dispatch({ type: 'SET_INPUT_VALUE', value: val })}
+          />
 
-                if (navigationKeys.includes(e.key)) {
-                  // Stop propagation to prevent the global handler from also processing this event
-                  e.stopPropagation()
-                  handleNavigationKey(e.key, e)
-                }
-                // For all other keys, let the browser handle them naturally
-              }}
-              className="flex h-9 w-full rounded-md bg-transparent px-2 py-2 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck="false"
-            />
-          </div>
-
-          {/* Custom options list with proper scrolling */}
-          <div
-            className="flex max-h-[300px] flex-col gap-1 overflow-y-auto p-1 custom-scrollbar"
-            style={{ overscrollBehavior: 'contain' }}
-          >
-            {filteredOptions.length === 0 ? (
-              <div
-                className="rounded-lg px-4 py-6 text-center text-sm text-muted-foreground font-medium"
-                role="option"
-                aria-disabled="true"
-              >
-                {emptyText}
-              </div>
-            ) : (
-              filteredOptions.map((option, index) => (
-                <div
-                  key={option.value}
-                  ref={(el) => {
-                    optionRefs.current[index] = el
-                  }}
-                  role="option"
-                  aria-selected={value === option.value}
-                  aria-disabled={option.disabled}
-                  className={cn(
-                    "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-lg p-2 text-sm outline-hidden transition-all duration-150 active:scale-[0.98]",
-                    option.disabled
-                      ? "pointer-events-none opacity-50"
-                      : [
-                        highlightedIndex === index ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                      ]
-                  )}
-                  onClick={() => {
-                    if (!option.disabled) {
-                      onChange(option.value === value ? null : option.value)
-                      closeCombobox()
-                    }
-                  }}
-                  onMouseEnter={() => handleOptionMouseEnter(index)}
-                  onMouseMove={handleOptionMouseMove}
-                >
-                  <Check
-                    className={cn(
-                      "h-4 w-4 transition-all duration-200",
-                      value === option.value ? "opacity-100 scale-100" : "opacity-0 scale-50"
-                    )}
-                  />
-                  <span className="truncate">{option.label}</span>
-                </div>
-              ))
-            )}
-          </div>
+          <ComboboxOptionsList
+            filteredOptions={filteredOptions}
+            value={value}
+            highlightedIndex={highlightedIndex}
+            optionRefs={optionRefs}
+            emptyText={emptyText}
+            onSelect={(val) => {
+              onChange(val === value ? null : val)
+              closeCombobox()
+            }}
+            onMouseEnter={(idx) => {
+              if (!isKeyboardNavigation) {
+                dispatch({ type: 'SET_HIGHLIGHTED_INDEX', index: idx })
+              }
+            }}
+            onMouseMove={() => {
+              if (isKeyboardNavigation) {
+                dispatch({ type: 'RESET_KEYBOARD_NAV' })
+              }
+            }}
+          />
         </div>
       </PopoverContent>
     </Popover>

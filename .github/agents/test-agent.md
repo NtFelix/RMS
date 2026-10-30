@@ -48,8 +48,8 @@ describe('TenantTable', () => {
 - **Requirement:** All server actions must have corresponding tests.
 - **Mocking Supabase:**
 ```typescript
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(() => ({
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(() => ({
     from: jest.fn().mockReturnThis(),
     select: jest.fn().mockReturnThis(),
     // insert returns a Promise in the actual codebase

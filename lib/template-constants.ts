@@ -98,7 +98,7 @@ export interface MentionVariable {
   id: string;
   label: string;
   description: string;
-  category?: 'mieter' | 'wohnung' | 'haus' | 'datum' | 'vermieter';
+  category?: 'mieter' | 'wohnung' | 'haus' | 'datum' | 'vermieter' | 'eigentuemer';
   keywords?: string[]; // Additional search terms for better discoverability
   icon?: string; // Optional icon for visual distinction
 }

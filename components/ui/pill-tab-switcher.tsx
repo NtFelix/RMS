@@ -23,7 +23,7 @@ const PillTabSwitcher = React.forwardRef<
   const containerRef = React.useRef<HTMLDivElement>(null)
   
   // Forward the ref to the container element
-  React.useImperativeHandle(ref, () => containerRef.current!)
+  React.useImperativeHandle(ref, () => containerRef.current as HTMLDivElement)
   const [indicatorStyle, setIndicatorStyle] = React.useState<React.CSSProperties>({
     opacity: 0
   })

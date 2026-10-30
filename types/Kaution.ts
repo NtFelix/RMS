@@ -1,0 +1,348 @@
+/**
+ * Types for the deposit management ("Kautionsmanagement", GH-6).
+ *
+ * The database is the single source of truth: balance, state, deadlines, instalment status and
+ * interest proposals are all derived there. These types only describe what the RPCs return.
+ * Keys stay `snake_case` like the database columns (e.g. `wohnung_id`). Amounts arrive as JSON
+ * numbers and are for display only. Never calculate with them, parse input via
+ * `lib/kautionen-money.ts` and send exact decimal strings to the RPCs.
+ *
+ * Fields marked P2/P3/P4 only appear once the matching phase has been shipped (optional here).
+ */
+
+export type KautionArt = "barkaution" | "sparbuch" | "buergschaft" | "versicherung";
+export type KautionBewegungsArt = "einzahlung" | "zinsgutschrift" | "auszahlung" | "abzug";
+export type KautionAbzugKategorie = "schaden" | "mietrueckstand" | "nebenkosten" | "sonstiges";
+/** Derived state (DB: kaution_status_ableiten). */
+export type KautionZustand = "offen" | "teilweise" | "verwahrt" | "in_rueckzahlung" | "abgeschlossen" | "dokumentiert";
+export type KautionFristStufe = "keine" | "zeitnah" | "richtwert_ueberschritten";
+export type KautionRateStatus = "offen" | "teilweise" | "bezahlt" | "ueberfaellig";
+/** Interest day-count method of a deposit (DB default `act_365`, only relevant for bank accounts). */
+export type KautionZinsmethode = "act_365" | "act_360" | "30_360";
+/** Origin of a deposit or booking: entered in the app or taken over from the legacy `Mieter.kaution` field. */
+export type KautionQuelle = "app" | "migration_altbestand";
+
+export interface Kaution {
+  id: string;
+  organisation_id: string;
+  mieter_id: string;
+  kautionsart: KautionArt;
+  soll_betrag: number;
+  miete_bei_vertragsschluss: number | null;
+  interne_notiz: string | null;
+  quelle: KautionQuelle;
+  erstellt_am: string;
+  geaendert_am: string;
+  // P3 (bank account types: iban, bank, kontoinhaber, getrennt_angelegt; guarantee/insurance: buerge_versicherer, urkundennummer)
+  zinsmethode?: KautionZinsmethode;
+  iban?: string | null;
+  bank?: string | null;
+  kontoinhaber?: string | null;
+  getrennt_angelegt?: boolean | null;
+  buerge_versicherer?: string | null;
+  urkundennummer?: string | null;
+  // P4 (set by `kaution_einbehalt_setzen`; both NULL = no hold, not a booking)
+  einbehalt_grund?: string | null;
+  einbehalt_seit?: string | null;
+}
+
+export interface KautionKonto {
+  summe_einzahlungen: number;
+  summe_zinsgutschriften: number;
+  summe_auszahlungen: number;
+  summe_abzuege: number;
+  kontostand: number;
+  erste_einzahlung: string | null;
+  letzte_wertstellung: string | null;
+  anzahl_aktiv: number;
+  anzahl_storniert: number;
+}
+
+export interface KautionBewegung {
+  id: string;
+  bewegungsart: KautionBewegungsArt;
+  betrag: number;
+  vorzeichen: 1 | -1;
+  /** Value date, `YYYY-MM-DD`. */
+  wertstellung: string;
+  kategorie: KautionAbzugKategorie | null;
+  grund: string | null;
+  interne_notiz: string | null;
+  empfaenger: string | null;
+  quelle: KautionQuelle;
+  erstellt_am: string;
+  storniert_am: string | null;
+  storno_grund: string | null;
+  /** `null` for cancelled rows (they do not take part in the running balance). */
+  saldo_nach_buchung: number | null;
+  // P2
+  rate_id?: string | null;
+  dokument_id?: string | null;
+  // P3
+  zinszeitraum_von?: string | null;
+  zinszeitraum_bis?: string | null;
+  berechnungsgrundlage?: KautionZinsGrundlage | null;
+}
+
+export interface KautionRate {
+  rate_id: string;
+  rate_nr: 1 | 2 | 3;
+  faelligkeitsdatum: string;
+  soll_betrag: number;
+  gezahlt: number;
+  offen: number;
+  status: KautionRateStatus;
+}
+
+export interface KautionBeleg {
+  bewegung_id: string;
+  dokument_id: string;
+  dateiname: string;
+  dateigroesse: number | null;
+  mime_type: string | null;
+}
+
+/** One row of the interest schedule (`get_kaution_details.zinsstaffel`, ascending by `gueltig_ab`). */
+export interface KautionZinssatz {
+  id: string;
+  gueltig_ab: string;
+  zinssatz_prozent: number;
+}
+
+export interface KautionZinsSegment {
+  von: string;
+  bis: string;
+  tage: number;
+  zinssatz_prozent: number;
+  saldo: number;
+  divisor: number;
+  zins: string;
+}
+
+export type KautionZinsVorschlag =
+  | {
+      moeglich: true;
+      regelwerk_version: 1;
+      methode: KautionZinsmethode;
+      von: string;
+      bis: string;
+      tage: number;
+      betrag: number;
+      betrag_exakt: string;
+      staffel: { gueltig_ab: string; zinssatz_prozent: number }[];
+      segmente: KautionZinsSegment[];
+    }
+  | {
+      moeglich: false;
+      grund: "KEIN_ZINSSATZ";
+      erster_tag_ohne_satz: string;
+      methode: KautionZinsmethode;
+      von: string;
+      bis: string;
+      tage: number;
+    }
+  | {
+      // The period is longer than 3660 days (limit of the calculation): no proposal. Credit earlier periods first.
+      moeglich: false;
+      grund: "ZEITRAUM_ZU_LANG";
+      methode: KautionZinsmethode;
+      von: string;
+      bis: string;
+      tage: number;
+    };
+
+/** Calculation snapshot of an interest credit. Generated by the server, never sent by the client. */
+export interface KautionZinsGrundlage {
+  regelwerk_version: 1;
+  /** `manuell` (with `manuell: true`) when no proposal was possible. */
+  methode: KautionZinsmethode | "manuell";
+  von: string;
+  bis: string;
+  manuell: boolean;
+  vorschlag_betrag?: number;
+  gebucht_betrag: number;
+  abweichung?: number;
+  staffel?: { gueltig_ab: string; zinssatz_prozent: number }[];
+  segmente?: KautionZinsSegment[];
+}
+
+/** Hold of a deposit (not a booking): reason, date since when, and the days it has been held at the settlement date. */
+export interface KautionEinbehalt {
+  grund: string;
+  seit: string;
+  liegedauer_tage: number;
+}
+
+export interface KautionDetails {
+  kaution: Kaution;
+  konto: KautionKonto;
+  zustand: KautionZustand;
+  mietende: string | null;
+  stichtag: string;
+  warnungen: {
+    dreifache_miete: number | null;
+    soll_ueber_dreifache_miete: boolean;
+    einzahlungen_ueber_dreifache_miete: boolean;
+    /** P3: bank account without a confirmed separate account (`getrennt_angelegt` not `true`). */
+    getrennt_nicht_bestaetigt?: boolean;
+  };
+  kontoauszug: KautionBewegung[];
+  // P2
+  frist?: {
+    stufe: KautionFristStufe;
+    gelb_ab: string | null;
+    rot_ab: string | null;
+    tage_seit_mietende: number | null;
+  };
+  raten?: KautionRate[];
+  raten_summe?: number;
+  belege?: KautionBeleg[];
+  // P3
+  zinsstaffel?: KautionZinssatz[];
+  zins_aufgelaufen?: KautionZinsVorschlag | null;
+  /** Balance plus the accrued interest proposal (`null` without a balance, for non-account types). */
+  kontostand_inkl_zinsen?: number | null;
+  // P4: set while a hold is stored (`get_kaution_details`), also when the balance is 0 (then it can only be removed, not changed)
+  einbehalt?: KautionEinbehalt | null;
+}
+
+// ---------------------------------------------------------------------------
+// Settlement ("Abrechnung", phase 4): result of `get_kaution_abrechnung`, input of the PDF and the view
+// ---------------------------------------------------------------------------
+
+/** Kind of settlement: interim (`zwischen`) or final (`end`). It changes the PDF heading, not the figures. */
+export type KautionAbrechnungArt = "zwischen" | "end";
+
+/** Sum of the deductions of one category (only categories with bookings, order schaden, mietrueckstand, nebenkosten, sonstiges). */
+export interface KautionAbzugSumme {
+  kategorie: KautionAbzugKategorie;
+  anzahl: number;
+  summe: number;
+}
+
+/** One non-cancelled booking in account-statement order, with the running balance. No IBAN, notes or recipients. */
+export interface KautionAbrechnungBewegung {
+  wertstellung: string;
+  bewegungsart: KautionBewegungsArt;
+  betrag: number;
+  kategorie: KautionAbzugKategorie | null;
+  grund: string | null;
+  zinszeitraum_von: string | null;
+  zinszeitraum_bis: string | null;
+  saldo_nach_buchung: number;
+}
+
+/**
+ * Result of `get_kaution_abrechnung` (`regelwerk_version` 1). Amounts are computed by the database and only displayed.
+ * Names are `null` where the caller may not read them (RLS).
+ */
+export interface KautionAbrechnung {
+  regelwerk_version: 1;
+  /** Settlement date `YYYY-MM-DD` (payout date, at most today). */
+  stichtag: string;
+  organisation: { name: string | null };
+  mieter: { name: string | null; auszug: string | null };
+  objekt: { haus: string | null; wohnung: string | null };
+  kaution: { kautionsart: KautionArt; soll_betrag: number; zinsmethode: KautionZinsmethode; getrennt_angelegt: boolean | null };
+  konto: {
+    summe_einzahlungen: number;
+    summe_zinsgutschriften: number;
+    summe_auszahlungen: number;
+    summe_abzuege: number;
+    kontostand: number;
+  };
+  abzuege: KautionAbzugSumme[];
+  /** Interest not yet credited up to the settlement date, `null` if there is none. */
+  zinsen_offen: KautionZinsVorschlag | null;
+  /** Balance plus the open interest (if the proposal is possible). */
+  betrag_inkl_zinsen: number;
+  einbehalt: KautionEinbehalt | null;
+  bewegungen: KautionAbrechnungBewegung[];
+  storniert_anzahl: number;
+}
+
+/** Module rights of the current user for `kautionen` (the server stays authoritative). */
+export interface KautionRechte {
+  ansehen: boolean;
+  erstellen: boolean;
+  bearbeiten: boolean;
+  loeschen: boolean;
+}
+
+export interface KautionVorschlag {
+  miete: number | null;
+  vorschlag_betrag: number | null;
+  basis: string;
+}
+
+/**
+ * Compat shape in `Tenant.kaution` (RPC `get_mieter_details_overview`). It mirrors the shape of the
+ * old `Mieter.kaution` JSON field so the running tenant overview keeps working. The additional fields are read by
+ * the new tenant overview (deadline badge, balance).
+ */
+export interface KautionKompat {
+  amount: number;
+  /** `YYYY-MM-DD`, empty string while no payment has been received. */
+  paymentDate: string;
+  status: "Erhalten" | "Ausstehend" | "Zurückgezahlt";
+  createdAt: string;
+  updatedAt: string;
+  kautionId?: string;
+  kontostand?: number;
+  zustand?: KautionZustand;
+  fristStufe?: KautionFristStufe;
+}
+
+// ---------------------------------------------------------------------------
+// Deleting a house, apartment or tenant: impact on the deposits (`get_kautionen_loeschauswirkung`)
+// ---------------------------------------------------------------------------
+
+/** Tables the impact overview and the confirmed deletion (`soft_delete_mit_kautionen`) work for. */
+export type KautionLoeschTabelle = "Haeuser" | "Wohnungen" | "Mieter";
+
+/** A deposit WITH bookings that goes to the trash bin together with its tenant. */
+export interface KautionLoeschMitBuchung {
+  mieter_id: string;
+  /** `null` without the right to see tenants. */
+  name: string | null;
+  kautionsart: KautionArt;
+  kontostand: number;
+  anzahl_buchungen: number;
+}
+
+/** Deposit figures of the impact. Amounts are computed by the database, never in the browser. */
+export interface KautionLoeschKautionen {
+  anzahl: number;
+  ohne_buchungen: number;
+  mit_buchungen: number;
+  /** Target minus paid in, only deposit accounts (`barkaution`, `sparbuch`). */
+  konto_noch_offen: number;
+  /** Balance of the deposit accounts. */
+  konto_verwahrt: number;
+  /** Guarantee / insurance: no account, target amount reported separately. */
+  dokumentiert_anzahl: number;
+  dokumentiert_summe: number;
+  mit_saldo_anzahl: number;
+  /** `true` if the list below shows only the first 100 deposits. */
+  mit_buchungen_gekuerzt: boolean;
+  mit_buchungen_liste: KautionLoeschMitBuchung[];
+}
+
+/** One entry per selected ID (bulk deletion). */
+export interface KautionLoeschEintrag {
+  id: string;
+  anzahl_mieter: number;
+  /** `null` without the right to see deposits. */
+  mit_buchungen: number | null;
+}
+
+export interface KautionLoeschauswirkung {
+  tabelle: KautionLoeschTabelle;
+  anzahl_haeuser: number;
+  anzahl_wohnungen: number;
+  anzahl_mieter: number;
+  /** `false` without `kautionen: ansehen`: then there is no statement about deposits at all. */
+  kautionen_sichtbar: boolean;
+  kautionen: KautionLoeschKautionen | null;
+  eintraege: KautionLoeschEintrag[];
+}

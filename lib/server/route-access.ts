@@ -1,9 +1,9 @@
 import { headers } from "next/headers"
 import { NextResponse } from "next/server"
-import { redirect } from "next/navigation"
+import { redirect, unstable_rethrow } from "next/navigation"
 import type { User, SupabaseClient } from "@supabase/supabase-js"
 import { ROUTES } from "@/lib/constants"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isTestEnv } from "@/lib/test-utils"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
@@ -65,6 +65,7 @@ async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: U
           console.warn("[getAuthenticatedUser] Invalid signature for cached user header. Potential spoofing attempt.")
         }
       } catch (e) {
+        unstable_rethrow(e);
         console.error("[getAuthenticatedUser] Failed to verify cached user headers:", e)
       }
     } else if (encodedUser && !secret) {
@@ -76,10 +77,12 @@ async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: U
           return { user: parsedUser, error: null }
         }
       } catch (e) {
+        unstable_rethrow(e);
         console.error("[getAuthenticatedUser] Failed to decode unsigned fallback user data:", e)
       }
     }
   } catch (e) {
+    unstable_rethrow(e);
     console.error("[getAuthenticatedUser] Failed to read cached user from headers:", e)
   }
   
@@ -89,7 +92,7 @@ async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: U
 }
 
 export async function requireAuthenticatedUser() {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const { user, error: authError } = await getAuthenticatedUser(supabase)
 
   if (authError || !user) {
@@ -150,16 +153,27 @@ export async function requireActiveSubscription() {
   return { supabase, user, profile }
 }
 
-export async function redirectAuthenticatedAuthRoute() {
-  const requestHeaders = await headers()
+// Auth routes that must stay reachable for signed-in users: the login page handles its own
+// redirect, and the password-recovery link signs the user in before landing on update-password.
+const AUTH_ROUTES_OPEN_TO_AUTHENTICATED: string[] = [ROUTES.LOGIN, ROUTES.UPDATE_PASSWORD]
+
+// Matches the route itself and its sub-paths, not look-alike siblings such as /auth/login-x
+function isOpenToAuthenticated(pathname: string) {
+  return AUTH_ROUTES_OPEN_TO_AUTHENTICATED.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  )
+}
+
+// Takes the request headers from the caller so the (Suspense-wrapped) gate reads them only once
+export async function redirectAuthenticatedAuthRoute(requestHeaders: Headers) {
   const pathname = requestHeaders.get("x-current-pathname")
   const search = requestHeaders.get("x-current-search")
 
-  if (!pathname || pathname.startsWith(ROUTES.LOGIN)) {
+  if (!pathname || isOpenToAuthenticated(pathname)) {
     return
   }
 
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const { user } = await getAuthenticatedUser(supabase)
 
   if (user) {
@@ -191,7 +205,7 @@ export async function redirectAuthenticatedAuthRoute() {
 export async function requireAuthenticatedUserForApi(): Promise<
   { supabase: SupabaseClient; user: User } | NextResponse
 > {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const { user, error } = await getAuthenticatedUser(supabase)
   
   if (error || !user) {

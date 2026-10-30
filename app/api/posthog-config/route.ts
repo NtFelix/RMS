@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import posthogProxyConfig from '@/lib/posthog-proxy'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
 const { POSTHOG_PROXY_PATH, POSTHOG_UI_HOST } = posthogProxyConfig
 

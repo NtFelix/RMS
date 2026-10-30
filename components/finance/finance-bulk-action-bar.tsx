@@ -34,6 +34,8 @@ interface FinanceBulkActionBarProps {
   onExport: () => void
   onDelete: () => void
   onUpdate?: (updatedFinances: Finanz[]) => void
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
 export function FinanceBulkActionBar({
@@ -43,6 +45,8 @@ export function FinanceBulkActionBar({
   onExport,
   onDelete,
   onUpdate,
+  canEdit = true,
+  canDelete = true,
 }: FinanceBulkActionBarProps) {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false)
@@ -282,6 +286,7 @@ export function FinanceBulkActionBar({
           variant="outline"
           size="sm"
           onClick={() => setIsAssignDialogOpen(true)}
+          disabled={!canEdit || isUpdating}
           className="h-8 gap-2"
         >
           <Home className="h-4 w-4" />
@@ -291,6 +296,7 @@ export function FinanceBulkActionBar({
           variant="outline"
           size="sm"
           onClick={() => setIsTypeDialogOpen(true)}
+          disabled={!canEdit || isUpdating}
           className="h-8 gap-2"
         >
           <TrendingUp className="h-4 w-4" />
@@ -309,7 +315,7 @@ export function FinanceBulkActionBar({
           variant="outline"
           size="sm"
           onClick={handleDeleteClick}
-          disabled={isDeleting}
+          disabled={isDeleting || !canDelete}
           className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
         >
           {isDeleting ? (
