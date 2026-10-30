@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import {
   Sheet,
   SheetContent,
@@ -130,6 +129,33 @@ function DeleteFinanceDialog({
   );
 }
 
+const STORAGE_KEY = "finance-modal-width";
+const DEFAULT_WIDTH = 600;
+const MIN_WIDTH = 360;
+
+function getStoredWidth(): number {
+  if (typeof window === "undefined") return DEFAULT_WIDTH;
+  try {
+    const savedWidth = localStorage.getItem(STORAGE_KEY);
+    if (savedWidth) {
+      const parsed = parseInt(savedWidth, 10);
+      if (!isNaN(parsed) && parsed >= MIN_WIDTH) return parsed;
+    }
+  } catch {
+    // Ignore restricted localStorage access (e.g. Safari private mode)
+  }
+  return DEFAULT_WIDTH;
+}
+
+function setStoredWidth(width: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, String(width));
+  } catch {
+    // Ignore restricted localStorage access
+  }
+}
+
 export function FinanceEditModal(props: FinanceEditModalProps) {
   const { serverAction } = props;
 
@@ -143,16 +169,18 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
     setFinanceModalDirty,
   } = useModalStore();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     wohnung_id: financeInitialData?.wohnung_id || "",
     name: financeInitialData?.name || "",
-    datum: financeInitialData?.datum || "",
+    datum: financeInitialData?.datum
+      ? format(parseISO(financeInitialData.datum), "yyyy-MM-dd")
+      : "",
     betrag: financeInitialData?.betrag?.toString() || "",
     ist_einnahmen: financeInitialData?.ist_einnahmen || false,
     notiz: financeInitialData?.notiz || "",
     dokument_id: financeInitialData?.dokument_id || null,
     tags: financeInitialData?.tags || [],
-  });
+  }));
 
   const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -161,16 +189,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
   const isPending = isSubmitting || isDeleting;
   const [documentWasChanged, setDocumentWasChanged] = useState(false);
 
-  const [width, setWidth] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      const savedWidth = localStorage.getItem("finance-modal-width");
-      if (savedWidth) {
-        const parsed = parseInt(savedWidth, 10);
-        if (!isNaN(parsed)) return parsed;
-      }
-    }
-    return 600;
-  });
+  const [width, setWidth] = useState<number>(getStoredWidth);
   const [isResizing, setIsResizing] = useState(false);
   const widthRef = useRef(width);
 
@@ -180,6 +199,13 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragInfoRef = useRef({ startY: 0, startHeight: 0 });
+  const textareaCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      textareaCleanupRef.current?.();
+    };
+  }, []);
 
   const MIN_HEIGHT_PX = 80;
   const MAX_HEIGHT_PX = 150;
@@ -207,17 +233,33 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
     const stopDrag = () => {
       document.removeEventListener("mousemove", doDrag);
       document.removeEventListener("mouseup", stopDrag);
+      textareaCleanupRef.current = null;
     };
 
+    textareaCleanupRef.current = stopDrag;
     document.addEventListener("mousemove", doDrag);
     document.addEventListener("mouseup", stopDrag);
   };
 
+  const handleTextareaResizeKeyDown = (e: React.KeyboardEvent) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const currentHeight = textarea.offsetHeight;
+      textarea.style.height = `${Math.min(MAX_HEIGHT_PX, currentHeight + 10)}px`;
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const currentHeight = textarea.offsetHeight;
+      textarea.style.height = `${Math.max(MIN_HEIGHT_PX, currentHeight - 10)}px`;
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const handleResetWidth = () => {
-        setWidth(600);
+        setWidth(DEFAULT_WIDTH);
+        setStoredWidth(DEFAULT_WIDTH);
       };
       window.addEventListener("reset-finance-modal-width", handleResetWidth);
       return () => {
@@ -239,7 +281,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
 
     const handleMouseMove = (mouseMoveEvent: MouseEvent) => {
       const newWidth = window.innerWidth - mouseMoveEvent.clientX;
-      const minWidth = 360;
+      const minWidth = MIN_WIDTH;
       const maxWidth = window.innerWidth * 0.9;
       setWidth(Math.max(minWidth, Math.min(newWidth, maxWidth)));
     };
@@ -249,8 +291,8 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       const finalWidth = widthRef.current;
-      if (typeof finalWidth === "number" && !isNaN(finalWidth) && finalWidth >= 360) {
-        localStorage.setItem("finance-modal-width", String(finalWidth));
+      if (typeof finalWidth === "number" && !isNaN(finalWidth) && finalWidth >= MIN_WIDTH) {
+        setStoredWidth(finalWidth);
       }
     };
 
@@ -306,13 +348,20 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
   };
 
   const handleClose = (force = false) => {
-    if (documentWasChanged && financeInitialData?.id && financeModalOnSuccess) {
-      financeModalOnSuccess({ ...financeInitialData, dokument_id: formData.dokument_id });
-    }
     if (force) {
+      if (documentWasChanged && financeInitialData?.id && financeModalOnSuccess) {
+        financeModalOnSuccess({ ...financeInitialData, dokument_id: formData.dokument_id });
+      }
       closeFinanceModal({ force: true });
     } else {
-      closeFinanceModal();
+      if (!isFinanceModalDirty) {
+        if (documentWasChanged && financeInitialData?.id && financeModalOnSuccess) {
+          financeModalOnSuccess({ ...financeInitialData, dokument_id: formData.dokument_id });
+        }
+        closeFinanceModal();
+      } else {
+        closeFinanceModal();
+      }
     }
   };
 
@@ -434,6 +483,9 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
           isResizing={isResizing}
           setWidth={setWidth}
           onMouseDown={startResizing}
+          width={width}
+          minWidth={MIN_WIDTH}
+          onCommit={setStoredWidth}
         />
 
         <TopBar
@@ -603,10 +655,12 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
                         />
                         <div
                           role="separator"
+                          tabIndex={0}
                           aria-orientation="horizontal"
                           aria-label="Textfeldgröße anpassen"
-                          className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors"
+                          className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors outline-none focus-visible:ring-1 focus-visible:ring-primary"
                           onMouseDown={initResize}
+                          onKeyDown={handleTextareaResizeKeyDown}
                         >
                           <GripVertical className="size-4 text-foreground/70" />
                         </div>

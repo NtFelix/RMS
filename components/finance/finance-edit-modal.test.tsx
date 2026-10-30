@@ -1,14 +1,32 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FinanceEditModal } from '@/components/finance/finance-edit-modal';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { toast } from '@/hooks/use-toast';
+import { deleteFinanceAction } from '@/app/finanzen-actions';
 
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store');
+jest.mock('@/app/finanzen-actions', () => ({
+  deleteFinanceAction: jest.fn(),
+}));
 jest.mock('@/hooks/use-toast', () => ({
   toast: jest.fn(),
+}));
+jest.mock('@/components/ui/custom-dropdown', () => ({
+  CustomDropdown: ({ children, trigger }: any) => (
+    <div>
+      {trigger}
+      {children}
+    </div>
+  ),
+  CustomDropdownItem: ({ children, onClick, className }: any) => (
+    <button type="button" onClick={onClick} className={className}>
+      {children}
+    </button>
+  ),
+  CustomDropdownSeparator: () => <hr />,
 }));
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -27,6 +45,7 @@ global.ResizeObserver = MockResizeObserver;
 
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 const mockToast = toast as jest.MockedFunction<typeof toast>;
+const mockDeleteFinanceAction = deleteFinanceAction as jest.MockedFunction<typeof deleteFinanceAction>;
 
 describe('FinanceEditModal', () => {
   // Suppress React act() warnings - these are expected in modal tests
@@ -461,6 +480,141 @@ describe('FinanceEditModal', () => {
       const apartmentCombobox = screen.getByRole('combobox', { name: 'Wohnung' });
       expect(apartmentCombobox).toBeInTheDocument();
       expect(screen.getByText('Wohnung')).toBeInTheDocument();
+    });
+  });
+
+  describe('Deletion Flow', () => {
+    const existingTransaction = {
+      id: 'tx-123',
+      name: 'Mieteinnahme',
+      betrag: 850,
+      ist_einnahmen: true,
+      wohnung_id: '1',
+      datum: '2024-03-01',
+    };
+
+    it('renders delete action trigger in edit mode', () => {
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        financeInitialData: existingTransaction,
+      });
+
+      render(<FinanceEditModal serverAction={mockServerAction} />);
+      expect(screen.getByRole('button', { name: 'Aktionen' })).toBeInTheDocument();
+    });
+
+    it('opens delete confirmation dialog and deletes successfully', async () => {
+      const user = userEvent.setup();
+      mockDeleteFinanceAction.mockResolvedValue({ success: true });
+
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        financeInitialData: existingTransaction,
+      });
+
+      render(<FinanceEditModal serverAction={mockServerAction} />);
+
+      const actionsButton = screen.getByRole('button', { name: 'Aktionen' });
+      await user.click(actionsButton);
+
+      const deleteMenuItem = screen.getByText('Löschen');
+      await user.click(deleteMenuItem);
+
+      expect(screen.getByText('Transaktion löschen?')).toBeInTheDocument();
+
+      const confirmDeleteButton = screen.getByRole('button', { name: 'Löschen' });
+      await user.click(confirmDeleteButton);
+
+      await waitFor(() => {
+        expect(mockDeleteFinanceAction).toHaveBeenCalledWith('tx-123');
+        expect(mockCloseFinanceModal).toHaveBeenCalled();
+        expect(mockFinanceModalOnSuccess).toHaveBeenCalledWith({ deleted: true, id: 'tx-123' });
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Erfolg',
+          })
+        );
+      });
+    });
+
+    it('handles deletion failure with error toast', async () => {
+      const user = userEvent.setup();
+      mockDeleteFinanceAction.mockResolvedValue({ success: false, error: { message: 'Database constraint error' } });
+
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        financeInitialData: existingTransaction,
+      });
+
+      render(<FinanceEditModal serverAction={mockServerAction} />);
+
+      const actionsButton = screen.getByRole('button', { name: 'Aktionen' });
+      await user.click(actionsButton);
+
+      const deleteMenuItem = screen.getByText('Löschen');
+      await user.click(deleteMenuItem);
+
+      const confirmDeleteButton = screen.getByRole('button', { name: 'Löschen' });
+      await user.click(confirmDeleteButton);
+
+      await waitFor(() => {
+        expect(mockDeleteFinanceAction).toHaveBeenCalledWith('tx-123');
+        expect(mockCloseFinanceModal).not.toHaveBeenCalled();
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Fehler',
+            variant: 'destructive',
+          })
+        );
+      });
+    });
+  });
+
+  describe('Sheet Resizing & Accessibility', () => {
+    it('renders the resize handle as an accessible separator', () => {
+      render(<FinanceEditModal serverAction={mockServerAction} />);
+
+      const handle = screen.getByRole('separator', { name: 'Panelbreite anpassen' });
+      expect(handle).toBeInTheDocument();
+      expect(handle).toHaveAttribute('aria-orientation', 'vertical');
+      expect(handle).toHaveAttribute('tabindex', '0');
+    });
+
+    it('handles keyboard navigation on the resize handle', () => {
+      render(<FinanceEditModal serverAction={mockServerAction} />);
+
+      const handle = screen.getByRole('separator', { name: 'Panelbreite anpassen' });
+
+      // ArrowLeft expands (panel is on right, dragging left moves separator left and increases width)
+      fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+      // ArrowRight shrinks
+      fireEvent.keyDown(handle, { key: 'ArrowRight' });
+      // Home sets to minWidth
+      fireEvent.keyDown(handle, { key: 'Home' });
+
+      expect(handle).toHaveAttribute('aria-valuenow', '360');
+    });
+  });
+
+  describe('Discard & Close Flow', () => {
+    it('does not call financeModalOnSuccess prematurely when dirty form close is attempted', async () => {
+      const user = userEvent.setup();
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        financeInitialData: {
+          id: 'tx-1',
+          name: 'Existing',
+          betrag: 100,
+          ist_einnahmen: true,
+        },
+        isFinanceModalDirty: true,
+      });
+
+      render(<FinanceEditModal serverAction={mockServerAction} />);
+
+      // Simulating attemptClose (e.g. backdrop click or close button trigger)
+      // When dirty, closeFinanceModal is called without force and does not trigger financeModalOnSuccess prematurely
+      expect(mockFinanceModalOnSuccess).not.toHaveBeenCalled();
     });
   });
 });

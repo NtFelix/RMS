@@ -376,11 +376,13 @@ export function HouseEditModal(props: HouseEditModalProps) {
 
   const [width, setWidth] = useState<number>(() => {
     if (typeof window !== "undefined") {
-      const savedWidth = localStorage.getItem("house-modal-width");
-      if (savedWidth) {
-        const parsed = parseInt(savedWidth, 10);
-        if (!isNaN(parsed)) return parsed;
-      }
+      try {
+        const savedWidth = localStorage.getItem("house-modal-width");
+        if (savedWidth) {
+          const parsed = parseInt(savedWidth, 10);
+          if (!isNaN(parsed) && parsed >= 360) return parsed;
+        }
+      } catch {}
     }
     return 600;
   });
@@ -427,7 +429,9 @@ export function HouseEditModal(props: HouseEditModalProps) {
       document.body.style.userSelect = "";
       const finalWidth = widthRef.current;
       if (typeof finalWidth === "number" && !isNaN(finalWidth) && finalWidth >= 360) {
-        localStorage.setItem("house-modal-width", String(finalWidth));
+        try {
+          localStorage.setItem("house-modal-width", String(finalWidth));
+        } catch {}
       }
     };
 
@@ -642,6 +646,12 @@ export function HouseEditModal(props: HouseEditModalProps) {
           isResizing={isResizing}
           setWidth={setWidth}
           onMouseDown={startResizing}
+          width={width}
+          onCommit={(w) => {
+            try {
+              localStorage.setItem("house-modal-width", String(w));
+            } catch {}
+          }}
         />
 
         <TopBar

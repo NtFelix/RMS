@@ -291,6 +291,10 @@ interface DocumentPreviewProps {
     onRemove: () => void;
 }
 
+function SpinnerIcon({ className }: { className?: string }) {
+    return <Loader2 className={cn(className, "animate-spin")} />;
+}
+
 function DocumentPreview({
     documentInfo,
     isDeleting,
@@ -299,9 +303,6 @@ function DocumentPreview({
     onDownload,
     onRemove,
 }: DocumentPreviewProps) {
-    const SpinnerIcon = React.useCallback((props: { className?: string }) => (
-        <Loader2 className={cn(props.className, "animate-spin")} />
-    ), []);
     return (
         <div className="space-y-2">
             <div className="flex items-center justify-between gap-4 p-3.5 border border-input bg-card hover:border-ring/50 transition-colors shadow-xs rounded-3xl min-w-0">
@@ -311,7 +312,7 @@ function DocumentPreview({
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <p className="text-sm font-medium truncate cursor-help max-w-[70px] xs:max-w-[110px] sm:max-w-[160px] md:max-w-[200px]">
+                                    <p className="text-sm font-medium truncate cursor-help max-w-[110px] sm:max-w-[160px] md:max-w-[200px]">
                                         {documentInfo.dateiname}
                                     </p>
                                 </TooltipTrigger>
