@@ -33,7 +33,7 @@ import {
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions";
 import { PropertyHeader } from "@/components/ui/property-header";
 import { ResizeHandle } from "@/components/ui/resize-handle";
-import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 import { padPlz, parsePlz } from "@/lib/address";
 
 interface House {
@@ -509,11 +509,11 @@ export function HouseEditModal(props: HouseEditModalProps) {
     closeHouseModal({ force: true });
   };
 
-  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
+  const handleDelete = async () => {
     if (!houseInitialData || isPending) return;
     try {
       setIsDeleting(true);
-      const result = await deleteHouseAction(houseInitialData.id, pruefsummen[houseInitialData.id]);
+      const result = await deleteHouseAction(houseInitialData.id);
 
       if (result.success) {
         toast({

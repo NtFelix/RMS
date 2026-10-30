@@ -503,6 +503,463 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: HouseOverviewPayload) {
     }
 }
 
+// --- Kautionsabrechnung (Phase 4) ---
+
+export type KautionAbrechnungArt = 'zwischen' | 'end';
+
+export interface KautionAbrechnungBewegung {
+    wertstellung?: string | null;
+    bewegungsart?: string | null;
+    betrag?: number | null;
+    kategorie?: string | null;
+    grund?: string | null;
+    zinszeitraum_von?: string | null;
+    zinszeitraum_bis?: string | null;
+    saldo_nach_buchung?: number | null;
+}
+
+/** Form of `get_kaution_abrechnung` (contract, phase 4). Every text in it is untrusted. */
+export interface KautionAbrechnungPayload {
+    art: KautionAbrechnungArt;
+    regelwerk_version?: number;
+    stichtag?: string | null;
+    organisation?: { name?: string | null } | null;
+    mieter?: { name?: string | null; auszug?: string | null } | null;
+    objekt?: { haus?: string | null; wohnung?: string | null } | null;
+    kaution?: {
+        kautionsart?: string | null;
+        soll_betrag?: number | null;
+        zinsmethode?: string | null;
+        getrennt_angelegt?: boolean | null;
+    } | null;
+    konto?: {
+        summe_einzahlungen?: number | null;
+        summe_zinsgutschriften?: number | null;
+        summe_auszahlungen?: number | null;
+        summe_abzuege?: number | null;
+        kontostand?: number | null;
+    } | null;
+    abzuege?: { kategorie?: string | null; anzahl?: number | null; summe?: number | null }[] | null;
+    zinsen_offen?: { moeglich?: boolean | null; betrag?: number | null; grund?: string | null } | null;
+    betrag_inkl_zinsen?: number | null;
+    einbehalt?: { grund?: string | null; seit?: string | null; liegedauer_tage?: number | null } | null;
+    bewegungen: KautionAbrechnungBewegung[];
+    storniert_anzahl?: number | null;
+}
+
+export type KautionAbrechnungParseErgebnis =
+    | { ok: true; payload: KautionAbrechnungPayload }
+    | { ok: false; error: string };
+
+const KAUTION_ABRECHNUNG_MAX_BEWEGUNGEN = 2000;
+const KAUTION_ABRECHNUNG_ART_LABELS: Record<string, string> = { barkaution: 'Barkaution', sparbuch: 'Sparbuch' };
+const KAUTION_ABRECHNUNG_ABZUG_LABELS: Record<string, string> = {
+    schaden: 'Schäden',
+    mietrueckstand: 'Mietrückstand',
+    nebenkosten: 'Nebenkosten',
+    sonstiges: 'Sonstiges',
+};
+const KAUTION_ABRECHNUNG_ZINSMETHODE_LABELS: Record<string, string> = {
+    act_365: 'act/365',
+    act_360: 'act/360',
+    '30_360': '30/360',
+};
+
+// Die eingebaute Helvetica von jsPDF kann nur WinAnsi (cp1252): ASCII, Latin-1 und die Sonderzeichen unten. Alles andere würde
+// verfälscht oder gar nicht gezeichnet.
+const WINANSI_SONDERZEICHEN = new Set(Array.from('€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ'));
+// Buchstaben ohne Zerlegung in Grundbuchstabe und Akzent (NFD hilft dort nicht)
+const ERSATZ_BUCHSTABEN: Record<string, string> = {
+    'ł': 'l', 'Ł': 'L', 'đ': 'd', 'Đ': 'D', 'ħ': 'h', 'Ħ': 'H', 'ı': 'i', 'İ': 'I', 'ŧ': 't', 'Ŧ': 'T',
+    'ĳ': 'ij', 'Ĳ': 'IJ', 'ŀ': 'l', 'Ŀ': 'L', 'ŉ': 'n', 'ſ': 's', 'ŋ': 'n', 'Ŋ': 'N',
+};
+
+// Macht einen Text mit WinAnsi darstellbar: Akzente werden entfernt (ć -> c, ş -> s, ğ -> g), einzelne Buchstaben ersetzt (ł -> l),
+// alles Übrige (z. B. kyrillisch) wird zu '?'. Lieber ein lesbarer Ersatz als ein verfälschter Name in einem Dokument.
+function machePdfDarstellbar(text: string): string {
+    return Array.from(text).map(zeichen => {
+        if (/\p{M}/u.test(zeichen)) return '';
+        const code = zeichen.codePointAt(0) ?? 0;
+        if (code <= 0xFF || WINANSI_SONDERZEICHEN.has(zeichen)) return zeichen;
+        const ersatz = ERSATZ_BUCHSTABEN[zeichen];
+        if (ersatz !== undefined) return ersatz;
+        const ohneAkzent = zeichen.normalize('NFD').replace(/\p{M}/gu, '');
+        return ohneAkzent !== zeichen && /^[\u0020-\u007E]+$/.test(ohneAkzent) ? ohneAkzent : '?';
+    }).join('');
+}
+
+// Entfernt Steuerzeichen, macht Zeilenumbrüche zu Leerzeichen, fasst Leerzeichen zusammen, macht den Text darstellbar und kürzt.
+// Nicht-Strings ergeben einen leeren Text. Der Text wird nie als Markup interpretiert.
+function bereinigeText(wert: unknown, maxLaenge: number): string {
+    if (typeof wert !== 'string') return '';
+    const bereinigt = wert
+        .replace(/[\r\n\t\v\f\u0085\u2028\u2029]/g, ' ')
+        .replace(/[\u0000-\u0008\u000E-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return Array.from(machePdfDarstellbar(bereinigt)).slice(0, maxLaenge).join('');
+}
+
+// Wählt das Anzeigelabel für einen bekannten Schlüssel; unbekannte Werte werden als Text angezeigt.
+function bereinigteAuswahl(wert: unknown, labels: Record<string, string>, maxLaenge: number): string {
+    const schluessel = bereinigeText(wert, maxLaenge);
+    if (schluessel && Object.prototype.hasOwnProperty.call(labels, schluessel)) return labels[schluessel];
+    return schluessel || '-';
+}
+
+function bereinigeZahl(wert: unknown): number | null {
+    return typeof wert === 'number' && Number.isFinite(wert) ? wert : null;
+}
+
+function formatiereGeld(wert: unknown): string {
+    return formatCurrency(bereinigeZahl(wert));
+}
+
+// Zugang '+', Abgang '-'. Der Betrag kommt ohne Vorzeichen aus der Nutzlast, das Vorzeichen folgt aus bewegungsart.
+// zugang = null: ohne Vorzeichen.
+function formatiereBewegungsbetrag(wert: unknown, zugang: boolean | null): string {
+    const zahl = bereinigeZahl(wert);
+    if (zahl === null) return '-';
+    if (zugang === null) return formatCurrency(zahl);
+    return `${zugang ? '+' : '-'}${formatCurrency(Math.abs(zahl))}`;
+}
+
+// YYYY-MM-DD wird zu TT.MM.JJJJ. Alles andere, auch ungültige Kalenderdaten, ergibt '-'.
+function formatiereDatum(wert: unknown): string {
+    if (typeof wert !== 'string') return '-';
+    const treffer = /^(\d{4})-(\d{2})-(\d{2})$/.exec(wert.trim());
+    if (!treffer) return '-';
+    const [, jahr, monat, tag] = treffer;
+    const datum = new Date(Date.UTC(Number(jahr), Number(monat) - 1, Number(tag)));
+    if (datum.getUTCMonth() !== Number(monat) - 1 || datum.getUTCDate() !== Number(tag)) return '-';
+    return `${tag}.${monat}.${jahr}`;
+}
+
+// Ende eines Zinszeitraums für die Anzeige: die Datenbank liefert es exklusiv (Zeitraum [von, bis), der Tag "bis" zählt nicht),
+// die App zeigt es einschließend (bis minus 1 Tag). Das PDF muss denselben Zeitraum nennen wie die App. Ungültig ergibt '-'.
+function formatiereZeitraumEnde(bisExklusiv: unknown): string {
+    if (typeof bisExklusiv !== 'string') return '-';
+    const treffer = /^(\d{4})-(\d{2})-(\d{2})$/.exec(bisExklusiv.trim());
+    if (!treffer) return '-';
+    const datum = new Date(Date.UTC(Number(treffer[1]), Number(treffer[2]) - 1, Number(treffer[3])));
+    if (datum.getUTCMonth() !== Number(treffer[2]) - 1 || datum.getUTCDate() !== Number(treffer[3])) return '-';
+    datum.setUTCDate(datum.getUTCDate() - 1);
+    return formatiereDatum(datum.toISOString().slice(0, 10));
+}
+
+// Prüft die Form der Nutzlast. Texte und Zahlen werden erst beim Rendern bereinigt.
+export function parseKautionAbrechnungPayload(data: unknown): KautionAbrechnungParseErgebnis {
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+        return { ok: false, error: 'Ungültige Nutzlast: erwartet ein Objekt' };
+    }
+    const obj = data as Record<string, unknown>;
+    if (obj.art !== 'zwischen' && obj.art !== 'end') {
+        return { ok: false, error: "Ungültige Nutzlast: 'art' muss 'zwischen' oder 'end' sein" };
+    }
+    if (!Array.isArray(obj.bewegungen)) {
+        return { ok: false, error: "Ungültige Nutzlast: 'bewegungen' muss ein Array sein" };
+    }
+    if (obj.bewegungen.length > KAUTION_ABRECHNUNG_MAX_BEWEGUNGEN) {
+        return { ok: false, error: `Ungültige Nutzlast: höchstens ${KAUTION_ABRECHNUNG_MAX_BEWEGUNGEN} Bewegungen erlaubt` };
+    }
+    if (!obj.bewegungen.every((b: unknown) => typeof b === 'object' && b !== null && !Array.isArray(b))) {
+        return { ok: false, error: 'Ungültige Nutzlast: jede Bewegung muss ein Objekt sein' };
+    }
+    return { ok: true, payload: obj as unknown as KautionAbrechnungPayload };
+}
+
+export function generateKautionAbrechnungPDF(doc: jsPDF, payload: KautionAbrechnungPayload) {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const tableWidth = pageWidth - 40;
+    const inhaltUnten = pageHeight - 25;
+    const istEnd = payload.art === 'end';
+
+    const organisation: NonNullable<KautionAbrechnungPayload['organisation']> = payload.organisation ?? {};
+    const mieter: NonNullable<KautionAbrechnungPayload['mieter']> = payload.mieter ?? {};
+    const objekt: NonNullable<KautionAbrechnungPayload['objekt']> = payload.objekt ?? {};
+    const kaution: NonNullable<KautionAbrechnungPayload['kaution']> = payload.kaution ?? {};
+    const konto: NonNullable<KautionAbrechnungPayload['konto']> = payload.konto ?? {};
+    const zinsen: NonNullable<KautionAbrechnungPayload['zinsen_offen']> = payload.zinsen_offen ?? {};
+    const einbehalt = payload.einbehalt ?? null;
+    const zinsenBetrag = bereinigeZahl(zinsen.betrag) ?? 0;
+    const zinsenMoeglich = zinsen.moeglich === true && zinsenBetrag > 0;
+
+    // Seitenumbruch, wenn der nächste Block (Höhe in mm) nicht mehr auf die Seite passt.
+    const platzFuer = (y: number, hoehe: number): number => {
+        if (y + hoehe <= inhaltUnten) return y;
+        doc.addPage();
+        return 20;
+    };
+
+    let y = 20;
+    const schreibeAbsatz = (text: string) => {
+        const zeilen = doc.splitTextToSize(text, tableWidth) as string[];
+        doc.text(zeilen, 20, y);
+        y += zeilen.length * 5.5;
+    };
+
+    // 1. Titel und Kopf
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(istEnd ? 'Endabrechnung Mietkaution' : 'Zwischenabrechnung Mietkaution', 20, y);
+    y += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const objektText = [bereinigeText(objekt.haus, 200), bereinigeText(objekt.wohnung, 200)].filter(Boolean).join(', ');
+    const kopfZeilen: string[] = [
+        `Vermieter/Verwaltung: ${bereinigeText(organisation.name, 200) || '-'}`,
+        `Mieter: ${bereinigeText(mieter.name, 200) || '-'}`,
+        `Objekt: ${objektText || '-'}`,
+    ];
+    const auszug = formatiereDatum(mieter.auszug);
+    if (auszug !== '-') kopfZeilen.push(`Auszug: ${auszug}`);
+    kopfZeilen.push(
+        `Stichtag: ${formatiereDatum(payload.stichtag)}`,
+        `Kautionsart: ${bereinigteAuswahl(kaution.kautionsart, KAUTION_ABRECHNUNG_ART_LABELS, 40)}`,
+        `Soll-Betrag: ${formatiereGeld(kaution.soll_betrag)}`,
+        `Zinsmethode: ${bereinigteAuswahl(kaution.zinsmethode, KAUTION_ABRECHNUNG_ZINSMETHODE_LABELS, 20)}`,
+    );
+    kopfZeilen.forEach(zeile => schreibeAbsatz(zeile));
+
+    // 2. Kontoauszug
+    y += 6;
+    y = platzFuer(y, 30);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Kontoauszug', 20, y);
+    y += 4;
+
+    const kontoauszugZeile = (b: KautionAbrechnungBewegung): string[] => {
+        const art = bereinigeText(b.bewegungsart, 40);
+        let bezeichnung: string;
+        let zugang: boolean | null;
+        if (art === 'einzahlung') {
+            bezeichnung = 'Einzahlung';
+            zugang = true;
+        } else if (art === 'zinsgutschrift') {
+            const von = formatiereDatum(b.zinszeitraum_von);
+            const bis = formatiereZeitraumEnde(b.zinszeitraum_bis);
+            bezeichnung = von !== '-' && bis !== '-' ? `Zinsgutschrift (${von} – ${bis})` : 'Zinsgutschrift';
+            zugang = true;
+        } else if (art === 'auszahlung') {
+            bezeichnung = 'Auszahlung';
+            zugang = false;
+        } else if (art === 'abzug') {
+            const kategorie = bereinigteAuswahl(b.kategorie, KAUTION_ABRECHNUNG_ABZUG_LABELS, 40);
+            bezeichnung = kategorie !== '-' ? `Abzug (${kategorie})` : 'Abzug';
+            zugang = false;
+        } else {
+            bezeichnung = art || '-';
+            zugang = null;
+        }
+        return [
+            formatiereDatum(b.wertstellung),
+            bezeichnung,
+            formatiereBewegungsbetrag(b.betrag, zugang),
+            formatiereGeld(b.saldo_nach_buchung),
+            bereinigeText(b.grund, 500) || '-',
+        ];
+    };
+
+    const kontoauszugZeilen = payload.bewegungen.map(kontoauszugZeile);
+    autoTable(doc, {
+        head: [['Datum', 'Art', 'Betrag', 'Saldo', 'Grund']],
+        body: kontoauszugZeilen.length > 0 ? kontoauszugZeilen : [['', 'Keine Buchungen vorhanden', '', '', '']],
+        startY: y,
+        theme: 'plain',
+        headStyles: {
+            fillColor: [255, 255, 255],
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            lineWidth: { bottom: 0.3 },
+            lineColor: [0, 0, 0],
+            cellPadding: { top: 2.5, bottom: 3, left: 1, right: 1 }
+        },
+        styles: {
+            fontSize: 9,
+            cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
+            lineWidth: 0,
+            textColor: [0, 0, 0]
+        },
+        bodyStyles: {
+            lineWidth: { bottom: 0.1 },
+            lineColor: [0, 0, 0]
+        },
+        columnStyles: {
+            0: { cellWidth: 22, halign: 'left' },
+            1: { cellWidth: 40, halign: 'left' },
+            2: { cellWidth: 24, halign: 'right' },
+            3: { cellWidth: 24, halign: 'right' },
+            4: { halign: 'left' },
+        },
+        tableWidth: tableWidth,
+        margin: { left: 20, right: 20, bottom: 25 }
+    });
+
+    const kontoauszugEnde = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY;
+    y = typeof kontoauszugEnde === 'number' ? kontoauszugEnde + 10 : y + 10;
+
+    // 3. Zusammenfassung (nicht am Seitenende zerreißen)
+    const zeileZusammenfassung = (label: string, wert: string, fett: boolean) => {
+        doc.setFont('helvetica', fett ? 'bold' : 'normal');
+        const labelZeilen = doc.splitTextToSize(label, tableWidth - 35) as string[];
+        doc.text(labelZeilen, 20, y);
+        doc.text(wert, pageWidth - 20, y, { align: 'right' });
+        y += labelZeilen.length * 5.5;
+    };
+
+    const zusammenfassung: { label: string; wert: string; fett: boolean }[] = [
+        { label: 'Einzahlungen', wert: formatiereGeld(konto.summe_einzahlungen), fett: false },
+        { label: 'Zinsgutschriften', wert: formatiereGeld(konto.summe_zinsgutschriften), fett: false },
+    ];
+    const abzuege = Array.isArray(payload.abzuege) ? payload.abzuege : [];
+    abzuege.forEach(abzug => {
+        const kategorie = bereinigteAuswahl(abzug?.kategorie, KAUTION_ABRECHNUNG_ABZUG_LABELS, 40);
+        const anzahl = bereinigeZahl(abzug?.anzahl);
+        const anzahlText = anzahl !== null ? ` (${anzahl} ${anzahl === 1 ? 'Buchung' : 'Buchungen'})` : '';
+        zusammenfassung.push({
+            label: `Abzüge ${kategorie === '-' ? 'ohne Kategorie' : kategorie}${anzahlText}`,
+            wert: formatiereGeld(abzug?.summe),
+            fett: false,
+        });
+    });
+    zusammenfassung.push(
+        { label: 'Abzüge gesamt', wert: formatiereGeld(konto.summe_abzuege), fett: false },
+        { label: 'Auszahlungen', wert: formatiereGeld(konto.summe_auszahlungen), fett: false },
+        { label: 'Noch auf dem Kautionskonto', wert: formatiereGeld(konto.kontostand), fett: true },
+    );
+
+    const zusammenfassungHinweise: string[] = [];
+    if (zinsenMoeglich) {
+        zusammenfassung.push(
+            { label: 'Noch nicht gutgeschriebene Zinsen bis zum Stichtag (Berechnung, brutto)', wert: formatiereGeld(zinsenBetrag), fett: false },
+            { label: 'Betrag inkl. Zinsen', wert: formatiereGeld(payload.betrag_inkl_zinsen), fett: false },
+        );
+        zusammenfassungHinweise.push('Zinsen brutto berechnet, ohne Steuern und Gebühren.');
+    } else if (zinsen.moeglich === false && zinsen.grund === 'ZEITRAUM_ZU_LANG') {
+        zusammenfassungHinweise.push('Hinweis: Der Zinszeitraum ist länger als 3660 Tage (etwa zehn Jahre). Zinsen bis zum Stichtag wurden nicht berechnet und sind in den Beträgen nicht enthalten.');
+    } else if (zinsen.moeglich === false) {
+        zusammenfassungHinweise.push('Hinweis: Für diese Kaution ist kein Zinssatz hinterlegt. Zinsen bis zum Stichtag wurden nicht berechnet.');
+    }
+
+    y = platzFuer(y, 14 + (zusammenfassung.length + zusammenfassungHinweise.length) * 6);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Zusammenfassung', 20, y);
+    y += 8;
+    doc.setFontSize(10);
+    zusammenfassung.forEach(z => zeileZusammenfassung(z.label, z.wert, z.fett));
+    doc.setFont('helvetica', 'normal');
+    zusammenfassungHinweise.forEach(hinweis => schreibeAbsatz(hinweis));
+
+    // 4. Einbehalt (beide Arten; die Datenbank liefert ihn nur bei Guthaben) oder auszuzahlender Restbetrag (Endabrechnung ohne Einbehalt)
+    const kontostand = bereinigeZahl(konto.kontostand) ?? 0;
+    if (einbehalt) {
+        const grundText = `Grund: ${bereinigeText(einbehalt.grund, 500) || '-'}`;
+        const grundZeilen = doc.splitTextToSize(grundText, tableWidth) as string[];
+        const tage = bereinigeZahl(einbehalt.liegedauer_tage);
+        const seit = formatiereDatum(einbehalt.seit);
+        y = platzFuer(y + 6, 20 + grundZeilen.length * 5.5);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Einbehalt', 20, y);
+        y += 8;
+        doc.setFontSize(10);
+        doc.text(`Noch einbehalten: ${formatiereGeld(kontostand)}`, 20, y);
+        y += 6;
+        doc.setFont('helvetica', 'normal');
+        schreibeAbsatz(grundText);
+        const seitText = tage !== null ? `seit ${seit} (Liegedauer ${tage} Tage)` : `seit ${seit}`;
+        schreibeAbsatz(seitText);
+    }
+
+    // Mit Einbehalt bleibt der Kontostand einbehalten: kein auszuzahlender Restbetrag. Ohne Guthaben, aber mit offenen Zinsen,
+    // ist der Zinsbetrag der Restbetrag.
+    const betragInklZinsen = bereinigeZahl(payload.betrag_inkl_zinsen);
+    const mitZinsen = zinsenMoeglich && betragInklZinsen !== null;
+    if (istEnd && !einbehalt && (kontostand > 0 || (mitZinsen && (betragInklZinsen ?? 0) > 0))) {
+        y = platzFuer(y + 6, mitZinsen ? 26 : 14);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Auszuzahlender Restbetrag: ${formatiereGeld(mitZinsen ? betragInklZinsen : kontostand)}`, 20, y);
+        y += 8;
+        if (mitZinsen) {
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            schreibeAbsatz('einschließlich noch nicht gutgeschriebener Zinsen bis zum Stichtag (brutto)');
+        }
+    }
+
+    // 5. Fußzeile auf jeder Seite
+    // Datum in Berliner Zeit (der Worker läuft in UTC; der Stichtag kommt aus der Datenbank in Berliner Zeit)
+    const heute = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' });
+    const seitenAnzahl = doc.getNumberOfPages();
+    for (let seite = 1; seite <= seitenAnzahl; seite++) {
+        doc.setPage(seite);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Erstellt am ${heute}`, 20, pageHeight - 12);
+        doc.text(`Seite ${seite} von ${seitenAnzahl}`, pageWidth - 20, pageHeight - 12, { align: 'right' });
+    }
+}
+
+/**
+ * Shared-secret check for the endpoints that render confidential data (currently the deposit statement). The header must
+ * equal `WORKER_AUTH_KEY`; a worker without a configured key rejects the request (fail closed). The comparison runs in
+ * constant time over the whole key so the response time does not reveal how much of a guess was right.
+ */
+export function isWorkerAuthenticated(request: Request, env: Env): boolean {
+    const expected = env.WORKER_AUTH_KEY;
+    const given = request.headers.get('x-worker-auth');
+    if (!expected || given === null) return false;
+    const encoder = new TextEncoder();
+    const a = encoder.encode(expected);
+    const b = encoder.encode(given);
+    let diff = a.length ^ b.length;
+    for (let i = 0; i < a.length; i++) {
+        diff |= a[i] ^ (b[i] ?? 0);
+    }
+    return diff === 0;
+}
+
+// Entfernt Punkte und Leerzeichen am Anfang und Ende in einem Durchlauf (linear; eine Regex wie /^[. ]+|[. ]+$/ ist bei langen
+// Folgen von Leerzeichen polynomiell, CodeQL: ReDoS auf Nutzereingabe).
+function schneideRandpunkteAb(text: string): string {
+    let start = 0;
+    let ende = text.length;
+    while (start < ende && (text[start] === '.' || text[start] === ' ')) start++;
+    while (ende > start && (text[ende - 1] === '.' || text[ende - 1] === ' ')) ende--;
+    return text.slice(start, ende);
+}
+
+// Content-Disposition für Downloads: nur ein bereinigter Dateiname (ohne Pfade und Anführungszeichen). `filename` bleibt
+// ASCII (Umlaute werden zu "_"); enthält der Name Buchstaben oder Ziffern außerhalb von ASCII, kommt `filename*` (RFC 5987/6266)
+// mit dem Originalnamen dazu, damit Browser "Müller.pdf" statt "M_ller.pdf" speichern.
+export function contentDispositionAttachment(filename: string | undefined, fallback: string): string {
+    const bereinige = (wert: string, unicode: boolean): string => {
+        const basisname = wert.split(/[\\/]/).pop() ?? '';
+        const ohneSteuerzeichen = basisname.replace(/["\r\n]/g, '');
+        const ungueltig = unicode ? /[^\p{L}\p{N}._ -]/gu : /[^A-Za-z0-9._ -]/gu;
+        const ersetzt = schneideRandpunkteAb(ohneSteuerzeichen.replace(ungueltig, '_'));
+        // Nach Zeichen (nicht UTF-16-Einheiten) kürzen: ein Surrogatpaar darf nicht getrennt werden (encodeURIComponent wirft sonst).
+        const zeichen = Array.from(ersetzt);
+        if (zeichen.length <= 100) return ersetzt;
+        const punkt = zeichen.lastIndexOf('.');
+        const endung = punkt > 0 && zeichen.length - punkt <= 10 ? zeichen.slice(punkt) : [];
+        return [...zeichen.slice(0, 100 - endung.length), ...endung].join('');
+    };
+    const eingabe = typeof filename === 'string' ? filename : '';
+    const name = bereinige(eingabe, false) || bereinige(fallback, false) || 'download';
+    const nameUnicode = bereinige(eingabe, true);
+    if (nameUnicode === '' || nameUnicode === name) return `attachment; filename="${name}"`;
+    // Nach der Bereinigung bleiben nur Buchstaben, Ziffern, Punkt, Leerzeichen und Bindestrich: encodeURIComponent genügt.
+    return `attachment; filename="${name}"; filename*=UTF-8''${encodeURIComponent(nameUnicode)}`;
+}
+
 // --- AI Logic Implementation ---
 
 const SYSTEM_INSTRUCTION = `Stelle dir vor du bist ein hilfreicher Assistent der für Mietevo arbeitet. 
@@ -1292,7 +1749,7 @@ export async function handleFileGeneration(request: Request, env: Env, ctx: Exec
             return new Response(csv, {
                 headers: {
                     'Content-Type': 'text/csv',
-                    'Content-Disposition': `attachment; filename="${filename || 'export.csv'}`,
+                    'Content-Disposition': contentDispositionAttachment(filename, 'export.csv'),
                     'X-PDF-Page-Count': '0',
                     'X-PDF-Generation-Time': (endTime - startTime).toString(),
                     'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
@@ -1337,7 +1794,7 @@ export async function handleFileGeneration(request: Request, env: Env, ctx: Exec
             return new Response(zipBuffer as unknown as BodyInit, {
                 headers: {
                     'Content-Type': 'application/zip',
-                    'Content-Disposition': `attachment; filename="${filename || 'export.zip'}`,
+                    'Content-Disposition': contentDispositionAttachment(filename, 'export.zip'),
                     'X-PDF-Page-Count': '0',
                     'X-PDF-Generation-Time': (endTime - startTime).toString(),
                     'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
@@ -1378,7 +1835,7 @@ export async function handleFileGeneration(request: Request, env: Env, ctx: Exec
             return new Response(zipBuffer as unknown as BodyInit, {
                 headers: {
                     'Content-Type': 'application/zip',
-                    'Content-Disposition': `attachment; filename="${filename || 'export.zip'}`,
+                    'Content-Disposition': contentDispositionAttachment(filename, 'export.zip'),
                     'X-PDF-Page-Count': totalPages.toString(),
                     'X-PDF-Generation-Time': (endTime - startTime).toString(),
                     'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
@@ -1398,7 +1855,27 @@ export async function handleFileGeneration(request: Request, env: Env, ctx: Exec
         try {
             logger.info('Generating PDF', { template: template || 'standard', filename });
             const doc = new jsPDF();
-            if (template === 'house-overview') {
+            if (template === 'kaution-abrechnung') {
+                // The deposit statement contains confidential data: only the RMS route may call it (shared secret).
+                if (!isWorkerAuthenticated(request, env)) {
+                    logger.warn('Unauthorized kaution-abrechnung request', { workerAuthKeyConfigured: !!env.WORKER_AUTH_KEY });
+                    logger.flush();
+                    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+                        status: 401,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+                const ergebnis = parseKautionAbrechnungPayload(data);
+                if (!ergebnis.ok) {
+                    logger.warn('Invalid kaution-abrechnung payload', { error: ergebnis.error });
+                    logger.flush();
+                    return new Response(JSON.stringify({ error: ergebnis.error }), {
+                        status: 400,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+                generateKautionAbrechnungPDF(doc, ergebnis.payload);
+            } else if (template === 'house-overview') {
                 generateHouseOverviewPDF(doc, body as unknown as HouseOverviewPayload);
             } else {
                 generateSingleTenantPDF(doc, body as unknown as SingleTenantPayload);
@@ -1419,7 +1896,7 @@ export async function handleFileGeneration(request: Request, env: Env, ctx: Exec
             return new Response(new Uint8Array(pdfBuffer) as unknown as BodyInit, {
                 headers: {
                     'Content-Type': 'application/pdf',
-                    'Content-Disposition': `attachment; filename="${filename || 'document.pdf'}`,
+                    'Content-Disposition': contentDispositionAttachment(filename, 'document.pdf'),
                     'X-PDF-Page-Count': totalPages.toString(),
                     'X-PDF-Generation-Time': (endTime - startTime).toString(),
                     'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'

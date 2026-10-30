@@ -30,8 +30,8 @@ const FinanceTable = dynamic(
 );
 
 import { FinanceBulkActionBar } from "@/components/finance/finance-bulk-action-bar";
-import { SummaryCardSkeleton } from "@/components/skeletons/summary-card-skeleton";
-import { SummaryCard } from "@/components/common/summary-card";
+import { SummaryCard, SummaryCardPlaceholder } from "@/components/common/summary-card";
+import { YEARLY_SUMMARY_CARDS, FILTERED_SUMMARY_CARDS } from "./summary-cards";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/common/stat-card";
@@ -678,6 +678,13 @@ export default function FinanzenClientWrapper({
   const averageMonthlyExpenses = summaryData?.averageMonthlyExpenses ?? 0;
   const averageMonthlyCashflow = summaryData?.averageMonthlyCashflow ?? 0;
   const yearlyProjection = summaryData?.yearlyProjection ?? 0;
+  const yearlyValues = {
+    income: averageMonthlyIncome,
+    expenses: averageMonthlyExpenses,
+    cashflow: averageMonthlyCashflow,
+    projection: yearlyProjection,
+  };
+  const filteredValues = { filteredIncome, filteredExpenses, balance: totalBalance };
 
   const handleEdit = useCallback((finance: Finanz) => {
     useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
@@ -882,56 +889,12 @@ export default function FinanzenClientWrapper({
 
           {/* Summary Cards for Current Year */}
           <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
-            {isSummaryLoading && hasInitialData ? (
-              <>
-                <SummaryCardSkeleton
-                  title="Ø Monatliche Einnahmen"
-                  icon={<ArrowUpCircle className="size-4 text-green-500" />}
-                />
-                <SummaryCardSkeleton
-                  title="Ø Monatliche Ausgaben"
-                  icon={<ArrowDownCircle className="size-4 text-red-500" />}
-                />
-                <SummaryCardSkeleton
-                  title="Ø Monatlicher Cashflow"
-                  icon={<Wallet className="size-4 text-muted-foreground" />}
-                />
-                <SummaryCardSkeleton
-                  title="Jahresprognose"
-                  icon={<BarChart3 className="size-4 text-muted-foreground" />}
-                />
-              </>
-            ) : (
-              <>
-                <SummaryCard
-                  title="Ø Monatliche Einnahmen"
-                  value={averageMonthlyIncome}
-                  description="Durchschnittliche monatliche Einnahmen"
-                  icon={<ArrowUpCircle className="size-4 text-green-500" />}
-                  isLoading={isSummaryLoading}
-                />
-                <SummaryCard
-                  title="Ø Monatliche Ausgaben"
-                  value={averageMonthlyExpenses}
-                  description="Durchschnittliche monatliche Ausgaben"
-                  icon={<ArrowDownCircle className="size-4 text-red-500" />}
-                  isLoading={isSummaryLoading}
-                />
-                <SummaryCard
-                  title="Ø Monatlicher Cashflow"
-                  value={averageMonthlyCashflow}
-                  description="Durchschnittlicher monatlicher Überschuss"
-                  icon={<Wallet className="size-4 text-muted-foreground" />}
-                  isLoading={isSummaryLoading}
-                />
-                <SummaryCard
-                  title="Jahresprognose"
-                  value={yearlyProjection}
-                  description="Geschätzter Jahresgewinn"
-                  icon={<BarChart3 className="size-4 text-muted-foreground" />}
-                  isLoading={isSummaryLoading}
-                />
-              </>
+            {YEARLY_SUMMARY_CARDS.map(({ id, ...card }) =>
+              isSummaryLoading && hasInitialData ? (
+                <SummaryCardPlaceholder key={id} {...card} />
+              ) : (
+                <SummaryCard key={id} {...card} value={yearlyValues[id]} isLoading={isSummaryLoading} />
+              )
             )}
           </div>
 
@@ -945,45 +908,12 @@ export default function FinanzenClientWrapper({
 
           {/* Filtered Summary Cards */}
           <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3 sm:gap-4">
-            {balanceLoading ? (
-              <>
-                <SummaryCardSkeleton
-                  title="Gefilterte Einnahmen"
-                  icon={<ArrowUpCircle className="size-4 text-green-500" />}
-                />
-                <SummaryCardSkeleton
-                  title="Gefilterte Ausgaben"
-                  icon={<ArrowDownCircle className="size-4 text-red-500" />}
-                />
-                <SummaryCardSkeleton
-                  title="Aktueller Saldo"
-                  icon={<Wallet className="size-4 text-muted-foreground" />}
-                />
-              </>
-            ) : (
-              <>
-                <SummaryCard
-                  title="Gefilterte Einnahmen"
-                  value={filteredIncome}
-                  description="Einnahmen basierend auf aktuellen Filtern"
-                  icon={<ArrowUpCircle className="size-4 text-green-500" />}
-                  isLoading={balanceLoading}
-                />
-                <SummaryCard
-                  title="Gefilterte Ausgaben"
-                  value={filteredExpenses}
-                  description="Ausgaben basierend auf aktuellen Filtern"
-                  icon={<ArrowDownCircle className="size-4 text-red-500" />}
-                  isLoading={balanceLoading}
-                />
-                <SummaryCard
-                  title="Aktueller Saldo"
-                  value={totalBalance}
-                  description="Gesamtsaldo aller Transaktionen"
-                  icon={<Wallet className="size-4 text-muted-foreground" />}
-                  isLoading={balanceLoading}
-                />
-              </>
+            {FILTERED_SUMMARY_CARDS.map(({ id, ...card }) =>
+              balanceLoading ? (
+                <SummaryCardPlaceholder key={id} {...card} />
+              ) : (
+                <SummaryCard key={id} {...card} value={filteredValues[id]} isLoading={false} />
+              )
             )}
           </div>
 

@@ -6,7 +6,6 @@ import {
   formatFailureReasons,
   isDeleteBlockedError,
   isDeleteForbiddenError,
-  parsePruefsummen,
   stripDbCodePrefix,
   summarizeBulkDeleteResults,
   summarizeSettledDeletes,
@@ -19,31 +18,30 @@ const failed = (message?: string): PromiseFulfilledResult<{ success: boolean; er
 });
 const rejected = (): PromiseRejectedResult => ({ status: "rejected", reason: new Error("netzwerk") });
 
-describe("KA016 and 42501 in bulk deletions", () => {
+describe("KA009 and 42501 in bulk deletions", () => {
   const withCode = (code: string, message: string) => Object.assign(new Error(message), { code });
 
-  it("treats a stale or missing confirmation (KA016) as a business rejection like KA009", () => {
-    expect(isDeleteBlockedError(withCode("KA016", "x"))).toBe(true);
+  it("treats a deletion lock (KA009) as a business rejection, other codes are not", () => {
     expect(isDeleteBlockedError(withCode("KA009", "x"))).toBe(true);
     expect(isDeleteBlockedError(withCode("55P03", "x"))).toBe(false);
   });
 
   it("recognises a missing permission (42501)", () => {
     expect(isDeleteForbiddenError(withCode("42501", "x"))).toBe(true);
-    expect(isDeleteForbiddenError(withCode("KA016", "x"))).toBe(false);
+    expect(isDeleteForbiddenError(withCode("KA009", "x"))).toBe(false);
     expect(isDeleteForbiddenError(null)).toBe(false);
   });
 
-  it("answers 409 when every deletion fails with KA016", () => {
+  it("answers 409 when every deletion fails with KA009", () => {
     const summary = summarizeSettledDeletes([
-      { status: "rejected", reason: withCode("KA016", "Die Auswirkung hat sich geändert.") },
-      { status: "rejected", reason: withCode("KA016", "Die Auswirkung hat sich geändert.") },
+      { status: "rejected", reason: withCode("KA009", "Die Löschung ist gesperrt.") },
+      { status: "rejected", reason: withCode("KA009", "Die Löschung ist gesperrt.") },
     ]);
 
     const response = buildBulkDeleteResponse(summary, "Fehler");
 
     expect(response.status).toBe(409);
-    expect(response.body.error).toBe("Die Auswirkung hat sich geändert.");
+    expect(response.body.error).toBe("Die Löschung ist gesperrt.");
   });
 
   it("answers 403 when every deletion fails with a missing permission", () => {
@@ -55,36 +53,13 @@ describe("KA016 and 42501 in bulk deletions", () => {
 
   it("a business rejection wins over a missing permission, a partial success stays 200", () => {
     const gemischt = summarizeSettledDeletes([
-      { status: "rejected", reason: withCode("KA016", "a") },
+      { status: "rejected", reason: withCode("KA009", "a") },
       { status: "rejected", reason: withCode("42501", "b") },
     ]);
     const teilerfolg = summarizeSettledDeletes([{ status: "fulfilled", value: undefined }, { status: "rejected", reason: withCode("42501", "b") }]);
 
     expect(buildBulkDeleteResponse(gemischt, "Fehler").status).toBe(409);
     expect(buildBulkDeleteResponse(teilerfolg, "Fehler").status).toBe(200);
-  });
-});
-
-describe("parsePruefsummen", () => {
-  const SUMME = "0123456789abcdef0123456789abcdef";
-
-  it("keeps entries with a 32-digit hex checksum", () => {
-    expect(parsePruefsummen({ "id-1": SUMME })).toEqual({ "id-1": SUMME });
-  });
-
-  it.each([
-    ["a missing body field", undefined],
-    ["null", null],
-    ["a list", [SUMME]],
-    ["a string", SUMME],
-  ])("returns an empty object for %s", (_name, value) => {
-    expect(parsePruefsummen(value)).toEqual({});
-  });
-
-  it("ignores entries whose value is not a 32-digit lowercase hex string", () => {
-    expect(
-      parsePruefsummen({ a: "zu-kurz", b: SUMME.toUpperCase(), c: 123, d: null, e: `${SUMME}0`, f: SUMME })
-    ).toEqual({ f: SUMME });
   });
 });
 

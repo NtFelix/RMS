@@ -16,15 +16,25 @@ import {
   KautionFormularFehler,
   useDirtyMelder,
 } from "@/components/kaution/kaution-feld";
-import { KAUTION_ART_LABELS, KAUTION_ARTEN_VERFUEGBAR, KAUTION_TEXT_LIMITS } from "@/lib/kautionen-constants";
+import { KautionVereinbarungsFelder } from "@/components/kaution/kaution-vereinbarungs-felder";
+import { useKautionFlag } from "@/hooks/use-kaution-flag";
+import { KAUTION_ART_LABELS, KAUTION_TEXT_LIMITS, kautionHatKonto } from "@/lib/kautionen-constants";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
 import { getMoneyInputError } from "@/lib/kautionen-money";
+import {
+  anlegenVereinbarungsFelder,
+  leereVereinbarungsWerte,
+  pruefeVereinbarungsWerte,
+  type KautionVereinbarungsFehler,
+  type KautionVereinbarungsWerte,
+} from "@/lib/kautionen-vereinbarung";
 import { validateKautionText } from "@/lib/kautionen-validation";
 import type { KautionArt, KautionVorschlag } from "@/types/Kaution";
 
 /**
- * Form "Kaution anlegen" (tenant without deposit): target amount (prefilled with the suggestion of the
- * database, freely changeable), rent at contract date and an internal note. Phase 1: bar deposit only.
+ * Form "Kaution anlegen" (tenant without deposit): deposit type (only the types the flag offers), target amount
+ * (prefilled with the suggestion of the database, freely changeable), rent at contract date, internal note and the
+ * agreement fields of the chosen type (bank account or guarantee/insurance, phase 3).
  *
  * The form only collects and pre-validates; the action and the database validate again. `onFehler` returns
  * `true` if the dialog handled the error itself (toast, reload, close); otherwise the message is shown here.
@@ -41,13 +51,11 @@ interface KautionAnlegenFormProps {
   onDirtyChange?: (dirty: boolean) => void;
 }
 
-interface FeldFehler {
+interface FeldFehler extends KautionVereinbarungsFehler {
   soll?: string;
   miete?: string;
   notiz?: string;
 }
-
-const STANDARD_ART: KautionArt = KAUTION_ARTEN_VERFUEGBAR[0] ?? "barkaution";
 
 export function KautionAnlegenForm({
   tenantId,
@@ -59,24 +67,30 @@ export function KautionAnlegenForm({
   onDirtyChange,
 }: KautionAnlegenFormProps) {
   const basisId = useId();
+  // Offered types: payload of the flag intersected with what the RPCs release (never empty).
+  const { arten, funktionen } = useKautionFlag();
   const vorschlagBetrag = vorschlag?.vorschlag_betrag ?? null;
 
   // The suggestion is only the starting value: the user may change it freely.
   const [startWert] = useState(() => betragZuEingabe(vorschlagBetrag));
-  const [art, setArt] = useState<KautionArt>(STANDARD_ART);
+  const [startArt] = useState<KautionArt>(() => arten[0] ?? "barkaution");
+  const [art, setArt] = useState<KautionArt>(startArt);
   const [soll, setSoll] = useState(startWert);
   const [miete, setMiete] = useState("");
   const [notiz, setNotiz] = useState("");
+  const [werte, setWerte] = useState<KautionVereinbarungsWerte>(leereVereinbarungsWerte);
   const [fehler, setFehler] = useState<FeldFehler>({});
   const [serverFehler, setServerFehler] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
-  const isDirty = soll !== startWert || miete !== "" || notiz !== "" || art !== STANDARD_ART;
+  const werteGeaendert = JSON.stringify(werte) !== JSON.stringify(leereVereinbarungsWerte());
+  const isDirty = soll !== startWert || miete !== "" || notiz !== "" || art !== startArt || werteGeaendert;
   useDirtyMelder(isDirty, onDirtyChange);
 
-  const mehrereArten = KAUTION_ARTEN_VERFUEGBAR.length > 1;
+  const mehrereArten = arten.length > 1;
   const gesperrt = !darfErstellen || isSubmitting;
+  const konto = kautionHatKonto(art);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -92,6 +106,8 @@ export function KautionAnlegenForm({
     const notizPruefung = validateKautionText(notiz, { label: "Die interne Notiz", max: KAUTION_TEXT_LIMITS.interneNotiz.max });
     if (!notizPruefung.ok) neueFehler.notiz = notizPruefung.message;
 
+    Object.assign(neueFehler, pruefeVereinbarungsWerte(art, werte));
+
     setFehler(neueFehler);
     setServerFehler(null);
     if (Object.keys(neueFehler).length > 0) return;
@@ -106,6 +122,7 @@ export function KautionAnlegenForm({
         // Empty: the database copies the current rent of the apartment.
         mieteBeiVertragsschluss: miete.trim() === "" ? undefined : miete,
         interneNotiz: notizPruefung.ok ? notizPruefung.value : null,
+        ...anlegenVereinbarungsFelder(art, werte, funktionen.zinsen),
       });
       if (result.success) {
         toast({ title: "Kaution gespeichert.", variant: "success" });
@@ -146,7 +163,7 @@ export function KautionAnlegenForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {KAUTION_ARTEN_VERFUEGBAR.map((verfuegbar) => (
+                  {arten.map((verfuegbar) => (
                     <SelectItem key={verfuegbar} value={verfuegbar}>
                       {KAUTION_ART_LABELS[verfuegbar]}
                     </SelectItem>
@@ -158,13 +175,13 @@ export function KautionAnlegenForm({
         ) : (
           <div className="space-y-1.5">
             <p className="text-sm font-medium leading-none">Kautionsart</p>
-            <p className="text-sm">{KAUTION_ART_LABELS[STANDARD_ART]}</p>
+            <p className="text-sm">{KAUTION_ART_LABELS[startArt]}</p>
           </div>
         )}
 
         <KautionFeld
           id={`${basisId}-soll`}
-          label="Soll-Betrag (€)"
+          label={konto ? "Soll-Betrag (€)" : "Bürgschafts-/Versicherungssumme (€)"}
           pflicht
           fehler={fehler.soll}
           hinweis={
@@ -193,6 +210,16 @@ export function KautionAnlegenForm({
             />
           )}
         </KautionFeld>
+
+        <KautionVereinbarungsFelder
+          basisId={basisId}
+          art={art}
+          zinsenAktiv={funktionen.zinsen}
+          werte={werte}
+          fehler={fehler}
+          aendere={(aenderung) => setWerte((vorher) => ({ ...vorher, ...aenderung }))}
+          gesperrt={gesperrt}
+        />
 
         <KautionFeld id={`${basisId}-notiz`} label="Interne Notiz (optional)" fehler={fehler.notiz}>
           {(props) => (

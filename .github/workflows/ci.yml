@@ -866,8 +866,8 @@ jobs:
           # Deterministic cache key based on critical build inputs
           # Includes: package-lock.json, config files, and source code hash
           LOCK_HASH=${{ hashFiles('**/package-lock.json') }}
-          CONFIG_HASH=${{ hashFiles('next.config.*', 'tsconfig.json', '.env.example') }}
-          SOURCE_HASH=$(find app components lib hooks types -type f \( -name "*.ts" -o -name "*.tsx" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-source")
+          CONFIG_HASH=${{ hashFiles('next.config.*', 'tsconfig.json', '.env.example', 'proxy.ts', 'instrumentation.js') }}
+          SOURCE_HASH=$(find app components lib hooks types utils -type f \( -name "*.ts" -o -name "*.tsx" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-source")
           echo "key=${{ runner.os }}-nextjs-build-${LOCK_HASH:0:12}-${CONFIG_HASH:0:12}-${SOURCE_HASH:0:12}" >> $GITHUB_OUTPUT
           echo "Cache key: ${{ runner.os }}-nextjs-build-${LOCK_HASH:0:12}-${CONFIG_HASH:0:12}-${SOURCE_HASH:0:12}"
 
@@ -1020,9 +1020,10 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline
 
+      # Reporter kommen aus playwright.config.ts (list, github, json, html); ein CLI-Override würde sie verdrängen
       - name: Run Playwright tests (${{ matrix.browser }})
         id: playwright
-        run: npx playwright test --project=${{ matrix.browser }} --grep-invert @visual --reporter=list
+        run: npx playwright test --project=${{ matrix.browser }} --grep-invert @visual
         env:
           CI: true
           NODE_ENV: production
@@ -1032,6 +1033,10 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
           STRIPE_SECRET_KEY: mock-stripe-key
           NEXT_PUBLIC_BASE_URL: http://localhost:3000
+
+      - name: E2E summary (${{ matrix.browser }})
+        if: ${{ !cancelled() }}
+        run: node scripts/e2e-summary.mjs test-results/results.json "E2E ${{ matrix.browser }}"
 
       - name: Upload Playwright report (${{ matrix.browser }})
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -2022,6 +2027,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [docker-build, check-runs]
     if: needs.check-runs.outputs.should-run-deploy-preview == 'true' && github.actor != 'dependabot[bot]'
+    environment:
+      name: Preview
+      url: ${{ steps.deploy.outputs.url }}
     permissions:
       contents: read
       pull-requests: write
@@ -2164,6 +2172,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [docker-build, check-runs]
     if: needs.check-runs.outputs.should-run-deploy-production == 'true' && github.actor != 'dependabot[bot]'
+    environment:
+      name: Production
     permissions:
       contents: read
       id-token: write

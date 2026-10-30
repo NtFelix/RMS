@@ -48,7 +48,7 @@ describe('HouseContextMenu delete with Kautionen overview', () => {
     await waitFor(() => expect(mockStart).toHaveBeenCalledWith('Haeuser', ['house-1'], expect.any(Object)));
   });
 
-  it('without booked deposits: shows the usual question and deletes without checksum after it', async () => {
+  it('without booked deposits: shows the usual question and deletes after it', async () => {
     renderMenu();
     await klickeLoeschen();
 
@@ -57,17 +57,17 @@ describe('HouseContextMenu delete with Kautionen overview', () => {
     const buttons = await screen.findAllByRole('button', { name: 'Löschen' });
     fireEvent.click(buttons[buttons.length - 1]);
 
-    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('house-1', undefined));
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('house-1'));
     await waitFor(() => expect(screen.queryByText('Haus löschen?')).not.toBeInTheDocument());
   });
 
-  it('with booked deposits: no second question, the confirmed overview deletes with the checksum', async () => {
-    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ 'house-1': 'abc' }));
+  it('with booked deposits: no second question, the confirmed overview deletes right away', async () => {
+    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen());
     const onRefresh = jest.fn();
     renderMenu(onRefresh);
     await klickeLoeschen();
 
-    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('house-1', 'abc'));
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('house-1'));
     expect(screen.queryByText('Haus löschen?')).not.toBeInTheDocument();
     // Handler vollständig durchgelaufen (Zustand im finally zurückgesetzt), sonst endet der Test mit Updates außerhalb von act()
     await waitFor(() => expect(onRefresh).toHaveBeenCalled());

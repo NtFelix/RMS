@@ -10,6 +10,7 @@ export async function createSupabaseServerClient(orgIdOverride?: string) {
   const { url, anonKey } = getSupabasePublicEnv()
 
   return createServerClient(url, anonKey, {
+    tracePropagation: true,
     global: {
       headers: globalHeaders,
     },

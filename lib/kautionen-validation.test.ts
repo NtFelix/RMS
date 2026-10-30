@@ -2,7 +2,20 @@
  * Tests for the input validation helpers of the deposit management. All values are synthetic.
  */
 
-import { isUuid, validateKautionDatum, validateKautionText, validateUuid } from "@/lib/kautionen-validation";
+import {
+  isUuid,
+  validateKautionArtFelder,
+  validateKautionDatum,
+  validateKautionEinbehalt,
+  validateKautionGetrennt,
+  validateKautionStichtag,
+  validateKautionIban,
+  validateKautionText,
+  validateKautionZinsmethode,
+  validateUuid,
+  validateZinsstaffel,
+  validateZinszeitraum,
+} from "@/lib/kautionen-validation";
 
 describe("kautionen-validation", () => {
   describe("isUuid / validateUuid", () => {
@@ -105,6 +118,194 @@ describe("kautionen-validation", () => {
       const result = validateKautionText("Muster-Freitext-zu-lang", optional);
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.message).not.toContain("Muster-Freitext");
+    });
+  });
+
+  describe("validateKautionIban", () => {
+    it("normalises a valid IBAN (no spaces, upper case)", () => {
+      expect(validateKautionIban("de89 3704 0044 0532 0130 00")).toEqual({ ok: true, value: "DE89370400440532013000" });
+    });
+
+    it.each([undefined, null, "", "   "])("treats %p as not given", (value) => {
+      expect(validateKautionIban(value)).toEqual({ ok: true, value: null });
+    });
+
+    it("rejects an invalid IBAN without repeating it", () => {
+      const result = validateKautionIban("DE89370400440532013001");
+      expect(result).toEqual({ ok: false, message: "Bitte geben Sie eine gültige IBAN an." });
+    });
+
+    it("rejects an IBAN that is longer than 34 characters", () => {
+      expect(validateKautionIban("DE89" + "0".repeat(31))).toEqual({ ok: false, message: "Die IBAN darf höchstens 34 Zeichen lang sein." });
+    });
+
+    it.each([1, true, {}, ["DE89370400440532013000"]])("rejects the non-string %p", (value) => {
+      expect(validateKautionIban(value)).toEqual({ ok: false, message: "Die IBAN ist ungültig." });
+    });
+  });
+
+  describe("validateKautionZinsmethode and validateKautionGetrennt", () => {
+    it("accepts the three database methods only", () => {
+      for (const methode of ["act_365", "act_360", "30_360"]) expect(validateKautionZinsmethode(methode)).toEqual({ ok: true, value: methode });
+      for (const value of ["act/365", "act/act", null, undefined, 365]) {
+        expect(validateKautionZinsmethode(value)).toEqual({ ok: false, message: "Die Zinsmethode ist ungültig." });
+      }
+    });
+
+    it("accepts a boolean or nothing for the separate-account confirmation", () => {
+      expect(validateKautionGetrennt(true)).toEqual({ ok: true, value: true });
+      expect(validateKautionGetrennt(false)).toEqual({ ok: true, value: false });
+      expect(validateKautionGetrennt(null)).toEqual({ ok: true, value: null });
+      expect(validateKautionGetrennt(undefined)).toEqual({ ok: true, value: null });
+      expect(validateKautionGetrennt("ja")).toEqual({ ok: false, message: "Die Angabe zur getrennten Anlage ist ungültig." });
+    });
+  });
+
+  describe("validateKautionArtFelder (field belongs to the deposit type)", () => {
+    it("accepts the account fields for bank account types and the document fields for guarantee and insurance", () => {
+      expect(validateKautionArtFelder("barkaution", ["iban", "bank", "kontoinhaber", "getrennt_angelegt", "zinsmethode"]).ok).toBe(true);
+      expect(validateKautionArtFelder("sparbuch", ["iban"]).ok).toBe(true);
+      expect(validateKautionArtFelder("buergschaft", ["buerge_versicherer", "urkundennummer", "zinsmethode"]).ok).toBe(true);
+      expect(validateKautionArtFelder("versicherung", ["urkundennummer"]).ok).toBe(true);
+    });
+
+    it("rejects an account field for guarantee and insurance and a document field for accounts", () => {
+      expect(validateKautionArtFelder("buergschaft", ["iban"]).ok).toBe(false);
+      expect(validateKautionArtFelder("versicherung", ["bank"]).ok).toBe(false);
+      expect(validateKautionArtFelder("barkaution", ["urkundennummer"]).ok).toBe(false);
+      expect(validateKautionArtFelder("sparbuch", ["buerge_versicherer"]).ok).toBe(false);
+    });
+
+    it("accepts no fields at all", () => {
+      expect(validateKautionArtFelder("buergschaft", [])).toEqual({ ok: true, value: null });
+    });
+  });
+
+  describe("validateZinsstaffel", () => {
+    const zeile = (gueltigAb: string, zinssatzProzent: string) => ({ gueltigAb, zinssatzProzent });
+
+    it("returns the rows with the exact decimal rates for the RPC", () => {
+      expect(validateZinsstaffel([zeile("2025-01-01", "1,5"), zeile("2025-07-01", "2.0125")])).toEqual({
+        ok: true,
+        value: [
+          { gueltig_ab: "2025-01-01", zinssatz_prozent: "1.5" },
+          { gueltig_ab: "2025-07-01", zinssatz_prozent: "2.0125" },
+        ],
+      });
+    });
+
+    it("accepts an empty list (removes the schedule)", () => {
+      expect(validateZinsstaffel([])).toEqual({ ok: true, value: [] });
+    });
+
+    it("rejects more than 20 rows", () => {
+      const zuViele = Array.from({ length: 21 }, (_, i) => zeile(`${2000 + i}-01-01`, "1"));
+      expect(validateZinsstaffel(zuViele)).toEqual({ ok: false, message: "Eine Zinsstaffel hat höchstens 20 Zeilen." });
+    });
+
+    it("requires strictly ascending dates", () => {
+      const erwartet = { ok: false, message: "Die Gültigkeitsdaten der Zinsstaffel müssen in aufsteigender Reihenfolge liegen." };
+      expect(validateZinsstaffel([zeile("2025-07-01", "1"), zeile("2025-01-01", "1")])).toEqual(erwartet);
+      expect(validateZinsstaffel([zeile("2025-01-01", "1"), zeile("2025-01-01", "2")])).toEqual(erwartet);
+    });
+
+    it("checks each date (real calendar day, not before 1990) and each rate", () => {
+      expect(validateZinsstaffel([zeile("2025-02-29", "1")]).ok).toBe(false);
+      expect(validateZinsstaffel([zeile("1989-12-31", "1")])).toEqual({ ok: false, message: "Das Gültigkeitsdatum darf nicht vor dem 01.01.1990 liegen." });
+      expect(validateZinsstaffel([zeile("2025-01-01", "100,5")])).toEqual({
+        ok: false,
+        message: "Der Zinssatz muss zwischen 0 und 100 liegen und höchstens 4 Nachkommastellen haben.",
+      });
+    });
+
+    it("rejects a list that is not a list and rows that are not objects", () => {
+      expect(validateZinsstaffel("Muster").ok).toBe(false);
+      expect(validateZinsstaffel([null]).ok).toBe(false);
+      expect(validateZinsstaffel([["2025-01-01", "1"]]).ok).toBe(false);
+    });
+
+    it("never repeats the rejected rate or date in the message", () => {
+      const result = validateZinsstaffel([zeile("2025-02-31", "9,9999999")]);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.message).not.toContain("2025-02-31");
+        expect(result.message).not.toContain("9,9999999");
+      }
+    });
+  });
+
+  describe("validateZinszeitraum", () => {
+    it("accepts a period with the start before the end", () => {
+      expect(validateZinszeitraum("2025-01-01", "2026-01-01")).toEqual({ ok: true, value: { von: "2025-01-01", bis: "2026-01-01" } });
+    });
+
+    it("rejects an empty or inverted period", () => {
+      const erwartet = { ok: false, message: "Das Ende des Zinszeitraums muss nach dem Beginn liegen." };
+      expect(validateZinszeitraum("2025-01-01", "2025-01-01")).toEqual(erwartet);
+      expect(validateZinszeitraum("2026-01-01", "2025-01-01")).toEqual(erwartet);
+    });
+
+    it("requires both dates to be valid", () => {
+      expect(validateZinszeitraum(undefined, "2026-01-01").ok).toBe(false);
+      expect(validateZinszeitraum("2025-01-01", "01.01.2026").ok).toBe(false);
+    });
+  });
+
+  describe("validateKautionEinbehalt (phase 4)", () => {
+    it("empty reason and empty date mean: remove the hold (null)", () => {
+      expect(validateKautionEinbehalt(null, null)).toEqual({ ok: true, value: null });
+      expect(validateKautionEinbehalt(undefined, undefined)).toEqual({ ok: true, value: null });
+      expect(validateKautionEinbehalt("   ", "")).toEqual({ ok: true, value: null });
+    });
+
+    it("accepts a reason of 3 to 500 characters with a valid date and trims the reason", () => {
+      expect(validateKautionEinbehalt("  Muster-Grund  ", "2026-03-01")).toEqual({
+        ok: true,
+        value: { grund: "Muster-Grund", seit: "2026-03-01" },
+      });
+      const genau500 = "x".repeat(500);
+      expect(validateKautionEinbehalt(genau500, "2026-03-01").ok).toBe(true);
+    });
+
+    it("rejects a reason shorter than 3 or longer than 500 characters", () => {
+      expect(validateKautionEinbehalt("ab", "2026-03-01").ok).toBe(false);
+      expect(validateKautionEinbehalt("x".repeat(501), "2026-03-01").ok).toBe(false);
+    });
+
+    it("rejects only one of the two values, with its own message", () => {
+      const nurGrund = validateKautionEinbehalt("Muster-Grund", null);
+      expect(nurGrund).toEqual({
+        ok: false,
+        message: "Grund und Datum des Einbehalts müssen gemeinsam angegeben oder gemeinsam entfernt werden.",
+      });
+      expect(validateKautionEinbehalt(null, "2026-03-01").ok).toBe(false);
+    });
+
+    it("rejects an invalid or pre-1990 date and does not decide about the future (database, KA013)", () => {
+      expect(validateKautionEinbehalt("Muster-Grund", "2026-02-31").ok).toBe(false);
+      expect(validateKautionEinbehalt("Muster-Grund", "1989-12-31").ok).toBe(false);
+      expect(validateKautionEinbehalt("Muster-Grund", "2099-01-01").ok).toBe(true);
+    });
+
+    it("never repeats the rejected value in the message", () => {
+      const result = validateKautionEinbehalt("x".repeat(600), "2026-03-01");
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.message).not.toContain("xxxxx");
+    });
+  });
+
+  describe("validateKautionStichtag (phase 4)", () => {
+    it("missing or null means the database default (null)", () => {
+      expect(validateKautionStichtag(undefined)).toEqual({ ok: true, value: null });
+      expect(validateKautionStichtag(null)).toEqual({ ok: true, value: null });
+    });
+
+    it("accepts a valid calendar date and rejects malformed or pre-1990 dates", () => {
+      expect(validateKautionStichtag("2026-03-15")).toEqual({ ok: true, value: "2026-03-15" });
+      expect(validateKautionStichtag("2026-02-30").ok).toBe(false);
+      expect(validateKautionStichtag("15.03.2026").ok).toBe(false);
+      expect(validateKautionStichtag("1989-01-01").ok).toBe(false);
+      expect(validateKautionStichtag("").ok).toBe(false);
     });
   });
 });

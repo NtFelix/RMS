@@ -52,7 +52,7 @@ describe('WohnungEditModal - Löschen mit Kautionen-Bestätigung', () => {
     fireEvent.click(screen.getByRole('button', { name: /Löschen/ }));
   };
 
-  it('lädt zuerst die Auswirkung, fragt dann üblich und löscht ohne Prüfsumme', async () => {
+  it('lädt zuerst die Auswirkung, fragt dann üblich und löscht danach', async () => {
     mockLoescheWohnung.mockResolvedValue({ success: true });
     klickeLoeschen();
 
@@ -61,16 +61,16 @@ describe('WohnungEditModal - Löschen mit Kautionen-Bestätigung', () => {
     expect(mockLoescheWohnung).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }));
 
-    await waitFor(() => expect(mockLoescheWohnung).toHaveBeenCalledWith(wohnung.id, undefined));
+    await waitFor(() => expect(mockLoescheWohnung).toHaveBeenCalledWith(wohnung.id));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   });
 
-  it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht mit der Prüfsumme', async () => {
-    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ [wohnung.id]: 'abc' }));
+  it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht sofort', async () => {
+    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen());
     mockLoescheWohnung.mockResolvedValue({ success: true });
     klickeLoeschen();
 
-    await waitFor(() => expect(mockLoescheWohnung).toHaveBeenCalledWith(wohnung.id, 'abc'));
+    await waitFor(() => expect(mockLoescheWohnung).toHaveBeenCalledWith(wohnung.id));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 

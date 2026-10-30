@@ -97,12 +97,12 @@ describe("TenantBulkActionBar: Löschen", () => {
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/mieter/bulk-delete");
     expect(options.method).toBe("POST");
-    expect(JSON.parse(options.body)).toEqual({ ids: ["t-1", "t-2", "t-3"], pruefsummen: {} });
+    expect(JSON.parse(options.body)).toEqual({ ids: ["t-1", "t-2", "t-3"] });
     expect(startMock).toHaveBeenCalledWith("Mieter", ["t-1", "t-2", "t-3"], expect.any(Object));
   });
 
-  it("mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht sendet ihre Prüfsummen mit", async () => {
-    startMock.mockImplementation(async (_tabelle, _ids, handlers) => handlers.loeschen({ "t-1": "abc", "t-3": "def" }));
+  it("mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht sendet die IDs", async () => {
+    startMock.mockImplementation(async (_tabelle, _ids, handlers) => handlers.loeschen());
     antwortet({ status: 200, body: { successCount: 3, errorCount: 0, reasons: [] } });
     renderBar();
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
@@ -112,10 +112,7 @@ describe("TenantBulkActionBar: Löschen", () => {
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.queryAllByText("Wird gelöscht...")).toHaveLength(0));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
-      ids: ["t-1", "t-2", "t-3"],
-      pruefsummen: { "t-1": "abc", "t-3": "def" },
-    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ ids: ["t-1", "t-2", "t-3"] });
   });
 
   it("löscht nichts und zeigt keine Frage, wenn die Übersicht abgebrochen wird", async () => {

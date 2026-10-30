@@ -34,7 +34,7 @@ import {
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions";
 import { PropertyHeader } from "@/components/ui/property-header";
 import { ResizeHandle } from "@/components/ui/resize-handle";
-import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 
 interface Haus {
   id: string;
@@ -267,11 +267,11 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     closeWohnungModal({ force: true });
   };
 
-  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
+  const handleDelete = async () => {
     if (!wohnungInitialData || isPending) return;
     try {
       setIsDeleting(true);
-      const result = await loescheWohnung(wohnungInitialData.id, pruefsummen[wohnungInitialData.id]);
+      const result = await loescheWohnung(wohnungInitialData.id);
 
       if (result.success) {
         toast({

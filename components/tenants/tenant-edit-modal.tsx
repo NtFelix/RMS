@@ -24,6 +24,7 @@ import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { cn } from "@/lib/utils"
 import { Tenant, NebenkostenEntry, TenantStatus } from "@/types/Tenant"
 import { useFeatureFlagEnabled } from "posthog-js/react"
+import { useKautionenSichtbar } from "@/hooks/use-kaution-flag"
 import { tenantActions, getVisibleActions } from "@/components/tenants/tenant-menu-actions"
 import {
   Users,
@@ -51,7 +52,7 @@ import {
 import { deleteTenantAction } from "@/app/mieter-actions"
 import { PropertyHeader } from "@/components/ui/property-header"
 import { ResizeHandle } from "@/components/ui/resize-handle"
-import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen"
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 
 interface Mieter extends Tenant {}
 
@@ -693,7 +694,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     isTenantModalDirty,
     setTenantModalDirty,
     openKautionModal,
-    canViewKautionen,
+    canViewKautionen: kautionsrecht,
     openTenantMailTemplatesModal,
     openApplicantScoreModal,
   } = useModalStore()
@@ -838,6 +839,8 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
   const isApplicant = formData.status === 'bewerber'
   const templatesEnabled = useFeatureFlagEnabled('template-modal-enabled')
+  // Kaution (GH-6): Modulrecht UND Feature Flag `advanced-kautionsmanagment` (siehe lib/kautionen-flag.ts).
+  const canViewKautionen = useKautionenSichtbar(kautionsrecht)
 
   const attemptClose = () => {
     closeTenantModal()
@@ -851,11 +854,11 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const isPending = isSubmitting || isDeleting
 
-  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
+  const handleDelete = async () => {
     if (!tenantInitialData || isPending) return
     try {
       setIsDeleting(true)
-      const result = await deleteTenantAction(tenantInitialData.id, pruefsummen[tenantInitialData.id])
+      const result = await deleteTenantAction(tenantInitialData.id)
 
       if (result.success) {
         toast({

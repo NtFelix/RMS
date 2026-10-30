@@ -92,6 +92,25 @@ describe('DashboardSidebar Navigation', () => {
     expect(cloudStorageLink).not.toHaveClass('bg-accent')
   })
 
+  it('switches the active entry in one render and does not fade colours on an active-state change', () => {
+    mockUsePathname.mockReturnValue('/mieter')
+    const { container, rerender } = render(<DashboardSidebar sidebarData={mockSidebarData} />)
+    const mieter = container.querySelector('a[href="/mieter"]') as HTMLElement
+    const haeuser = container.querySelector('a[href="/haeuser"]') as HTMLElement
+    expect(mieter).toHaveAttribute('data-active', 'true')
+
+    mockUsePathname.mockReturnValue('/haeuser')
+    rerender(<DashboardSidebar sidebarData={mockSidebarData} />)
+
+    expect(mieter).toHaveAttribute('data-active', 'false')
+    expect(haeuser).toHaveAttribute('data-active', 'true')
+    // A plain `transition-colors` would fade the old entry out and the new one in for 200ms; only the hover of an
+    // inactive entry is animated.
+    expect(haeuser).not.toHaveClass('transition-colors')
+    expect(mieter).not.toHaveClass('transition-colors')
+    expect(mieter).toHaveClass('data-[active=false]:hover:transition-colors')
+  })
+
   it('renders primary navigation items in correct order', () => {
     const { container } = render(<DashboardSidebar sidebarData={mockSidebarData} />)
 

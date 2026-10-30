@@ -18,8 +18,11 @@ jest.mock('@/hooks/use-onboarding-store', () => ({
   useOnboardingStore: { getState: () => ({ completeStep: jest.fn() }) },
 }));
 
+// Nur das Kaution-Flag ist steuerbar, alle anderen Flags bleiben aus.
+let mockKautionFlagAktiv = false;
 jest.mock('posthog-js/react', () => ({
-  useFeatureFlagEnabled: () => false,
+  useFeatureFlagEnabled: (flag: string) => flag === 'advanced-kautionsmanagment' && mockKautionFlagAktiv,
+  useFeatureFlagPayload: () => undefined,
 }));
 
 // Stabiles Router-Objekt, damit router.refresh() prüfbar ist
@@ -69,6 +72,7 @@ describe('TenantEditModal - Löschen mit Kautionen-Übersicht', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockKautionFlagAktiv = false;
     mockUseModalStore.mockReturnValue({
       isTenantModalOpen: true,
       closeTenantModal,
@@ -90,7 +94,7 @@ describe('TenantEditModal - Löschen mit Kautionen-Übersicht', () => {
     fireEvent.click(screen.getByRole('button', { name: /Löschen/ }));
   };
 
-  it('lädt zuerst die Auswirkung, fragt dann üblich und löscht ohne Prüfsumme', async () => {
+  it('lädt zuerst die Auswirkung, fragt dann üblich und löscht danach', async () => {
     klickeLoeschen();
 
     const dialog = await screen.findByRole('alertdialog');
@@ -99,16 +103,16 @@ describe('TenantEditModal - Löschen mit Kautionen-Übersicht', () => {
     expect(mockDeleteTenant).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }));
 
-    await waitFor(() => expect(mockDeleteTenant).toHaveBeenCalledWith(tenant.id, undefined));
+    await waitFor(() => expect(mockDeleteTenant).toHaveBeenCalledWith(tenant.id));
     await waitFor(() => expect(closeTenantModal).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   });
 
-  it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht mit der Prüfsumme und schließt das Modal', async () => {
-    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ [tenant.id]: 'abc' }));
+  it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht und schließt das Modal', async () => {
+    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen());
     klickeLoeschen();
 
-    await waitFor(() => expect(mockDeleteTenant).toHaveBeenCalledWith(tenant.id, 'abc'));
+    await waitFor(() => expect(mockDeleteTenant).toHaveBeenCalledWith(tenant.id));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     await waitFor(() => expect(closeTenantModal).toHaveBeenCalled());
     expect(mockRefresh).toHaveBeenCalled();
@@ -123,5 +127,19 @@ describe('TenantEditModal - Löschen mit Kautionen-Übersicht', () => {
     expect(mockDeleteTenant).not.toHaveBeenCalled();
     expect(closeTenantModal).not.toHaveBeenCalled();
     expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  // Kaution (GH-6): Der Menüeintrag im Modal braucht Modulrecht UND das Feature Flag `advanced-kautionsmanagment`.
+  describe.each([
+    { recht: true, flag: true, sichtbar: true },
+    { recht: true, flag: false, sichtbar: false },
+    { recht: false, flag: true, sichtbar: false },
+  ])('Kaution-Eintrag (Modulrecht $recht, Flag $flag)', ({ recht, flag, sichtbar }) => {
+    it(`ist ${sichtbar ? 'sichtbar' : 'ausgeblendet'}`, () => {
+      mockKautionFlagAktiv = flag;
+      mockUseModalStore.mockReturnValue({ ...mockUseModalStore(), canViewKautionen: recht });
+      render(<TenantEditModal serverAction={jest.fn()} />);
+      expect(screen.queryByRole('button', { name: /Kaution/ }) !== null).toBe(sichtbar);
+    });
   });
 });

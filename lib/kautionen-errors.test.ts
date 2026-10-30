@@ -17,6 +17,11 @@ describe("kautionen-errors", () => {
       ["KA002", "Kein Zugriff auf dieses Objekt.", "dialog_schliessen"],
       ["KA003", "Der Datensatz wurde nicht gefunden (evtl. bereits geändert oder gelöscht).", "neu_laden"],
       ["KA006", "Die Buchung ist bereits storniert.", "neu_laden"],
+      [
+        "KA013",
+        "Das Datum oder der Zeitraum ist ungültig (z. B. ein Datum in der Zukunft oder ein Ende vor dem Beginn).",
+        "formular",
+      ],
       ["KA008", "Für diesen Mieter ist bereits eine Kaution angelegt.", "neu_laden"],
       ["23503", "Der Datensatz ist verknüpft und kann nicht gelöscht werden.", "toast"],
       ["55P03", "Die Kaution wird gerade bearbeitet. Bitte versuchen Sie es in einem Moment erneut.", "wiederholen"],
@@ -52,15 +57,8 @@ describe("kautionen-errors", () => {
         "toast",
       ],
       ["KA011", "KAUT_RATENPLAN_GESPERRT: Die Summe der Raten weicht vom Soll ab.", "Die Summe der Raten weicht vom Soll ab.", "formular"],
-      ["KA013", "KAUT_DATUM_UNGUELTIG: Die Wertstellung darf nicht in der Zukunft liegen.", "Die Wertstellung darf nicht in der Zukunft liegen.", "formular"],
       ["KA014", "KAUT_ART_OHNE_KONTO: Diese Kautionsart führt kein Konto.", "Diese Kautionsart führt kein Konto.", "formular"],
       ["KA015", "KAUT_PHASE_NICHT_VERFUEGBAR: Zinsgutschriften sind noch nicht verfügbar.", "Zinsgutschriften sind noch nicht verfügbar.", "formular"],
-      [
-        "KA016",
-        "KAUT_BESTAETIGUNG: Die Auswirkung muss bestätigt werden oder hat sich inzwischen geändert.",
-        "Die Auswirkung muss bestätigt werden oder hat sich inzwischen geändert.",
-        "toast",
-      ],
     ])("%s", (code, message, expected, verhalten) => {
       expect(mapKautionError({ code, message })).toEqual({ code, message: expected, verhalten });
     });
@@ -83,6 +81,27 @@ describe("kautionen-errors", () => {
         expect(result.message).toBe("Der Kontostand würde dadurch unter 0 fallen.");
         expect(result.verhalten).toBe("formular");
       }
+    });
+
+    it("never passes on the database text of KA013 (future date, period)", () => {
+      const result = mapKautionError({
+        code: "KA013",
+        message: "KAUT_DATUM_UNGUELTIG: Zeitraum endet am 01.01.2020, Wertstellung 01.06.2025.",
+      });
+      expect(result.code).toBe("KA013");
+      expect(result.message).not.toContain("KAUT_DATUM");
+      expect(result.message).not.toContain("2020");
+      expect(result.message).toContain("Datum oder der Zeitraum ist ungültig");
+    });
+
+    it("uses the neutral wording for KA015 when the database sends no text", () => {
+      const result = mapKautionError({ code: "KA015" });
+      expect(result).toEqual({
+        code: "KA015",
+        message: "Diese Funktion steht für diese Kautionsart nicht zur Verfügung.",
+        verhalten: "formular",
+      });
+      expect(result.message).not.toContain("noch nicht");
     });
 
     it("limits the length of a passed on message", () => {
@@ -206,7 +225,7 @@ describe("kautionen-errors", () => {
     });
 
     it("agrees with mapKautionError for every defined code", () => {
-      const codes = ["KA001", "42501", "KA002", "KA003", "KA004", "KA005", "KA006", "KA007", "KA008", "KA009", "KA011", "KA013", "KA014", "KA015", "KA016", "23503", "55P03"];
+      const codes = ["KA001", "42501", "KA002", "KA003", "KA004", "KA005", "KA006", "KA007", "KA008", "KA009", "KA011", "KA013", "KA014", "KA015", "23503", "55P03"];
       for (const code of codes) {
         expect(getKautionFehlerVerhalten(code)).toBe(mapKautionError({ code, message: "x" }).verhalten);
       }

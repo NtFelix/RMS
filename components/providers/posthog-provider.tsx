@@ -5,12 +5,24 @@ import { PostHogProvider as PHProvider } from 'posthog-js/react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, Suspense, useState, useReducer } from 'react'
 import posthogProxyConfig from '@/lib/posthog-proxy'
+import { syncSupportIdentity } from '@/lib/posthog-support'
 
 const { POSTHOG_PROXY_PATH, POSTHOG_UI_HOST } = posthogProxyConfig
 
+// GDPR: x-posthog-* tracing headers carry distinct/session IDs, so only send them (same origin) after opt-in.
+function setTracingHeaders(enabled: boolean) {
+  posthog.set_config({ tracing_headers: enabled ? [window.location.hostname] : [] });
+}
+
 // Initialize PostHog with configuration
 async function initializePostHog(nonce?: string) {
-  if (typeof window === 'undefined' || posthog.__loaded) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  (window as any).posthog = posthog;
+
+  if (posthog.__loaded) {
     return;
   }
 
@@ -82,8 +94,8 @@ async function initializePostHog(nonce?: string) {
       distinctID: undefined, // Will be set when user is identified
     },
     // Ensure feature flags are loaded
-    loaded: function (posthog: any) {
-      posthog.reloadFeatureFlags?.();
+    loaded: function (posthogInstance: any) {
+      posthogInstance.reloadFeatureFlags?.();
     }
   } as any);
 
@@ -100,6 +112,9 @@ async function initializePostHog(nonce?: string) {
     // Ensure we're opted-out if consent wasn't granted
     posthog.opt_out_capturing();
   }
+
+  // Also covers returning visitors whose opt-in is already persisted (branch above not entered)
+  setTracingHeaders(consent === 'all' && !posthog.has_opted_out_capturing?.());
 }
 
 // Global initialization removed to support nonce passing from server
@@ -113,6 +128,7 @@ function PostHogPageView() {
   // Listen for consent-granted event to trigger tracking immediately
   useEffect(() => {
     const handleConsentGranted = () => {
+      setTracingHeaders(true);
       console.log('Consent granted event received, triggering tracking...');
       triggerConsent();
     };
@@ -150,6 +166,9 @@ function PostHogPageView() {
               is_anonymous: false,
             });
           }
+
+          // Sync the PostHog Support identity so tickets follow the user across browsers/devices.
+          await syncSupportIdentity(posthog, user.id)
         }
       } catch (error) {
         console.error('Error handling user identification for PostHog:', error);
@@ -222,6 +241,8 @@ function PostHogPageView() {
               user_type: 'authenticated',
               is_anonymous: false,
             })
+
+            void syncSupportIdentity(posthog, user.id)
 
             posthog.capture('user_logged_in', {
               provider: provider || 'email',

@@ -117,6 +117,7 @@ export async function proxy(request: NextRequest) {
           url,
           anonKey,
           {
+            tracePropagation: true,
             global: {
               headers: globalHeaders
             },

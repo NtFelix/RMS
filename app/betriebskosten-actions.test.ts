@@ -14,6 +14,7 @@ import {
   createAbrechnungCalculationAction,
   createAbrechnungCalculationOptimizedAction
 } from './betriebskosten-actions';
+import { metrics, type MeterProvider } from '@opentelemetry/api';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { safeRpcCall } from '@/lib/error-handling';
 import { revalidatePath } from 'next/cache';
@@ -131,7 +132,7 @@ describe('betriebskosten-actions', () => {
       expect(mockSupabase.insert).toHaveBeenCalledWith([
         mockFormData
       ]);
-      expect(revalidatePath).toHaveBeenCalledWith('/dashboard/betriebskosten');
+      expect(revalidatePath).toHaveBeenCalledWith('/betriebskosten');
     });
 
     it('trims cost names before inserting', async () => {
@@ -289,7 +290,7 @@ describe('betriebskosten-actions', () => {
       });
       expect(mockSupabase.update).toHaveBeenCalledWith({ wasserkosten: 50 });
       expect(mockSupabase.eq).toHaveBeenCalledWith('id', 'nb1');
-      expect(revalidatePath).toHaveBeenCalledWith('/dashboard/betriebskosten');
+      expect(revalidatePath).toHaveBeenCalledWith('/betriebskosten');
     });
 
     it('rejects cost items without their Berechnungsart on update', async () => {
@@ -524,6 +525,38 @@ describe('betriebskosten-actions', () => {
       const result = await getNebenkostenDetailsAction('nb1');
 
       expect(result).toEqual({ success: false, message: 'Not found' });
+    });
+
+    describe('server_action.duration metric (withTiming wrapper)', () => {
+      const record = jest.fn();
+
+      beforeAll(() => {
+        metrics.setGlobalMeterProvider({
+          getMeter: () => ({ createCounter: () => ({ add: jest.fn() }), createHistogram: () => ({ record }) }),
+        } as unknown as MeterProvider);
+      });
+
+      beforeEach(() => record.mockClear());
+
+      afterAll(() => metrics.disable());
+
+      it('records success for a successful call', async () => {
+        mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null });
+        mockSupabase.single.mockResolvedValue({ data: { id: 'nb1', user_id: 'user123' }, error: null });
+
+        await getNebenkostenDetailsAction('nb1');
+
+        expect(record).toHaveBeenCalledWith(expect.any(Number), { action: 'getNebenkostenDetailsAction', status: 'success' });
+      });
+
+      it('records failed for a success:false result', async () => {
+        mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null });
+        mockSupabase.single.mockResolvedValue({ data: null, error: { message: 'Not found' } });
+
+        await getNebenkostenDetailsAction('nb1');
+
+        expect(record).toHaveBeenCalledWith(expect.any(Number), { action: 'getNebenkostenDetailsAction', status: 'failed' });
+      });
     });
   });
 
