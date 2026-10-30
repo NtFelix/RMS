@@ -83,6 +83,13 @@ const DialogContent = React.forwardRef<
     // Check if the interaction is with a combobox or popover element
     const target = event.target as Element;
 
+    // Focus or clicks in a dialog stacked above (e.g. a confirmation or a second step opened from here)
+    // belong to that dialog: never a close attempt for this one, even with unsaved changes
+    if (target?.closest?.('[role="dialog"], [role="alertdialog"]')) {
+      event.preventDefault();
+      return;
+    }
+
     // More comprehensive check for combobox elements
     if (target?.closest('[data-radix-popover-content]') ||
       target?.closest('[data-radix-popper-content-wrapper]') ||

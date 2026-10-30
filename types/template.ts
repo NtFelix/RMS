@@ -10,6 +10,8 @@ export interface Template {
   organisation_id: string;
   kategorie: TemplateCategory;
   kontext_anforderungen: string[];
+  /** Betriebskostenabrechnung templates: TipTap JSON of the Vorauszahlungserhöhung sentence, placed via @vorauszahlung.satz */
+  vorauszahlung_satz?: JSONContent | null;
   erstellungsdatum: string;
   aktualisiert_am: string;
   erstellt_am?: string;
@@ -25,6 +27,7 @@ export interface TemplatePayload {
   inhalt: JSONContent;
   kategorie: TemplateCategory;
   kontext_anforderungen: string[];
+  vorauszahlung_satz?: JSONContent | null;
 }
 
 // Template editor props

@@ -4,13 +4,15 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { Mieter } from "../lib/data-fetching";
-import { TenantStatus } from "@/types/Tenant";
+import { TenantStatus, type NebenkostenEntry } from "@/types/Tenant";
 import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
 import { formatFailureReasons, stripDbCodePrefix, summarizeSettledDeletes } from "@/lib/bulk-delete-summary";
 import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
 import { posthogLogger } from '@/lib/posthog-logger';
+import { upsertNebenkostenScheduleEntry } from '@/utils/tenant-payment-calculations';
+import { isIsoDateOnly } from '@/utils/date-calculations';
 
 export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const id = formData.get('id');
@@ -420,4 +422,140 @@ export async function deleteAllApplicantsAction(): Promise<{ success: boolean; e
       }
     };
   }
+}
+
+export interface VorauszahlungPlanItem {
+  tenantId: string;
+  /** New monthly Nebenkosten prepayment */
+  amount: number;
+  /** ISO date (YYYY-MM-DD) from which it applies */
+  date: string;
+}
+
+export interface VorauszahlungPlanResult {
+  tenantId: string;
+  success: boolean;
+  error?: string;
+}
+
+const MAX_VORAUSZAHLUNG_PLAN_ITEMS = 500;
+
+/** YYYY-MM-DD and an existing day (no 2026-02-31) */
+const isValidCalendarDate = (date: unknown): date is string => {
+  if (typeof date !== 'string' || !isIsoDateOnly(date)) return false;
+  const parsed = new Date(`${date}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
+};
+const MAX_VORAUSZAHLUNG_AMOUNT = 100_000;
+
+/**
+ * Saves announced Vorauszahlungserhöhungen (Abrechnung-Versand, GH-23): adds `{amount, date}` to each tenant's
+ * prepayment schedule (Mieter.nebenkosten), the Soll the Abrechnung and the missed-payment check read from
+ * that date on. An entry with the same date is replaced, so a repeated call changes nothing.
+ * Results are reported per tenant; one failing tenant does not stop the others.
+ */
+export async function planNebenkostenVorauszahlungenAction(
+  items: VorauszahlungPlanItem[]
+): Promise<{ success: boolean; results: VorauszahlungPlanResult[]; error?: { message: string } }> {
+  const actionName = 'planNebenkostenVorauszahlungen';
+
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, results: [], error: { message: errorMessage } };
+  }
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return { success: false, results: [], error: { message: "Keine Vorauszahlungen zum Übernehmen." } };
+  }
+  if (items.length > MAX_VORAUSZAHLUNG_PLAN_ITEMS) {
+    return { success: false, results: [], error: { message: "Zu viele Mieter auf einmal." } };
+  }
+
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+
+  if (!(await hasPermission('mieter', 'bearbeiten'))) {
+    logAction(actionName, 'error', { error_message: "Keine Berechtigung" });
+    return { success: false, results: [], error: { message: "Keine Berechtigung" } };
+  }
+
+  // One entry per tenant (the last one wins); invalid entries are reported, not saved
+  const byTenant = new Map<string, VorauszahlungPlanItem>();
+  const results: VorauszahlungPlanResult[] = [];
+  for (const item of items) {
+    const amount = Number(item?.amount);
+    if (!item || typeof item.tenantId !== 'string' || !item.tenantId) {
+      continue;
+    }
+    if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_VORAUSZAHLUNG_AMOUNT) {
+      results.push({ tenantId: item.tenantId, success: false, error: "Ungültiger Betrag." });
+      continue;
+    }
+    if (!isValidCalendarDate(item.date)) {
+      results.push({ tenantId: item.tenantId, success: false, error: "Ungültiges Datum." });
+      continue;
+    }
+    byTenant.set(item.tenantId, { tenantId: item.tenantId, amount: Math.round(amount * 100) / 100, date: item.date });
+  }
+
+  const tenantIds = [...byTenant.keys()];
+  if (tenantIds.length > 0) {
+    const { data: tenants, error: fetchError } = await supabase
+      .from("Mieter")
+      .select("id, wohnung_id, nebenkosten")
+      .in("id", tenantIds);
+
+    if (fetchError) {
+      logAction(actionName, 'error', { error_message: fetchError.message });
+      return { success: false, results, error: { message: "Die Mieter konnten nicht geladen werden." } };
+    }
+
+    const wohnungIds = await getAccessibleWohnungIds();
+    const tenantById = new Map((tenants || []).map((tenant: { id: string; wohnung_id: string | null; nebenkosten: NebenkostenEntry[] | null }) => [tenant.id, tenant]));
+
+    const settled = await Promise.all(tenantIds.map(async (tenantId): Promise<VorauszahlungPlanResult> => {
+      const tenant = tenantById.get(tenantId);
+      if (!tenant) {
+        return { tenantId, success: false, error: "Mieter nicht gefunden." };
+      }
+      if (wohnungIds !== null && (!tenant.wohnung_id || !wohnungIds.includes(tenant.wohnung_id))) {
+        return { tenantId, success: false, error: "Zugriff auf diesen Mieter verweigert." };
+      }
+      const planned = byTenant.get(tenantId)!;
+      const nebenkosten = upsertNebenkostenScheduleEntry(tenant.nebenkosten, planned, crypto.randomUUID());
+      const { error } = await supabase.from("Mieter").update({ nebenkosten }).eq("id", tenantId);
+      return error ? { tenantId, success: false, error: "Speichern fehlgeschlagen." } : { tenantId, success: true };
+    }));
+    results.push(...settled);
+  }
+
+  const savedCount = results.filter(result => result.success).length;
+  if (savedCount > 0) {
+    revalidatePath('/mieter');
+    revalidatePath('/betriebskosten');
+  }
+  // Counts only: no names or amounts in logs and analytics
+  logAction(actionName, savedCount === results.length ? 'success' : 'error', {
+    saved_count: savedCount,
+    failed_count: results.length - savedCount,
+  });
+
+  try {
+    const posthog = getPostHogServer();
+    if (user) {
+      await posthog.capture({
+        distinctId: user.id,
+        event: 'nebenkosten_vorauszahlung_planned',
+        properties: { saved_count: savedCount, failed_count: results.length - savedCount, source: 'abrechnung_versand' },
+      });
+      await posthog.flush();
+    }
+  } catch (phError) {
+    logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
+  }
+
+  return { success: savedCount > 0 && savedCount === results.length, results };
 }

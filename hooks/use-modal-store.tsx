@@ -7,6 +7,7 @@ import { ConfirmationDialogVariant } from '@/components/ui/confirmation-dialog';
 import { TenantBentoItem } from '@/types/tenant-payment';
 import { AIDocumentationContext } from '@/types/ai';
 import type { KautionLoeschauswirkung } from '@/types/Kaution';
+import type { AbrechnungVersandModalData, AbrechnungVersandRowState } from '@/types/abrechnung-versand';
 
 // Overview Modal Types
 interface HausWithWohnungen {
@@ -524,6 +525,26 @@ export interface ModalState {
   isTrashBinModalOpen: boolean;
   openTrashBinModal: () => void;
   closeTrashBinModal: () => void;
+
+  // Abrechnung-Versand Modal State (Nebenkostenabrechnung per Mail, GH-23).
+  // Header template, open rows and per tenant choices live here, so they survive re-renders of the list.
+  isAbrechnungVersandModalOpen: boolean;
+  abrechnungVersandData?: AbrechnungVersandModalData;
+  abrechnungVersandHeaderTemplateId?: string;
+  abrechnungVersandRows: Record<string, AbrechnungVersandRowState>;
+  abrechnungVersandExpandedIds: string[];
+  /** Set while an increase is active but not yet saved to the tenant's prepayment schedule */
+  isAbrechnungVersandModalDirty: boolean;
+  openAbrechnungVersandModal: (data: AbrechnungVersandModalData) => void;
+  closeAbrechnungVersandModal: (options?: CloseModalOptions) => void;
+  setAbrechnungVersandHeaderTemplateId: (templateId: string | undefined) => void;
+  updateAbrechnungVersandRow: (tenantId: string, patch: Partial<AbrechnungVersandRowState>) => void;
+  setAbrechnungVersandExpandedIds: (tenantIds: string[]) => void;
+
+  // Vorauszahlung-Übernahme Modal: second step of the Versand, reads the rows above
+  isVorauszahlungUebernehmenModalOpen: boolean;
+  openVorauszahlungUebernehmenModal: () => void;
+  closeVorauszahlungUebernehmenModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -603,6 +624,20 @@ const initialKautionModalState = {
   kautionInitialData: undefined,
   isKautionModalDirty: false,
 };
+
+const initialAbrechnungVersandModalState = {
+  isAbrechnungVersandModalOpen: false,
+  abrechnungVersandData: undefined,
+  abrechnungVersandHeaderTemplateId: undefined,
+  abrechnungVersandRows: {} as Record<string, AbrechnungVersandRowState>,
+  abrechnungVersandExpandedIds: [] as string[],
+  isAbrechnungVersandModalDirty: false,
+  isVorauszahlungUebernehmenModalOpen: false,
+};
+
+/** Unsaved = an active increase that has not been saved to the tenant's prepayment schedule yet */
+const hasUnsavedErhoehung = (rows: Record<string, AbrechnungVersandRowState>) =>
+  Object.values(rows).some(row => row.erhoehung?.aktiv && !row.uebernommen);
 
 const initialLoeschUebersichtState = {
   isLoeschUebersichtOpen: false,
@@ -743,6 +778,7 @@ const createInitialModalState = () => ({
   ...initialKautionModalState,
   canViewKautionen: false, // bewusst nicht in initialKautionModalState: bleibt beim Schließen des Dialogs erhalten
   ...initialLoeschUebersichtState,
+  ...initialAbrechnungVersandModalState,
   ...initialHausOverviewModalState,
   ...initialWohnungOverviewModalState,
   ...initialTenantPaymentOverviewModalState,
@@ -782,7 +818,8 @@ export const useModalStore = create<ModalState>((set, get) => {
 
   const createCloseHandler = (
     isDirtyFlag: DirtyFlagKey,
-    initialState: Partial<ModalState>
+    initialState: Partial<ModalState>,
+    confirmation: Partial<typeof CONFIRMATION_MODAL_DEFAULTS> = {}
   ) => (options?: CloseModalOptions) => {
     const state = get();
     const resetModal = () => set(initialState);
@@ -790,6 +827,7 @@ export const useModalStore = create<ModalState>((set, get) => {
     if (isDirtyFlag && state[isDirtyFlag] && !options?.force) {
       state.openConfirmationModal({
         ...CONFIRMATION_MODAL_DEFAULTS,
+        ...confirmation,
         onConfirm: () => {
           resetModal();
           get().closeConfirmationModal();
@@ -946,6 +984,30 @@ export const useModalStore = create<ModalState>((set, get) => {
     closeKautionModal: createCloseHandler('isKautionModalDirty', initialKautionModalState),
     setKautionModalDirty: (isDirty) => set({ isKautionModalDirty: isDirty }),
     setCanViewKautionen: (canView) => set({ canViewKautionen: canView }),
+
+    // Abrechnung-Versand Modal
+    openAbrechnungVersandModal: (data) => set({
+      ...initialAbrechnungVersandModalState,
+      isAbrechnungVersandModalOpen: true,
+      abrechnungVersandData: data,
+    }),
+    closeAbrechnungVersandModal: createCloseHandler('isAbrechnungVersandModalDirty', initialAbrechnungVersandModalState, {
+      title: "Erhöhungen nicht gespeichert",
+      description: "Sie haben Vorauszahlungserhöhungen gesetzt, aber nicht in die Vorauszahlungen der Mieter übernommen. Trotzdem schließen?",
+      confirmText: "Ohne Übernahme schließen",
+      cancelText: "Zurück",
+    }),
+    setAbrechnungVersandHeaderTemplateId: (templateId) => set({ abrechnungVersandHeaderTemplateId: templateId }),
+    updateAbrechnungVersandRow: (tenantId, patch) => set((state) => {
+      const rows = {
+        ...state.abrechnungVersandRows,
+        [tenantId]: { ...state.abrechnungVersandRows[tenantId], ...patch },
+      };
+      return { abrechnungVersandRows: rows, isAbrechnungVersandModalDirty: hasUnsavedErhoehung(rows) };
+    }),
+    setAbrechnungVersandExpandedIds: (tenantIds) => set({ abrechnungVersandExpandedIds: tenantIds }),
+    openVorauszahlungUebernehmenModal: () => set({ isVorauszahlungUebernehmenModalOpen: true }),
+    closeVorauszahlungUebernehmenModal: () => set({ isVorauszahlungUebernehmenModalOpen: false }),
 
     // Löschen mit Kautionsübersicht: Der Aufrufer wartet auf `onEntscheidung`; ein zweites Öffnen verwirft die erste Anfrage (= abgebrochen).
     openLoeschUebersicht: (config) => {
