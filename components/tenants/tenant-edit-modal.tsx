@@ -474,13 +474,14 @@ function FormFields({
                   onChange={onFieldChange}
                   placeholder="Interne Notizen..."
                   disabled={isSubmitting}
-                  className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all text-sm focus-visible:scale-100 resize-none min-h-[80px] pr-8"
+                  className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors text-sm focus-visible:scale-100 resize-none min-h-[80px] pr-8"
                 />
                 <div
                   role="separator"
+                  tabIndex={0}
                   aria-orientation="horizontal"
                   aria-label="Textfeldgröße anpassen"
-                  className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors"
+                  className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors outline-none focus-visible:ring-1 focus-visible:ring-primary"
                   onMouseDown={initResize}
                 >
                   <GripVertical className="size-4 text-foreground/70" />

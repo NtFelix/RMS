@@ -96,6 +96,254 @@ function TopBar({
   );
 }
 
+interface FinanceFormFieldsProps {
+  financeInitialData: Finanz | null;
+  formData: {
+    wohnung_id: string;
+    name: string;
+    datum: string;
+    betrag: string;
+    ist_einnahmen: boolean;
+    notiz: string;
+    dokument_id: string | null;
+    tags: string[];
+  };
+  isSubmitting: boolean;
+  isLoadingWohnungen: boolean;
+  apartmentOptions: ComboboxOption[];
+  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  handleDateChange: (date: Date | undefined) => void;
+  handleComboboxChange: (value: string | null) => void;
+  handleSelectChange: (value: string) => void;
+  setFormData: React.Dispatch<React.SetStateAction<any>>;
+  setFinanceModalDirty: (dirty: boolean) => void;
+  setDocumentWasChanged: React.Dispatch<React.SetStateAction<boolean>>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  initResize: (e: React.MouseEvent) => void;
+  handleTextareaResizeKeyDown: (e: React.KeyboardEvent) => void;
+}
+
+function FinanceFormFields({
+  financeInitialData,
+  formData,
+  isSubmitting,
+  isLoadingWohnungen,
+  apartmentOptions,
+  handleChange,
+  handleDateChange,
+  handleComboboxChange,
+  handleSelectChange,
+  setFormData,
+  setFinanceModalDirty,
+  setDocumentWasChanged,
+  textareaRef,
+  initResize,
+  handleTextareaResizeKeyDown,
+}: FinanceFormFieldsProps) {
+  return (
+    <div className="max-w-[90%] mx-auto pt-10 sm:pt-14 pb-6 px-4 sm:px-8 space-y-4 sm:space-y-8">
+      <div className="space-y-2 sm:space-y-3">
+        <div className="text-primary/80">
+          <Coins className="h-8 w-8 sm:h-10 sm:w-10" />
+        </div>
+        <div className="space-y-1">
+          <SheetTitle className="sr-only">
+            {financeInitialData ? "Transaktion bearbeiten" : "Transaktion hinzufügen"}
+          </SheetTitle>
+          <label htmlFor="name" className="sr-only">Bezeichnung</label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            placeholder={financeInitialData ? "Unbenannte Transaktion" : "Transaktion hinzufügen"}
+            disabled={isSubmitting}
+            aria-label={financeInitialData ? "Name der Transaktion" : "Name der neuen Transaktion"}
+            className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
+          />
+          <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
+            {financeInitialData
+              ? "Bearbeiten Sie die Details dieser Transaktion."
+              : "Fügen Sie eine neue Einnahme oder Ausgabe hinzu."}
+          </SheetDescription>
+        </div>
+      </div>
+
+      <div className="space-y-3 sm:space-y-6">
+        <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
+          <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+            Details
+          </div>
+
+          <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
+            <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+              <PropertyHeader
+                icon={Coins}
+                label="Betrag (€)"
+                htmlFor="betrag"
+                infoText="Geben Sie den Betrag der Transaktion in Euro ein."
+              />
+              <NumberInput
+                id="betrag"
+                name="betrag"
+                step="0.01"
+                value={formData.betrag}
+                onChange={handleChange}
+                required
+                disabled={isSubmitting}
+                className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+              />
+            </div>
+
+            <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+              <PropertyHeader
+                icon={Calendar}
+                label="Datum"
+                htmlFor="datum"
+                infoText="Buchungs- oder Zahlungsdatum. Wird für Monats- und Jahresauswertungen sowie Cashflow-Berechnungen verwendet."
+              />
+              <DatePicker
+                id="datum"
+                value={formData.datum}
+                onChange={handleDateChange}
+                placeholder="TT.MM.JJJJ"
+                disabled={isSubmitting}
+              />
+            </div>
+
+            <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+              <PropertyHeader
+                icon={Building2}
+                label="Wohnung"
+                htmlFor="wohnung_id"
+                infoText="Ordnen Sie die Transaktion optional einer Wohnung zu, um die Auswertung pro Objekt zu erleichtern."
+              />
+              <CustomCombobox
+                id="wohnung_id"
+                width="w-full"
+                options={apartmentOptions}
+                value={formData.wohnung_id}
+                onChange={handleComboboxChange}
+                placeholder={isLoadingWohnungen ? "Lädt..." : "Wohnung auswählen"}
+                searchPlaceholder="Wohnung suchen..."
+                emptyText="Keine Wohnung gefunden."
+                disabled={isLoadingWohnungen || isSubmitting}
+              />
+            </div>
+
+            <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+              <PropertyHeader
+                icon={TrendingUpDown}
+                label="Typ"
+                htmlFor="ist_einnahmen"
+                infoText="Wählen Sie aus, ob es sich um Einnahmen oder Ausgaben handelt."
+              />
+              <Select
+                name="ist_einnahmen"
+                value={formData.ist_einnahmen ? "Einnahmen" : "Ausgaben"}
+                onValueChange={handleSelectChange}
+                disabled={isSubmitting}
+              >
+                <SelectTrigger id="ist_einnahmen" className="w-full">
+                  <SelectValue placeholder="Typ" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Einnahmen">Einnahmen</SelectItem>
+                  <SelectItem value="Ausgaben">Ausgaben</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+              <PropertyHeader
+                icon={Tag}
+                label="Tags"
+                htmlFor="tags"
+                infoText="Optionale Tags zur Kategorisierung, um die spätere Filterung und Auswertung zu erleichtern."
+              />
+              <TagInput
+                value={formData.tags}
+                onChange={(tags) => {
+                  setFormData({ ...formData, tags });
+                  setFinanceModalDirty(true);
+                }}
+                disabled={isSubmitting}
+                placeholder="Tags auswählen (optional)..."
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
+          <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+            Zusatzinfos
+          </div>
+
+          <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0 min-w-0">
+            <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-4 space-y-1 sm:space-y-0">
+              <PropertyHeader
+                icon={FileText}
+                label="Notiz"
+                htmlFor="notiz"
+                infoText="Fügen Sie optionale interne Notizen hinzu (z.B. Rechnungsnummern, Leistungsbeschreibungen)."
+              />
+              <div className="relative">
+                <Textarea
+                  ref={textareaRef}
+                  id="notiz"
+                  name="notiz"
+                  value={formData.notiz || ""}
+                  onChange={handleChange}
+                  placeholder="Interne Notizen..."
+                  disabled={isSubmitting}
+                  className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors text-sm focus-visible:scale-100 resize-none min-h-[80px] pr-8"
+                />
+                <div
+                  role="separator"
+                  tabIndex={0}
+                  aria-orientation="horizontal"
+                  aria-label="Textfeldgröße anpassen"
+                  className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                  onMouseDown={initResize}
+                  onKeyDown={handleTextareaResizeKeyDown}
+                >
+                  <GripVertical className="size-4 text-foreground/70" />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 min-w-0">
+              <PropertyHeader
+                icon={Paperclip}
+                label="Dokument"
+                htmlFor="dokument"
+                infoText="Laden Sie Rechnungen oder Belege hoch. Die Datei wird im Rechnungsordner organisiert."
+              />
+              <div className="w-full pt-1 min-w-0">
+                <FinanceFileUpload
+                  dokumentId={formData.dokument_id}
+                  wohnungId={formData.wohnung_id || null}
+                  financeId={financeInitialData?.id || null}
+                  onDocumentChange={(dokumentId) => {
+                    setFormData({ ...formData, dokument_id: dokumentId });
+                    if (!financeInitialData?.id) {
+                      setFinanceModalDirty(true);
+                    } else {
+                      setDocumentWasChanged(true);
+                    }
+                  }}
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DeleteFinanceDialog({
   open,
   onOpenChange,
@@ -495,206 +743,23 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
 
         <form onSubmit={handleSubmit} noValidate className="flex flex-col flex-1 min-h-0">
           <ScrollArea className="flex-1">
-            <div className="max-w-[90%] mx-auto pt-10 sm:pt-14 pb-6 px-4 sm:px-8 space-y-4 sm:space-y-8">
-              <div className="space-y-2 sm:space-y-3">
-                <div className="text-primary/80">
-                  <Coins className="h-8 w-8 sm:h-10 sm:w-10" />
-                </div>
-                <div className="space-y-1">
-                  <SheetTitle className="sr-only">
-                    {financeInitialData ? "Transaktion bearbeiten" : "Transaktion hinzufügen"}
-                  </SheetTitle>
-                  <label htmlFor="name" className="sr-only">Bezeichnung</label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    placeholder={financeInitialData ? "Unbenannte Transaktion" : "Transaktion hinzufügen"}
-                    disabled={isSubmitting}
-                    aria-label={financeInitialData ? "Name der Transaktion" : "Name der neuen Transaktion"}
-                    className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
-                  />
-                  <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
-                    {financeInitialData
-                      ? "Bearbeiten Sie die Details dieser Transaktion."
-                      : "Fügen Sie eine neue Einnahme oder Ausgabe hinzu."}
-                  </SheetDescription>
-                </div>
-              </div>
-
-              <div className="space-y-3 sm:space-y-6">
-                <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
-                  <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
-                    Details
-                  </div>
-
-                  <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
-                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
-                      <PropertyHeader
-                        icon={Coins}
-                        label="Betrag (€)"
-                        htmlFor="betrag"
-                        infoText="Geben Sie den Betrag der Transaktion in Euro ein."
-                      />
-                      <NumberInput
-                        id="betrag"
-                        name="betrag"
-                        step="0.01"
-                        value={formData.betrag}
-                        onChange={handleChange}
-                        required
-                        disabled={isSubmitting}
-                        className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
-                      />
-                    </div>
-
-                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
-                      <PropertyHeader
-                        icon={Calendar}
-                        label="Datum"
-                        htmlFor="datum"
-                        infoText="Buchungs- oder Zahlungsdatum. Wird für Monats- und Jahresauswertungen sowie Cashflow-Berechnungen verwendet."
-                      />
-                      <DatePicker
-                        id="datum"
-                        value={formData.datum}
-                        onChange={handleDateChange}
-                        placeholder="TT.MM.JJJJ"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-
-                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
-                      <PropertyHeader
-                        icon={Building2}
-                        label="Wohnung"
-                        htmlFor="wohnung_id"
-                        infoText="Ordnen Sie die Transaktion optional einer Wohnung zu, um die Auswertung pro Objekt zu erleichtern."
-                      />
-                      <CustomCombobox
-                        id="wohnung_id"
-                        width="w-full"
-                        options={apartmentOptions}
-                        value={formData.wohnung_id}
-                        onChange={handleComboboxChange}
-                        placeholder={isLoadingWohnungen ? "Lädt..." : "Wohnung auswählen"}
-                        searchPlaceholder="Wohnung suchen..."
-                        emptyText="Keine Wohnung gefunden."
-                        disabled={isLoadingWohnungen || isSubmitting}
-                      />
-                    </div>
-
-                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
-                      <PropertyHeader
-                        icon={TrendingUpDown}
-                        label="Typ"
-                        htmlFor="ist_einnahmen"
-                        infoText="Wählen Sie aus, ob es sich um Einnahmen oder Ausgaben handelt."
-                      />
-                      <Select
-                        name="ist_einnahmen"
-                        value={formData.ist_einnahmen ? "Einnahmen" : "Ausgaben"}
-                        onValueChange={handleSelectChange}
-                        disabled={isSubmitting}
-                      >
-                        <SelectTrigger id="ist_einnahmen" className="w-full">
-                          <SelectValue placeholder="Typ" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Einnahmen">Einnahmen</SelectItem>
-                          <SelectItem value="Ausgaben">Ausgaben</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
-                      <PropertyHeader
-                        icon={Tag}
-                        label="Tags"
-                        htmlFor="tags"
-                        infoText="Optionale Tags zur Kategorisierung, um die spätere Filterung und Auswertung zu erleichtern."
-                      />
-                      <TagInput
-                        value={formData.tags}
-                        onChange={(tags) => {
-                          setFormData({ ...formData, tags });
-                          setFinanceModalDirty(true);
-                        }}
-                        disabled={isSubmitting}
-                        placeholder="Tags auswählen (optional)..."
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
-                  <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
-                    Zusatzinfos
-                  </div>
-
-                  <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0 min-w-0">
-                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-4 space-y-1 sm:space-y-0">
-                      <PropertyHeader
-                        icon={FileText}
-                        label="Notiz"
-                        htmlFor="notiz"
-                        infoText="Fügen Sie optionale interne Notizen hinzu (z.B. Rechnungsnummern, Leistungsbeschreibungen)."
-                      />
-                      <div className="relative">
-                        <Textarea
-                          ref={textareaRef}
-                          id="notiz"
-                          name="notiz"
-                          value={formData.notiz || ""}
-                          onChange={handleChange}
-                          placeholder="Interne Notizen..."
-                          disabled={isSubmitting}
-                          className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all text-sm focus-visible:scale-100 resize-none min-h-[80px] pr-8"
-                        />
-                        <div
-                          role="separator"
-                          tabIndex={0}
-                          aria-orientation="horizontal"
-                          aria-label="Textfeldgröße anpassen"
-                          className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                          onMouseDown={initResize}
-                          onKeyDown={handleTextareaResizeKeyDown}
-                        >
-                          <GripVertical className="size-4 text-foreground/70" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 min-w-0">
-                      <PropertyHeader
-                        icon={Paperclip}
-                        label="Dokument"
-                        htmlFor="dokument"
-                        infoText="Laden Sie Rechnungen oder Belege hoch. Die Datei wird im Rechnungsordner organisiert."
-                      />
-                      <div className="w-full pt-1 min-w-0">
-                        <FinanceFileUpload
-                          dokumentId={formData.dokument_id}
-                          wohnungId={formData.wohnung_id || null}
-                          financeId={financeInitialData?.id || null}
-                          onDocumentChange={(dokumentId) => {
-                            setFormData({ ...formData, dokument_id: dokumentId });
-                            if (!financeInitialData?.id) {
-                              setFinanceModalDirty(true);
-                            } else {
-                              setDocumentWasChanged(true);
-                            }
-                          }}
-                          disabled={isSubmitting}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <FinanceFormFields
+              financeInitialData={financeInitialData}
+              formData={formData}
+              isSubmitting={isSubmitting}
+              isLoadingWohnungen={isLoadingWohnungen}
+              apartmentOptions={apartmentOptions}
+              handleChange={handleChange}
+              handleDateChange={handleDateChange}
+              handleComboboxChange={handleComboboxChange}
+              handleSelectChange={handleSelectChange}
+              setFormData={setFormData}
+              setFinanceModalDirty={setFinanceModalDirty}
+              setDocumentWasChanged={setDocumentWasChanged}
+              textareaRef={textareaRef}
+              initResize={initResize}
+              handleTextareaResizeKeyDown={handleTextareaResizeKeyDown}
+            />
           </ScrollArea>
 
           <SheetFooter className="px-4 pb-8 pt-2 sm:p-8 sm:pb-14 sm:pt-4">

@@ -312,7 +312,10 @@ function DocumentPreview({
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <p className="text-sm font-medium truncate cursor-help max-w-[110px] sm:max-w-[160px] md:max-w-[200px]">
+                                    <p
+                                        tabIndex={0}
+                                        className="text-sm font-medium truncate cursor-help max-w-[110px] sm:max-w-[160px] md:max-w-[200px] outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:rounded-xs"
+                                    >
                                         {documentInfo.dateiname}
                                     </p>
                                 </TooltipTrigger>
