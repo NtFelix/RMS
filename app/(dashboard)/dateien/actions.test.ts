@@ -7,8 +7,9 @@ import {
 } from './actions';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { folderMetadataFilter } from '@/lib/storage-paths';
-import { getAccessibleHaeuserIds } from '@/lib/object-scope';
-import { FOLDER_NOT_AVAILABLE_MESSAGE } from '@/lib/storage-messages';
+import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from '@/lib/object-scope';
+import { hasPermission } from '@/lib/permissions';
+import { FOLDER_NOT_AVAILABLE_MESSAGE, STORAGE_ACCESS_DENIED_MESSAGE } from '@/lib/storage-messages';
 
 // Mock dependencies
 jest.mock('@/lib/supabase-server', () => ({
@@ -36,6 +37,7 @@ describe('dateien/actions', () => {
     like: jest.Mock;
     eq: jest.Mock;
     single: jest.Mock;
+    maybeSingle: jest.Mock;
     then: jest.Mock;
   };
   let mockHouseQuery: {
@@ -69,7 +71,8 @@ describe('dateien/actions', () => {
 
     mockStorageBuilder = {
       createSignedUrl: jest.fn(),
-      remove: jest.fn(),
+      // Like Supabase Storage: `data` lists the objects that were actually removed
+      remove: jest.fn(async (paths: string[]) => ({ data: paths.map((name) => ({ name })), error: null })),
     };
 
     mockSupabase = {
@@ -293,7 +296,6 @@ describe('dateien/actions', () => {
       // We need to make sure single() returns null (not found) so it proceeds
       mockQueryBuilder.single.mockResolvedValue({ data: null, error: null });
 
-      mockStorageBuilder.remove.mockResolvedValue({ error: null });
 
       const result = await deleteFolder(`org_${ORG_ID}/shared/${HAUS}/folder`);
 
@@ -317,7 +319,6 @@ describe('dateien/actions', () => {
         ],
         error: null,
       }));
-      mockStorageBuilder.remove.mockResolvedValue({ error: null });
 
       const result = await deleteFolder(folderPath);
 
@@ -336,10 +337,126 @@ describe('dateien/actions', () => {
 
       const result = await deleteFolder(`org_${ORG_ID}/shared/haus-erfunden/folder`);
 
-      expect(result).toEqual({ success: false, error: 'Ungültiger Pfad' });
+      expect(result).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE });
       expect(mockQueryBuilder.or).not.toHaveBeenCalled();
       expect(mockStorageBuilder.remove).not.toHaveBeenCalled();
     });
+
+    describe('refusals tell nothing about apartments, tenants or database internals', () => {
+      const APARTMENT = '66666666-6666-4666-8666-666666666666'
+      const TENANT = '11111111-1111-4111-8111-111111111111'
+      const HOUSE_ID = 'haus-a'
+      const apartmentFolder = `org_${ORG_ID}/shared/${HOUSE_ID}/${APARTMENT}`
+      const user = () => mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null })
+      const grant = (...granted: string[]) =>
+        (hasPermission as jest.Mock).mockImplementation(async (modul: string, aktion: string) => granted.includes(`${modul}:${aktion}`))
+
+      afterEach(() => {
+        ;(hasPermission as jest.Mock).mockReset().mockResolvedValue(true)
+        ;(getAccessibleWohnungIds as jest.Mock).mockResolvedValue(null)
+      })
+
+      it('without wohnungen:ansehen an existing, an unknown and a deeper apartment folder get the same answer, and nothing is read', async () => {
+        user()
+        grant('dokumente:loeschen')
+        // The apartment exists in the database: it must not make a difference
+        mockQueryBuilder.maybeSingle.mockResolvedValue({ data: { id: APARTMENT, haus_id: HOUSE_ID }, error: null })
+
+        const existing = await deleteFolder(apartmentFolder)
+        const unknown = await deleteFolder(`org_${ORG_ID}/shared/${HOUSE_ID}/99999999-9999-4999-8999-999999999999`)
+        const deeper = await deleteFolder(`${apartmentFolder}/Eigener Ordner`)
+        const finance = await deleteFolder(`org_${ORG_ID}/shared/${HOUSE_ID}/Rechnungen/${APARTMENT}`)
+
+        for (const result of [existing, unknown, deeper, finance]) {
+          expect(result).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE })
+        }
+        expect(mockQueryBuilder.maybeSingle).not.toHaveBeenCalled()
+        expect(mockQueryBuilder.or).not.toHaveBeenCalled()
+        expect(mockStorageBuilder.remove).not.toHaveBeenCalled()
+      })
+
+      it('every spelling of the id counts (upper case, no hyphens, braces)', async () => {
+        user()
+        grant('dokumente:loeschen')
+        const letters = 'abcdefab-cdef-4abc-8def-abcdefabcdef'
+
+        for (const id of [letters.toUpperCase(), letters.replace(/-/g, ''), `{${letters}}`]) {
+          expect(await deleteFolder(`org_${ORG_ID}/shared/${HOUSE_ID}/${id}/Ordner`)).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE })
+        }
+        expect(mockStorageBuilder.remove).not.toHaveBeenCalled()
+      })
+
+      it('a tenant folder needs mieter:ansehen in addition', async () => {
+        user()
+        grant('dokumente:loeschen', 'wohnungen:ansehen')
+
+        expect(await deleteFolder(`${apartmentFolder}/${TENANT}/Vertraege`)).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE })
+        expect(mockStorageBuilder.remove).not.toHaveBeenCalled()
+      })
+
+      it('an apartment outside the object scope is answered with the same text, not with "Wohnung nicht im Scope"', async () => {
+        user()
+        grant('dokumente:loeschen', 'wohnungen:ansehen')
+        mockQueryBuilder.maybeSingle.mockResolvedValue({ data: { id: APARTMENT, haus_id: HOUSE_ID }, error: null })
+        ;(getAccessibleWohnungIds as jest.Mock).mockResolvedValue(['00000000-0000-4000-8000-000000000000'])
+
+        expect(await deleteFolder(apartmentFolder)).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE })
+      })
+
+      it('with the right the existing apartment folder keeps its own explanation', async () => {
+        user()
+        grant('dokumente:loeschen', 'wohnungen:ansehen')
+        mockQueryBuilder.maybeSingle.mockResolvedValue({ data: { id: APARTMENT, haus_id: HOUSE_ID }, error: null })
+
+        const result = await deleteFolder(apartmentFolder)
+
+        expect(result.success).toBe(false)
+        expect(result.error).toContain('Wohnungsordner')
+      })
+
+      it('a refusal while listing or deleting becomes the same text, other database errors get a fixed text without the raw message', async () => {
+        user()
+        mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: null, error: { code: '42501', message: 'permission denied for table "Dokumente_Metadaten"' } }))
+        expect(await deleteFolder(FOLDER_PATH)).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE })
+
+        mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: null, error: { message: 'connection to server at "db.internal" failed' } }))
+        const listing = await deleteFolder(FOLDER_PATH)
+        expect(listing.success).toBe(false)
+        expect(listing.error).not.toContain('db.internal')
+
+        mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: [{ dateipfad: FOLDER_PATH, dateiname: 'a.pdf' }], error: null }))
+        mockStorageBuilder.remove.mockResolvedValueOnce({ data: null, error: { statusCode: '403', message: 'new row violates row-level security policy' } })
+        expect(await deleteFolder(FOLDER_PATH)).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE })
+
+        mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: [{ dateipfad: FOLDER_PATH, dateiname: 'a.pdf' }], error: null }))
+        mockStorageBuilder.remove.mockResolvedValueOnce({ data: null, error: { message: 'socket hang up to storage.internal' } })
+        const removal = await deleteFolder(FOLDER_PATH)
+        expect(removal.success).toBe(false)
+        expect(removal.error).not.toContain('storage.internal')
+      })
+
+      it('reports a file that storage did not remove (RLS gives no error, `data` stays empty) as refused, same text', async () => {
+        user()
+        mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({
+          data: [{ dateipfad: FOLDER_PATH, dateiname: 'a.pdf' }, { dateipfad: FOLDER_PATH, dateiname: 'b.pdf' }],
+          error: null,
+        }))
+        mockStorageBuilder.remove.mockResolvedValueOnce({ data: [{ name: `${FOLDER_PATH}/a.pdf` }], error: null })
+
+        expect(await deleteFolder(FOLDER_PATH)).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE })
+      })
+
+      it('an unexpected exception does not return its raw message, the sign-in message stays', async () => {
+        user()
+        mockQueryBuilder.then.mockImplementationOnce(() => { throw new Error('select * from "Wohnungen" exploded at 10.0.0.5') })
+        const result = await deleteFolder(FOLDER_PATH)
+        expect(result.success).toBe(false)
+        expect(result.error).not.toContain('10.0.0.5')
+
+        mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: { message: 'JWT expired' } })
+        expect((await deleteFolder(FOLDER_PATH)).error).toBe('Nicht authentifiziert')
+      })
+    })
 
     it('should return error if user not authenticated', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({
