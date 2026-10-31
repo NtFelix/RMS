@@ -9,6 +9,8 @@ import { OWN_PRIVATE_FOLDER_LABEL, STORAGE_ROOT_LABEL, SYSTEM_FOLDER_LABELS, ZON
 import {
   assertPathAllowed,
   ARCHIVE_SEGMENT,
+  FINANCE_SEGMENT,
+  ID_SEGMENT_PATTERN,
   orgRoot,
   parseStoragePath,
   privateRoot,
@@ -38,10 +40,6 @@ function folderNode(path: string, name: string, displayName?: string, children: 
 
 const HOUSE_DOCUMENTS = 'house_documents'
 const APARTMENT_DOCUMENTS = 'apartment_documents'
-/** Finance documents folder of a house, its sub-folders are named after the apartment id */
-const FINANCE_FOLDER = 'Rechnungen'
-/** Apartment and tenant folders are named after their database id */
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /** System folder node (Hausdokumente / Wohnungsdokumente), shown even if nothing was uploaded yet */
 function systemNode(path: string, name: string): TreeNode {
@@ -64,16 +62,37 @@ interface ViewRights {
 }
 
 function createViewRights(): ViewRights {
-  const cache = new Map<string, Promise<boolean>>()
-  const check = (modul: 'wohnungen' | 'mieter') => {
-    let result = cache.get(modul)
-    if (!result) {
-      result = hasPermission(modul, 'ansehen')
-      cache.set(modul, result)
-    }
-    return result
+  const once = (read: () => Promise<boolean>) => {
+    let result: Promise<boolean> | undefined
+    return () => (result ??= read())
   }
-  return { wohnungen: () => check('wohnungen'), mieter: () => check('mieter') }
+  return {
+    wohnungen: once(() => hasPermission('wohnungen', 'ansehen')),
+    mieter: once(() => hasPermission('mieter', 'ansehen')),
+  }
+}
+
+/**
+ * Keeps only the nodes the user may open: whatever the classification of requiredViewModules (the same one that
+ * guards the listing of a folder) assigns to the apartment or tenant level needs the matching right. This also covers
+ * archive paths (`__archive__/{timestamp}/...`) and every spelling of an id. A path that cannot be classified cannot
+ * be opened either and is left out.
+ */
+async function filterByViewRights(nodes: TreeNode[], rights: ViewRights): Promise<TreeNode[]> {
+  const visible: TreeNode[] = []
+  for (const node of nodes) {
+    let required
+    try {
+      required = requiredViewModules(node.path)
+    } catch (error) {
+      if (error instanceof StoragePathError) continue
+      throw error
+    }
+    if (required.wohnungen && !(await rights.wohnungen())) continue
+    if (required.mieter && !(await rights.mieter())) continue
+    visible.push(node)
+  }
+  return visible
 }
 
 export async function GET(request: NextRequest) {
@@ -200,7 +219,7 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
   }
 
   // Apartment folder (only a UUID segment is an apartment: not __archive__, not a system or custom folder)
-  if (parsed.zone === 'shared' && parsed.houseId !== undefined && parsed.rest.length === 1 && UUID_PATTERN.test(parsed.rest[0])) {
+  if (parsed.zone === 'shared' && parsed.houseId !== undefined && parsed.rest.length === 1 && ID_SEGMENT_PATTERN.test(parsed.rest[0])) {
     const houseId = parsed.houseId
     const apartmentId = parsed.rest[0]
     // The apartment must belong to the house of the path (whose scope was checked above)
@@ -228,26 +247,21 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
     ]
   }
 
-  // Finance documents: `Rechnungen/{apartmentId}` folders are shown with the name of the apartment
+  // Finance documents: `Rechnungen/{apartmentId}` folders are shown with the name of the apartment (only for
+  // users with wohnungen:ansehen, the others do not get these folders at all, see filterByViewRights)
   let lookup: (segment: string) => string | undefined = () => undefined
-  let hideApartmentFolders = false
-  if (parsed.zone === 'shared' && parsed.houseId !== undefined && parsed.rest.length === 1 && parsed.rest[0] === FINANCE_FOLDER) {
-    if (await rights.wohnungen()) {
-      const { data: apartments } = await supabase.from('Wohnungen').select('id, name').eq('haus_id', parsed.houseId)
-      const names = new Map<string, string>(
-        (apartments ?? []).filter((a: { name: string | null }) => a.name).map((a: { id: string; name: string }) => [a.id, a.name]),
-      )
-      lookup = (segment) => names.get(segment)
-    } else {
-      // Without wohnungen:ansehen no apartment folder (not even its id) is shown below Rechnungen
-      hideApartmentFolders = true
-    }
+  if (parsed.zone === 'shared' && parsed.houseId !== undefined && parsed.rest.length === 1 && parsed.rest[0] === FINANCE_SEGMENT && (await rights.wohnungen())) {
+    const { data: apartments } = await supabase.from('Wohnungen').select('id, name').eq('haus_id', parsed.houseId)
+    const names = new Map<string, string>(
+      (apartments ?? []).filter((a: { name: string | null }) => a.name).map((a: { id: string; name: string }) => [a.id, a.name]),
+    )
+    lookup = (segment) => names.get(segment)
   }
 
-  let nodes = await listFolderNodes(supabase, folderPath, lookup, (segment) => `${folderPath}/${segment}`)
-  if (hideApartmentFolders) {
-    nodes = nodes.filter((node) => !UUID_PATTERN.test(node.name))
-  }
+  const nodes = await filterByViewRights(
+    await listFolderNodes(supabase, folderPath, lookup, (segment) => `${folderPath}/${segment}`),
+    rights,
+  )
   if (parsed.zone === 'private' && parsed.rest.length === 0) {
     return [archiveNode(folderPath), ...nodes]
   }
@@ -304,7 +318,7 @@ async function listCustomFolderNodes(
 ): Promise<TreeNode[]> {
   const nodes: TreeNode[] = []
   for (const name of await listStorageFolderNames(supabase, folderPath)) {
-    if (known.has(name) || UUID_PATTERN.test(name)) continue
+    if (known.has(name) || ID_SEGMENT_PATTERN.test(name)) continue
     nodes.push(folderNode(childPath(name), name, name))
   }
   return nodes
