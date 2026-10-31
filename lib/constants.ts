@@ -60,6 +60,8 @@ export const POSTHOG_FEATURE_FLAGS = {
   MAILS_TAB: 'mails-tab',
   // Features
   TEMPLATE_MODAL_ENABLED: 'template-modal-enabled',
+  // Abrechnung per Mail versenden (Versand-Modal, Vorlagen-Typ Betriebskostenabrechnung)
+  ABRECHNUNG_VERSAND_ENABLED: 'abrechnung-versand-enabled',
   CREATE_FILE_OPTION: 'create-file-option',
   DARK_MODE: 'dark-mode',
   AI_DOCUMENTATION_MODE: 'ai-documentation-mode',

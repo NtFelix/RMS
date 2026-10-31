@@ -29,26 +29,15 @@ import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { getTenantMeterCost } from "@/utils/water-cost-calculations";
 import { useEffect, useState, useMemo, useRef } from "react"; // Import useEffect, useState, useMemo, and useRef
 import { useToast } from "@/hooks/use-toast";
-import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Archive, Wallet, Coins, Scale } from 'lucide-react'; // Added Wallet, Coins, Scale icons
+import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Archive, Wallet, Coins, Scale, Mail } from 'lucide-react'; // Added Wallet, Coins, Scale icons
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { usePostHog } from "posthog-js/react";
+import { useFeatureFlagEnabled, usePostHog } from "posthog-js/react";
+import { useModalStore } from "@/hooks/use-modal-store";
+import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants";
+import { getNebenkostenAmountAt } from "@/utils/tenant-payment-calculations";
 
-// Function to fetch customer billing address
-const fetchCustomerBillingAddress = async () => {
-  try {
-    const response = await fetch('/api/stripe/customer');
-    if (!response.ok) {
-      throw new Error('Failed to fetch customer data');
-    }
-    const data = await response.json();
-    return data.customer?.address || null;
-  } catch (error) {
-    console.error('Error fetching billing address:', error);
-    return null;
-  }
-};
 import { isoToGermanDate } from "@/utils/date-calculations"; // New import for number formatting
 
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
@@ -59,6 +48,14 @@ import { sumUniqueApartmentAreas } from "@/utils/cost-calculations";
 import { isRechenbasis360 } from "@/utils/rechentage";
 import type { TenantCalculationResult, RechentageDetails } from "@/types/optimized-betriebskosten";
 import type { SingleTenantPdfPayload } from "@/lib/worker-client";
+import type { AbrechnungVersandTenant, TenantCostDetails } from "@/types/abrechnung-versand";
+import {
+  downloadBlob,
+  extractCityFromAddress,
+  fetchCustomerBillingAddress,
+  generateTenantSettlementPdf,
+  settlementPeriod,
+} from "@/lib/abrechnung/pdf-export";
 
 
 // Defined in Step 1:
@@ -69,33 +66,6 @@ import type { SingleTenantPdfPayload } from "@/lib/worker-client";
 const formatCurrency = (value: number | null | undefined) => {
   if (value == null) return "-";
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
-};
-
-/**
- * Extracts city from an address string.
- * Attempts to find a city component by looking for parts that:
- * - Are not just a German postal code (5 digits)
- * - Have more than 2 characters
- * Falls back to the last part of the address if no clear city is found.
- * Returns empty string if no extraction is possible.
- * 
- * NOTE: This logic mirrors the worker's city extraction for consistency.
- * @see workers/mietevo-backend/src/index.ts - generateSingleTenantPDF
- */
-const extractCityFromAddress = (address: string | null | undefined): string => {
-  if (!address) return '';
-
-  const parts = address.split(',').map(p => p.trim());
-  // Attempt to find a part that looks like a city (not just a postal code or street number)
-  const potentialCity = parts.find(p => !/^\d{5}$/.test(p) && p.length > 2);
-  if (potentialCity) {
-    return potentialCity;
-  }
-  // Fallback to the last part if no clear city is found
-  if (parts.length > 0) {
-    return parts[parts.length - 1];
-  }
-  return '';
 };
 
 // Financial calculation constants
@@ -153,49 +123,6 @@ const calculateOccupancy = (
   };
 };
 
-interface MonthlyVorauszahlung {
-  monthName: string;
-  amount: number;
-  isActiveMonth: boolean;
-}
-
-interface TenantCostDetails {
-  tenantId: string;
-  tenantName: string;
-  apartmentId: string;
-  apartmentName: string;
-  apartmentSize: number;
-  costItems: Array<{
-    costName: string;
-    totalCostForItem: number; // Renamed from totalCost for clarity
-    calculationType: string;
-    tenantShare: number;
-    pricePerSqm?: number; // New field added here
-    verteiler?: string | number; // Added for distribution basis display
-  }>;
-  waterCost: {
-    totalWaterCostOverall: number; // Renamed for clarity
-    calculationType: string;
-    tenantShare: number;
-    consumption?: number;
-  };
-  totalTenantCost: number;
-  vorauszahlungen: number; // Added for advance payments
-  monthlyVorauszahlungen: MonthlyVorauszahlung[]; // New field for monthly breakdown
-  finalSettlement: number; // Added for the final settlement amount
-  // Add these new fields:
-  occupancyPercentage: number;
-  daysOccupied: number;
-  daysInBillingPeriod: number;
-  recommendedPrepayment?: number; // New field for recommended prepayment
-  missingScheduleMonths?: number; // > 0 means some occupied months had no prepayment schedule
-  // Tenant's raw move-in / move-out date, needed for the 360-basis rounding note
-  einzug: string | null;
-  auszug: string | null;
-  // Set on the 360-day basis ('360_tage'); daysOccupied / daysInBillingPeriod are then Rechentage
-  rechentage?: RechentageDetails;
-}
-
 interface AbrechnungModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -223,6 +150,8 @@ export function AbrechnungModal({
 }: AbrechnungModalProps) {
   const posthog = usePostHog();
   const { toast } = useToast();
+  const abrechnungVersandEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.ABRECHNUNG_VERSAND_ENABLED);
+  const openAbrechnungVersandModal = useModalStore(state => state.openAbrechnungVersandModal);
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
@@ -490,9 +419,7 @@ export function AbrechnungModal({
   ) => {
     // Fetch billing address for the worker
     const billingAddress = await fetchCustomerBillingAddress();
-    const currentPeriod = `${nebenkostenItem.startdatum}_${nebenkostenItem.enddatum}`;
-
-    const { generatePDF } = await import('@/lib/worker-client');
+    const currentPeriod = settlementPeriod(nebenkostenItem);
 
     // Ensure dataForProcessing is an array
     const dataForProcessing = Array.isArray(tenantData) ? tenantData : [tenantData];
@@ -501,33 +428,15 @@ export function AbrechnungModal({
     const clientStartTime = Date.now();
 
     for (const singleTenant of dataForProcessing) {
-      const filename = `Abrechnung_${currentPeriod}_${singleTenant.tenantName.replace(/\s+/g, '_')}.pdf`;
-      // Attempt to extract city from ownerAddress for houseCity
-      // If we can find a valid city, pass it directly; otherwise the worker will derive it
-      const houseCity = extractCityFromAddress(ownerAddress);
-
-      const response = await generatePDF({
+      const { blob, filename, pageCount } = await generateTenantSettlementPdf({
         tenantData: singleTenant,
         nebenkostenItem,
         ownerName,
         ownerAddress,
-        houseCity,
         billingAddress,
-        filename
       });
-
-      // Extract page count from headers
-      const pageCount = parseInt(response.headers.get('X-PDF-Page-Count') || '0', 10);
       totalPages += pageCount;
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
+      downloadBlob(blob, filename);
     }
 
     const clientEndTime = Date.now();
@@ -551,7 +460,7 @@ export function AbrechnungModal({
     ownerAddress: string
   ) => {
     const billingAddress = await fetchCustomerBillingAddress();
-    const currentPeriod = `${nebenkostenItem.startdatum}_${nebenkostenItem.enddatum}`;
+    const currentPeriod = settlementPeriod(nebenkostenItem);
 
     const { generatePdfZIP } = await import('@/lib/worker-client');
 
@@ -583,15 +492,7 @@ export function AbrechnungModal({
       // Extract page count from headers
       const pageCount = parseInt(response.headers.get('X-PDF-Page-Count') || '0', 10);
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Abrechnung_${currentPeriod}_Alle_Mieter.zip`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      downloadBlob(await response.blob(), `Abrechnung_${currentPeriod}_Alle_Mieter.zip`);
 
       posthog?.capture('pdf_exported', {
         document_type: 'abrechnung',
@@ -611,6 +512,25 @@ export function AbrechnungModal({
     }
   };
 
+
+  // Opens the Versand-Modal over this one, with every tenant of the Abrechnung (like the ZIP export)
+  const handleVersenden = () => {
+    if (!calculateCostsForTenant || !nebenkostenItem) return;
+    const versandTenants: AbrechnungVersandTenant[] = safeTenants.map(tenant => {
+      const tenantData = calculateCostsForTenant(tenant, pricePerCubicMeter);
+      return {
+        tenantId: tenant.id,
+        name: tenant.name,
+        email: tenant.email?.trim() || null,
+        apartmentName: tenantData.apartmentName,
+        finalSettlement: tenantData.finalSettlement,
+        currentMonthlyPrepayment: getNebenkostenAmountAt(tenant.nebenkosten, nebenkostenItem.enddatum || ''),
+        recommendedMonthlyPrepayment: tenantData.recommendedPrepayment != null ? tenantData.recommendedPrepayment / 12 : null,
+        tenantData,
+      };
+    });
+    openAbrechnungVersandModal({ nebenkostenItem, ownerName, ownerAddress, tenants: versandTenants });
+  };
 
   // Memoize tenant options to avoid recreating on every render
   const tenantOptions: ComboboxOption[] = useMemo(() =>
@@ -1037,6 +957,17 @@ export function AbrechnungModal({
           <Button variant="outline" onClick={onClose} disabled={isGeneratingPDF}>
             Schließen
           </Button>
+
+          {abrechnungVersandEnabled && (
+            <Button
+              variant="outline"
+              onClick={handleVersenden}
+              disabled={isGeneratingPDF || !safeTenants.length || !calculateCostsForTenant}
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Versenden
+            </Button>
+          )}
 
           {/* Export Button with Dropdown - Matches Create New button style */}
           <ExportAbrechnungDropdown
