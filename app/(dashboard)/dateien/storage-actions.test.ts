@@ -225,13 +225,22 @@ describe('storage actions', () => {
     it.each([
       'Upload konnte nicht vorbereitet werden: new row violates row-level security policy',
       'Failed to copy file: permission denied for table objects',
-      'Failed to create signed URL: Unauthorized',
     ])('a refusal by the database policy ("%s") becomes the same German message, without the raw text', async (message) => {
       mockOps.prepareUpload.mockRejectedValue(new Error(message))
       mockOps.copyFile.mockRejectedValue(new Error(message))
 
       expect(await createUploadTarget(PATH)).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE })
       expect(await copyObject(PATH, 'org_org1/shared/house1/y.pdf')).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE })
+    })
+
+    it.each([
+      'Failed to create signed URL: Unauthorized',
+      'Failed to create signed URL: JWT expired',
+      'Source file not found: Unauthorized-Memo.pdf in org_org1/shared/house1',
+    ])('a session error or a file name ("%s") is NOT shown as a refusal', async (message) => {
+      mockOps.copyFile.mockRejectedValue(new Error(message))
+
+      expect(await copyObject(PATH, 'org_org1/shared/house1/y.pdf')).toEqual({ success: false, error: message })
     })
 
     it('a legacy path gets its own message', async () => {

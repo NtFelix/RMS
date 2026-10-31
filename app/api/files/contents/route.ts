@@ -4,7 +4,7 @@ import { logRpcCall, type FolderContentsResult } from '@/app/(dashboard)/dateien
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 import { checkStoragePathAccess } from '@/lib/storage-access'
 import { STORAGE_ROOT_LABEL } from '@/lib/storage-navigation'
-import { FOLDER_NOT_AVAILABLE_MESSAGE, isPermissionDeniedMessage, mapFolderRpcError } from '@/lib/storage-messages'
+import { FOLDER_NOT_AVAILABLE_MESSAGE, isPermissionDeniedError, mapFolderRpcError } from '@/lib/storage-messages'
 
 
 /**
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
         if (error) {
             await logRpcCall('get_folder_contents', path, startTime, false, { error: error.message })
-            const denied = isPermissionDeniedMessage(error.message) || error.code === '42501'
+            const denied = isPermissionDeniedError(error)
 
             return NextResponse.json(
                 {

@@ -16,13 +16,40 @@ export const FOLDER_NOT_AVAILABLE_MESSAGE =
 export const STORAGE_ACCESS_DENIED_MESSAGE =
   'Auf diese Datei oder diesen Ordner haben Sie keinen Zugriff.'
 
-/** Messages of Postgres / Supabase Storage for a refusal by row level security or missing privileges */
+/**
+ * Messages of Postgres / Supabase Storage for a refusal by row level security or missing privileges. Anchored on
+ * purpose: the text must BE the database message (optionally behind ONE wrapper of our own, `Failed to copy file: ...`,
+ * `Upload konnte nicht vorbereitet werden: ...`), it must not merely contain a word, because file names end up in messages (`Unauthorized-Memo.pdf`, `Rechnung 42501.pdf`).
+ * Bare `Unauthorized` / `JWT expired` are session errors and are not a refusal of this folder.
+ */
 const PERMISSION_DENIED_PATTERN =
-  /row[- ]level security|violates row|permission denied|insufficient[_ ]privilege|not authorized|unauthorized|forbidden|\b42501\b/i
+  /^(?:[^:]{1,80}: )?(?:new row violates row-level security policy|permission denied for\b|insufficient[_ ]privilege\b|Invalid path: )/i
 
-/** True if a database or storage error text means "not allowed" (as opposed to a technical failure) */
+/** HTTP status of Supabase Storage / PostgREST for "forbidden" (storage-js delivers it as number or string) */
+const FORBIDDEN_STATUS = new Set(['403'])
+
+/**
+ * True if a database or storage error text means "not allowed" (as opposed to a technical failure or an expired
+ * session). Prefer isPermissionDeniedError when the error object is at hand: it also reads the error code and status.
+ */
 export function isPermissionDeniedMessage(message: unknown): boolean {
   return typeof message === 'string' && PERMISSION_DENIED_PATTERN.test(message)
+}
+
+/**
+ * True if an error (Postgres/PostgREST error object, Supabase StorageApiError or an `Error` that carries one) is a
+ * refusal: SQLSTATE `42501`, HTTP status 403, or an anchored database message. A session error (`401`,
+ * `JWT expired`, `Unauthorized`) is NOT a refusal: the caller keeps its sign-in path.
+ */
+export function isPermissionDeniedError(error: unknown): boolean {
+  if (typeof error === 'string') return isPermissionDeniedMessage(error)
+  if (typeof error !== 'object' || error === null) return false
+  const { code, status, statusCode, message } = error as Record<string, unknown>
+  if (code === '42501') return true
+  if ([status, statusCode].some((value) => (typeof value === 'number' || typeof value === 'string') && FORBIDDEN_STATUS.has(String(value)))) {
+    return true
+  }
+  return isPermissionDeniedMessage(message)
 }
 
 /**

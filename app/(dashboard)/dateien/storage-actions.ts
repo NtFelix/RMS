@@ -2,7 +2,7 @@
 
 import { unstable_rethrow } from 'next/navigation'
 import { StoragePathError } from '@/lib/storage-paths'
-import { isPermissionDeniedMessage, STORAGE_ACCESS_DENIED_MESSAGE } from '@/lib/storage-messages'
+import { isPermissionDeniedError, STORAGE_ACCESS_DENIED_MESSAGE } from '@/lib/storage-messages'
 import { MAX_PATHS_PER_REQUEST } from '@/lib/storage-file-rules'
 import {
   archiveFile,
@@ -52,7 +52,7 @@ function toErrorMessage(error: unknown): string {
   if (error instanceof StoragePathError) {
     return error.code === 'LEGACY_PATH' ? error.message : STORAGE_ACCESS_DENIED_MESSAGE
   }
-  if (error instanceof Error && isPermissionDeniedMessage(error.message)) {
+  if (error instanceof Error && isPermissionDeniedError(error)) {
     return STORAGE_ACCESS_DENIED_MESSAGE
   }
   return error instanceof Error ? error.message : 'Storage operation failed'
