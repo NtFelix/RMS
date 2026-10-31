@@ -414,17 +414,26 @@ export async function removeFiles(
     }
   }));
   const allowed = paths.filter((_, i) => checks[i]);
-  const denied = paths.filter((_, i) => !checks[i]);
 
+  // Storage reports a refusal by the delete policy (and a missing object) not as an error: the object is simply
+  // missing from `data`. Only what the response lists counts as removed, the rest is denied (same answer as for
+  // a path that failed validation, so a refused object cannot be told apart from one that does not exist).
+  let removedByStorage = new Set<string>();
   if (allowed.length > 0) {
-    const { error } = await context.supabase.storage.from(STORAGE_BUCKET).remove(allowed);
+    const { data, error } = await context.supabase.storage.from(STORAGE_BUCKET).remove(allowed);
     if (error) {
       console.error('Supabase delete error:', error);
       throw new Error(`Failed to delete files: ${error.message}`);
     }
+    removedByStorage = new Set((Array.isArray(data) ? data : []).map((object: { name: string }) => object.name));
   }
 
-  return { removed: allowed, denied };
+  const removed: string[] = [];
+  const denied: string[] = [];
+  paths.forEach((path, i) => {
+    (checks[i] && removedByStorage.has(path) ? removed : denied).push(path);
+  });
+  return { removed, denied };
 }
 
 /**

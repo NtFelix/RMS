@@ -146,7 +146,8 @@ function resetDefaults() {
   mockMove.mockResolvedValue({ error: null });
   mockCopy.mockResolvedValue({ error: null });
   mockExists.mockResolvedValue({ data: true, error: null });
-  mockRemove.mockResolvedValue({ error: null });
+  // Like Supabase Storage: `data` lists the objects that were actually removed (the paths as they were passed)
+  mockRemove.mockImplementation(async (paths: string[]) => ({ data: paths.map((name) => ({ name })), error: null }));
   mockCreateSignedUrls.mockImplementation((paths: string[]) =>
     Promise.resolve({ data: paths.map((path) => ({ path, signedUrl: `https://example.com/${path}`, error: null })), error: null }),
   );
@@ -408,6 +409,31 @@ describe('removeFiles', () => {
     const result = await removeFiles([`${HOUSE}/wohnung1/x.pdf`, archived], { onlyArchived: true });
     expect(mockRemove).toHaveBeenCalledWith([archived]);
     expect(result.denied).toEqual([`${HOUSE}/wohnung1/x.pdf`]);
+  });
+
+  it('reports objects as denied that storage did not remove (a refusal by RLS is no error, `data` stays empty)', async () => {
+    mockOrgScope(['house456']);
+    mockRemove.mockResolvedValue({ data: [{ name: `${HOUSE}/a.pdf` }], error: null });
+    const result = await removeFiles([`${HOUSE}/a.pdf`, `${HOUSE}/wohnung1/b.pdf`]);
+    expect(result).toEqual({ removed: [`${HOUSE}/a.pdf`], denied: [`${HOUSE}/wohnung1/b.pdf`] });
+  });
+
+  it('reports everything as denied if storage removed nothing, also without `data`', async () => {
+    mockOrgScope(['house456']);
+    mockRemove.mockResolvedValue({ data: [], error: null });
+    expect(await removeFiles([`${HOUSE}/a.pdf`])).toEqual({ removed: [], denied: [`${HOUSE}/a.pdf`] });
+    mockRemove.mockResolvedValue({ data: null, error: null });
+    expect(await removeFiles([`${HOUSE}/a.pdf`])).toEqual({ removed: [], denied: [`${HOUSE}/a.pdf`] });
+  });
+
+  it('keeps the order of the request and merges validation denials with storage denials', async () => {
+    mockOrgScope(['house456']);
+    mockRemove.mockResolvedValue({ data: [{ name: `${HOUSE}/c.pdf` }], error: null });
+    const result = await removeFiles([`${HOUSE}/a.pdf`, 'org_org1/shared/other-house/b.pdf', `${HOUSE}/c.pdf`]);
+    expect(result).toEqual({
+      removed: [`${HOUSE}/c.pdf`],
+      denied: [`${HOUSE}/a.pdf`, 'org_org1/shared/other-house/b.pdf'],
+    });
   });
 
   it('fails if storage fails', async () => {
