@@ -271,6 +271,41 @@ export function assertPathAllowed(path: string, ctx: PathAccessContext, mode: Pa
   }
 }
 
+/** Apartment and tenant folders are named after their database id */
+const ID_SEGMENT_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Finance documents folder of a house, its sub-folders are named after the apartment id */
+const FINANCE_SEGMENT = 'Rechnungen';
+
+/** Module rights (action `ansehen`) that the database asks for on top of the house scope below a house */
+export interface ViewModuleRequirement {
+  /** `wohnungen:ansehen`: `shared/{house}/{apartment}/...` and `shared/{house}/Rechnungen/{apartment}/...` */
+  wohnungen: boolean;
+  /** `mieter:ansehen`: `shared/{house}/{apartment}/{tenant}/...` (in addition to `wohnungen:ansehen`) */
+  mieter: boolean;
+}
+
+/**
+ * Which module rights the database requires to see a path (storage policies, get_folder_contents): the apartment
+ * and tenant level of the shared area. The database enforces this, the application uses it only to leave
+ * folders, names and entries out of its own listings (folder tree) that the user could not open anyway.
+ * Paths outside a house, the house level itself and `house_documents` need neither.
+ * Throws like parseStoragePath for invalid paths.
+ */
+export function requiredViewModules(path: string): ViewModuleRequirement {
+  const { zone, houseId, rest } = parseStoragePath(path);
+  if (zone !== 'shared' || houseId === undefined) {
+    return { wohnungen: false, mieter: false };
+  }
+  const [first, second] = rest;
+  if (first !== undefined && ID_SEGMENT_PATTERN.test(first)) {
+    return { wohnungen: true, mieter: second !== undefined && ID_SEGMENT_PATTERN.test(second) };
+  }
+  if (first === FINANCE_SEGMENT && second !== undefined && ID_SEGMENT_PATTERN.test(second)) {
+    return { wohnungen: true, mieter: false };
+  }
+  return { wohnungen: false, mieter: false };
+}
+
 /**
  * Archive location of a file or folder inside its zone:
  *   org_{org}/shared/{houseId}/{rel...}  ->  org_{org}/shared/{houseId}/__archive__/{timestamp}/{rel...}

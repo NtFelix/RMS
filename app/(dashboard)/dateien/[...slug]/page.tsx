@@ -47,6 +47,7 @@ async function CloudStoragePathContent({ params }: { params: Promise<{ slug: str
             initialFolders={folders}
             initialBreadcrumbs={breadcrumbs}
             initialTotalSize={totalSize}
+            initialError={loadError}
         />
     )
 }

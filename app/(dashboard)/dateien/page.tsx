@@ -39,6 +39,7 @@ async function CloudStorageContent() {
             initialFolders={folders}
             initialBreadcrumbs={breadcrumbs}
             initialTotalSize={totalSize}
+            initialError={loadError}
         />
     )
 }

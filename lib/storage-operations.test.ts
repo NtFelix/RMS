@@ -21,6 +21,7 @@ import {
 } from './storage-operations';
 import { folderMetadataFilter, assertPathAllowed } from './storage-paths';
 import { pathUtils } from './path-utils';
+import { STORAGE_ACCESS_DENIED_MESSAGE } from './storage-messages';
 
 // Mock functions
 const mockCreateSignedUploadUrl = jest.fn();
@@ -356,8 +357,8 @@ describe('createSignedUrls', () => {
 
     expect(mockCreateSignedUrls).toHaveBeenCalledWith([`${HOUSE}/a.pdf`], 300, undefined);
     expect(result[0].url).toContain('a.pdf');
-    expect(result[1]).toEqual({ path: 'org_org1/shared/other-house/b.pdf', url: null, error: 'Invalid path' });
-    expect(result[2]).toEqual({ path: 'org_other/shared/h/c.pdf', url: null, error: 'Invalid path' });
+    expect(result[1]).toEqual({ path: 'org_org1/shared/other-house/b.pdf', url: null, error: STORAGE_ACCESS_DENIED_MESSAGE });
+    expect(result[2]).toEqual({ path: 'org_other/shared/h/c.pdf', url: null, error: STORAGE_ACCESS_DENIED_MESSAGE });
   });
 
   it('validates the stored path as it is and does not rewrite it', async () => {

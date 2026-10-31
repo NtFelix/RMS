@@ -30,6 +30,7 @@ import {
 import { MAX_PATHS_PER_REQUEST, validateFileInfo } from '@/lib/storage-file-rules';
 import { performanceMonitor, cacheManager } from './storage-performance';
 import { mapError } from './storage-error-handling';
+import { STORAGE_ACCESS_DENIED_MESSAGE } from './storage-messages';
 import type { StorageObject } from './storage-operations';
 
 export type { StorageObject };
@@ -246,7 +247,7 @@ export async function archiveFile(path: string): Promise<string> {
 export async function deleteFile(path: string): Promise<void> {
   const { denied } = unwrap(await removeObjects([path]));
   if (denied.length > 0) {
-    throw new Error('Invalid path');
+    throw new Error(STORAGE_ACCESS_DENIED_MESSAGE);
   }
   cacheManager.invalidatePrefix(directoryOf(path));
 }

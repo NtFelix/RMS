@@ -35,6 +35,16 @@ interface PropertyHierarchyState {
   error: string | null
 }
 
+/** List endpoint that answers 403 for a user without the view right: an empty list then, any other failure is an error */
+async function fetchOptionalList<T>(url: string, label: string): Promise<T[]> {
+  const response = await fetch(url)
+  if (response.status === 403) return []
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${label}`)
+  }
+  return (await response.json()) || []
+}
+
 export function usePropertyHierarchy() {
   const [state, setState] = useState<PropertyHierarchyState>({
     houses: [],
@@ -56,24 +66,17 @@ export function usePropertyHierarchy() {
         }
         const houses = await housesResponse.json()
 
-        // Fetch apartments
-        const apartmentsResponse = await fetch('/api/wohnungen')
-        if (!apartmentsResponse.ok) {
-          throw new Error('Failed to fetch apartments')
-        }
-        const apartments = await apartmentsResponse.json()
-
-        // Fetch tenants
-        const tenantsResponse = await fetch('/api/mieter')
-        if (!tenantsResponse.ok) {
-          throw new Error('Failed to fetch tenants')
-        }
-        const tenants = await tenantsResponse.json()
+        // Apartments and tenants need wohnungen:ansehen / mieter:ansehen (403 otherwise): without the right they
+        // are simply not part of the hierarchy, so the file tree shows neither their names nor their folders
+        const [apartments, tenants] = await Promise.all([
+          fetchOptionalList<Apartment>('/api/wohnungen', 'apartments'),
+          fetchOptionalList<Tenant>('/api/mieter', 'tenants'),
+        ])
 
         setState({
           houses: houses || [],
-          apartments: apartments || [],
-          tenants: tenants || [],
+          apartments,
+          tenants,
           isLoading: false,
           error: null
         })

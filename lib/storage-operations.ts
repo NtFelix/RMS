@@ -39,6 +39,7 @@ import {
   type PathAccessMode,
 } from '@/lib/storage-paths';
 import { validateFileInfo } from '@/lib/storage-file-rules';
+import { STORAGE_ACCESS_DENIED_MESSAGE } from '@/lib/storage-messages';
 
 export interface StorageObject {
   name: string;
@@ -677,7 +678,7 @@ export async function createSignedUrls(
       return true;
     } catch (error) {
       if (!(error instanceof StoragePathError)) throw error;
-      results.set(path, { path, url: null, error: 'Invalid path' });
+      results.set(path, { path, url: null, error: STORAGE_ACCESS_DENIED_MESSAGE });
       return false;
     }
   }));

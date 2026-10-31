@@ -8,6 +8,7 @@ import {
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { folderMetadataFilter } from '@/lib/storage-paths';
 import { getAccessibleHaeuserIds } from '@/lib/object-scope';
+import { FOLDER_NOT_AVAILABLE_MESSAGE } from '@/lib/storage-messages';
 
 // Mock dependencies
 jest.mock('@/lib/supabase-server', () => ({
@@ -137,10 +138,38 @@ describe('dateien/actions', () => {
       expect(result.error).toContain('Fehler beim Laden der Ordnerinhalte');
     });
 
+    it.each([
+      'Invalid path: house not accessible',
+      'Invalid path: does not belong to active organisation',
+      'Invalid path: unknown zone',
+    ])('shows one German message for the database refusal "%s" (no raw text, no names)', async (dbError) => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null });
+      mockFolderRpc({
+        data: { files: [], folders: [], breadcrumbs: [], totalSize: 0, error: dbError },
+        error: null,
+      });
+
+      const result = await getFolderContents(`${FOLDER_PATH}/wohnung-1`);
+
+      expect(result.error).toBe(FOLDER_NOT_AVAILABLE_MESSAGE);
+      expect(result.files).toEqual([]);
+      expect(result.folders).toEqual([]);
+    });
+
+    it('maps a permission error of the RPC call to the same message, other RPC errors keep their text', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null });
+
+      mockFolderRpc({ data: null, error: { code: '42501', message: 'permission denied for function get_folder_contents' } });
+      expect((await getFolderContents(FOLDER_PATH)).error).toBe(FOLDER_NOT_AVAILABLE_MESSAGE);
+
+      mockFolderRpc({ data: { files: [], folders: [], breadcrumbs: [], totalSize: 0, error: 'Some other problem' }, error: null });
+      expect((await getFolderContents(FOLDER_PATH)).error).toBe('Some other problem');
+    });
+
     it('refuses a path outside the organisation, a foreign private folder and a house outside the scope', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null });
       const denied = {
-        files: [], folders: [], breadcrumbs: [], totalSize: 0, error: 'Ungültiger Pfad',
+        files: [], folders: [], breadcrumbs: [], totalSize: 0, error: FOLDER_NOT_AVAILABLE_MESSAGE,
       };
 
       expect(await getFolderContents('path/to/folder')).toEqual(denied);
@@ -167,7 +196,7 @@ describe('dateien/actions', () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'otherUser' } }, error: null });
       mockFolderRpc({ data: { files: [], folders: [], breadcrumbs: [], totalSize: 0, error: null }, error: null });
 
-      expect((await getFolderContents(`org_${ORG_ID}/private/user123/x`)).error).toBe('Ungültiger Pfad');
+      expect((await getFolderContents(`org_${ORG_ID}/private/user123/x`)).error).toBe(FOLDER_NOT_AVAILABLE_MESSAGE);
       expect((await getFolderContents(`org_${ORG_ID}/private/otherUser/x`)).error).toBeUndefined();
     });
 
@@ -207,7 +236,7 @@ describe('dateien/actions', () => {
         error: null,
       });
       const result = await loadFilesForPath(`org_${ORG_ID}/private/other/path`);
-      expect(result.error).toBe('Ungültiger Pfad');
+      expect(result.error).toBe(FOLDER_NOT_AVAILABLE_MESSAGE);
     });
 
     it('should call getFolderContents if valid', async () => {

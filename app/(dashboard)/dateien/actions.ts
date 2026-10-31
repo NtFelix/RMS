@@ -3,6 +3,7 @@
 import { ensureAuth } from '@/lib/auth-utils'
 import { checkStoragePathAccess, getActiveOrgId } from '@/lib/storage-access'
 import { STORAGE_ROOT_LABEL } from '@/lib/storage-navigation'
+import { FOLDER_NOT_AVAILABLE_MESSAGE, isPermissionDeniedMessage, mapFolderRpcError } from '@/lib/storage-messages'
 import { folderMetadataFilter, isPathInFolder, orgRoot, parseStoragePath } from '@/lib/storage-paths'
 import { unstable_rethrow } from 'next/navigation'
 
@@ -128,7 +129,7 @@ export async function getFolderContents(path?: string): Promise<FolderContentsRe
                     folders: [],
                     breadcrumbs: [],
                     totalSize: 0,
-                    error: 'Ungültiger Pfad'
+                    error: FOLDER_NOT_AVAILABLE_MESSAGE
                 }
             }
         }
@@ -161,7 +162,10 @@ export async function getFolderContents(path?: string): Promise<FolderContentsRe
                 folders: [],
                 breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                 totalSize: 0,
-                error: `Fehler beim Laden der Ordnerinhalte: ${error.message}`
+                // A refusal by the database (RLS / missing privilege) gets the same text as a refused path
+                error: isPermissionDeniedMessage(error.message) || error.code === '42501'
+                    ? FOLDER_NOT_AVAILABLE_MESSAGE
+                    : `Fehler beim Laden der Ordnerinhalte: ${error.message}`
             }
         }
 
@@ -183,7 +187,8 @@ export async function getFolderContents(path?: string): Promise<FolderContentsRe
                 folders: [],
                 breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                 totalSize: 0,
-                error: result.error
+                // `Invalid path: house not accessible` and the like come from the database in English
+                error: mapFolderRpcError(result.error)
             }
         }
 

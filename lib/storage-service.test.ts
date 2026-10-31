@@ -20,6 +20,7 @@ import {
   permanentlyDeleteFile,
   storageService,
 } from './storage-service';
+import { STORAGE_ACCESS_DENIED_MESSAGE } from './storage-messages';
 
 const actionNames = [
   'archiveFolderObjects',
@@ -239,7 +240,7 @@ describe('storage service (browser)', () => {
       expect(actions.removeObjects).toHaveBeenCalledWith([PATH]);
 
       actions.removeObjects.mockResolvedValueOnce(ok({ removed: [], denied: [PATH] }));
-      await expect(deleteFile(PATH)).rejects.toThrow('Invalid path');
+      await expect(deleteFile(PATH)).rejects.toThrow(STORAGE_ACCESS_DENIED_MESSAGE);
     });
 
     it('permanentlyDeleteFile fails for a path outside an archive', async () => {

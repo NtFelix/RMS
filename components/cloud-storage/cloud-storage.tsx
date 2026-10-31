@@ -43,6 +43,8 @@ interface CloudStorageProps {
     initialBreadcrumbs?: BreadcrumbItem[]
     initialTotalSize?: number
     initialStorageLimit?: number | null
+    /** Error text of the server-side first load (refused or unavailable folder), shown instead of an empty folder */
+    initialError?: string
 }
 
 type ViewMode = 'grid' | 'list'
@@ -65,7 +67,8 @@ export function CloudStorage({
     initialPath = orgRoot(orgId),
     initialBreadcrumbs = [],
     initialTotalSize = 0,
-    initialStorageLimit
+    initialStorageLimit,
+    initialError
 }: CloudStorageProps) {
     const router = useRouter()
     const { toast } = useToast()
@@ -124,6 +127,9 @@ export function CloudStorage({
 
     // Track initialization
     const isInitialized = useRef(false)
+
+    // Error of the first (server-side) load: without it a refused folder would look like an empty one
+    const [initialLoadError, setInitialLoadError] = useState<string | null>(initialError ?? null)
 
     // Cleanup on unmount
     useEffect(() => {
@@ -186,6 +192,7 @@ export function CloudStorage({
                     if (data.breadcrumbs) setBreadcrumbs(data.breadcrumbs)
                     setError(null)
                 })
+                setInitialLoadError(null)
 
                 // Update URL AFTER successful data load using native History API
                 // Skip for popstate (back/forward) navigation since browser already handles URL
@@ -253,6 +260,7 @@ export function CloudStorage({
                     setFolders(data.folders)
                     if (data.breadcrumbs) setBreadcrumbs(data.breadcrumbs)
                 })
+                setInitialLoadError(null)
 
                 if (showToast) {
                     toast({ description: "Dateien wurden aktualisiert." })
@@ -591,7 +599,11 @@ export function CloudStorage({
 
     // Determine loading and error states
     const showLoading = isNavigating || isPending
-    const displayError = navigationError
+    const displayError = navigationError || initialLoadError
+    const dismissError = () => {
+        clearNavigationError()
+        setInitialLoadError(null)
+    }
 
     return (
         <div className="absolute inset-0 flex flex-col p-4 sm:p-6 min-h-0 overflow-hidden gap-6">
@@ -741,7 +753,7 @@ export function CloudStorage({
                                                 <RefreshCw className="size-4 mr-2" />
                                                 Erneut versuchen
                                             </Button>
-                                            <Button variant="outline" onClick={clearNavigationError}>
+                                            <Button variant="outline" onClick={dismissError}>
                                                 Fehler ignorieren
                                             </Button>
                                         </div>

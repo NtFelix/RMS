@@ -162,6 +162,12 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
+  // Apartment names and tenant data only for users who may see apartments (as the Wohnungen page does)
+  const { hasPermission } = await import("@/lib/permissions");
+  if (!(await hasPermission('wohnungen', 'ansehen'))) {
+    return NextResponse.json({ error: 'Verboten' }, { status: 403, headers: NO_CACHE_HEADERS });
+  }
+
   const supabase = await createSupabaseServerClient();
   const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
   const accessibleIds = await getAccessibleHaeuserIds();

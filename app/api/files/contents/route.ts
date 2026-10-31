@@ -4,6 +4,7 @@ import { logRpcCall, type FolderContentsResult } from '@/app/(dashboard)/dateien
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 import { checkStoragePathAccess } from '@/lib/storage-access'
 import { STORAGE_ROOT_LABEL } from '@/lib/storage-navigation'
+import { FOLDER_NOT_AVAILABLE_MESSAGE, isPermissionDeniedMessage, mapFolderRpcError } from '@/lib/storage-messages'
 
 
 /**
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
         const accessError = await checkStoragePathAccess(supabase, user.id, path, { allowLegacyOwnRead: true })
         if (accessError) {
             return NextResponse.json(
-                { error: 'Ungültiger Pfad' },
+                { error: FOLDER_NOT_AVAILABLE_MESSAGE },
                 { status: 403, headers: NO_CACHE_HEADERS }
             )
         }
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
 
         if (error) {
             await logRpcCall('get_folder_contents', path, startTime, false, { error: error.message })
+            const denied = isPermissionDeniedMessage(error.message) || error.code === '42501'
 
             return NextResponse.json(
                 {
@@ -65,9 +67,9 @@ export async function GET(request: NextRequest) {
                     folders: [],
                     breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                     totalSize: 0,
-                    error: `Fehler beim Laden: ${error.message}`
+                    error: denied ? FOLDER_NOT_AVAILABLE_MESSAGE : `Fehler beim Laden: ${error.message}`
                 },
-                { status: 500, headers: NO_CACHE_HEADERS }
+                { status: denied ? 403 : 500, headers: NO_CACHE_HEADERS }
             )
         }
 
@@ -88,7 +90,7 @@ export async function GET(request: NextRequest) {
                     folders: [],
                     breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                     totalSize: 0,
-                    error: result.error
+                    error: mapFolderRpcError(result.error)
                 },
                 { status: 200, headers: NO_CACHE_HEADERS }
             )

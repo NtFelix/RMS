@@ -5,6 +5,12 @@ import { MIETER_SPALTEN_OHNE_KAUTION, pickMieterSchreibbareFelder } from "@/lib/
 
 export async function GET() {
   try {
+    // Tenant names and data only for users who may see tenants (as the Mieter page does)
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('mieter', 'ansehen'))) {
+      return NextResponse.json({ error: 'Verboten' }, { status: 403, headers: NO_CACHE_HEADERS });
+    }
+
     const supabase = await createSupabaseServerClient();
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     const accessibleWohnungIds = await getAccessibleWohnungIds();

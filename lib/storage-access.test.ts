@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAccessibleHaeuserIds } from '@/lib/object-scope'
+import { STORAGE_ACCESS_DENIED_MESSAGE } from '@/lib/storage-messages'
 import { checkStoragePathAccess, resolveChildPath } from './storage-access'
 
 const ORG = 'org-1'
@@ -64,8 +65,8 @@ describe('checkStoragePathAccess', () => {
 
     it('refuses writing below an invented house id even for a user without house restriction', async () => {
       setScope(null)
-      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${INVENTED}/x.pdf`, write)).toBe('Invalid path')
-      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${INVENTED}`, write)).toBe('Invalid path')
+      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${INVENTED}/x.pdf`, write)).toBe(STORAGE_ACCESS_DENIED_MESSAGE)
+      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${INVENTED}`, write)).toBe(STORAGE_ACCESS_DENIED_MESSAGE)
       expect(mockHouseLookups).toEqual([`Haeuser:${INVENTED}`, `Haeuser:${INVENTED}`])
     })
 
@@ -78,7 +79,7 @@ describe('checkStoragePathAccess', () => {
     it('fails closed if the lookup errors', async () => {
       setScope(null)
       existingHouses = null
-      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${HOUSE_A}/x.pdf`, write)).toBe('Invalid path')
+      expect(await checkStoragePathAccess(supabase, USER, `org_${ORG}/shared/${HOUSE_A}/x.pdf`, write)).toBe(STORAGE_ACCESS_DENIED_MESSAGE)
     })
 
     it('leaves reading unchanged: no lookup, browsing stays a matter of scope and RPC', async () => {
