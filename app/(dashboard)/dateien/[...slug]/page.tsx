@@ -40,6 +40,8 @@ async function CloudStoragePathContent({ params }: { params: Promise<{ slug: str
 
     return (
         <CloudStorage
+            // A server-side load of another folder starts from its own state (error included)
+            key={initialPath}
             userId={user.id}
             orgId={orgId}
             initialPath={initialPath}
