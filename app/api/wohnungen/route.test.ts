@@ -53,7 +53,26 @@ describe('GET /api/wohnungen', () => {
     const res = await GET();
 
     expect(res.status).toBe(403);
-    expect(await res.json()).toEqual({ error: 'Verboten' });
+    expect(await res.json()).toEqual({ error: 'Permission denied', code: 'PERMISSION_DENIED' });
     expect(from).not.toHaveBeenCalled();
+  });
+
+  it('faengt eine unerwartete Ausnahme ab (500 statt unbehandelter Fehler)', async () => {
+    jest.spyOn(console, 'error').mockImplementation();
+    (createSupabaseServerClient as jest.Mock).mockRejectedValue(new Error('Verbindung zu 10.0.0.5 abgebrochen'));
+
+    const res = await GET();
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: 'Serverfehler bei Wohnungs-Abfrage.' });
+  });
+
+  it('nutzt requireApiPermission: 500 statt 403, wenn die Rechtepruefung selbst eine Ausnahme wirft', async () => {
+    jest.spyOn(console, 'error').mockImplementation();
+    (hasPermission as jest.Mock).mockRejectedValue(new Error('boom'));
+
+    const res = await GET();
+
+    expect(res.status).toBe(500);
   });
 });

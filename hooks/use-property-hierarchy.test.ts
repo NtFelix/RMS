@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { usePropertyHierarchy } from './use-property-hierarchy'
 
 /**
@@ -51,7 +51,7 @@ describe('usePropertyHierarchy', () => {
   it('leaves apartments out without wohnungen:ansehen (403), the houses stay', async () => {
     mockFetch({
       '/api/haeuser': { status: 200, body: HOUSES },
-      '/api/wohnungen': { status: 403, body: { error: 'Verboten' } },
+      '/api/wohnungen': { status: 403, body: { error: 'Permission denied', code: 'PERMISSION_DENIED' } },
       '/api/mieter': { status: 200, body: TENANTS },
     })
 
@@ -67,7 +67,7 @@ describe('usePropertyHierarchy', () => {
     mockFetch({
       '/api/haeuser': { status: 200, body: HOUSES },
       '/api/wohnungen': { status: 200, body: APARTMENTS },
-      '/api/mieter': { status: 403, body: { error: 'Verboten' } },
+      '/api/mieter': { status: 403, body: { error: 'Permission denied', code: 'PERMISSION_DENIED' } },
     })
 
     const { result } = renderHook(() => usePropertyHierarchy())
@@ -89,5 +89,38 @@ describe('usePropertyHierarchy', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
     expect(result.current.error).toBe('Failed to fetch apartments')
+  })
+  it('treats a 403 without the permission code (not from the permission check, e.g. a proxy) as an error, not as "no right"', async () => {
+    mockFetch({
+      '/api/haeuser': { status: 200, body: HOUSES },
+      '/api/wohnungen': { status: 403, body: '<html>Forbidden</html>' },
+      '/api/mieter': { status: 200, body: TENANTS },
+    })
+
+    const { result } = renderHook(() => usePropertyHierarchy())
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(result.current.error).toBe('Failed to fetch apartments')
+  })
+
+  it('refetch loads again: after a failure it ends with the data and without the error', async () => {
+    mockFetch({
+      '/api/haeuser': { status: 200, body: HOUSES },
+      '/api/wohnungen': { status: 500 },
+      '/api/mieter': { status: 200, body: TENANTS },
+    })
+    const { result } = renderHook(() => usePropertyHierarchy())
+    await waitFor(() => expect(result.current.error).not.toBeNull())
+
+    mockFetch({
+      '/api/haeuser': { status: 200, body: HOUSES },
+      '/api/wohnungen': { status: 200, body: APARTMENTS },
+      '/api/mieter': { status: 200, body: TENANTS },
+    })
+    act(() => result.current.refetch())
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(result.current.error).toBeNull()
+    expect(result.current.apartments).toEqual(APARTMENTS)
   })
 })

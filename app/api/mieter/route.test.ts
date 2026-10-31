@@ -71,7 +71,7 @@ describe('/api/mieter', () => {
       const res = await GET();
 
       expect(res.status).toBe(403);
-      expect(await res.json()).toEqual({ error: 'Verboten' });
+      expect(await res.json()).toEqual({ error: 'Permission denied', code: 'PERMISSION_DENIED' });
       expect(hasPermission).toHaveBeenCalledWith('mieter', 'ansehen');
       expect(from).not.toHaveBeenCalled();
     });

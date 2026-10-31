@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { ChevronRight, ChevronDown, Folder, FolderOpen, Home, Building, Users, FileText, AlertCircle, Archive, Search, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { useCloudStorageStore, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
 import { orgRoot, sharedRoot, sharedPath, privateRoot, privatePath, ARCHIVE_SEGMENT } from "@/lib/storage-paths"
 import { buildFallbackBreadcrumbs, STORAGE_ROOT_LABEL, SYSTEM_FOLDER_LABELS, ZONE_LABELS } from "@/lib/storage-navigation"
@@ -47,7 +48,7 @@ export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTr
   const { isDirectoryActive, getDirectoryActiveClasses } = useDirectoryActiveState()
 
   // Fetch real data from API
-  const { houses, apartments, tenants, isLoading, error } = usePropertyHierarchy()
+  const { houses, apartments, tenants, isLoading, error, refetch } = usePropertyHierarchy()
 
   // Build tree structure from data
   useEffect(() => {
@@ -431,9 +432,14 @@ export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTr
 
   if (error) {
     return (
-      <div className={cn("flex items-center gap-2 text-sm text-destructive", className)}>
-        <AlertCircle className="size-4" />
-        <span>Fehler beim Laden der Ordnerstruktur</span>
+      <div className={cn("flex flex-col items-start gap-2 text-sm text-destructive", className)}>
+        <div className="flex items-center gap-2">
+          <AlertCircle className="size-4" />
+          <span>Fehler beim Laden der Ordnerstruktur</span>
+        </div>
+        <Button variant="outline" size="sm" onClick={refetch}>
+          Erneut versuchen
+        </Button>
       </div>
     )
   }
