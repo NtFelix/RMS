@@ -1,3 +1,4 @@
+import { resolveChildPath } from "@/lib/storage-access"
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from 'next/server'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
@@ -43,19 +44,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate that the path belongs to the user
-    if (!filePath.startsWith(`user_${user.id}`)) {
-      return NextResponse.json(
-        { error: 'Invalid path' },
-        {
-          status: 403,
-          headers: NO_CACHE_HEADERS,
-        }
-      )
+    // Validate the name and check write access on the TARGET path (never on the parent alone)
+    const target = await resolveChildPath(supabase, user.id, filePath, fileName, { mode: 'write' })
+    if ('error' in target) {
+      return NextResponse.json({ error: target.error }, { status: target.status, headers: NO_CACHE_HEADERS })
     }
-
-    // Create the full path for the new file
-    const newFilePath = `${filePath}/${fileName}`
+    const newFilePath = target.path
 
     // Check if file already exists using efficient list method
     const { data: existingFiles } = await supabase.storage

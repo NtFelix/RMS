@@ -15,11 +15,13 @@
  *
  * UX only, not a security boundary: the payload is visible in the browser. The RPCs release deposit and booking
  * types per phase on their own, so the result is always intersected with `KAUTION_ARTEN_VERFUEGBAR` and
- * `KAUTION_BEWEGUNGSARTEN_VERFUEGBAR`. Rights and phase release stay in the database.
+ * `KAUTION_BEWEGUNGSARTEN_VERFUEGBAR` (phase 3: all deposit types, booking types incl. `zinsgutschrift`).
+ * Rights and phase release stay in the database. A payload may therefore switch on a type that the RPCs released,
+ * but never one they did not release.
  *
- * Fail closed: a missing, malformed or unknown-version payload yields the phase 1 defaults (bar deposit, no
- * extra functions). A key that is missing counts as off. If nothing usable is left for `arten` or
- * `bewegungsarten`, the defaults are used so the dialog never ends up without a selectable option.
+ * Fail closed: a missing, malformed or unknown-version payload yields the phase 1 defaults (`*_STANDARD` constants:
+ * bar deposit, no interest credit, no extra functions). A key that is missing counts as off. If nothing usable is
+ * left for `arten` or `bewegungsarten`, the defaults are used so the dialog never ends up without a selectable option.
  *
  * Deliberately NOT a "use server" file and free of React/PostHog imports, so the parsing is testable on its own.
  */
@@ -27,8 +29,10 @@
 import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants";
 import {
   KAUTION_ARTEN,
+  KAUTION_ARTEN_STANDARD,
   KAUTION_ARTEN_VERFUEGBAR,
   KAUTION_BEWEGUNGSARTEN,
+  KAUTION_BEWEGUNGSARTEN_STANDARD,
   KAUTION_BEWEGUNGSARTEN_VERFUEGBAR,
 } from "@/lib/kautionen-constants";
 import type { KautionArt, KautionBewegungsArt } from "@/types/Kaution";
@@ -60,12 +64,15 @@ const KEINE_FUNKTIONEN: Readonly<Record<KautionFunktion, boolean>> = {
   abrechnung: false,
 };
 
-/** Phase 1 defaults, used whenever the payload is absent or unusable. */
+/**
+ * Phase 1 defaults, used whenever the payload is absent or unusable: bar deposit, no interest credit, no extra
+ * functions. Phase 3 changes the RPC release lists, not these defaults.
+ */
 export function standardKautionFlagKonfig(aktiv: boolean): KautionFlagKonfig {
   return {
     aktiv,
-    arten: KAUTION_ARTEN_VERFUEGBAR,
-    bewegungsarten: KAUTION_BEWEGUNGSARTEN_VERFUEGBAR,
+    arten: KAUTION_ARTEN_STANDARD,
+    bewegungsarten: KAUTION_BEWEGUNGSARTEN_STANDARD,
     funktionen: KEINE_FUNKTIONEN,
   };
 }

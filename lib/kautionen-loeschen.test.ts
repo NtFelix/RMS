@@ -16,8 +16,6 @@ const mockToast = toast as jest.Mock;
 
 const HAUS_A = "11111111-1111-4111-8111-111111111111";
 const HAUS_B = "22222222-2222-4222-8222-222222222222";
-const SUMME_A = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-const SUMME_B = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
 function auswirkung(overrides: Partial<KautionLoeschauswirkung> = {}, mitBuchungen = 2): KautionLoeschauswirkung {
   return {
@@ -38,10 +36,9 @@ function auswirkung(overrides: Partial<KautionLoeschauswirkung> = {}, mitBuchung
       mit_buchungen_gekuerzt: false,
       mit_buchungen_liste: [],
     },
-    pruefsumme: "cccccccccccccccccccccccccccccccc",
     eintraege: [
-      { id: HAUS_A, anzahl_mieter: 2, mit_buchungen: 1, pruefsumme: SUMME_A },
-      { id: HAUS_B, anzahl_mieter: 2, mit_buchungen: 1, pruefsumme: SUMME_B },
+      { id: HAUS_A, anzahl_mieter: 2, mit_buchungen: 1 },
+      { id: HAUS_B, anzahl_mieter: 2, mit_buchungen: 1 },
     ],
     ...overrides,
   };
@@ -65,7 +62,7 @@ describe("pruefeLoeschenMitKautionen", () => {
   it.each([
     ["only deposits without bookings", auswirkung({}, 0)],
     ["no deposits at all", auswirkung({ kautionen: { ...auswirkung().kautionen!, anzahl: 0, ohne_buchungen: 0, mit_buchungen: 0 } })],
-    ["no right to see deposits", auswirkung({ kautionen_sichtbar: false, kautionen: null, pruefsumme: null })],
+    ["no right to see deposits", auswirkung({ kautionen_sichtbar: false, kautionen: null })],
   ])("%s: no impact to confirm", async (_name, impact) => {
     mockAction.mockResolvedValue({ success: true, data: impact });
 
@@ -125,7 +122,7 @@ describe("starteLoeschenMitKautionen", () => {
     expect(h.loeschen).not.toHaveBeenCalled();
   });
 
-  it("with booked deposits: opens the overview INSTEAD of the usual question; confirming deletes with the checksum per ID", async () => {
+  it("with booked deposits: opens the overview INSTEAD of the usual question; confirming deletes once, without arguments", async () => {
     mockAction.mockResolvedValue({ success: true, data: auswirkung() });
     const h = handlers();
 
@@ -142,7 +139,8 @@ describe("starteLoeschenMitKautionen", () => {
     await pending;
 
     expect(h.einfach).not.toHaveBeenCalled();
-    expect(h.loeschen).toHaveBeenCalledWith({ [HAUS_A]: SUMME_A, [HAUS_B]: SUMME_B });
+    expect(h.loeschen).toHaveBeenCalledTimes(1);
+    expect(h.loeschen).toHaveBeenCalledWith();
   });
 
   it("a second press while the impact is loading supersedes the first (one dialog), and nothing stays blocked", async () => {

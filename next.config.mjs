@@ -36,11 +36,27 @@ will not resolve to uploaded sourcemaps for this deployment.
 `);
 }
 
+const exposeTestingApi = process.env.EXPOSE_TESTING_API === '1';
+
+if (exposeTestingApi) {
+  console.warn(`
+============================================================
+EXPOSE_TESTING_API=1: INSTANT-NAVIGATION TEST HOOK IS COMPILED IN
+============================================================
+This build exposes a testing API in the production bundle.
+Use it only for e2e/instant-navigation.spec.ts, never deploy it.
+============================================================
+`);
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
+    // Inlined at build time: the footer must not call `new Date()` while rendering, which would move it out
+    // of the prerendered HTML (the year is as fresh as the deployment).
+    NEXT_PUBLIC_BUILD_YEAR: String(new Date().getFullYear()),
   },
   outputFileTracingRoot: projectRoot,
   reactStrictMode: true,
@@ -67,10 +83,13 @@ const nextConfig = {
     ],
   },
   cacheComponents: true,
-  // Explicit so `next build` stops warning. `false` keeps today's prefetching; switch to `true`
-  // once the routes no longer opt out via `instant = false` (Phase 6 of the Cache Components migration).
-  partialPrefetching: false,
+  // Part of the Cache Components model (default in Next.js 17): each <Link> prefetches the route's static
+  // App Shell instead of the whole page. Revert to `false` to get the previous prefetching behaviour.
+  partialPrefetching: true,
   experimental: {
+    // Only for the test build that runs e2e/instant-navigation.spec.ts (EXPOSE_TESTING_API=1 next build).
+    // Off by default: it exposes a testing hook in the production bundle.
+    exposeTestingApiInProductionBuild: exposeTestingApi,
     scrollRestoration: true,
     optimizePackageImports: [
       'recharts',

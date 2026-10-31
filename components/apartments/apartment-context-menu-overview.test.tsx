@@ -138,7 +138,7 @@ describe('ApartmentContextMenu', () => {
       await waitFor(() => expect(mockStart).toHaveBeenCalledWith('Wohnungen', [mockApartment.id], expect.any(Object)));
     });
 
-    it('ohne gebuchte Kaution: üblicher Dialog, danach Löschen ohne Prüfsumme', async () => {
+    it('ohne gebuchte Kaution: üblicher Dialog, danach Löschen', async () => {
       mockLoescheWohnung.mockResolvedValue({ success: true });
       klickeLoeschen();
 
@@ -146,16 +146,16 @@ describe('ApartmentContextMenu', () => {
       expect(mockLoescheWohnung).not.toHaveBeenCalled();
       fireEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }));
 
-      await waitFor(() => expect(mockLoescheWohnung).toHaveBeenCalledWith(mockApartment.id, undefined));
+      await waitFor(() => expect(mockLoescheWohnung).toHaveBeenCalledWith(mockApartment.id));
       await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     });
 
-    it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht mit der Prüfsumme', async () => {
-      mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ [mockApartment.id]: 'abc' }));
+    it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht sofort', async () => {
+      mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen());
       mockLoescheWohnung.mockResolvedValue({ success: true });
       klickeLoeschen();
 
-      await waitFor(() => expect(mockLoescheWohnung).toHaveBeenCalledWith(mockApartment.id, 'abc'));
+      await waitFor(() => expect(mockLoescheWohnung).toHaveBeenCalledWith(mockApartment.id));
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       // Handler vollständig durchgelaufen (Zustand im finally zurückgesetzt), sonst endet der Test mit Updates außerhalb von act()
       await waitFor(() => expect(mockOnRefresh).toHaveBeenCalled());

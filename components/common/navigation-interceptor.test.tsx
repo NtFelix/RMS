@@ -39,7 +39,7 @@ const mockNavigation = {
   goBack: jest.fn(),
   goForward: jest.fn(),
   getNavigationStats: jest.fn(() => ({})),
-  currentPath: 'user_123'
+  currentPath: 'org_org-1'
 }
 
 const mockDirectoryCache = {
@@ -60,11 +60,11 @@ beforeEach(() => {
 })
 
 describe('NavigationInterceptor', () => {
-  const userId = '123'
+  const userId = 'org-1'
   
   it('renders children correctly', () => {
     render(
-      <NavigationInterceptor userId={userId}>
+      <NavigationInterceptor orgId={userId}>
         <div data-testid="child">Test Child</div>
       </NavigationInterceptor>
     )
@@ -76,9 +76,9 @@ describe('NavigationInterceptor', () => {
     const onNavigate = jest.fn()
     
     render(
-      <NavigationInterceptor userId={userId} onNavigate={onNavigate}>
+      <NavigationInterceptor orgId={userId} onNavigate={onNavigate}>
         <div 
-          data-folder-path="user_123/test-folder" 
+          data-folder-path="org_org-1/shared/test-folder" 
           data-testid="folder"
         >
           Test Folder
@@ -91,7 +91,7 @@ describe('NavigationInterceptor', () => {
     
     await waitFor(() => {
       expect(mockNavigation.navigateToPath).toHaveBeenCalledWith(
-        'user_123/test-folder',
+        'org_org-1/shared/test-folder',
         {}
       )
     })
@@ -101,9 +101,9 @@ describe('NavigationInterceptor', () => {
     mockNavigation.navigateToPath.mockRejectedValue(new Error('Navigation failed'))
     
     render(
-      <NavigationInterceptor userId={userId} fallbackToSSR={true}>
+      <NavigationInterceptor orgId={userId} fallbackToSSR={true}>
         <div 
-          data-folder-path="user_123/test-folder" 
+          data-folder-path="org_org-1/shared/test-folder" 
           data-testid="folder"
         >
           Test Folder
@@ -115,7 +115,7 @@ describe('NavigationInterceptor', () => {
     fireEvent.click(folder)
     
     await waitFor(() => {
-      expect(mockRouter.push).toHaveBeenCalledWith('/dateien/test-folder')
+      expect(mockRouter.push).toHaveBeenCalledWith('/dateien/shared/test-folder')
     })
   })
   
@@ -124,12 +124,12 @@ describe('NavigationInterceptor', () => {
     
     render(
       <NavigationInterceptor 
-        userId={userId} 
+        orgId={userId} 
         enableDebouncing={true}
         debounceMs={150}
       >
         <div 
-          data-folder-path="user_123/test-folder" 
+          data-folder-path="org_org-1/shared/test-folder" 
           data-testid="folder"
         >
           Test Folder
@@ -158,12 +158,12 @@ describe('NavigationInterceptor', () => {
   })
   
   it('prevents navigation to same path unless forced', async () => {
-    mockNavigation.currentPath = 'user_123/test-folder'
+    mockNavigation.currentPath = 'org_org-1/shared/test-folder'
     
     render(
-      <NavigationInterceptor userId={userId}>
+      <NavigationInterceptor orgId={userId}>
         <div 
-          data-folder-path="user_123/test-folder" 
+          data-folder-path="org_org-1/shared/test-folder" 
           data-testid="folder"
         >
           Test Folder
@@ -189,7 +189,7 @@ describe('useFolderNavigation', () => {
     return (
       <div>
         <button 
-          onClick={() => handleFolderClick('user_123/test-folder')}
+          onClick={() => handleFolderClick('org_org-1/shared/test-folder')}
           data-testid="navigate-btn"
         >
           Navigate
@@ -202,14 +202,14 @@ describe('useFolderNavigation', () => {
     it('provides folder navigation functionality', async () => {
     mockUsePathname.mockReturnValue('/dateien');
     
-    render(<TestComponent userId="123" />)
+    render(<TestComponent userId="org-1" />)
     
     const button = screen.getByTestId('navigate-btn')
     fireEvent.click(button)
     
     await waitFor(() => {
       expect(mockNavigation.navigateToPath).toHaveBeenCalledWith(
-        'user_123/test-folder',
+        'org_org-1/shared/test-folder',
         {}
       )
     })
@@ -218,20 +218,20 @@ describe('useFolderNavigation', () => {
   it('falls back to router navigation on error', async () => {
     mockNavigation.navigateToPath.mockRejectedValue(new Error('Failed'))
     
-    render(<TestComponent userId="123" />)
+    render(<TestComponent userId="org-1" />)
     
     const button = screen.getByTestId('navigate-btn')
     fireEvent.click(button)
     
     await waitFor(() => {
-      expect(mockRouter.push).toHaveBeenCalledWith('/dateien/test-folder')
+      expect(mockRouter.push).toHaveBeenCalledWith('/dateien/shared/test-folder')
     })
   })
   
   it('shows navigation state correctly', () => {
     mockNavigation.isNavigating = true
     
-    render(<TestComponent userId="123" />)
+    render(<TestComponent userId="org-1" />)
     
     expect(screen.getByTestId('navigating')).toHaveTextContent('Navigating...')
   })

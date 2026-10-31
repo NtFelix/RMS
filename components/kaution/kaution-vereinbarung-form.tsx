@@ -8,17 +8,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { betragZuEingabe } from "@/components/kaution/kaution-format";
 import { KautionBetragInput, KautionFeld, KautionFormularFehler, useDirtyMelder } from "@/components/kaution/kaution-feld";
+import { KautionVereinbarungsFelder } from "@/components/kaution/kaution-vereinbarungs-felder";
 import { useKautionFlag } from "@/hooks/use-kaution-flag";
-import { KAUTION_ART_LABELS, KAUTION_TEXT_LIMITS } from "@/lib/kautionen-constants";
+import { KAUTION_ART_LABELS, KAUTION_ARTEN, KAUTION_TEXT_LIMITS, kautionHatKonto } from "@/lib/kautionen-constants";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
 import { getMoneyInputError, parseMoneyToCents } from "@/lib/kautionen-money";
+import {
+  pruefeVereinbarungsWerte,
+  vereinbarungsAenderungen,
+  vereinbarungsWerteAusKaution,
+  type KautionVereinbarungsFehler,
+  type KautionVereinbarungsWerte,
+} from "@/lib/kautionen-vereinbarung";
 import { validateKautionText } from "@/lib/kautionen-validation";
 import type { Kaution, KautionArt } from "@/types/Kaution";
 
 /**
- * Form "Vereinbarung bearbeiten" (existing deposit): target amount, rent at contract date, internal note and,
- * once more than one deposit type is released (phase 3), the deposit type. Only changed fields are sent.
+ * Form "Vereinbarung bearbeiten" (existing deposit): deposit type (only while nothing is booked, planned or scheduled),
+ * target amount, rent at contract date, internal note and the agreement fields of the type (phase 3). Only changed
+ * fields are sent.
  *
+ * Changing the type clears the fields of the old type (sent as `null`, see `vereinbarungsAenderungen`).
  * The database decides whether a change is allowed (`kaution_aendern`); `onFehler` returns `true` if the
  * dialog handled the error itself, otherwise the message is shown at the form.
  */
@@ -27,6 +37,8 @@ interface KautionVereinbarungFormProps {
   tenantId: string;
   kaution: Kaution;
   darfBearbeiten: boolean;
+  /** `false` once bookings, an instalment plan or an interest schedule exist: the type is then shown, not changed. */
+  artAenderbar: boolean;
   /** Called after saving (the dialog reloads its data and leaves the edit mode). */
   onGespeichert: () => void | Promise<void>;
   onFehler: (error: KautionActionError) => boolean;
@@ -34,7 +46,7 @@ interface KautionVereinbarungFormProps {
   onDirtyChange?: (dirty: boolean) => void;
 }
 
-interface FeldFehler {
+interface FeldFehler extends KautionVereinbarungsFehler {
   soll?: string;
   miete?: string;
   notiz?: string;
@@ -50,13 +62,14 @@ export function KautionVereinbarungForm({
   tenantId,
   kaution,
   darfBearbeiten,
+  artAenderbar,
   onGespeichert,
   onFehler,
   onAbbrechen,
   onDirtyChange,
 }: KautionVereinbarungFormProps) {
   const basisId = useId();
-  const { arten } = useKautionFlag();
+  const { arten, funktionen } = useKautionFlag();
 
   // Start values (what the database currently holds). Compared with the input to send only changes.
   const [start] = useState(() => ({
@@ -70,19 +83,24 @@ export function KautionVereinbarungForm({
   const [soll, setSoll] = useState(start.soll);
   const [miete, setMiete] = useState(start.miete);
   const [notiz, setNotiz] = useState(start.notiz);
+  const [werte, setWerte] = useState<KautionVereinbarungsWerte>(() => vereinbarungsWerteAusKaution(kaution));
   const [fehler, setFehler] = useState<FeldFehler>({});
   const [serverFehler, setServerFehler] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
-  const artGeaendert = art !== start.art;
   const sollGeaendert = betragSchluessel(soll) !== betragSchluessel(start.soll);
   const mieteGeaendert = betragSchluessel(miete) !== betragSchluessel(start.miete);
   const notizGeaendert = notiz.trim() !== start.notiz.trim();
-  const isDirty = artGeaendert || sollGeaendert || mieteGeaendert || notizGeaendert;
+  // Database keys of the changed agreement fields (type, texts, interest method); cleared fields of an old type included.
+  const felderAenderung = vereinbarungsAenderungen(kaution, art, werte);
+  const artGeaendert = "kautionsart" in felderAenderung;
+  const isDirty = sollGeaendert || mieteGeaendert || notizGeaendert || Object.keys(felderAenderung).length > 0;
   useDirtyMelder(isDirty, onDirtyChange);
 
-  const mehrereArten = arten.length > 1;
+  // The stored type stays selectable even if the flag does not offer it any more (otherwise the select would be empty).
+  const optionen = KAUTION_ARTEN.filter((eintrag) => eintrag === start.art || (arten as readonly KautionArt[]).includes(eintrag));
+  const artWaehlbar = artAenderbar && optionen.length > 1;
   const gesperrt = !darfBearbeiten || isSubmitting;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -100,14 +118,14 @@ export function KautionVereinbarungForm({
     }
     const notizPruefung = validateKautionText(notiz, { label: "Die interne Notiz", max: KAUTION_TEXT_LIMITS.interneNotiz.max });
     if (!notizPruefung.ok) neueFehler.notiz = notizPruefung.message;
+    Object.assign(neueFehler, pruefeVereinbarungsWerte(art, werte));
 
     setFehler(neueFehler);
     setServerFehler(null);
     if (Object.keys(neueFehler).length > 0) return;
 
     // Only changed fields (database keys). Cleared optional fields are sent as null.
-    const felder: Record<string, string | boolean | null> = {};
-    if (artGeaendert) felder.kautionsart = art;
+    const felder: Record<string, string | boolean | null> = { ...felderAenderung };
     if (sollGeaendert) felder.soll_betrag = soll;
     if (mieteGeaendert) felder.miete_bei_vertragsschluss = miete.trim() === "" ? null : miete;
     if (notizGeaendert) felder.interne_notiz = notizPruefung.ok ? notizPruefung.value : null;
@@ -140,15 +158,19 @@ export function KautionVereinbarungForm({
       <fieldset disabled={gesperrt} className="space-y-4">
         <legend className="sr-only">Angaben zur Vereinbarung</legend>
 
-        {mehrereArten ? (
-          <KautionFeld id={`${basisId}-art`} label="Kautionsart">
+        {artWaehlbar ? (
+          <KautionFeld
+            id={`${basisId}-art`}
+            label="Kautionsart"
+            hinweis={artGeaendert ? "Die Angaben der bisherigen Kautionsart werden beim Speichern geleert." : undefined}
+          >
             {(props) => (
               <Select value={art} onValueChange={(wert) => setArt(wert as KautionArt)} disabled={gesperrt}>
                 <SelectTrigger {...props}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {arten.map((verfuegbar) => (
+                  {optionen.map((verfuegbar) => (
                     <SelectItem key={verfuegbar} value={verfuegbar}>
                       {KAUTION_ART_LABELS[verfuegbar]}
                     </SelectItem>
@@ -157,9 +179,24 @@ export function KautionVereinbarungForm({
               </Select>
             )}
           </KautionFeld>
-        ) : null}
+        ) : (
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium leading-none">Kautionsart</p>
+            <p className="text-sm">{KAUTION_ART_LABELS[start.art]}</p>
+            {!artAenderbar ? (
+              <p className="text-xs text-muted-foreground">
+                Die Kautionsart lässt sich nicht mehr ändern, weil bereits Buchungen, ein Ratenplan oder eine Zinsstaffel bestehen.
+              </p>
+            ) : null}
+          </div>
+        )}
 
-        <KautionFeld id={`${basisId}-soll`} label="Soll-Betrag (€)" pflicht fehler={fehler.soll}>
+        <KautionFeld
+          id={`${basisId}-soll`}
+          label={kautionHatKonto(art) ? "Soll-Betrag (€)" : "Bürgschafts-/Versicherungssumme (€)"}
+          pflicht
+          fehler={fehler.soll}
+        >
           {(props) => (
             <KautionBetragInput {...props} value={soll} onWertChange={setSoll} />
           )}
@@ -175,6 +212,16 @@ export function KautionVereinbarungForm({
             <KautionBetragInput {...props} value={miete} onWertChange={setMiete} />
           )}
         </KautionFeld>
+
+        <KautionVereinbarungsFelder
+          basisId={basisId}
+          art={art}
+          zinsenAktiv={funktionen.zinsen}
+          werte={werte}
+          fehler={fehler}
+          aendere={(aenderung) => setWerte((vorher) => ({ ...vorher, ...aenderung }))}
+          gesperrt={gesperrt}
+        />
 
         <KautionFeld id={`${basisId}-notiz`} label="Interne Notiz (optional)" fehler={fehler.notiz}>
           {(props) => (

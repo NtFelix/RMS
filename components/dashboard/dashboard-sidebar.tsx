@@ -4,12 +4,14 @@ import type React from "react"
 import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { 
-  BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, 
-  Menu, X, Folder, Mail, Search, Bell, Network, Bot, ChevronDown, Check
-} from "lucide-react"
+import { Menu, X, Bell, ChevronDown, Check } from "lucide-react"
 import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES, POSTHOG_FEATURE_FLAGS, TABLET_BREAKPOINT } from "@/lib/constants"
+import {
+  sidebarNavGroups,
+  SIDEBAR_MODULE_MAP,
+  type SidebarNavItemType,
+} from "@/components/dashboard/sidebar-nav-config"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { UserSettings, type OrganisationItem } from "@/components/common/user-settings"
@@ -31,111 +33,6 @@ import {
   CustomDropdownSeparator,
 } from "@/components/ui/custom-dropdown"
 
-type SidebarNavItemType = {
-  title: string;
-  href: string;
-  icon: React.ElementType;
-};
-
-type SidebarNavGroupType = {
-  label: string;
-  items: SidebarNavItemType[];
-};
-
-const sidebarNavGroups: SidebarNavGroupType[] = [
-  {
-    label: "Allgemein",
-    items: [
-      {
-        title: "Dashboard",
-        href: ROUTES.HOME,
-        icon: BarChart3,
-      },
-      {
-        title: "Suche",
-        href: ROUTES.SEARCH,
-        icon: Search,
-      },
-      {
-        title: "Organisationen",
-        href: "/organisation",
-        icon: Network,
-      },
-    ]
-  },
-  {
-    label: "Objekte",
-    items: [
-      {
-        title: "Häuser",
-        href: "/haeuser",
-        icon: Building2,
-      },
-      {
-        title: "Wohnungen",
-        href: "/wohnungen",
-        icon: Home,
-      },
-      {
-        title: "Mieter",
-        href: "/mieter",
-        icon: Users,
-      },
-    ]
-  },
-  {
-    label: "Finanzen",
-    items: [
-      {
-        title: "Finanzen",
-        href: "/finanzen",
-        icon: Wallet,
-      },
-      {
-        title: "Betriebskosten",
-        href: "/betriebskosten",
-        icon: FileSpreadsheet,
-      },
-    ]
-  },
-  {
-    label: "Tools",
-    items: [
-      {
-        title: "Aufgaben",
-        href: "/todos",
-        icon: CheckSquare,
-      },
-      {
-        title: "Dokumente",
-        href: "/dateien",
-        icon: Folder,
-      },
-      {
-        title: "E-Mails",
-        href: "/mails",
-        icon: Mail,
-      },
-      {
-        title: "KI-Agenten",
-        href: "/agenten",
-        icon: Bot,
-      },
-    ]
-  }
-];
-
-const SIDEBAR_MODULE_MAP: Record<string, string> = {
-  '/haeuser': 'haeuser',
-  '/wohnungen': 'wohnungen',
-  '/mieter': 'mieter',
-  '/finanzen': 'finanzen',
-  '/betriebskosten': 'betriebskosten',
-  '/todos': 'aufgaben',
-  '/dateien': 'dokumente',
-  '/organisation': 'organisation',
-  '/agenten': 'agenten',
-};
 
 const layoutTransition = {
   duration: 0
@@ -707,7 +604,9 @@ function SidebarNavLink({
         }
       }}
       className={cn(
-        "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 rounded-xl isolate",
+        // Colour changes are animated for the hover only: a transition on the active state made the previous entry fade out
+        // (and the new one fade in) over 200ms, which looked like both being active for a moment after a navigation.
+        "group flex items-center h-10 text-sm font-medium data-[active=false]:hover:transition-colors data-[active=false]:hover:duration-200 relative cursor-pointer active:scale-98 hover:z-10 rounded-xl isolate",
         isCollapsed && !isMobile ? "w-10 h-10 justify-center items-center px-0 mx-auto" : "w-full px-3 justify-start",
         !isActive && "hover:bg-accent/10 dark:hover:bg-accent/15",
         getActiveStateClasses(item.href),

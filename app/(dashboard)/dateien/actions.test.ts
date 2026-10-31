@@ -6,16 +6,21 @@ import {
   deleteFolder,
 } from './actions';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { redirect } from 'next/navigation';
+import { folderMetadataFilter } from '@/lib/storage-paths';
+import { getAccessibleHaeuserIds } from '@/lib/object-scope';
 
 // Mock dependencies
 jest.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: jest.fn(),
 }));
 
-jest.mock('next/navigation', () => ({
-  redirect: jest.fn(),
-}));
+const ORG_ID = 'org1';
+const HAUS = 'haus-a';
+const FOLDER_PATH = `org_${ORG_ID}/shared/${HAUS}/folder`;
+let mockFolderRpcResult: { data: unknown; error: unknown } = { data: null, error: null };
+function mockFolderRpc(result: { data: unknown; error: unknown }) {
+  mockFolderRpcResult = result;
+}
 
 describe('dateien/actions', () => {
   let mockSupabase: {
@@ -26,10 +31,16 @@ describe('dateien/actions', () => {
   };
   let mockQueryBuilder: {
     select: jest.Mock;
+    or: jest.Mock;
     like: jest.Mock;
     eq: jest.Mock;
     single: jest.Mock;
     then: jest.Mock;
+  };
+  let mockHouseQuery: {
+    select: jest.Mock;
+    eq: jest.Mock;
+    maybeSingle: jest.Mock;
   };
   let mockStorageBuilder: {
     createSignedUrl: jest.Mock;
@@ -41,12 +52,19 @@ describe('dateien/actions', () => {
 
     mockQueryBuilder = {
       select: jest.fn().mockReturnThis(),
+      or: jest.fn().mockReturnThis(),
       like: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn(), // mockResolvedValue will be used on this
       maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }), // used by house/apartment/tenant checks
       then: jest.fn((resolve: any) => resolve({ data: [], error: null })), // Default resolution for await builder
     } as any;
+
+    mockHouseQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: jest.fn().mockResolvedValue({ data: { id: HAUS }, error: null }),
+    };
 
     mockStorageBuilder = {
       createSignedUrl: jest.fn(),
@@ -58,13 +76,22 @@ describe('dateien/actions', () => {
         getUser: jest.fn(),
       },
       rpc: jest.fn(),
-      from: jest.fn(() => mockQueryBuilder),
+      // Haeuser: the write check looks up the house of the path (it exists unless a test says otherwise)
+      from: jest.fn((table: string) => (table === 'Haeuser' ? mockHouseQuery : mockQueryBuilder)),
       storage: {
         from: jest.fn(() => mockStorageBuilder),
       },
     };
 
     (createSupabaseServerClient as jest.Mock).mockResolvedValue(mockSupabase);
+
+    // Dispatch by RPC name; folder RPC results are set per test via mockFolderRpc
+    mockFolderRpcResult = { data: null, error: null };
+    mockSupabase.rpc.mockImplementation((name: string) => {
+      if (name === 'current_organisation_id') return Promise.resolve({ data: ORG_ID, error: null });
+      if (name === 'get_accessible_haeuser_ids') return Promise.resolve({ data: null, error: null });
+      return Promise.resolve(mockFolderRpcResult);
+    });
   });
 
   describe('getFolderContents', () => {
@@ -82,9 +109,9 @@ describe('dateien/actions', () => {
         error: null,
       };
 
-      mockSupabase.rpc.mockResolvedValue({ data: mockData, error: null });
+      mockFolderRpc({ data: mockData, error: null });
 
-      const result = await getFolderContents('user123', 'path/to/folder');
+      const result = await getFolderContents(FOLDER_PATH);
 
       expect(result).toEqual({
         files: mockData.files,
@@ -93,7 +120,7 @@ describe('dateien/actions', () => {
         totalSize: mockData.totalSize,
       });
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-        p_current_path: 'path/to/folder',
+        p_current_path: FOLDER_PATH,
       });
     });
 
@@ -103,26 +130,54 @@ describe('dateien/actions', () => {
         error: null,
       });
 
-      mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'RPC error' } });
+      mockFolderRpc({ data: null, error: { message: 'RPC error' } });
 
-      const result = await getFolderContents('user123', 'path/to/folder');
+      const result = await getFolderContents(FOLDER_PATH);
 
       expect(result.error).toContain('Fehler beim Laden der Ordnerinhalte');
     });
 
-    it('should redirect if user is invalid', async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: 'otherUser' } },
-        error: null,
-      });
+    it('refuses a path outside the organisation, a foreign private folder and a house outside the scope', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null });
+      const denied = {
+        files: [], folders: [], breadcrumbs: [], totalSize: 0, error: 'Ungültiger Pfad',
+      };
 
-      try {
-        await getFolderContents('user123', 'path/to/folder');
-      } catch (e) {
-        // redirect throws
-      }
+      expect(await getFolderContents('path/to/folder')).toEqual(denied);
+      expect(await getFolderContents('org_andere-org/shared/haus-a')).toEqual(denied);
+      expect(await getFolderContents(`org_${ORG_ID}/private/other/path`)).toEqual(denied);
+      // Scope of the next call: only haus-b
+      (getAccessibleHaeuserIds as jest.Mock).mockResolvedValueOnce(['haus-b']);
+      expect(await getFolderContents(FOLDER_PATH)).toEqual(denied);
+      expect(mockSupabase.rpc).not.toHaveBeenCalledWith('get_folder_contents', expect.anything());
+    });
 
-      expect(redirect).toHaveBeenCalledWith('/auth/login');
+    it('loads the organisation root without a path and does not check anything else', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null });
+      mockFolderRpc({ data: { files: [], folders: [], breadcrumbs: [], totalSize: 0, error: null }, error: null });
+
+      const result = await getFolderContents();
+
+      expect(result.error).toBeUndefined();
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', { p_current_path: `org_${ORG_ID}` });
+      expect(getAccessibleHaeuserIds).not.toHaveBeenCalled();
+    });
+
+    it('takes the user from the session: only the own private folder is readable', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'otherUser' } }, error: null });
+      mockFolderRpc({ data: { files: [], folders: [], breadcrumbs: [], totalSize: 0, error: null }, error: null });
+
+      expect((await getFolderContents(`org_${ORG_ID}/private/user123/x`)).error).toBe('Ungültiger Pfad');
+      expect((await getFolderContents(`org_${ORG_ID}/private/otherUser/x`)).error).toBeUndefined();
+    });
+
+    it('returns an error object when nobody is signed in', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: { message: 'Auth error' } });
+
+      const result = await getFolderContents(FOLDER_PATH);
+
+      expect(result.error).toBe('Nicht authentifiziert');
+      expect(mockSupabase.rpc).not.toHaveBeenCalledWith('get_folder_contents', expect.anything());
     });
   });
 
@@ -132,22 +187,26 @@ describe('dateien/actions', () => {
         data: { user: { id: 'user123' } },
         error: null,
       });
-      mockSupabase.rpc.mockResolvedValue({
+      mockFolderRpc({
         data: {
           files: [], folders: [], breadcrumbs: [], totalSize: 0, error: null
         }, error: null
       });
 
-      await getPathContents('user123', 'path');
+      await getPathContents(FOLDER_PATH);
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-        p_current_path: 'path',
+        p_current_path: FOLDER_PATH,
       });
     });
   });
 
   describe('loadFilesForPath', () => {
     it('should validate path ownership', async () => {
-      const result = await loadFilesForPath('user123', 'user_other/path');
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user123' } },
+        error: null,
+      });
+      const result = await loadFilesForPath(`org_${ORG_ID}/private/other/path`);
       expect(result.error).toBe('Ungültiger Pfad');
     });
 
@@ -156,16 +215,18 @@ describe('dateien/actions', () => {
         data: { user: { id: 'user123' } },
         error: null,
       });
-      mockSupabase.rpc.mockResolvedValue({
+      mockFolderRpc({
         data: {
           files: [], folders: [], breadcrumbs: [], totalSize: 0, error: null
         }, error: null
       });
 
-      await loadFilesForPath('user123', 'user_user123/path');
+      await loadFilesForPath(`org_${ORG_ID}/shared/${HAUS}/path`);
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-        p_current_path: 'user_user123/path',
+        p_current_path: `org_${ORG_ID}/shared/${HAUS}/path`,
       });
+      // The path is checked once (in getFolderContents), not a second time in the wrapper
+      expect(getAccessibleHaeuserIds).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -175,13 +236,13 @@ describe('dateien/actions', () => {
         data: { user: { id: 'user123' } },
         error: null,
       });
-      mockSupabase.rpc.mockResolvedValue({
+      mockFolderRpc({
         data: {
           files: [], folders: [], breadcrumbs: [], totalSize: 500, error: null
         }, error: null
       });
 
-      const size = await getTotalStorageUsage('user123');
+      const size = await getTotalStorageUsage();
       expect(size).toBe(500);
     });
   });
@@ -205,10 +266,50 @@ describe('dateien/actions', () => {
 
       mockStorageBuilder.remove.mockResolvedValue({ error: null });
 
-      const result = await deleteFolder('user123', 'user_user123/folder');
+      const result = await deleteFolder(`org_${ORG_ID}/shared/${HAUS}/folder`);
 
       expect(result).toEqual({ success: true });
       expect(mockStorageBuilder.remove).toHaveBeenCalled();
+    });
+
+    it('selects exactly the folder and its sub-folders and never removes a sibling with the same prefix', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user123' } },
+        error: null,
+      });
+      const folderPath = `org_${ORG_ID}/shared/${HAUS}/Rechnungen`;
+      // The sibling rows are returned on purpose, as a literal `*` in the name would let PostgREST match them
+      mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({
+        data: [
+          { dateipfad: folderPath, dateiname: 'a.pdf' },
+          { dateipfad: `${folderPath}/2024`, dateiname: 'b.pdf' },
+          { dateipfad: `${folderPath}2`, dateiname: 'c.pdf' },
+          { dateipfad: `${folderPath}_alt`, dateiname: 'd.pdf' },
+        ],
+        error: null,
+      }));
+      mockStorageBuilder.remove.mockResolvedValue({ error: null });
+
+      const result = await deleteFolder(folderPath);
+
+      expect(result).toEqual({ success: true });
+      expect(mockQueryBuilder.or).toHaveBeenCalledWith(folderMetadataFilter(folderPath));
+      expect(mockQueryBuilder.like).not.toHaveBeenCalled();
+      expect(mockStorageBuilder.remove).toHaveBeenNthCalledWith(1, [`${folderPath}/a.pdf`, `${folderPath}/2024/b.pdf`]);
+    });
+
+    it('refuses a folder below a house that does not exist in the organisation', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user123' } },
+        error: null,
+      });
+      mockHouseQuery.maybeSingle.mockResolvedValue({ data: null, error: null });
+
+      const result = await deleteFolder(`org_${ORG_ID}/shared/haus-erfunden/folder`);
+
+      expect(result).toEqual({ success: false, error: 'Ungültiger Pfad' });
+      expect(mockQueryBuilder.or).not.toHaveBeenCalled();
+      expect(mockStorageBuilder.remove).not.toHaveBeenCalled();
     });
 
     it('should return error if user not authenticated', async () => {
@@ -217,7 +318,7 @@ describe('dateien/actions', () => {
         error: { message: 'Auth error' },
       });
 
-      const result = await deleteFolder('user123', 'user_user123/folder');
+      const result = await deleteFolder(`org_${ORG_ID}/shared/${HAUS}/folder`);
       expect(result.success).toBe(false);
       expect(result.error).toBe('Nicht authentifiziert');
     });
@@ -228,9 +329,23 @@ describe('dateien/actions', () => {
         error: null,
       });
 
-      const result = await deleteFolder('user123', 'user_user123/Miscellaneous');
+      const result = await deleteFolder(`org_${ORG_ID}/private/user123/Miscellaneous`);
       expect(result.success).toBe(false);
       expect(result.error).toContain('Systemordner');
+    });
+
+    it('should never delete the org root or a house folder', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user123' } },
+        error: null,
+      });
+
+      expect((await deleteFolder(`org_${ORG_ID}`)).success).toBe(false);
+      expect((await deleteFolder(`org_${ORG_ID}/shared`)).success).toBe(false);
+      const houseResult = await deleteFolder(`org_${ORG_ID}/shared/${HAUS}`);
+      expect(houseResult.success).toBe(false);
+      expect(houseResult.error).toContain('Systemordner');
+      expect(mockStorageBuilder.remove).not.toHaveBeenCalled();
     });
   });
 });

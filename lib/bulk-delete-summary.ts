@@ -28,25 +28,8 @@ const MAX_REASON_LENGTH = 300;
 /** SQLSTATE der Löschsperren der Datenbank (z. B. Mieter mit hinterlegter Kaution): fachliche Ablehnung, kein Serverfehler. */
 export const DELETE_BLOCKED_SQLSTATE = "KA009";
 
-/** SQLSTATE `KA016`: Auswirkung auf Kautionen nicht bestätigt oder inzwischen geändert (ebenfalls eine fachliche Ablehnung). */
-const DELETE_UNCONFIRMED_SQLSTATE = "KA016";
-
 /** SQLSTATE `42501`: fehlende Berechtigung (z. B. kein Kautionsrecht bei gebuchter Kaution). */
 const DELETE_FORBIDDEN_SQLSTATE = "42501";
-
-/**
- * Liest die Prüfsummen der bestätigten Auswirkung auf Kautionen aus dem Body einer Sammellöschung (`pruefsummen`: ID -> Prüfsumme).
- * Nur Einträge mit einer ID-Zeichenkette und einer 32-stelligen Hex-Prüfsumme zählen; alles andere wird ignoriert (die Datenbank
- * prüft die Prüfsumme ohnehin, `KA016`).
- */
-export function parsePruefsummen(value: unknown): Record<string, string> {
-  const ergebnis: Record<string, string> = {};
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return ergebnis;
-  for (const [id, pruefsumme] of Object.entries(value)) {
-    if (typeof pruefsumme === "string" && /^[0-9a-f]{32}$/.test(pruefsumme)) ergebnis[id] = pruefsumme;
-  }
-  return ergebnis;
-}
 
 /** Entfernt das stabile Präfix `KAUT_GESPERRT: ` einer Datenbankmeldung (Vertrag: `<CODE>: <deutsche Meldung>`). */
 export function stripDbCodePrefix(message: string): string {
@@ -66,7 +49,7 @@ export function createDeleteError(message: string, code?: string): Error {
 /** `true`, wenn die Datenbank die Löschung fachlich abgelehnt hat (Löschsperre, SQLSTATE `KA009`). */
 export function isDeleteBlockedError(error: unknown): boolean {
   const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
-  return code === DELETE_BLOCKED_SQLSTATE || code === DELETE_UNCONFIRMED_SQLSTATE;
+  return code === DELETE_BLOCKED_SQLSTATE;
 }
 
 /** `true`, wenn die Datenbank die Löschung wegen fehlender Berechtigung abgelehnt hat (SQLSTATE `42501`). */
@@ -140,7 +123,7 @@ export interface BulkDeleteResponse {
  *
  * - Mindestens eine Löschung gelungen (auch bei Teilerfolg): HTTP 200 mit `successCount`, `errorCount` und den
  *   Gründen der übrigen. Die Liste muss neu geladen werden, der Client zeigt die Gründe an.
- * - Keine gelungen: HTTP 409 bei fachlicher Ablehnung (Löschsperre `KA009`, nicht bestätigte Auswirkung `KA016`),
+ * - Keine gelungen: HTTP 409 bei fachlicher Ablehnung (Löschsperre `KA009`),
  *   403 bei fehlender Berechtigung (`42501`), sonst 500, mit `error` (Gründe, sonst `fallbackError`).
  */
 export function buildBulkDeleteResponse(

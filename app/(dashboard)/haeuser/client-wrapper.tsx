@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { STAT_CARD_ROW_CLASS } from "@/components/skeletons/stat-cards-skeleton";
 import { StatCard } from "@/components/common/stat-card";
 import { HouseTable, House } from "@/components/tables/house-table";
 import { formatPlzOrt } from "@/lib/address";
@@ -22,7 +23,7 @@ import { HousesDonutChart } from "@/components/dashboard/dashboard-charts";
 import { cn } from "@/lib/utils";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
-import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 
 const safeParseFloat = (val: unknown): number => {
   if (typeof val === "number") return val;
@@ -181,7 +182,7 @@ function SummaryStats({ summary }: { summary: {
   freeApartments: number;
 } }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4 animate-in fade-in duration-300">
+    <div className={`${STAT_CARD_ROW_CLASS} animate-in fade-in duration-300`}>
       <StatCard
         title="Häuser gesamt"
         value={summary.totalHouses}
@@ -861,7 +862,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
     })
   }, [selectedHouses, enrichedHaeuser, escapeCsvValue])
 
-  const handleBulkDelete = useCallback(async (pruefsummen: Pruefsummen = {}) => {
+  const handleBulkDelete = useCallback(async () => {
     if (selectedHouses.size === 0) {
       toast({
         title: "Keine Auswahl",
@@ -878,7 +879,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
       const response = await fetch('/api/haeuser/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds, pruefsummen }),
+        body: JSON.stringify({ ids: selectedIds }),
       });
 
       if (!response.ok) {

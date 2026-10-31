@@ -2,19 +2,29 @@ import { Suspense } from 'react'
 import { CloudStorage } from "@/components/cloud-storage/cloud-storage"
 import { requireAuthenticatedUser } from "@/lib/server/route-access"
 import { requirePermission } from "@/lib/permissions"
+import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { getActiveOrgId } from "@/lib/storage-access"
+import { orgRoot } from "@/lib/storage-paths"
 import { getFolderContents } from "./actions"
 import DateienLoading from './loading'
 
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
 
+async function CloudStorageContent() {
+    // Authentication and permission are request-time work: they run inside the Suspense boundary so that
+    // the page itself stays a static shell (cacheComponents)
+    const { user } = await requireAuthenticatedUser()
+    await requirePermission('dokumente', 'ansehen')
 
-async function CloudStorageContent({ userId }: { userId: string }) {
+    const supabase = await createSupabaseServerClient()
+    const orgId = await getActiveOrgId(supabase)
+    if (!orgId) {
+        throw new Error('Keine aktive Organisation gefunden')
+    }
+
     // Load initial files, folders and breadcrumbs on the server using unified RPC
-    const initialPath = `user_${userId}`
-    const { files, folders, breadcrumbs, totalSize, error: loadError } = await getFolderContents(userId, initialPath)
+    const initialPath = orgRoot(orgId)
+    const { files, folders, breadcrumbs, totalSize, error: loadError } = await getFolderContents(initialPath)
 
     if (loadError) {
         console.error('Error loading initial files:', loadError)
@@ -22,7 +32,8 @@ async function CloudStorageContent({ userId }: { userId: string }) {
 
     return (
         <CloudStorage
-            userId={userId}
+            userId={user.id}
+            orgId={orgId}
             initialPath={initialPath}
             initialFiles={files}
             initialFolders={folders}
@@ -32,13 +43,10 @@ async function CloudStorageContent({ userId }: { userId: string }) {
     )
 }
 
-export default async function DateienPage() {
-    const { user } = await requireAuthenticatedUser()
-    await requirePermission('dokumente', 'ansehen')
-
+export default function DateienPage() {
     return (
         <Suspense fallback={<DateienLoading />}>
-            <CloudStorageContent userId={user.id} />
+            <CloudStorageContent />
         </Suspense>
     )
 }

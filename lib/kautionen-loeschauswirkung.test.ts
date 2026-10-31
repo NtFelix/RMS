@@ -25,14 +25,13 @@ function teil(overrides: Partial<KautionLoeschauswirkung> = {}): KautionLoeschau
     anzahl_mieter: 3,
     kautionen_sichtbar: true,
     kautionen: kautionen(),
-    pruefsumme: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    eintraege: [{ id: "h1", anzahl_mieter: 3, mit_buchungen: 1, pruefsumme: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }],
+    eintraege: [{ id: "h1", anzahl_mieter: 3, mit_buchungen: 1 }],
     ...overrides,
   };
 }
 
 describe("mergeLoeschauswirkung", () => {
-  it("returns a single part unchanged (keeps the checksum)", () => {
+  it("returns a single part unchanged", () => {
     const einzel = teil();
 
     expect(mergeLoeschauswirkung([einzel])).toBe(einzel);
@@ -41,7 +40,7 @@ describe("mergeLoeschauswirkung", () => {
   it("adds counts and amounts exactly to the cent and concatenates the entries", () => {
     const zusammen = mergeLoeschauswirkung([
       teil(),
-      teil({ eintraege: [{ id: "h2", anzahl_mieter: 3, mit_buchungen: 1, pruefsumme: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }] }),
+      teil({ eintraege: [{ id: "h2", anzahl_mieter: 3, mit_buchungen: 1 }] }),
     ]);
 
     expect(zusammen.anzahl_haeuser).toBe(2);
@@ -58,8 +57,6 @@ describe("mergeLoeschauswirkung", () => {
       mit_saldo_anzahl: 2,
     });
     expect(zusammen.eintraege.map((eintrag) => eintrag.id)).toEqual(["h1", "h2"]);
-    // The checksum of the whole is not used: each entry carries its own.
-    expect(zusammen.pruefsumme).toBeNull();
   });
 
   it("shortens the combined list to 100 deposits and marks it", () => {
@@ -87,7 +84,7 @@ describe("mergeLoeschauswirkung", () => {
   });
 
   it("without the right to see deposits there is no statement about deposits", () => {
-    const ohne = teil({ kautionen_sichtbar: false, kautionen: null, pruefsumme: null });
+    const ohne = teil({ kautionen_sichtbar: false, kautionen: null });
 
     const zusammen = mergeLoeschauswirkung([ohne, ohne]);
 

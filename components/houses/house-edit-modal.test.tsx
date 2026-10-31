@@ -48,22 +48,22 @@ describe('HouseEditModal delete with Kautionen overview', () => {
     mockDelete.mockResolvedValue({ success: true });
   });
 
-  it('loads the impact first, then asks the usual question and deletes without checksum', async () => {
+  it('loads the impact first, then asks the usual question and deletes', async () => {
     const user = await klickeLoeschen();
 
     await waitFor(() => expect(mockStart).toHaveBeenCalledWith('Haeuser', ['house-1'], expect.any(Object)));
     expect(mockDelete).not.toHaveBeenCalled();
     await user.click(await screen.findByRole('button', { name: 'Löschen' }));
 
-    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('house-1', undefined));
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('house-1'));
     await waitFor(() => expect(houseModalOnSuccess).toHaveBeenCalledWith({ deleted: true, id: 'house-1' }));
   });
 
-  it('with booked deposits: no second question, the confirmed overview deletes with the checksum', async () => {
-    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ 'house-1': 'abc' }));
+  it('with booked deposits: no second question, the confirmed overview deletes right away', async () => {
+    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen());
     await klickeLoeschen();
 
-    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('house-1', 'abc'));
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('house-1'));
     expect(screen.queryByText('Haus löschen?')).not.toBeInTheDocument();
     await waitFor(() => expect(houseModalOnSuccess).toHaveBeenCalledWith({ deleted: true, id: 'house-1' }));
   });

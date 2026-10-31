@@ -35,7 +35,7 @@ function TestUploadComponent() {
   return (
     <div>
       <FileUploadZone 
-        targetPath="user_test-user-123/test-folder" 
+        targetPath="org_org-1/test-folder" 
         onUploadComplete={() => console.log('Upload complete')}
       />
       <div data-testid="upload-status">
@@ -98,7 +98,7 @@ describe('File Upload Integration', () => {
     await waitFor(() => {
       expect(mockUploadFile).toHaveBeenCalledWith(
         testFile, 
-        'user_test-user-123/test-folder/test-document.pdf'
+        'org_org-1/test-folder/test-document.pdf'
       )
     })
     
@@ -142,9 +142,9 @@ describe('File Upload Integration', () => {
       expect(mockUploadFile).toHaveBeenCalledTimes(3)
     })
     
-    expect(mockUploadFile).toHaveBeenCalledWith(testFiles[0], 'user_test-user-123/test-folder/document1.pdf')
-    expect(mockUploadFile).toHaveBeenCalledWith(testFiles[1], 'user_test-user-123/test-folder/image1.jpg')
-    expect(mockUploadFile).toHaveBeenCalledWith(testFiles[2], 'user_test-user-123/test-folder/document2.txt')
+    expect(mockUploadFile).toHaveBeenCalledWith(testFiles[0], 'org_org-1/test-folder/document1.pdf')
+    expect(mockUploadFile).toHaveBeenCalledWith(testFiles[1], 'org_org-1/test-folder/image1.jpg')
+    expect(mockUploadFile).toHaveBeenCalledWith(testFiles[2], 'org_org-1/test-folder/document2.txt')
   })
 
   it('handles upload errors gracefully', async () => {

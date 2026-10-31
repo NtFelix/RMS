@@ -2,6 +2,8 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from 'next/server'
 import { logRpcCall, type FolderContentsResult } from '@/app/(dashboard)/dateien/actions'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
+import { checkStoragePathAccess } from '@/lib/storage-access'
+import { STORAGE_ROOT_LABEL } from '@/lib/storage-navigation'
 
 
 /**
@@ -10,7 +12,7 @@ import { NO_CACHE_HEADERS } from '@/lib/constants/http'
  * This replaces server actions for file navigation to avoid the 404 issue
  * on Cloudflare Pages where server actions POST to dynamic URLs that don't exist.
  * 
- * GET /api/files/contents?path=user_uuid/house_uuid/apartment_uuid
+ * GET /api/files/contents?path=org_{orgId}/shared/{houseId}/...
  */
 export async function GET(request: NextRequest) {
     const startTime = performance.now()
@@ -37,14 +39,17 @@ export async function GET(request: NextRequest) {
             )
         }
 
-        // Validate path belongs to user
-        const expectedPrefix = `user_${user.id}`
-        if (!path.startsWith(expectedPrefix)) {
+        // Validate path belongs to the active organisation and an accessible house
+        const accessError = await checkStoragePathAccess(supabase, user.id, path, { allowLegacyOwnRead: true })
+        if (accessError) {
             return NextResponse.json(
                 { error: 'Ungültiger Pfad' },
                 { status: 403, headers: NO_CACHE_HEADERS }
             )
         }
+
+        // Root of the path is the org folder (org_{orgId})
+        const rootPath = path.split('/')[0]
 
         // Call the unified RPC function
         const { data, error } = await supabase.rpc('get_folder_contents', {
@@ -58,7 +63,7 @@ export async function GET(request: NextRequest) {
                 {
                     files: [],
                     folders: [],
-                    breadcrumbs: [{ name: 'Cloud Storage', path: expectedPrefix, type: 'root' }],
+                    breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                     totalSize: 0,
                     error: `Fehler beim Laden: ${error.message}`
                 },
@@ -81,7 +86,7 @@ export async function GET(request: NextRequest) {
                 {
                     files: [],
                     folders: [],
-                    breadcrumbs: [{ name: 'Cloud Storage', path: expectedPrefix, type: 'root' }],
+                    breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                     totalSize: 0,
                     error: result.error
                 },
@@ -92,7 +97,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             files: result.files || [],
             folders: result.folders || [],
-            breadcrumbs: result.breadcrumbs || [{ name: 'Cloud Storage', path: expectedPrefix, type: 'root' }],
+            breadcrumbs: result.breadcrumbs || [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
             totalSize: result.totalSize || 0
         }, { headers: NO_CACHE_HEADERS })
 

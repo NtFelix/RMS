@@ -357,6 +357,24 @@ function FullScreenLayout({
     );
 }
 
+/**
+ * Loading card, shared with the Suspense fallback in page.tsx so both render identically.
+ * Starts fully visible (no fade-in) because the server-rendered fallback must not be hidden
+ * at opacity 0 until hydration.
+ */
+export function ConsentLoading() {
+    return (
+        <FullScreenLayout motionProps={{ initial: { opacity: 1, y: 0 }, animate: { opacity: 1, y: 0 } }}>
+            <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                    <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+                    <p className="text-muted-foreground">Laden...</p>
+                </CardContent>
+            </Card>
+        </FullScreenLayout>
+    );
+}
+
 // 3-State Permission Level Type
 type PermissionLevel = 'none' | 'read' | 'write';
 
@@ -978,16 +996,7 @@ export default function ConsentUI({
 
     // Loading state
     if (isLoading) {
-        return (
-            <FullScreenLayout>
-                <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
-                    <CardContent className="flex flex-col items-center justify-center py-16">
-                        <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-                        <p className="text-muted-foreground">Laden...</p>
-                    </CardContent>
-                </Card>
-            </FullScreenLayout>
-        );
+        return <ConsentLoading />;
     }
 
     // Error state

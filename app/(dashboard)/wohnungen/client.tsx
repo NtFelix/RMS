@@ -13,6 +13,7 @@ import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Apartment as ApartmentTableType } from "@/components/tables/apartment-table";
+import { STAT_CARD_ROW_CLASS } from "@/components/skeletons/stat-cards-skeleton";
 import { StatCard } from "@/components/common/stat-card";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -25,7 +26,7 @@ import { useTabParams } from "@/hooks/use-tab-params";
 import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRentPerSqmBarChart } from "@/components/dashboard/dashboard-charts";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
-import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -194,7 +195,7 @@ export default function WohnungenClientView({
     })
   }, [selectedApartments, apartments, escapeCsvValue])
 
-  const handleBulkDelete = useCallback(async (pruefsummen: Pruefsummen = {}) => {
+  const handleBulkDelete = useCallback(async () => {
     if (selectedApartments.size === 0) return;
 
     setIsBulkDeleting(true);
@@ -204,7 +205,7 @@ export default function WohnungenClientView({
       const response = await fetch('/api/apartments/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds, pruefsummen }),
+        body: JSON.stringify({ ids: selectedIds }),
       });
 
       if (!response.ok) {
@@ -392,7 +393,7 @@ export default function WohnungenClientView({
 
       {currentTab === "apartments" ? (
         <>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4 animate-in fade-in duration-300">
+          <div className={`${STAT_CARD_ROW_CLASS} animate-in fade-in duration-300`}>
             <StatCard
               title="Wohnungen gesamt"
               value={summary.total}

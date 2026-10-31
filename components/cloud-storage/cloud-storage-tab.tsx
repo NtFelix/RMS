@@ -37,6 +37,8 @@ import {
 import { useErrorBoundary } from "@/lib/storage-error-handling"
 import { performanceMonitor } from "@/lib/storage-performance"
 import { useRouter } from "next/navigation"
+import { orgRoot } from '@/lib/storage-paths'
+import { buildFallbackBreadcrumbs, STORAGE_ROOT_LABEL, storageUrlFor } from '@/lib/storage-navigation'
 
 interface VirtualFolder {
   name: string
@@ -49,11 +51,12 @@ interface VirtualFolder {
 
 interface CloudStorageTabProps {
   userId?: string
+  orgId?: string
   initialFiles?: any[]
   initialFolders?: VirtualFolder[]
 }
 
-export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudStorageTabProps) {
+export function CloudStorageTab({ userId, orgId, initialFiles, initialFolders }: CloudStorageTabProps) {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showUploadZone, setShowUploadZone] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
@@ -80,12 +83,7 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
   } = useCloudStorageStore()
   const router = useRouter()
 
-  // Map storage path like user_<id>/a/b to SSR route /dateien/a/b
-  const pathToHref = (path: string) => {
-    const match = path.match(/^user_[^/]+(?:\/(.*))?$/)
-    const rest = match && match[1] ? match[1] : ""
-    return rest ? `/dateien/${rest}` : "/dateien"
-  }
+  const orgRootPath = orgId ? orgRoot(orgId) : null
 
   // Enhanced navigation function that routes to SSR URL
   const navigateToPath = (path: string) => {
@@ -95,7 +93,7 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
       setFiles([])
       setFolders([])
     }
-    router.push(pathToHref(path))
+    router.push(storageUrlFor(path))
   }
   
   const {
@@ -135,12 +133,11 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
 
   // Initialize with root path and load initial files
   useEffect(() => {
-    if (!currentPath && actualUserId) {
-      const rootPath = `user_${actualUserId}`
-      navigateToPath(rootPath)
-      setBreadcrumbs([{ name: 'Cloud Storage', path: rootPath, type: 'root' }])
+    if (!currentPath && orgRootPath) {
+      navigateToPath(orgRootPath)
+      setBreadcrumbs([{ name: STORAGE_ROOT_LABEL, path: orgRootPath, type: 'root' }])
     }
-  }, [actualUserId, currentPath, navigateToPath, setBreadcrumbs])
+  }, [orgRootPath, currentPath, navigateToPath, setBreadcrumbs])
 
   // Set initial files and folders if provided
   useEffect(() => {
@@ -166,98 +163,46 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
 
   // Load files when path changes
   useEffect(() => {
-    if (currentPath && actualUserId) {
+    if (currentPath && orgRootPath) {
       // Only refresh if we don't have initial files for the root path, or if the path has changed
-      const isRootPath = currentPath === `user_${actualUserId}`
+      const isRootPath = currentPath === orgRootPath
       const hasInitialData = initialFiles && initialFiles.length > 0
       
       if (!isRootPath || !hasInitialData) {
         refreshCurrentPath()
       }
     }
-  }, [currentPath, actualUserId, refreshCurrentPath, initialFiles])
+  }, [currentPath, orgRootPath, refreshCurrentPath, initialFiles])
 
-  // Update breadcrumbs when path changes
+  // Update breadcrumbs when path changes (zone labels, house name from DB, no IDs in display)
   useEffect(() => {
-    if (currentPath && actualUserId) {
-      // Generate breadcrumbs based on current path
-      const generateBreadcrumbs = async (): Promise<BreadcrumbItem[]> => {
-        const breadcrumbs: BreadcrumbItem[] = [
-          { name: 'Cloud Storage', path: `user_${actualUserId}`, type: 'root' }
-        ]
-        
-        const userPath = `user_${actualUserId}`
-        if (currentPath !== userPath) {
-          const relativePath = currentPath.startsWith(userPath) 
-            ? currentPath.substring(userPath.length + 1) 
-            : currentPath
-          const segments = relativePath.split('/').filter(Boolean)
-          
-          let currentSegmentPath = userPath
-          for (let i = 0; i < segments.length; i++) {
-            const segment = segments[i]
-            currentSegmentPath += `/${segment}`
-            
-            let displayName = segment
-            let breadcrumbType: BreadcrumbItem['type'] = 'category'
-            
-            // Try to get display names for houses and apartments
-            if (i === 0 && segment !== 'Miscellaneous') {
-              // This might be a house ID
-              try {
-                const supabase = createClient()
-                const { data: house } = await supabase
-                  .from('Haeuser')
-                  .select('name')
-                  .eq('id', segment)
-                  .single()
-                
-                if (house) {
-                  displayName = house.name
-                  breadcrumbType = 'house'
-                }
-              } catch (error) {
-                // If it fails, keep the original segment name
-              }
-            } else if (i === 1 && segments[0] !== 'Miscellaneous') {
-              // This might be an apartment ID
-              try {
-                const supabase = createClient()
-                const { data: apartment } = await supabase
-                  .from('Wohnungen')
-                  .select('name')
-                  .eq('id', segment)
-                  .single()
-                
-                if (apartment) {
-                  displayName = apartment.name
-                  breadcrumbType = 'apartment'
-                }
-              } catch (error) {
-                // If it fails, keep the original segment name
-              }
-            } else if (segment === 'house_documents') {
-              displayName = 'Hausdokumente'
-            } else if (segment === 'apartment_documents') {
-              displayName = 'Wohnungsdokumente'
-            } else if (segment === 'Miscellaneous') {
-              displayName = 'Sonstiges'
-            }
-            
-            breadcrumbs.push({
-              name: displayName,
-              path: currentSegmentPath,
-              type: breadcrumbType
-            })
-          }
-        }
-        
-        return breadcrumbs
+    if (!currentPath || !orgRootPath) return
+    const crumbs = buildFallbackBreadcrumbs(currentPath)
+    setBreadcrumbs(crumbs)
+
+    const houseCrumb = crumbs.find(crumb => crumb.type === 'house')
+    const houseId = houseCrumb?.path.split('/').pop()
+    if (!houseCrumb || !houseId) return
+
+    let cancelled = false
+    const loadHouseName = async () => {
+      try {
+        const { data } = await createClient()
+          .from('Haeuser')
+          .select('name')
+          .eq('id', houseId)
+          .maybeSingle()
+        if (cancelled || !data?.name) return
+        setBreadcrumbs(buildFallbackBreadcrumbs(currentPath).map(crumb =>
+          crumb.path === houseCrumb.path ? { ...crumb, name: data.name } : crumb
+        ))
+      } catch {
+        // Keep the fallback label if the lookup fails
       }
-      
-      generateBreadcrumbs().then(setBreadcrumbs)
     }
-  }, [currentPath, actualUserId, setBreadcrumbs])
+    loadHouseName()
+    return () => { cancelled = true }
+  }, [currentPath, orgRootPath, setBreadcrumbs])
 
   // Monitor online status
   useEffect(() => {
@@ -308,7 +253,7 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
   }, [uploadQueue, removeFromUploadQueue])
 
   // Show loading state while getting user ID
-  if (!actualUserId) {
+  if (!actualUserId || !orgRootPath) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
@@ -472,7 +417,7 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
 
       {/* Breadcrumb Navigation */}
       <div className="bg-muted/30 rounded-lg p-3">
-        {userId && <FileBreadcrumbNavigation userId={userId} />}
+        {orgId && <FileBreadcrumbNavigation orgId={orgId} />}
       </div>
 
       {error && (
@@ -512,7 +457,7 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4">
-            <FileTreeView userId={actualUserId || 'demo-user'} />
+            <FileTreeView orgId={orgId || ''} userId={actualUserId || ''} />
           </CardContent>
         </Card>
 
@@ -688,7 +633,7 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
         <ArchiveBrowserModal 
           isOpen={isArchiveViewOpen}
           onClose={closeArchiveView}
-          userId={actualUserId || 'demo-user'}
+          userId={actualUserId || ''}
         />
       </div>
     </StorageErrorBoundary>

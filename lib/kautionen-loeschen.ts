@@ -4,9 +4,6 @@ import { toast } from "@/hooks/use-toast";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
 import type { KautionLoeschauswirkung, KautionLoeschTabelle } from "@/types/Kaution";
 
-/** Checksum of the shown impact per ID; it belongs to the confirmed deletion (empty if no deposit with bookings is affected). */
-export type Pruefsummen = Record<string, string>;
-
 /**
  * `auswirkung` is set only if deposits WITH bookings are affected (then the overview must be confirmed); otherwise `null`
  * (no deposits, only deposits without bookings, or no right to see deposits): the usual deletion applies.
@@ -17,8 +14,8 @@ type LoeschVorabpruefung = { ok: true; auswirkung: KautionLoeschauswirkung | nul
  * Loads the impact of deleting these records on the deposits.
  *
  * - No right to see deposits (`42501`), no deposits or only deposits without bookings: `ok` without an impact. The usual
- *   deletion applies (an empty deposit goes to the trash bin with its tenant; the database still blocks deposits with
- *   bookings).
+ *   deletion applies (the deposit goes to the trash bin with its tenant, also with bookings; the database no longer
+ *   blocks that, only permanent deletion stays blocked).
  * - Any other error (e.g. no access to the object): the message is shown, nothing is deleted (`ok: false`).
  */
 export async function pruefeLoeschenMitKautionen(tabelle: KautionLoeschTabelle, ids: string[]): Promise<LoeschVorabpruefung> {
@@ -43,25 +40,18 @@ export async function pruefeLoeschenMitKautionen(tabelle: KautionLoeschTabelle, 
   return { ok: true, auswirkung };
 }
 
-/** Shows the overview "Kautionen werden mitgelöscht" and waits for the decision: the checksums if confirmed, `null` if cancelled. */
-async function zeigeLoeschUebersicht(auswirkung: KautionLoeschauswirkung): Promise<Pruefsummen | null> {
-  const bestaetigt = await new Promise<boolean>((resolve) => {
+/** Shows the overview "Kautionen werden mitgelöscht" and waits for the decision: `true` if confirmed, `false` if cancelled. */
+function zeigeLoeschUebersicht(auswirkung: KautionLoeschauswirkung): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
     useModalStore.getState().openLoeschUebersicht({ auswirkung, onEntscheidung: resolve });
   });
-  if (!bestaetigt) return null;
-
-  const pruefsummen: Pruefsummen = {};
-  for (const eintrag of auswirkung.eintraege) {
-    if (typeof eintrag.pruefsumme === "string") pruefsummen[eintrag.id] = eintrag.pruefsumme;
-  }
-  return pruefsummen;
 }
 
 interface LoeschenStartHandlers {
-  /** No deposit with bookings is affected: show the usual "Are you sure?" question of the screen; its confirmation deletes without checksums. */
+  /** No deposit with bookings is affected: show the usual "Are you sure?" question of the screen; its confirmation deletes. */
   einfach: () => void;
   /** Deposits with bookings are affected and the overview was confirmed: delete right away (the overview IS the confirmation). */
-  loeschen: (pruefsummen: Pruefsummen) => void | Promise<void>;
+  loeschen: () => void | Promise<void>;
 }
 
 // Der letzte Start gewinnt: Ein zweiter Klick löst den ersten ab (bleibt ein Start hängen, blockiert er nichts).
@@ -88,6 +78,6 @@ export async function starteLoeschenMitKautionen(tabelle: KautionLoeschTabelle, 
     handlers.einfach();
     return;
   }
-  const pruefsummen = await zeigeLoeschUebersicht(vorab.auswirkung);
-  if (pruefsummen && start === letzterStart) await handlers.loeschen(pruefsummen);
+  const bestaetigt = await zeigeLoeschUebersicht(vorab.auswirkung);
+  if (bestaetigt && start === letzterStart) await handlers.loeschen();
 }

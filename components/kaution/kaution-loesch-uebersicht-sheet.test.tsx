@@ -36,8 +36,7 @@ function auswirkung(overrides: Partial<KautionLoeschauswirkung> = {}): KautionLo
         { mieter_id: "m2", name: null, kautionsart: "sparbuch", kontostand: 0, anzahl_buchungen: 1 },
       ],
     },
-    pruefsumme: "cccccccccccccccccccccccccccccccc",
-    eintraege: [{ id: "h1", anzahl_mieter: 3, mit_buchungen: 2, pruefsumme: "cccccccccccccccccccccccccccccccc" }],
+    eintraege: [{ id: "h1", anzahl_mieter: 3, mit_buchungen: 2 }],
     ...overrides,
   };
 }
@@ -213,7 +212,7 @@ describe("KautionLoeschUebersichtSheet", () => {
     expect(screen.getByLabelText(/Zur Bestätigung/)).toHaveValue("3");
   });
 
-  it("a new request with the SAME checksum (reopened while the old panel is still there) starts with an empty field", async () => {
+  it("a new request with the SAME content (reopened while the old panel is still there) starts with an empty field", async () => {
     const user = userEvent.setup();
     render(<KautionLoeschUebersichtSheet />);
     oeffne();
@@ -255,7 +254,7 @@ describe("KautionLoeschUebersichtSheet", () => {
     oeffne();
     await user.type(screen.getByLabelText(/Zur Bestätigung/), "3");
 
-    oeffne(auswirkung({ pruefsumme: "dddddddddddddddddddddddddddddddd" }));
+    oeffne(auswirkung({ anzahl_mieter: 4 }));
 
     expect(screen.getByLabelText(/Zur Bestätigung/)).toHaveValue("");
     expect(screen.getByRole("button", { name: "Löschen" })).toBeDisabled();

@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { deleteTenantAction } from "@/app/mieter-actions"
-import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen"
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { tenantActions, getVisibleActions, type TenantActionDef } from "@/components/tenants/tenant-menu-actions"
@@ -63,10 +63,10 @@ export function TenantContextMenu({
     }, 0);
   };
 
-  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
+  const handleDelete = async () => {
     try {
       setIsDeleting(true);
-      const result = await deleteTenantAction(tenant.id, pruefsummen[tenant.id]);
+      const result = await deleteTenantAction(tenant.id);
 
       if (result.success) {
         toast({

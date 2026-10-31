@@ -94,7 +94,7 @@ describe('TenantEditModal - Löschen mit Kautionen-Übersicht', () => {
     fireEvent.click(screen.getByRole('button', { name: /Löschen/ }));
   };
 
-  it('lädt zuerst die Auswirkung, fragt dann üblich und löscht ohne Prüfsumme', async () => {
+  it('lädt zuerst die Auswirkung, fragt dann üblich und löscht danach', async () => {
     klickeLoeschen();
 
     const dialog = await screen.findByRole('alertdialog');
@@ -103,16 +103,16 @@ describe('TenantEditModal - Löschen mit Kautionen-Übersicht', () => {
     expect(mockDeleteTenant).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }));
 
-    await waitFor(() => expect(mockDeleteTenant).toHaveBeenCalledWith(tenant.id, undefined));
+    await waitFor(() => expect(mockDeleteTenant).toHaveBeenCalledWith(tenant.id));
     await waitFor(() => expect(closeTenantModal).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   });
 
-  it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht mit der Prüfsumme und schließt das Modal', async () => {
-    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ [tenant.id]: 'abc' }));
+  it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht und schließt das Modal', async () => {
+    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen());
     klickeLoeschen();
 
-    await waitFor(() => expect(mockDeleteTenant).toHaveBeenCalledWith(tenant.id, 'abc'));
+    await waitFor(() => expect(mockDeleteTenant).toHaveBeenCalledWith(tenant.id));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     await waitFor(() => expect(closeTenantModal).toHaveBeenCalled());
     expect(mockRefresh).toHaveBeenCalled();

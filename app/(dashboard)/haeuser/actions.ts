@@ -123,7 +123,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       }
     }
     revalidatePath("/haeuser");
-    revalidatePath("/dashboard/betriebskosten");
+    revalidatePath("/betriebskosten");
     revalidatePath("/wohnungen");
     revalidatePath("/dashboard");
     logAction(actionName, 'success', { ...(id && { house_id: id }), house_name: houseName });
@@ -135,8 +135,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
   }
 }
 
-/** `pruefsumme`: Prüfsumme der bestätigten Auswirkung auf Kautionen (siehe `deleteTenantAction`). */
-export async function deleteHouseAction(houseId: string, pruefsumme?: string | null): Promise<{ success: boolean; error?: { message: string } }> {
+export async function deleteHouseAction(houseId: string): Promise<{ success: boolean; error?: { message: string } }> {
   const actionName = 'deleteHouse';
   logAction(actionName, 'start', { house_id: houseId });
 
@@ -157,7 +156,7 @@ export async function deleteHouseAction(houseId: string, pruefsumme?: string | n
 
     const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
     try {
-      await softDeleteEntryAction("Haeuser", houseId, { pruefsumme });
+      await softDeleteEntryAction("Haeuser", houseId);
     } catch (err: unknown) {
       const errMessage = err instanceof Error ? err.message : String(err);
       logAction(actionName, 'error', { house_id: houseId, error_message: errMessage });
@@ -165,7 +164,7 @@ export async function deleteHouseAction(houseId: string, pruefsumme?: string | n
     }
 
     revalidatePath('/haeuser');
-    revalidatePath("/dashboard/betriebskosten");
+    revalidatePath("/betriebskosten");
     revalidatePath("/wohnungen");
     revalidatePath("/dashboard");
     logAction(actionName, 'success', { house_id: houseId });

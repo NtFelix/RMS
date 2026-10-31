@@ -220,7 +220,8 @@ if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: jest.fn().mockImplementation(query => ({
-      matches: false,
+      // Count-up animations are off in tests so values render synchronously.
+      matches: query === '(prefers-reduced-motion: reduce)',
       media: query,
       onchange: null,
       addListener: jest.fn(), // deprecated

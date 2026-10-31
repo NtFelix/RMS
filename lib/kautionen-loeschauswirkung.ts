@@ -27,8 +27,7 @@ function mergeKautionen(teile: KautionLoeschKautionen[]): KautionLoeschKautionen
 /**
  * Combines the impact of several requests (one per chunk of at most 200 IDs, the limit of the database function) to one
  * overview. Runs on the server: the browser never adds amounts. The chunks hold different IDs, so the counts of
- * houses, apartments and tenants do not overlap. `pruefsumme` of the whole is `null` (each entry carries its own
- * checksum, that is what the confirmed deletion needs). A single part is returned unchanged.
+ * houses, apartments and tenants do not overlap. A single part is returned unchanged.
  */
 export function mergeLoeschauswirkung(teile: KautionLoeschauswirkung[]): KautionLoeschauswirkung {
   if (teile.length === 1) return teile[0];
@@ -41,7 +40,6 @@ export function mergeLoeschauswirkung(teile: KautionLoeschauswirkung[]): Kaution
     anzahl_mieter: teile.reduce((summe, teil) => summe + teil.anzahl_mieter, 0),
     kautionen_sichtbar: sichtbar,
     kautionen: sichtbar && kautionen.length === teile.length ? mergeKautionen(kautionen) : null,
-    pruefsumme: null,
     eintraege: teile.flatMap((teil) => teil.eintraege),
   };
 }

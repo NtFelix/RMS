@@ -57,7 +57,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { deleteTenantAction } from "@/app/mieter-actions"
-import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen"
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 
 interface Mieter extends Tenant {}
 
@@ -928,11 +928,11 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const isPending = isSubmitting || isDeleting
 
-  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
+  const handleDelete = async () => {
     if (!tenantInitialData || isPending) return
     try {
       setIsDeleting(true)
-      const result = await deleteTenantAction(tenantInitialData.id, pruefsummen[tenantInitialData.id])
+      const result = await deleteTenantAction(tenantInitialData.id)
 
       if (result.success) {
         toast({

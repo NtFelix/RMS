@@ -149,6 +149,7 @@ const FRIENDLY_COLUMN_MAP: Record<string, string> = {
   bank: "Bank",
   getrennt_angelegt: "Getrennt angelegt",
   buerge: "Bürge / Versicherer",
+  buerge_versicherer: "Bürge / Versicherer",
   urkundennummer: "Urkundennummer",
   einbehalt_grund: "Einbehalt (Grund)",
   einbehalt_seit: "Einbehalt seit",

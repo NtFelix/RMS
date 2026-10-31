@@ -29,7 +29,7 @@ describe('FileTreeView', () => {
     })
     
     mockUseCloudStorageStore.mockReturnValue({
-      currentPath: 'user_test-user',
+      currentPath: 'org_org-1',
       navigateToPath: mockNavigateToPath,
       setBreadcrumbs: mockSetBreadcrumbs,
       folders: [],
@@ -68,7 +68,7 @@ describe('FileTreeView', () => {
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     expect(document.querySelector('.animate-pulse')).toBeInTheDocument()
   })
@@ -83,7 +83,7 @@ describe('FileTreeView', () => {
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     expect(screen.getByText('Fehler beim Laden der Ordnerstruktur')).toBeInTheDocument()
   })
@@ -104,11 +104,11 @@ describe('FileTreeView', () => {
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     await waitFor(() => {
       expect(screen.getByText('Cloud Storage')).toBeInTheDocument()
-      expect(screen.getByText('Häuser')).toBeInTheDocument()
+      expect(screen.getByText('Gemeinsam')).toBeInTheDocument()
       expect(screen.getByText('Sonstiges')).toBeInTheDocument()
     })
   })
@@ -127,14 +127,14 @@ describe('FileTreeView', () => {
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     await waitFor(() => {
-      expect(screen.getByText('Häuser')).toBeInTheDocument()
+      expect(screen.getByText('Gemeinsam')).toBeInTheDocument()
     })
 
     // Click to expand Häuser
-    const haeuserExpandButton = screen.getByText('Häuser').parentElement?.querySelector('button')
+    const haeuserExpandButton = screen.getByText('Gemeinsam').parentElement?.querySelector('button')
     if (haeuserExpandButton) {
       fireEvent.click(haeuserExpandButton)
     }
@@ -156,16 +156,16 @@ describe('FileTreeView', () => {
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     await waitFor(() => {
-      expect(screen.getByText('Häuser')).toBeInTheDocument()
+      expect(screen.getByText('Gemeinsam')).toBeInTheDocument()
     })
 
     // Click on Häuser
-    fireEvent.click(screen.getByText('Häuser'))
+    fireEvent.click(screen.getByText('Gemeinsam'))
 
-    expect(mockHandleFolderClick).toHaveBeenCalledWith('user_test-user/haeuser')
+    expect(mockHandleFolderClick).toHaveBeenCalledWith('org_org-1/shared')
   })
 
   it('shows empty folder indicators', async () => {
@@ -178,7 +178,7 @@ describe('FileTreeView', () => {
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     await waitFor(() => {
       expect(screen.getByText('Sonstiges')).toBeInTheDocument()
@@ -205,16 +205,16 @@ describe('FileTreeView', () => {
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     await waitFor(() => {
-      expect(screen.getByText('Häuser')).toBeInTheDocument()
+      expect(screen.getByText('Gemeinsam')).toBeInTheDocument()
     })
 
     // Click on Häuser to navigate there first
-    fireEvent.click(screen.getByText('Häuser'))
+    fireEvent.click(screen.getByText('Gemeinsam'))
 
     // Verify that handleFolderClick was called with the correct path
-    expect(mockHandleFolderClick).toHaveBeenCalledWith('user_test-user/haeuser')
+    expect(mockHandleFolderClick).toHaveBeenCalledWith('org_org-1/shared')
   })
 })

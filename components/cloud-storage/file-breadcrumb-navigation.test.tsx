@@ -29,18 +29,18 @@ describe('FileBreadcrumbNavigation', () => {
       breadcrumbs: [],
     } as any)
 
-    const { container } = render(<FileBreadcrumbNavigation userId="test-user" />)
+    const { container } = render(<FileBreadcrumbNavigation orgId="test-user" />)
     expect(container.firstChild).toBeNull()
   })
 
   it('renders single breadcrumb (root)', () => {
     mockUseCloudStorageStore.mockReturnValue({
       breadcrumbs: [
-        { name: 'Cloud Storage', path: 'user_test-user', type: 'root' }
+        { name: 'Cloud Storage', path: 'org_org-1', type: 'root' }
       ],
     } as any)
 
-    render(<FileBreadcrumbNavigation userId="test-user" />)
+    render(<FileBreadcrumbNavigation orgId="test-user" />)
     
     expect(screen.getByText('Cloud Storage')).toBeInTheDocument()
     // Root breadcrumb should be current page (span, not button)
@@ -50,13 +50,13 @@ describe('FileBreadcrumbNavigation', () => {
   it('renders multiple breadcrumbs with navigation', () => {
     mockUseCloudStorageStore.mockReturnValue({
       breadcrumbs: [
-        { name: 'Cloud Storage', path: 'user_test-user', type: 'root' },
-        { name: 'Häuser', path: 'user_test-user/haeuser', type: 'category' },
-        { name: 'Musterstraße 123', path: 'user_test-user/haeuser/1', type: 'house' }
+        { name: 'Cloud Storage', path: 'org_org-1', type: 'root' },
+        { name: 'Häuser', path: 'org_org-1/shared', type: 'category' },
+        { name: 'Musterstraße 123', path: 'org_org-1/shared/1', type: 'house' }
       ],
     } as any)
 
-    render(<FileBreadcrumbNavigation userId="test-user" />)
+    render(<FileBreadcrumbNavigation orgId="test-user" />)
     
     expect(screen.getByText('Cloud Storage')).toBeInTheDocument()
     expect(screen.getByText('Häuser')).toBeInTheDocument()
@@ -73,31 +73,31 @@ describe('FileBreadcrumbNavigation', () => {
   it('navigates when clicking on breadcrumb', () => {
     mockUseCloudStorageStore.mockReturnValue({
       breadcrumbs: [
-        { name: 'Cloud Storage', path: 'user_test-user', type: 'root' },
-        { name: 'Häuser', path: 'user_test-user/haeuser', type: 'category' },
-        { name: 'Musterstraße 123', path: 'user_test-user/haeuser/1', type: 'house' }
+        { name: 'Cloud Storage', path: 'org_org-1', type: 'root' },
+        { name: 'Häuser', path: 'org_org-1/shared', type: 'category' },
+        { name: 'Musterstraße 123', path: 'org_org-1/shared/1', type: 'house' }
       ],
     } as any)
 
-    render(<FileBreadcrumbNavigation userId="test-user" />)
+    render(<FileBreadcrumbNavigation orgId="test-user" />)
     
     fireEvent.click(screen.getByRole('button', { name: /häuser/i }))
     
-    expect(mockHandleFolderClick).toHaveBeenCalledWith('user_test-user/haeuser')
+    expect(mockHandleFolderClick).toHaveBeenCalledWith('org_org-1/shared')
   })
 
   it('applies correct colors for different breadcrumb types', () => {
     mockUseCloudStorageStore.mockReturnValue({
       breadcrumbs: [
-        { name: 'Cloud Storage', path: 'user_test-user', type: 'root' },
-        { name: 'Häuser', path: 'user_test-user/haeuser', type: 'category' },
-        { name: 'Musterstraße 123', path: 'user_test-user/haeuser/1', type: 'house' },
-        { name: 'Wohnung 1A', path: 'user_test-user/haeuser/1/2', type: 'apartment' },
-        { name: 'Max Mustermann', path: 'user_test-user/haeuser/1/2/3', type: 'tenant' }
+        { name: 'Cloud Storage', path: 'org_org-1', type: 'root' },
+        { name: 'Häuser', path: 'org_org-1/shared', type: 'category' },
+        { name: 'Musterstraße 123', path: 'org_org-1/shared/1', type: 'house' },
+        { name: 'Wohnung 1A', path: 'org_org-1/shared/1/2', type: 'apartment' },
+        { name: 'Max Mustermann', path: 'org_org-1/shared/1/2/3', type: 'tenant' }
       ],
     } as any)
 
-    render(<FileBreadcrumbNavigation userId="test-user" />)
+    render(<FileBreadcrumbNavigation orgId="test-user" />)
     
     const categoryButton = screen.getByRole('button', { name: /häuser/i })
     const houseButton = screen.getByRole('button', { name: /musterstraße 123/i })
@@ -111,11 +111,11 @@ describe('FileBreadcrumbNavigation', () => {
   it('shows home icon for root breadcrumb', () => {
     mockUseCloudStorageStore.mockReturnValue({
       breadcrumbs: [
-        { name: 'Cloud Storage', path: 'user_test-user', type: 'root' }
+        { name: 'Cloud Storage', path: 'org_org-1', type: 'root' }
       ],
     } as any)
 
-    render(<FileBreadcrumbNavigation userId="test-user" />)
+    render(<FileBreadcrumbNavigation orgId="test-user" />)
     
     // Check if home icon is present - root breadcrumb should be current page (span)
     const rootElement = screen.getByText('Cloud Storage')
@@ -125,12 +125,12 @@ describe('FileBreadcrumbNavigation', () => {
   it('truncates long breadcrumb names', () => {
     mockUseCloudStorageStore.mockReturnValue({
       breadcrumbs: [
-        { name: 'Cloud Storage', path: 'user_test-user', type: 'root' },
-        { name: 'Very Long House Name That Should Be Truncated', path: 'user_test-user/haeuser/1', type: 'house' }
+        { name: 'Cloud Storage', path: 'org_org-1', type: 'root' },
+        { name: 'Very Long House Name That Should Be Truncated', path: 'org_org-1/shared/1', type: 'house' }
       ],
     } as any)
 
-    render(<FileBreadcrumbNavigation userId="test-user" />)
+    render(<FileBreadcrumbNavigation orgId="test-user" />)
     
     const longNameElement = screen.getByText('Very Long House Name That Should Be Truncated')
     expect(longNameElement).toHaveClass('truncate')

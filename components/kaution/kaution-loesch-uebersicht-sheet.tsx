@@ -16,7 +16,7 @@ import type { KautionLoeschauswirkung } from "@/types/Kaution";
 /** Länger als die Schließen-Animation der Seitenleiste (siehe `components/ui/sheet.tsx`). */
 const SCHLIESSEN_ANIMATION_MS = 500;
 
-// Jede Anfrage bekommt eine eigene Kennung (Objektidentität): Ein erneutes Öffnen mit gleicher Prüfsumme, solange die Leiste noch
+// Jede Anfrage bekommt eine eigene Kennung (Objektidentität): Ein erneutes Öffnen mit gleichem Inhalt, solange die Leiste noch
 // ausfährt, soll ein leeres Bestätigungsfeld zeigen und nicht die frühere Eingabe.
 const anfrageIds = new WeakMap<object, number>();
 let naechsteAnfrageId = 0;
@@ -32,8 +32,8 @@ function anfrageId(config: LoeschUebersichtConfig): number {
 /**
  * Global side panel "Kautionen werden mitgelöscht" (same look as the edit panels): appears when houses, apartments or tenants
  * with deposits WITH bookings are deleted (see `lib/kautionen-loeschen.ts`). Shows what the database reports (no calculation
- * in the browser) and asks for a deliberate confirmation: the number of the affected tenants has to be typed. The database
- * enforces the confirmation again (checksum of exactly this overview, `soft_delete_mit_kautionen`). Closing the panel
+ * in the browser) and asks for a deliberate confirmation: the number of the affected tenants has to be typed. The confirmation
+ * exists only in the app (the database no longer enforces it). Closing the panel
  * (close button, Escape, "Abbrechen") cancels; a click next to the panel does NOT (it would discard the typed confirmation).
  */
 export function KautionLoeschUebersichtSheet() {

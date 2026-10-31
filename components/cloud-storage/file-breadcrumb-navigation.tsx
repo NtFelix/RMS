@@ -8,13 +8,13 @@ import { useBreadcrumbActiveState, useActiveStateSync } from "@/hooks/use-active
 import { useEffect } from "react"
 
 interface FileBreadcrumbNavigationProps {
-  userId: string
+  orgId: string
   className?: string
 }
 
-export function FileBreadcrumbNavigation({ userId, className }: FileBreadcrumbNavigationProps) {
+export function FileBreadcrumbNavigation({ orgId, className }: FileBreadcrumbNavigationProps) {
   const { breadcrumbs } = useCloudStorageStore()
-  const { handleFolderClick, isNavigating } = useFolderNavigation(userId)
+  const { handleFolderClick, isNavigating } = useFolderNavigation(orgId)
   const { isDirectoryActive, getDirectoryActiveClasses } = useBreadcrumbActiveState()
   const { updateBreadcrumbs } = useActiveStateSync()
   
