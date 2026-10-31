@@ -19,6 +19,7 @@ import {
   sharedRoot,
   StoragePathError,
   type PathAccessContext,
+  type ViewModuleRequirement,
 } from '@/lib/storage-paths'
 
 
@@ -79,20 +80,23 @@ function createViewRights(): ViewRights {
  * be opened either and is left out.
  */
 async function filterByViewRights(nodes: TreeNode[], rights: ViewRights): Promise<TreeNode[]> {
-  const visible: TreeNode[] = []
+  const classified: Array<{ node: TreeNode; required: ViewModuleRequirement }> = []
   for (const node of nodes) {
-    let required
     try {
-      required = requiredViewModules(node.path)
+      classified.push({ node, required: requiredViewModules(node.path) })
     } catch (error) {
       if (error instanceof StoragePathError) continue
       throw error
     }
-    if (required.wohnungen && !(await rights.wohnungen())) continue
-    if (required.mieter && !(await rights.mieter())) continue
-    visible.push(node)
   }
-  return visible
+  // A right is only read if some node needs it
+  const [mayViewWohnungen, mayViewMieter] = await Promise.all([
+    classified.some(({ required }) => required.wohnungen) ? rights.wohnungen() : true,
+    classified.some(({ required }) => required.mieter) ? rights.mieter() : true,
+  ])
+  return classified
+    .filter(({ required }) => (!required.wohnungen || mayViewWohnungen) && (!required.mieter || mayViewMieter))
+    .map(({ node }) => node)
 }
 
 export async function GET(request: NextRequest) {
