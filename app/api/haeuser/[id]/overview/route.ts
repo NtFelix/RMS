@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createRequestLogger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 
 interface HausOverviewResponse {
   id: string;
@@ -25,13 +26,57 @@ interface HausOverviewResponse {
     vacancyRate: number;
   };
   wohnungen: WohnungOverviewData[];
+  /** Only present (as `false`) without mieter:ansehen: no `currentTenant` is delivered then (status and counts stay). */
+  tenantAccess?: false;
 }
 
 interface MieterFromDB {
+  // `id`, `name` and `einzug` are only loaded with mieter:ansehen
+  id?: string;
+  name?: string;
+  einzug?: string | null;
+  auszug: string | null;
+}
+
+/**
+ * Columns of Mieter that are read for the overview. Without mieter:ansehen only `auszug` (for the status vermietet /
+ * frei) is read: no name, id or move-in date of a tenant is even loaded.
+ */
+const MIETER_COLUMNS_MIT_RECHT = 'id, name, einzug, auszug';
+const MIETER_COLUMNS_OHNE_RECHT = 'auszug';
+
+function hausSelect(mieterColumns: string): string {
+  return `
+      id,
+      name,
+      strasse,
+      plz,
+      ort,
+      groesse,
+      Wohnungen (
+        id,
+        name,
+        groesse,
+        miete,
+        Mieter (${mieterColumns})
+      )
+    `;
+}
+
+interface HausQueryResult {
   id: string;
   name: string;
-  einzug: string | null;
-  auszug: string | null;
+  strasse: string | null;
+  plz: number | null;
+  ort: string;
+  groesse: number | null;
+  Wohnungen: Array<{
+    id: string;
+    name: string;
+    groesse: number;
+    miete: number;
+    Mieter: MieterFromDB[] | null;
+  }> | null;
 }
 
 interface WohnungOverviewData {
@@ -80,8 +125,14 @@ export async function GET(
       );
     }
 
-    const { verifyEntityInScope } = await import("@/lib/api-permissions");
-    if (!(await verifyEntityInScope(hausId))) {
+    // mieter:ansehen is checked in the same round as the scope check (no extra round-trip). A failed check throws
+    // PermissionCheckError (503, see the catch) instead of being shown as "no access".
+    const { verifyEntityInScope, hasApiPermission } = await import("@/lib/api-permissions");
+    const [inScope, canViewTenants] = await Promise.all([
+      verifyEntityInScope(hausId),
+      hasApiPermission('mieter', 'ansehen'),
+    ]);
+    if (!inScope) {
       return NextResponse.json(
         { error: "Permission denied" },
         { 
@@ -92,30 +143,12 @@ export async function GET(
     }
 
     // Optimized single query to fetch all data at once
-    const { data: combinedData, error: combinedError } = await supabase
+    const { data: combinedRaw, error: combinedError } = await supabase
       .from('Haeuser')
-      .select(`
-        id,
-        name,
-        strasse,
-        plz,
-        ort,
-        groesse,
-        Wohnungen (
-          id,
-          name,
-          groesse,
-          miete,
-          Mieter (
-            id,
-            name,
-            einzug,
-            auszug
-          )
-        )
-      `)
+      .select(hausSelect(canViewTenants ? MIETER_COLUMNS_MIT_RECHT : MIETER_COLUMNS_OHNE_RECHT))
       .eq('id', hausId)
       .single();
+    const combinedData = combinedRaw as unknown as HausQueryResult;
 
     if (combinedError) {
       console.error("Error fetching Haus overview data:", combinedError);
@@ -164,9 +197,10 @@ export async function GET(
         miete: wohnung.miete || 0,
         status: currentTenant ? 'vermietet' : 'frei',
         rentPerSqm: Math.round(rentPerSqm * 100) / 100,
-        currentTenant: currentTenant ? {
-          id: currentTenant.id,
-          name: currentTenant.name,
+        // Without mieter:ansehen: no `currentTenant` (the status stays)
+        currentTenant: canViewTenants && currentTenant ? {
+          id: currentTenant.id as string,
+          name: currentTenant.name as string,
           einzug: currentTenant.einzug || undefined
         } : undefined
       };
@@ -182,7 +216,8 @@ export async function GET(
       .reduce((sum, wohnung) => sum + (wohnung.miete || 0), 0);
     const totalPotentialRent = wohnungenData.reduce((sum, wohnung) => sum + (wohnung.miete || 0), 0);
     const apartmentCount = wohnungenData.length;
-    const tenantCount = wohnungen.filter(w => w.currentTenant).length;
+    // = number of apartments with a current tenant (derived from the status, so it works without mieter:ansehen too)
+    const tenantCount = wohnungen.filter(w => w.status === 'vermietet').length;
     const vacantCount = apartmentCount - tenantCount;
 
     // Calculate averages and medians with better handling of edge cases
@@ -249,7 +284,8 @@ export async function GET(
         totalPotentialRent: Math.round(totalPotentialRent * 100) / 100,
         vacancyRate,
       },
-      wohnungen
+      wohnungen,
+      ...(canViewTenants ? {} : { tenantAccess: false as const })
     };
 
     return NextResponse.json(response, { 
@@ -258,6 +294,9 @@ export async function GET(
     });
 
   } catch (error) {
+    // 503 PERMISSION_CHECK_FAILED if the tenant right could not be checked
+    const permissionResponse = apiPermissionErrorResponse(error);
+    if (permissionResponse) return permissionResponse;
     const logger = createRequestLogger(request);
     logger.error("Error in GET /api/haeuser/[id]/overview", error instanceof Error ? error : new Error(String(error)), {
       hausId: (await params).id

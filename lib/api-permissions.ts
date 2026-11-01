@@ -64,3 +64,17 @@ export async function requireApiPermission(modul: Modul, aktion: Aktion): Promis
     throw new Error('Permission denied');
   }
 }
+
+/**
+ * Like requireApiPermission, but for a right that only decides WHAT a route delivers (e.g. tenant data inside an
+ * apartment answer), not WHETHER it answers: `true` = granted, `false` = the right is missing. If the check itself
+ * failed it throws PermissionCheckError (answer 503, see apiPermissionErrorResponse) instead of returning `false`,
+ * so a failed lookup is never shown as "no access".
+ */
+export async function hasApiPermission(modul: Modul, aktion: Aktion): Promise<boolean> {
+  const result = await checkPermission(modul, aktion);
+  if (result === 'error') {
+    throw new PermissionCheckError();
+  }
+  return result === 'allowed';
+}
