@@ -60,8 +60,9 @@ export class PermissionCheckError extends Error {
  * Same decision as evaluatePermission, but tells "the right is missing" apart from "the check failed".
  * Designed to be dependency-free so it is safe to use in Edge runtime/middleware.
  *
- * Only the classification is new: wherever the former implementation returned `false` because a query failed or
- * threw, this returns `error`; every other path keeps its result (`allowed` for true, `denied` for false).
+ * Wherever a query fails or throws, this returns `error`; every other path returns `allowed` or `denied`. This includes
+ * the query of the member override: it can revoke a right, so a failed override query must not fall back to the
+ * policies (the former implementation did, and could grant a right the override had taken away).
  */
 export async function evaluatePermissionResult(
   supabase: any,
@@ -118,9 +119,14 @@ export async function evaluatePermissionResult(
     const { data: override, error: overrideError } = overrideResult;
     const { data: memberPolicies, error: policiesError } = memberPoliciesResult;
 
-    // NOTE (unchanged behaviour): a failed override query is not an `error` here, it falls through to the policies as
-    // before. Changing that would change access decisions and is out of scope of this classification.
-    if (!overrideError && override && override.berechtigungen) {
+    // An override can take a right away that the policies grant (e.g. `module.wohnungen: []`). If its query failed we
+    // cannot know whether such an override exists, so there is no decision: fail-closed instead of falling through to
+    // the policies. No override row is not an error (maybeSingle yields data null, error null).
+    if (overrideError) {
+      console.error(`Error fetching member override inside evaluatePermission for ${modul}:${aktion}:`, overrideError);
+      return 'error';
+    }
+    if (override && override.berechtigungen) {
       const overrideB = override.berechtigungen as any;
       if (overrideB.module && overrideB.module[modul] !== undefined) {
         const moduleOver = overrideB.module[modul];
