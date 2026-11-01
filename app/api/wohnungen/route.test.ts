@@ -179,16 +179,115 @@ describe('GET /api/wohnungen', () => {
       expect(checkPermission).toHaveBeenCalledWith('mieter', 'ansehen');
     });
 
-    it('antwortet 503 PERMISSION_CHECK_FAILED, wenn die Pruefung von mieter:ansehen fehlschlaegt (nicht "Kein Zugriff"), ohne Mieter zu laden', async () => {
+    /** mieter:ansehen answers the given results one after the other (first check, then the retry); the last one repeats. */
+    function mockMieterSequence(...results: Array<'allowed' | 'denied' | 'error'>) {
+      let call = 0;
+      (checkPermission as jest.Mock).mockImplementation(async (modul: string, aktion: string) => {
+        if (modul === 'wohnungen' && aktion === 'ansehen') return 'allowed';
+        if (modul === 'mieter' && aktion === 'ansehen') return results[Math.min(call++, results.length - 1)];
+        return 'denied';
+      });
+      return () => call;
+    }
+
+    const mieterChecks = () =>
+      (checkPermission as jest.Mock).mock.calls.filter(([modul, aktion]) => modul === 'mieter' && aktion === 'ansehen');
+
+    it('wiederholt eine fehlgeschlagene mieter:ansehen-Pruefung einmal; klappt der Retry, kommen die Mieter wie bisher', async () => {
       jest.spyOn(console, 'error').mockImplementation();
-      mockRights('error');
+      mockMieterSequence('error', 'allowed');
       const { mieter } = setup();
+
+      const res = await GET();
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(mieterChecks()).toHaveLength(2);
+      expect(mieter.select).toHaveBeenCalledWith('id, wohnung_id, auszug, einzug, name');
+      expect(body[0].tenant).toEqual({ id: 'm1', name: 'Erika Beispiel', einzug: '2020-01-01', auszug: null });
+      for (const apt of body) {
+        expect(apt).not.toHaveProperty('tenantAccess');
+        expect(apt).not.toHaveProperty('permissionCheckFailed');
+      }
+    });
+
+    it('Retry schlaegt ebenfalls fehl: 200 mit den Wohnungen, aber ohne Mieter (fail-closed) und mit permissionCheckFailed', async () => {
+      jest.spyOn(console, 'error').mockImplementation();
+      mockMieterSequence('error');
+      const { mieter } = setup();
+
+      const res = await GET();
+      const body = await res.json();
+      const text = JSON.stringify(body);
+
+      expect(res.status).toBe(200);
+      expect(mieterChecks()).toHaveLength(2); // genau ein Retry, keine Schleife
+      // wie bei fehlendem Recht: nur Daten fuer den Status gelesen, nichts Personenbezogenes
+      expect(mieter.select).toHaveBeenCalledWith('wohnung_id, auszug, einzug');
+      expect(mieter.select).not.toHaveBeenCalledWith(expect.stringContaining('name'));
+      expect(body).toEqual([
+        expect.objectContaining({ id: 'a1', status: 'vermietet', tenantAccess: false, permissionCheckFailed: true }),
+        expect.objectContaining({ id: 'a2', status: 'frei', tenantAccess: false, permissionCheckFailed: true }),
+      ]);
+      for (const apt of body) {
+        expect(apt).not.toHaveProperty('tenant');
+      }
+      for (const forbidden of ['Erika Beispiel', 'Max Muster', 'm1', '2020-01-01']) {
+        expect(text).not.toContain(forbidden);
+      }
+    });
+
+    it('echtes denied: kein Retry und kein permissionCheckFailed-Signal', async () => {
+      mockMieterSequence('denied');
+      setup();
+
+      const res = await GET();
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(mieterChecks()).toHaveLength(1);
+      for (const apt of body) {
+        expect(apt.tenantAccess).toBe(false);
+        expect(apt).not.toHaveProperty('permissionCheckFailed');
+      }
+    });
+
+    it('error, dann denied: das Recht fehlt, also ohne permissionCheckFailed-Signal', async () => {
+      jest.spyOn(console, 'error').mockImplementation();
+      mockMieterSequence('error', 'denied');
+      setup();
+
+      const body = await (await GET()).json();
+
+      expect(mieterChecks()).toHaveLength(2);
+      for (const apt of body) {
+        expect(apt.tenantAccess).toBe(false);
+        expect(apt).not.toHaveProperty('permissionCheckFailed');
+        expect(apt).not.toHaveProperty('tenant');
+      }
+    });
+
+    it('wohnungen:ansehen bleibt Voraussetzung: fehlt es, 403 ohne Datenabruf, auch wenn mieter:ansehen gewaehrt ist', async () => {
+      mockRights('allowed', 'denied');
+      const { from } = setup();
+
+      const res = await GET();
+
+      expect(res.status).toBe(403);
+      expect(from).not.toHaveBeenCalled();
+    });
+
+    it('wohnungen:ansehen-Pruefung faellt aus: weiter 503 PERMISSION_CHECK_FAILED, kein Datenabruf (kein Retry dort)', async () => {
+      jest.spyOn(console, 'error').mockImplementation();
+      mockRights('allowed', 'error');
+      const { from } = setup();
 
       const res = await GET();
 
       expect(res.status).toBe(503);
       expect(await res.json()).toEqual({ error: 'Permission check failed', code: 'PERMISSION_CHECK_FAILED' });
-      expect(mieter.select).not.toHaveBeenCalled();
+      expect(from).not.toHaveBeenCalled();
+      expect((checkPermission as jest.Mock).mock.calls.filter(([m, a]) => m === 'wohnungen' && a === 'ansehen')).toHaveLength(1);
     });
 
     it('fehlendes wohnungen:ansehen (403) hat Vorrang vor einem fehlgeschlagenen mieter:ansehen-Check', async () => {

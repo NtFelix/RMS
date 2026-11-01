@@ -9,7 +9,8 @@ import { isTestEnv } from '@/lib/test-utils';
 import WohnungenClientView from './client'; // Import the default export from client.tsx
 import type { Wohnung } from "@/types/Wohnung";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
-import { checkPermission, hasPermission } from "@/lib/permissions";
+import { hasPermission } from "@/lib/permissions";
+import { checkTenantViewAccess } from "@/lib/tenant-view-access";
 import { redirect } from "next/navigation";
 
 import { Suspense } from "react";
@@ -29,29 +30,25 @@ async function WohnungenContent() {
 
   // Permission check.
   // `mieter:ansehen` runs in the same round as the others: it only decides whether tenant data is delivered with the
-  // apartments (checkPermission, not hasPermission, so that a failed check is not mistaken for a missing right).
-  const [canView, canCreate, canEdit, canDelete, canViewMeters, mieterAnsehen, accessibleIdsResult] = await Promise.all([
+  // apartments, never whether the page loads (checkTenantViewAccess, not hasPermission, so that a failed check is
+  // repeated once and not mistaken for a missing right).
+  const [canView, canCreate, canEdit, canDelete, canViewMeters, tenantAccess, accessibleIdsResult] = await Promise.all([
     hasPermission('wohnungen', 'ansehen'),
     hasPermission('wohnungen', 'erstellen'),
     hasPermission('wohnungen', 'bearbeiten'),
     hasPermission('wohnungen', 'loeschen'),
     hasPermission('zaehler', 'ansehen'),
-    checkPermission('mieter', 'ansehen'),
+    checkTenantViewAccess(),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
   const accessibleIds = accessibleIdsResult.data;
   if (!canView) {
     redirect('/unauthorized');
   }
-  if (mieterAnsehen === 'error') {
-    // No decision: neither tenant names (right might be there) nor "Kein Zugriff" (right might be there) are shown
-    return (
-      <div role="alert" className="p-8 text-center text-muted-foreground">
-        Die Berechtigungen konnten nicht geprüft werden. Bitte versuchen Sie es später erneut.
-      </div>
-    );
-  }
-  const canViewTenants = mieterAnsehen === 'allowed';
+  // Failed twice: the page still loads and the tenants stay withheld as for a missing right (fail-closed); the flag lets
+  // the client say that this may be wrong and offer a reload of the tenant part.
+  const permissionCheckFailed = !tenantAccess.canViewTenants && tenantAccess.permissionCheckFailed;
+  const canViewTenants = tenantAccess.canViewTenants;
 
   let apartmentCount = 0;
   let userIsEligibleToAdd = false;
@@ -172,12 +169,14 @@ async function WohnungenContent() {
       status = 'vermietet';
     }
     if (!canViewTenants) {
-      // Status stays; `tenant` is absent and `tenantAccess: false` marks "no access" (not "no tenant")
+      // Status stays; `tenant` is absent and `tenantAccess: false` marks "no access" (not "no tenant");
+      // `permissionCheckFailed` only when the check failed, not for a missing right
       return {
         ...apt,
         Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
         status,
         tenantAccess: false,
+        ...(permissionCheckFailed ? { permissionCheckFailed: true } : {}),
       } as Wohnung;
     }
     return {
