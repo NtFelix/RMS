@@ -28,8 +28,7 @@ const houseModalOnSuccess = jest.fn();
 async function klickeLoeschen() {
   const user = userEvent.setup();
   render(<HouseEditModal serverAction={jest.fn()} />);
-  await user.click(screen.getByRole('button', { name: 'Aktionen' }));
-  await user.click(await screen.findByText('Löschen'));
+  await user.click(screen.getByRole('button', { name: 'Löschen' }));
   return user;
 }
 
@@ -43,7 +42,6 @@ describe('HouseEditModal delete with Kautionen overview', () => {
       houseModalOnSuccess,
       isHouseModalDirty: false,
       setHouseModalDirty: jest.fn(),
-      openHausOverviewModal: jest.fn(),
     });
     mockDelete.mockResolvedValue({ success: true });
   });

@@ -2,7 +2,6 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { HouseContextMenu } from './house-context-menu';
 import { deleteHouseAction } from '@/app/(dashboard)/haeuser/actions';
 import { starteLoeschenMitKautionen } from '@/lib/kautionen-loeschen';
-import { useModalStore } from '@/hooks/use-modal-store';
 
 jest.mock('@/app/(dashboard)/haeuser/actions', () => ({
   deleteHouseAction: jest.fn(),
@@ -37,7 +36,6 @@ async function klickeLoeschen() {
 describe('HouseContextMenu delete with Kautionen overview', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (useModalStore as unknown as jest.Mock).mockReturnValue({ openHausOverviewModal: jest.fn() });
     mockDelete.mockResolvedValue({ success: true });
   });
 
