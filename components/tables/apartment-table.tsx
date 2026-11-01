@@ -43,6 +43,11 @@ export interface Apartment {
   } | null
   /** `false`: the user may not see tenants (mieter:ansehen); `tenant` is then absent. Absent/`true`: as before. */
   tenantAccess?: boolean
+  /**
+   * Only together with `tenantAccess: false`: the `mieter:ansehen` check itself failed (twice), so the hiding of the
+   * tenant may be wrong (see lib/tenant-view-access.ts). Absent for a plain missing right.
+   */
+  permissionCheckFailed?: boolean
 }
 
 type ApartmentSortKey = "name" | "groesse" | "miete" | "pricePerSqm" | "haus" | "status"
