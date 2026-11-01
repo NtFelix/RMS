@@ -3,7 +3,13 @@
 import { ensureAuth } from '@/lib/auth-utils'
 import { checkStoragePathAccess, getActiveOrgId } from '@/lib/storage-access'
 import { STORAGE_ROOT_LABEL } from '@/lib/storage-navigation'
-import { folderMetadataFilter, isPathInFolder, orgRoot, parseStoragePath } from '@/lib/storage-paths'
+import {
+    FOLDER_NOT_AVAILABLE_MESSAGE,
+    isPermissionDeniedError,
+    mapFolderRpcError,
+    STORAGE_ACCESS_DENIED_MESSAGE,
+} from '@/lib/storage-messages'
+import { folderMetadataFilter, isPathInFolder, orgRoot, parseStoragePath, requiredViewModules } from '@/lib/storage-paths'
 import { unstable_rethrow } from 'next/navigation'
 
 /**
@@ -128,7 +134,7 @@ export async function getFolderContents(path?: string): Promise<FolderContentsRe
                     folders: [],
                     breadcrumbs: [],
                     totalSize: 0,
-                    error: 'Ungültiger Pfad'
+                    error: FOLDER_NOT_AVAILABLE_MESSAGE
                 }
             }
         }
@@ -161,7 +167,10 @@ export async function getFolderContents(path?: string): Promise<FolderContentsRe
                 folders: [],
                 breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                 totalSize: 0,
-                error: `Fehler beim Laden der Ordnerinhalte: ${error.message}`
+                // A refusal by the database (RLS / missing privilege) gets the same text as a refused path
+                error: isPermissionDeniedError(error)
+                    ? FOLDER_NOT_AVAILABLE_MESSAGE
+                    : `Fehler beim Laden der Ordnerinhalte: ${error.message}`
             }
         }
 
@@ -183,7 +192,8 @@ export async function getFolderContents(path?: string): Promise<FolderContentsRe
                 folders: [],
                 breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                 totalSize: 0,
-                error: result.error
+                // `Invalid path: house not accessible` and the like come from the database in English
+                error: mapFolderRpcError(result.error)
             }
         }
 
@@ -249,9 +259,27 @@ export async function getTotalStorageUsage(): Promise<number> {
     }
 }
 
+/** Technical failure while deleting a folder: no database text, no names */
+const DELETE_FOLDER_FAILED_MESSAGE = 'Der Ordner konnte nicht gelöscht werden.'
+
+/**
+ * Error text of deleteFolder for the client. A refusal by the database gets the same text as a refused or missing
+ * folder (no raw Postgres text, no hint at apartments or tenants), the sign-in message stays as it is, everything
+ * else is a technical failure with a fixed text (the details are logged on the server).
+ */
+function deleteFolderErrorMessage(error: unknown): string {
+    if (isPermissionDeniedError(error)) return STORAGE_ACCESS_DENIED_MESSAGE
+    if (error instanceof Error && error.message.startsWith('Nicht authentifiziert')) return error.message
+    return DELETE_FOLDER_FAILED_MESSAGE
+}
+
 /**
  * Delete a folder and all its contents
  * NOTE: This operation is separate from the navigation RPC for safety
+ *
+ * Below a house the apartment and tenant level need `wohnungen:ansehen` / `mieter:ansehen` (as in the database). A
+ * user without them gets the same answer for an existing, a refused and a made-up apartment/tenant folder, and the
+ * messages about existing apartments or tenants only reach users who may see them.
  */
 export async function deleteFolder(folderPath: string): Promise<{
     success: boolean
@@ -269,12 +297,23 @@ export async function deleteFolder(folderPath: string): Promise<{
         }
 
         // Validate that the path belongs to the active organisation and an accessible house
+        // (the texts of the check are generic: the same one for a refused and a missing path)
         const accessError = await checkStoragePathAccess(supabase, user.id, folderPath, { mode: 'write' })
         if (accessError) {
             return {
                 success: false,
-                error: 'Ungültiger Pfad'
+                error: accessError
             }
+        }
+
+        // Apartment and tenant level: without the matching view right the folder is refused without looking at the
+        // database, so an existing apartment/tenant cannot be told apart from a made-up id
+        const required = requiredViewModules(folderPath)
+        if (
+            (required.wohnungen && !(await hasPermission('wohnungen', 'ansehen'))) ||
+            (required.mieter && !(await hasPermission('mieter', 'ansehen')))
+        ) {
+            return { success: false, error: STORAGE_ACCESS_DENIED_MESSAGE }
         }
 
         // Protect zone roots, house folders and system folders at their structural position
@@ -306,10 +345,7 @@ export async function deleteFolder(folderPath: string): Promise<{
             if (apartment) {
                 const { verifyWohnungInScope } = await import('@/lib/api-permissions')
                 if (!(await verifyWohnungInScope(apartmentId))) {
-                    return {
-                        success: false,
-                        error: 'Zugriff verweigert (Wohnung nicht im Scope)'
-                    }
+                    return { success: false, error: STORAGE_ACCESS_DENIED_MESSAGE }
                 }
                 return {
                     success: false,
@@ -328,10 +364,7 @@ export async function deleteFolder(folderPath: string): Promise<{
             if (tenant) {
                 const { verifyWohnungInScope } = await import('@/lib/api-permissions')
                 if (tenant.wohnung_id && !(await verifyWohnungInScope(tenant.wohnung_id))) {
-                    return {
-                        success: false,
-                        error: 'Zugriff verweigert (Mieter nicht im Scope)'
-                    }
+                    return { success: false, error: STORAGE_ACCESS_DENIED_MESSAGE }
                 }
                 return {
                     success: false,
@@ -348,10 +381,8 @@ export async function deleteFolder(folderPath: string): Promise<{
             .or(folderMetadataFilter(folderPath))
 
         if (listError) {
-            return {
-                success: false,
-                error: `Fehler beim Auflisten der Dateien: ${listError.message}`
-            }
+            console.error('Error listing the files of a folder to delete:', listError)
+            return { success: false, error: deleteFolderErrorMessage(listError) }
         }
         // PostgREST turns a literal `*` of a LIKE value into a wildcard: the exact check is repeated on the rows
         const filesToDelete = (folderRows ?? []).filter(file => isPathInFolder(file.dateipfad, folderPath))
@@ -360,15 +391,20 @@ export async function deleteFolder(folderPath: string): Promise<{
         if (filesToDelete.length > 0) {
             const storagePaths = filesToDelete.map(file => `${file.dateipfad}/${file.dateiname}`)
 
-            const { error: deleteError } = await supabase.storage
+            const { data: removed, error: deleteError } = await supabase.storage
                 .from('documents')
                 .remove(storagePaths)
 
             if (deleteError) {
-                return {
-                    success: false,
-                    error: `Fehler beim Löschen der Dateien: ${deleteError.message}`
-                }
+                console.error('Error deleting the files of a folder:', deleteError)
+                return { success: false, error: deleteFolderErrorMessage(deleteError) }
+            }
+
+            // A refusal by the delete policy is no error: the object is just missing from `data`. The listing of
+            // the metadata only knows the organisation, so this is where a refused folder shows up.
+            const removedPaths = new Set<string>((Array.isArray(removed) ? removed : []).map((object: { name: string }) => object.name))
+            if (storagePaths.some((path) => !removedPaths.has(path))) {
+                return { success: false, error: STORAGE_ACCESS_DENIED_MESSAGE }
             }
         }
 
@@ -382,10 +418,8 @@ export async function deleteFolder(folderPath: string): Promise<{
         return { success: true }
 
     } catch (error) {
+        unstable_rethrow(error)
         console.error('Error in deleteFolder:', error)
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unerwarteter Fehler beim Löschen des Ordners'
-        }
+        return { success: false, error: deleteFolderErrorMessage(error) }
     }
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { API_PERMISSION_DENIED_CODE } from "@/lib/permissions-core"
 
 export interface House {
   id: string
@@ -35,6 +36,24 @@ interface PropertyHierarchyState {
   error: string | null
 }
 
+/**
+ * List endpoint that answers 403 with `code: PERMISSION_DENIED` for a user without the view right: an empty list
+ * then. Every other failure is an error, also a 403 without that code (it does not come from the permission check
+ * of the route, e.g. from a proxy) and 5xx. Note: the server check is fail-closed, so a transient failure of the
+ * permission lookup itself still arrives as "no right" (see PR notes).
+ */
+async function fetchOptionalList<T>(url: string, label: string): Promise<T[]> {
+  const response = await fetch(url)
+  if (response.status === 403) {
+    const body = await response.json().catch(() => null)
+    if (body?.code === API_PERMISSION_DENIED_CODE) return []
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${label}`)
+  }
+  return (await response.json()) || []
+}
+
 export function usePropertyHierarchy() {
   const [state, setState] = useState<PropertyHierarchyState>({
     houses: [],
@@ -44,7 +63,11 @@ export function usePropertyHierarchy() {
     error: null
   })
 
+  // Bumped by refetch(): runs the effect again (retry after an error)
+  const [reloadKey, setReloadKey] = useState(0)
+
   useEffect(() => {
+    let cancelled = false
     const fetchData = async () => {
       try {
         setState(prev => ({ ...prev, isLoading: true, error: null }))
@@ -56,29 +79,24 @@ export function usePropertyHierarchy() {
         }
         const houses = await housesResponse.json()
 
-        // Fetch apartments
-        const apartmentsResponse = await fetch('/api/wohnungen')
-        if (!apartmentsResponse.ok) {
-          throw new Error('Failed to fetch apartments')
-        }
-        const apartments = await apartmentsResponse.json()
+        // Apartments and tenants need wohnungen:ansehen / mieter:ansehen (403 otherwise): without the right they
+        // are simply not part of the hierarchy, so the file tree shows neither their names nor their folders
+        const [apartments, tenants] = await Promise.all([
+          fetchOptionalList<Apartment>('/api/wohnungen', 'apartments'),
+          fetchOptionalList<Tenant>('/api/mieter', 'tenants'),
+        ])
 
-        // Fetch tenants
-        const tenantsResponse = await fetch('/api/mieter')
-        if (!tenantsResponse.ok) {
-          throw new Error('Failed to fetch tenants')
-        }
-        const tenants = await tenantsResponse.json()
-
+        if (cancelled) return
         setState({
           houses: houses || [],
-          apartments: apartments || [],
-          tenants: tenants || [],
+          apartments,
+          tenants,
           isLoading: false,
           error: null
         })
       } catch (error) {
         console.error('Error fetching property hierarchy:', error)
+        if (cancelled) return
         setState(prev => ({
           ...prev,
           isLoading: false,
@@ -88,12 +106,13 @@ export function usePropertyHierarchy() {
     }
 
     fetchData()
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [reloadKey])
 
   const refetch = () => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }))
-    // Re-trigger the effect by updating a dependency
-    // In a real implementation, you might want to use a more sophisticated approach
+    setReloadKey(key => key + 1)
   }
 
   return {

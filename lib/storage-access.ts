@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAccessibleHaeuserIds } from '@/lib/object-scope'
+import { STORAGE_ACCESS_DENIED_MESSAGE } from '@/lib/storage-messages'
 import {
   assertPathAllowed,
   childPath,
@@ -58,14 +59,14 @@ export async function checkStoragePathAccess(
   try {
     assertPathAllowed(path, { orgId, userId, accessibleHouseIds }, mode)
     if (mode === 'write' && isArchivePath(path)) {
-      return 'Invalid path'
+      return STORAGE_ACCESS_DENIED_MESSAGE
     }
     // A user without house restriction (accessibleHouseIds = null) passes the scope check for any house id:
     // writing must not create folders below an invented one. RLS limits Haeuser to the active organisation.
     if (mode === 'write') {
       const { zone, houseId } = parseStoragePath(path)
       if (zone === 'shared' && houseId !== undefined && !(await houseExists(supabase, houseId))) {
-        return 'Invalid path'
+        return STORAGE_ACCESS_DENIED_MESSAGE
       }
     }
     return null
@@ -73,7 +74,7 @@ export async function checkStoragePathAccess(
     if (error instanceof StoragePathError) {
       return error.code === 'LEGACY_PATH'
         ? 'Dieser Speicherpfad ist veraltet und nicht mehr verfügbar'
-        : 'Invalid path'
+        : STORAGE_ACCESS_DENIED_MESSAGE
     }
     throw error
   }
@@ -98,7 +99,7 @@ export async function resolveChildPath(
     if (error instanceof StoragePathError) {
       return error.code === 'INVALID_NAME'
         ? { error: 'Invalid name', status: 400 }
-        : { error: error.code === 'LEGACY_PATH' ? 'Dieser Speicherpfad ist veraltet und nicht mehr verfügbar' : 'Invalid path', status: 403 }
+        : { error: error.code === 'LEGACY_PATH' ? 'Dieser Speicherpfad ist veraltet und nicht mehr verfügbar' : STORAGE_ACCESS_DENIED_MESSAGE, status: 403 }
     }
     throw error
   }

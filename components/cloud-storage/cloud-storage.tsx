@@ -43,6 +43,8 @@ interface CloudStorageProps {
     initialBreadcrumbs?: BreadcrumbItem[]
     initialTotalSize?: number
     initialStorageLimit?: number | null
+    /** Error text of the server-side first load (refused or unavailable folder), shown instead of an empty folder */
+    initialError?: string
 }
 
 type ViewMode = 'grid' | 'list'
@@ -65,7 +67,8 @@ export function CloudStorage({
     initialPath = orgRoot(orgId),
     initialBreadcrumbs = [],
     initialTotalSize = 0,
-    initialStorageLimit
+    initialStorageLimit,
+    initialError
 }: CloudStorageProps) {
     const router = useRouter()
     const { toast } = useToast()
@@ -89,8 +92,7 @@ export function CloudStorage({
         error: navigationError,
         navigate,
         cancelAll: cancelAllNavigations,
-        stats,
-        clearError: clearNavigationError
+        stats
     } = useNavigation()
 
     const MAX_RETRIES = 3
@@ -124,6 +126,26 @@ export function CloudStorage({
 
     // Track initialization
     const isInitialized = useRef(false)
+
+    // Error of the first (server-side) load: without it a refused folder would look like an empty one. It follows the
+    // props (a new server-side load of another folder or with another result starts from its own error) and is
+    // cleared only by a successful load of the folder, never by the user: "ignoring" it would show the folder that
+    // could not be read as an empty, writable one.
+    const [initialLoadError, setInitialLoadError] = useState<string | null>(initialError ?? null)
+    const initialLoadKey = `${initialPath}\n${initialError ?? ''}`
+    const [seenInitialLoadKey, setSeenInitialLoadKey] = useState(initialLoadKey)
+    if (seenInitialLoadKey !== initialLoadKey) {
+        setSeenInitialLoadKey(initialLoadKey)
+        setInitialLoadError(initialError ?? null)
+    }
+
+    // A folder that failed to load (refused, missing or technical error) must not offer upload or creating anything
+    const displayError = navigationError || initialLoadError
+    const blockedByLoadError = useCallback(() => {
+        if (!displayError) return false
+        toast({ title: "Nicht möglich", description: displayError, variant: "destructive" })
+        return true
+    }, [displayError, toast])
 
     // Cleanup on unmount
     useEffect(() => {
@@ -186,6 +208,7 @@ export function CloudStorage({
                     if (data.breadcrumbs) setBreadcrumbs(data.breadcrumbs)
                     setError(null)
                 })
+                setInitialLoadError(null)
 
                 // Update URL AFTER successful data load using native History API
                 // Skip for popstate (back/forward) navigation since browser already handles URL
@@ -253,6 +276,7 @@ export function CloudStorage({
                     setFolders(data.folders)
                     if (data.breadcrumbs) setBreadcrumbs(data.breadcrumbs)
                 })
+                setInitialLoadError(null)
 
                 if (showToast) {
                     toast({ description: "Dateien wurden aktualisiert." })
@@ -520,6 +544,7 @@ export function CloudStorage({
      * Handle upload
      */
     const handleUpload = useCallback(() => {
+        if (blockedByLoadError()) return
         const targetPath = currentPath || initialPath
         if (targetPath) {
             openUploadModal(targetPath, () => {
@@ -529,12 +554,13 @@ export function CloudStorage({
                 })
             })
         }
-    }, [currentPath, initialPath, openUploadModal, handleRefresh, toast])
+    }, [blockedByLoadError, currentPath, initialPath, openUploadModal, handleRefresh, toast])
 
     /**
      * Handle upload with files (for drag & drop)
      */
     const handleUploadWithFiles = useCallback((files: File[]) => {
+        if (blockedByLoadError()) return
         const targetPath = currentPath || initialPath
         if (targetPath) {
             openUploadModal(targetPath, () => {
@@ -544,12 +570,13 @@ export function CloudStorage({
                 })
             }, files)
         }
-    }, [currentPath, initialPath, openUploadModal, handleRefresh, toast])
+    }, [blockedByLoadError, currentPath, initialPath, openUploadModal, handleRefresh, toast])
 
     /**
      * Handle create folder
      */
     const handleCreateFolder = useCallback(() => {
+        if (blockedByLoadError()) return
         const targetPath = currentPath || initialPath
         if (targetPath) {
             openCreateFolderModal(targetPath, (folderName: string) => {
@@ -571,12 +598,13 @@ export function CloudStorage({
                 })
             })
         }
-    }, [currentPath, initialPath, openCreateFolderModal, folders, setFolders, handleRefresh, toast])
+    }, [blockedByLoadError, currentPath, initialPath, openCreateFolderModal, folders, setFolders, handleRefresh, toast])
 
     /**
      * Handle create file
      */
     const handleCreateFile = useCallback(() => {
+        if (blockedByLoadError()) return
         const targetPath = currentPath || initialPath
         if (targetPath) {
             openCreateFileModal(targetPath, (fileName: string) => {
@@ -587,11 +615,10 @@ export function CloudStorage({
                 })
             })
         }
-    }, [currentPath, initialPath, openCreateFileModal, handleRefresh, toast])
+    }, [blockedByLoadError, currentPath, initialPath, openCreateFileModal, handleRefresh, toast])
 
     // Determine loading and error states
     const showLoading = isNavigating || isPending
-    const displayError = navigationError
 
     return (
         <div className="absolute inset-0 flex flex-col p-4 sm:p-6 min-h-0 overflow-hidden gap-6">
@@ -633,8 +660,8 @@ export function CloudStorage({
                                     selectedCount={selectedItems.size}
                                     onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
                                     onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
-                                    isUploadDisabled={isUploadDisabled}
-                                    storageDisabledMessage={hasNoStorageAccess ? NO_STORAGE_MESSAGE : STORAGE_FULL_MESSAGE}
+                                    isUploadDisabled={isUploadDisabled || !!displayError}
+                                    storageDisabledMessage={displayError ?? (hasNoStorageAccess ? NO_STORAGE_MESSAGE : STORAGE_FULL_MESSAGE)}
                                 />
 
                                 {/* Breadcrumb Navigation */}
@@ -740,9 +767,6 @@ export function CloudStorage({
                                             <Button onClick={() => handleRefresh(true)}>
                                                 <RefreshCw className="size-4 mr-2" />
                                                 Erneut versuchen
-                                            </Button>
-                                            <Button variant="outline" onClick={clearNavigationError}>
-                                                Fehler ignorieren
                                             </Button>
                                         </div>
                                     </div>
