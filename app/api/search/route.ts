@@ -4,6 +4,7 @@ import { unstable_rethrow } from "next/navigation";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from "@/lib/object-scope";
 import { formatPlzOrt } from "@/lib/address";
+import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 import type {
   SearchResponse,
   SearchResult as FrontendSearchResult
@@ -179,8 +180,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401, headers: NO_CACHE_HEADERS });
     }
 
-    const accessibleHaeuserIds = await getAccessibleHaeuserIds();
-    const accessibleWohnungIds = await getAccessibleWohnungIds();
+    // mieter:ansehen only matters for the apartment category (`current_tenant`), so it is only checked then. It runs
+    // together with the scope lookups (no extra round-trip); a failed check throws PermissionCheckError (503, see
+    // the catch) instead of being shown as "no access".
+    const { hasApiPermission } = await import("@/lib/api-permissions");
+    const canViewTenantsPromise = categories.includes('apartment')
+      ? hasApiPermission('mieter', 'ansehen')
+      : Promise.resolve(false);
+    canViewTenantsPromise.catch(() => {}); // the rejection still surfaces at the await below
+    const [accessibleHaeuserIds, accessibleWohnungIds, canViewTenantsOfApartments] = await Promise.all([
+      getAccessibleHaeuserIds(),
+      getAccessibleWohnungIds(),
+      canViewTenantsPromise,
+    ]);
+    // Without mieter:ansehen only `auszug` (for the status rented / free) is read from Mieter: no name, no move-in
+    // date of a tenant is even loaded for the apartment results
+    const apartmentMieterColumns = canViewTenantsOfApartments ? 'name, einzug, auszug' : 'auszug';
     
     // Handle special "*" query for showing all results
     const isShowAllQuery = query.trim() === '*';
@@ -442,7 +457,7 @@ export async function GET(request: Request) {
                 .select(`
                   id, name, groesse, miete,
                   Haeuser!left(name),
-                  Mieter!left(name, einzug, auszug)
+                  Mieter!left(${apartmentMieterColumns})
                 `);
 
               if (accessibleHaeuserIds !== null) {
@@ -497,7 +512,7 @@ export async function GET(request: Request) {
                     .select(`
                       id, name, groesse, miete,
                       Haeuser!left(name),
-                      Mieter!left(name, einzug, auszug)
+                      Mieter!left(${apartmentMieterColumns})
                     `)
                     .not('id', 'in', `(${data.map(d => d.id).join(',') || 'null'})`)
                     .or(`Haeuser.name.ilike.${searchPattern}`);
@@ -532,7 +547,10 @@ export async function GET(request: Request) {
                   size: apartment.groesse,
                   rent: apartment.miete,
                   status: currentTenant ? 'rented' : 'free',
-                  current_tenant: currentTenant ? {
+                  // Without mieter:ansehen: no `current_tenant` (the status stays); `tenant_access: false` marks
+                  // "no access" (not "no tenant")
+                  ...(canViewTenantsOfApartments ? {} : { tenant_access: false as const }),
+                  current_tenant: canViewTenantsOfApartments && currentTenant ? {
                     name: currentTenant.name,
                     move_in_date: currentTenant.einzug || ''
                   } : undefined
@@ -765,6 +783,10 @@ export async function GET(request: Request) {
   } catch (error) {
     unstable_rethrow(error);
     console.error('Search API error:', error);
+
+    // 503 PERMISSION_CHECK_FAILED if the tenant right could not be checked
+    const permissionResponse = apiPermissionErrorResponse(error);
+    if (permissionResponse) return permissionResponse;
     
     // Provide more specific error messages
     let errorMessage = 'Serverfehler bei der Suche.';

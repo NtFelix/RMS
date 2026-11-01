@@ -17,6 +17,7 @@ import { useModalStore } from "@/hooks/use-modal-store";
 import { formatNumber, formatCurrency } from "@/utils/format";
 import { Edit, Eye, Phone, Mail, AlertCircle, RefreshCw, Clock, Home, Users, Ruler, Euro, Calendar, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { TENANT_NO_ACCESS_LABEL } from "@/lib/tenant-access";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SummaryCardSkeleton } from "@/components/skeletons/summary-card-skeleton";
@@ -37,6 +38,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+// Shown instead of the tenant table without mieter:ansehen (not an error and not "Keine Mieter")
+const NoTenantAccessState = () => (
+  <div className="flex flex-col items-center justify-center py-8 space-y-4" role="status">
+    <div className="text-center space-y-2">
+      <h3 className="text-lg font-semibold">{TENANT_NO_ACCESS_LABEL}</h3>
+      <p className="text-sm text-muted-foreground">
+        Für die Mieterdaten dieser Wohnung fehlt Ihnen die Berechtigung.
+      </p>
+    </div>
+  </div>
+);
 
 export function WohnungOverviewModal() {
   const {
@@ -354,6 +367,9 @@ export function WohnungOverviewModal() {
       ? Math.floor((Date.now() - new Date(currentTenant.einzug).getTime()) / (1000 * 60 * 60 * 24))
       : 0;
 
+    // Without mieter:ansehen the API delivers no tenants (only the status): show "Kein Zugriff", never "0/0" or "Leer"
+    const noTenantAccess = wohnungOverviewData.tenantAccess === false;
+
     const cards = [
       {
         title: "Wohnungsgröße",
@@ -369,14 +385,16 @@ export function WohnungOverviewModal() {
       },
       {
         title: "Mieter Status",
-        value: `${activeTenants}/${totalTenants}`,
-        description: activeTenants > 0 ? "Vermietet" : "Frei",
+        value: noTenantAccess ? TENANT_NO_ACCESS_LABEL : `${activeTenants}/${totalTenants}`,
+        description: noTenantAccess
+          ? (wohnungOverviewData.status === 'vermietet' ? "Vermietet" : wohnungOverviewData.status === 'frei' ? "Frei" : "")
+          : activeTenants > 0 ? "Vermietet" : "Frei",
         icon: <Users className="h-5 w-5 text-muted-foreground" />,
       },
       {
         title: "Belegung",
-        value: occupancyDays > 0 ? `${occupancyDays} Tage` : "Leer",
-        description: currentTenant ? `seit ${new Date(currentTenant.einzug!).toLocaleDateString('de-DE')}` : "Keine aktiven Mieter",
+        value: noTenantAccess ? TENANT_NO_ACCESS_LABEL : occupancyDays > 0 ? `${occupancyDays} Tage` : "Leer",
+        description: noTenantAccess ? "" : currentTenant ? `seit ${new Date(currentTenant.einzug!).toLocaleDateString('de-DE')}` : "Keine aktiven Mieter",
         icon: <Calendar className="h-5 w-5 text-muted-foreground" />,
       },
     ];
@@ -446,6 +464,11 @@ export function WohnungOverviewModal() {
             <LoadingSkeleton />
           ) : wohnungOverviewError ? (
             <ErrorState />
+          ) : wohnungOverviewData?.tenantAccess === false ? (
+            <div className="space-y-6">
+              <SummaryCards />
+              <NoTenantAccessState />
+            </div>
           ) : !wohnungOverviewData?.mieter?.length ? (
             <div className="space-y-6">
               <SummaryCards />

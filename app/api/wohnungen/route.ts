@@ -165,7 +165,12 @@ export async function POST(request: Request) {
 export async function GET() {
   try {
     // Apartment names and tenant data only for users who may see apartments (as the Wohnungen page does)
-    const { requireApiPermission } = await import("@/lib/api-permissions");
+    const { requireApiPermission, hasApiPermission } = await import("@/lib/api-permissions");
+    // The tenant right starts at once and is awaited only before the tenant query, so it runs in parallel with the
+    // apartment query (no extra round-trip). The no-op catch only prevents an unhandled rejection when the
+    // wohnungen check below throws first; the real rejection still surfaces at the `await` further down.
+    const canViewTenantsPromise = hasApiPermission('mieter', 'ansehen');
+    canViewTenantsPromise.catch(() => {});
     await requireApiPermission('wohnungen', 'ansehen');
 
     const supabase = await createSupabaseServerClient();
@@ -191,17 +196,30 @@ export async function GET() {
       });
     }
 
+    // Without mieter:ansehen only the dates for the occupation status are read: no name and no id of a tenant is even
+    // loaded, so none can leave through this route. A failed check throws PermissionCheckError (503).
+    const canViewTenants = await canViewTenantsPromise;
+
     // Get tenants to determine occupation status
-    let tenantsQuery = supabase
-      .from('Mieter')
-      .select('id, wohnung_id, auszug, einzug, name');
+    // (two literal selects: the typed client cannot parse a column list that is chosen at runtime)
+    let tenantsQuery = canViewTenants
+      ? supabase.from('Mieter').select('id, wohnung_id, auszug, einzug, name')
+      : supabase.from('Mieter').select('wohnung_id, auszug, einzug');
 
     if (accessibleIds !== null && apartments) {
       const accessibleWohnungIds = apartments.map(a => a.id);
       tenantsQuery = tenantsQuery.in('wohnung_id', accessibleWohnungIds);
     }
 
-    const { data: tenants, error: tenantsError } = await tenantsQuery;
+    const { data: tenantRows, error: tenantsError } = await tenantsQuery;
+    // Widened: `id` and `name` are only there with mieter:ansehen (see the two selects above)
+    const tenants = tenantRows as Array<{
+      wohnung_id: string | null;
+      auszug: string | null;
+      einzug: string | null;
+      id?: string;
+      name?: string;
+    }> | null;
 
     if (tenantsError) {
       console.error("Supabase Select Error (Mieter):", tenantsError);
@@ -222,6 +240,12 @@ export async function GET() {
       let status = 'frei';
       if (tenant && isTenantActive(tenant.auszug, todayStr)) {
         status = 'vermietet';
+      }
+
+      // Without mieter:ansehen: the status stays, `tenant` is absent and `tenantAccess: false` tells the client that
+      // this is "no access" and not "no tenant"
+      if (!canViewTenants) {
+        return { ...apt, status, tenantAccess: false };
       }
 
       return {

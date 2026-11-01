@@ -9,7 +9,7 @@ import { isTestEnv } from '@/lib/test-utils';
 import WohnungenClientView from './client'; // Import the default export from client.tsx
 import type { Wohnung } from "@/types/Wohnung";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
-import { hasPermission } from "@/lib/permissions";
+import { checkPermission, hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 
 import { Suspense } from "react";
@@ -28,18 +28,30 @@ async function WohnungenContent() {
   const { supabase, user } = await requireAuthenticatedUser();
 
   // Permission check.
-  const [canView, canCreate, canEdit, canDelete, canViewMeters, accessibleIdsResult] = await Promise.all([
+  // `mieter:ansehen` runs in the same round as the others: it only decides whether tenant data is delivered with the
+  // apartments (checkPermission, not hasPermission, so that a failed check is not mistaken for a missing right).
+  const [canView, canCreate, canEdit, canDelete, canViewMeters, mieterAnsehen, accessibleIdsResult] = await Promise.all([
     hasPermission('wohnungen', 'ansehen'),
     hasPermission('wohnungen', 'erstellen'),
     hasPermission('wohnungen', 'bearbeiten'),
     hasPermission('wohnungen', 'loeschen'),
     hasPermission('zaehler', 'ansehen'),
+    checkPermission('mieter', 'ansehen'),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
   const accessibleIds = accessibleIdsResult.data;
   if (!canView) {
     redirect('/unauthorized');
   }
+  if (mieterAnsehen === 'error') {
+    // No decision: neither tenant names (right might be there) nor "Kein Zugriff" (right might be there) are shown
+    return (
+      <div role="alert" className="p-8 text-center text-muted-foreground">
+        Die Berechtigungen konnten nicht geprüft werden. Bitte versuchen Sie es später erneut.
+      </div>
+    );
+  }
+  const canViewTenants = mieterAnsehen === 'allowed';
 
   let apartmentCount = 0;
   let userIsEligibleToAdd = false;
@@ -77,7 +89,11 @@ async function WohnungenContent() {
     fetchScopedApartments(),
     // Tenants query is unscoped — tenantMap is only accessed by scoped apartment IDs,
     // so extra tenant data is harmless.
-    supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name'),
+    // Without mieter:ansehen only the dates for the status are read: no name and no id is loaded at all.
+    // (two literal selects: the typed client cannot parse a column list that is chosen at runtime)
+    canViewTenants
+      ? supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name')
+      : supabase.from('Mieter').select('wohnung_id,einzug,auszug'),
     fetchScopedHaeuser(),
   ]);
 
@@ -124,7 +140,15 @@ async function WohnungenContent() {
   const { data: rawApartments, error: apartmentsError } = rawApartmentsResult;
   if (apartmentsError) console.error('Fehler beim Laden der Wohnungen:', apartmentsError);
 
-  const { data: tenants, error: tenantsError } = tenantsResult;
+  const { data: tenantRows, error: tenantsError } = tenantsResult;
+  // Widened: `id` and `name` are only there with mieter:ansehen (see the two selects above)
+  const tenants = tenantRows as Array<{
+    wohnung_id: string | null;
+    einzug: string | null;
+    auszug: string | null;
+    id?: string;
+    name?: string;
+  }> | null;
   if (tenantsError) console.error('Fehler beim Laden der Mieter:', tenantsError);
 
   const { data: housesData, error: housesError } = housesResult;
@@ -147,11 +171,20 @@ async function WohnungenContent() {
     if (tenant && isTenantActive(tenant.auszug, todayStr)) {
       status = 'vermietet';
     }
+    if (!canViewTenants) {
+      // Status stays; `tenant` is absent and `tenantAccess: false` marks "no access" (not "no tenant")
+      return {
+        ...apt,
+        Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
+        status,
+        tenantAccess: false,
+      } as Wohnung;
+    }
     return {
       ...apt,
       Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
       status,
-      tenant: tenant ? { id: tenant.id, name: tenant.name, einzug: tenant.einzug as string, auszug: tenant.auszug as string } : undefined,
+      tenant: tenant ? { id: tenant.id as string, name: tenant.name as string, einzug: tenant.einzug as string, auszug: tenant.auszug as string } : undefined,
     } as Wohnung; // Ensure the mapped object conforms to Wohnung type
   }) : [];
 

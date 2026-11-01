@@ -60,6 +60,8 @@ export interface ApartmentSearchResult {
     name: string;
     move_in_date: string;
   };
+  /** `false` (only then present): the user may not see tenants (mieter:ansehen); `current_tenant` is absent. */
+  tenant_access?: false;
 }
 
 export interface FinanceSearchResult {

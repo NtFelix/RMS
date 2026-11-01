@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, User, Home, Euro } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
+import { TENANT_NO_ACCESS_LABEL } from "@/lib/tenant-access"
 
 interface WohnungOverviewData {
   id: string;
@@ -22,6 +23,8 @@ interface WohnungOverviewData {
 interface ApartmentTenantRowProps extends React.HTMLAttributes<HTMLDivElement> {
   apartment: WohnungOverviewData;
   hausName: string;
+  /** `false`: the user may not see tenants (mieter:ansehen). A rented apartment then shows "Kein Zugriff" instead of the tenant. Default `true`. */
+  tenantAccess?: boolean;
   onEditApartment: () => void;
   onEditTenant: () => void;
   onViewDetails: () => void;
@@ -37,6 +40,7 @@ export const ApartmentTenantRow = React.forwardRef<
   {
     apartment,
     hausName,
+    tenantAccess = true,
     onEditApartment,
     onEditTenant,
     onViewDetails,
@@ -48,7 +52,9 @@ export const ApartmentTenantRow = React.forwardRef<
   ref
 ) => {
   const [isExpanded, setIsExpanded] = React.useState(false)
-  const isVacant = apartment.status === 'frei' || !apartment.currentTenant
+  // Without tenant access `currentTenant` is always absent, so only the status tells whether the apartment is vacant
+  const isVacant = apartment.status === 'frei' || (tenantAccess && !apartment.currentTenant)
+  const tenantHidden = !tenantAccess && apartment.status === 'vermietet'
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -101,6 +107,16 @@ export const ApartmentTenantRow = React.forwardRef<
               </Badge>
               <div className="text-sm text-muted-foreground mt-1">
                 Keine Mieter
+              </div>
+            </div>
+          </div>
+        ) : tenantHidden ? (
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+            <div>
+              <Badge variant="outline">Vermietet</Badge>
+              <div className="text-sm text-muted-foreground mt-1">
+                {TENANT_NO_ACCESS_LABEL}
               </div>
             </div>
           </div>

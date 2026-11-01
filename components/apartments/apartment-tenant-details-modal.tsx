@@ -23,6 +23,7 @@ import {
 import { useModalStore } from "@/hooks/use-modal-store"
 import { formatCurrency, formatNumber } from "@/utils/format"
 import { cn } from "@/lib/utils"
+import { TENANT_NO_ACCESS_LABEL } from "@/lib/tenant-access"
 
 export function ApartmentTenantDetailsModal() {
   const {
@@ -412,6 +413,18 @@ export function ApartmentTenantDetailsModal() {
                         </div>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              ) : apartmentTenantDetailsData.tenantAccess === false ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center space-y-4 p-8" role="status">
+                    <User className="h-12 w-12 text-muted-foreground" />
+                    <div className="text-center space-y-2">
+                      <h3 className="font-semibold">{TENANT_NO_ACCESS_LABEL}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Für die Mieterdaten dieser Wohnung fehlt Ihnen die Berechtigung.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               ) : (

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createRequestLogger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { formatPlzOrt } from "@/lib/address";
+import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 
 interface ApartmentTenantDetailsResponse {
   apartment: {
@@ -78,8 +79,15 @@ export async function GET(
       );
     }
 
+    // This route delivers a tenant, so it needs mieter:ansehen: 403 PERMISSION_DENIED if the right is missing, 503
+    // PERMISSION_CHECK_FAILED if the check itself failed (see the catch). The check starts together with the apartment
+    // query (parallel, no extra round-trip) and is awaited right after it, before anything is evaluated or answered.
+    const { requireApiPermission } = await import("@/lib/api-permissions");
+    const permissionCheck = requireApiPermission('mieter', 'ansehen');
+    permissionCheck.catch(() => {}); // the rejection still surfaces at the await below
+
     // Fetch apartment details with house information
-    const { data: apartment, error: apartmentError } = await supabase
+    const apartmentQuery = supabase
       .from('Wohnungen')
       .select(`
         id,
@@ -96,6 +104,7 @@ export async function GET(
       `)
       .eq('id', apartmentId)
       .single();
+    const [{ data: apartment, error: apartmentError }] = await Promise.all([apartmentQuery, permissionCheck]);
 
     if (apartmentError) {
       const logger = createRequestLogger(request);
@@ -218,6 +227,8 @@ export async function GET(
     return NextResponse.json(response, { status: 200, headers: NO_CACHE_HEADERS });
 
     } catch (error) {
+    const permissionResponse = apiPermissionErrorResponse(error);
+    if (permissionResponse) return permissionResponse;
     const logger = createRequestLogger(request);
     const errorContext: Record<string, any> = {
       error: error instanceof Error ? error.message : 'Unknown error',
