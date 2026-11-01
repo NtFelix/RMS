@@ -2,9 +2,15 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from 'next/server';
 import { unstable_rethrow } from 'next/navigation';
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 
 export async function GET(request: Request) {
   try {
+    // The export delivers Finanzen, so it needs finanzen:ansehen: 403 PERMISSION_DENIED if the right is missing, 503
+    // PERMISSION_CHECK_FAILED if the check itself failed (see the catch). Checked before anything is read.
+    const { requireApiPermission } = await import("@/lib/api-permissions");
+    await requireApiPermission('finanzen', 'ansehen');
+
     const { searchParams } = new URL(request.url);
     const searchQuery = searchParams.get('searchQuery');
     const selectedApartment = searchParams.get('selectedApartment');
@@ -162,6 +168,9 @@ export async function GET(request: Request) {
     return response;
   } catch (e) {
     unstable_rethrow(e);
+    // 403 PERMISSION_DENIED (right missing) or 503 PERMISSION_CHECK_FAILED (the check itself failed)
+    const permissionResponse = apiPermissionErrorResponse(e);
+    if (permissionResponse) return permissionResponse;
     console.error('Server error GET /api/finanzen/export:', e);
     return NextResponse.json({ error: 'Serverfehler beim Exportieren der Finanzen.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
