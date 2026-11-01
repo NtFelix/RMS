@@ -6,6 +6,7 @@ import { FinanceEntryPayload } from '@/types/finanzen'
 import { getLatestNebenkostenAmount } from '@/utils/tenant-payment-calculations'
 import { PAYMENT_KEYWORDS, PAYMENT_TAGS } from '@/utils/constants'
 import { getTodayISOString, isTenantActive, getCurrentMonthRange } from '@/utils/date-calculations'
+import { API_PERMISSION_CHECK_FAILED_CODE, API_PERMISSION_DENIED_CODE } from '@/lib/permissions-core'
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
@@ -13,14 +14,30 @@ export function useTenantPayments() {
     const [data, setData] = useState<TenantBentoItem[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    // true if the server answered 403 PERMISSION_DENIED (needs mieter:ansehen and finanzen:ansehen): not an error, the
+    // UI shows "no access" instead of an empty list or a red error
+    const [noAccess, setNoAccess] = useState(false)
     const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
 
     const fetchData = useCallback(async () => {
         try {
             setLoading(true)
             setError(null)
+            setNoAccess(false)
 
             const response = await fetch('/api/tenants-data')
+            if (response.status === 403 || response.status === 503) {
+                const body = await response.json().catch(() => null)
+                if (response.status === 403 && body?.code === API_PERMISSION_DENIED_CODE) {
+                    setData([])
+                    setNoAccess(true)
+                    return
+                }
+                // The permission lookup itself failed (no decision): an error the user can retry, not "no access"
+                if (response.status === 503 && body?.code === API_PERMISSION_CHECK_FAILED_CODE) {
+                    throw new Error('Berechtigungen konnten nicht geprüft werden. Bitte versuchen Sie es erneut.')
+                }
+            }
             if (!response.ok) {
                 throw new Error('Failed to fetch tenant data')
             }
@@ -194,6 +211,7 @@ export function useTenantPayments() {
         data,
         loading,
         error,
+        noAccess,
         updatingStatus,
         fetchData,
         toggleRentPayment,
