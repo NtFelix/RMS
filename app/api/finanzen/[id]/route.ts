@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 
 // GET spezifische Finanztransaktion by ID
 export async function GET(
@@ -9,7 +10,12 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
-    
+
+    // Delivers a transaction, so it needs finanzen:ansehen: 403 PERMISSION_DENIED if the right is missing, 503
+    // PERMISSION_CHECK_FAILED if the check itself failed (see the catch). Checked before anything is read.
+    const { requireApiPermission } = await import("@/lib/api-permissions");
+    await requireApiPermission('finanzen', 'ansehen');
+
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from('Finanzen')
@@ -33,6 +39,9 @@ export async function GET(
     
     return NextResponse.json(data, { status: 200, headers: NO_CACHE_HEADERS });
   } catch (e) {
+    // 403 PERMISSION_DENIED (right missing) or 503 PERMISSION_CHECK_FAILED (the check itself failed)
+    const permissionResponse = apiPermissionErrorResponse(e);
+    if (permissionResponse) return permissionResponse;
     console.error('Server error GET /api/finanzen/[id]:', e);
     return NextResponse.json({ error: 'Serverfehler bei Finanzen-Abfrage.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
