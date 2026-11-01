@@ -5,6 +5,7 @@ import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from "@/lib/object-scope";
 import { formatPlzOrt } from "@/lib/address";
 import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
+import type { Modul } from "@/lib/permissions-core";
 import type {
   SearchResponse,
   SearchResult as FrontendSearchResult
@@ -45,6 +46,15 @@ interface SearchResult<T> {
   type: 'tenant' | 'house' | 'apartment' | 'finance' | 'task';
   data: T[];
 }
+
+// Module whose `ansehen` right a search category requires
+const SEARCH_CATEGORY_MODULE: Record<string, Modul> = {
+  tenant: 'mieter',
+  house: 'haeuser',
+  apartment: 'wohnungen',
+  finance: 'finanzen',
+  task: 'aufgaben',
+};
 
 // In-memory cache for search patterns with expiration
 const searchPatternCache = new Map<string, { pattern: string; exact: string; fuzzy?: string; words?: string[]; timestamp: number }>();
@@ -180,19 +190,27 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401, headers: NO_CACHE_HEADERS });
     }
 
-    // mieter:ansehen only matters for the apartment category (`current_tenant`), so it is only checked then. It runs
-    // together with the scope lookups (no extra round-trip); a failed check throws PermissionCheckError (503, see
-    // the catch) instead of being shown as "no access".
+    // Every requested category needs the `ansehen` right of its module; without it the category is skipped (empty
+    // result, no error). mieter:ansehen also decides whether the apartment category delivers `current_tenant`, so it
+    // is checked for `apartment` as well. Only the requested categories are checked. The checks run together with the
+    // scope lookups (no extra round-trip); a failed check throws PermissionCheckError (503, see the catch) instead of
+    // being shown as "no access".
     const { hasApiPermission } = await import("@/lib/api-permissions");
-    const canViewTenantsPromise = categories.includes('apartment')
-      ? hasApiPermission('mieter', 'ansehen')
-      : Promise.resolve(false);
-    canViewTenantsPromise.catch(() => {}); // the rejection still surfaces at the await below
-    const [accessibleHaeuserIds, accessibleWohnungIds, canViewTenantsOfApartments] = await Promise.all([
+    const modulesToCheck = new Set<Modul>();
+    for (const [category, modul] of Object.entries(SEARCH_CATEGORY_MODULE)) {
+      if (categories.includes(category)) modulesToCheck.add(modul);
+    }
+    if (categories.includes('apartment')) modulesToCheck.add('mieter');
+    const grantedModules = new Set<Modul>();
+    const [accessibleHaeuserIds, accessibleWohnungIds] = await Promise.all([
       getAccessibleHaeuserIds(),
       getAccessibleWohnungIds(),
-      canViewTenantsPromise,
+      ...Array.from(modulesToCheck, async (modul) => {
+        if (await hasApiPermission(modul, 'ansehen')) grantedModules.add(modul);
+      }),
     ]);
+    const canSearchCategory = (category: string) => grantedModules.has(SEARCH_CATEGORY_MODULE[category]);
+    const canViewTenantsOfApartments = grantedModules.has('mieter');
     // Without mieter:ansehen only `auszug` (for the status rented / free) is read from Mieter: no name, no move-in
     // date of a tenant is even loaded for the apartment results
     const apartmentMieterColumns = canViewTenantsOfApartments ? 'name, einzug, auszug' : 'auszug';
@@ -216,7 +234,7 @@ export async function GET(request: Request) {
     
     // Search tenants (Mieter) - Enhanced with fuzzy matching and multi-word search
     if (categories.includes('tenant')) {
-      if (accessibleWohnungIds !== null && accessibleWohnungIds.length === 0) {
+      if (!canSearchCategory('tenant') || (accessibleWohnungIds !== null && accessibleWohnungIds.length === 0)) {
         searchPromises.push(Promise.resolve({ type: 'tenant' as const, data: [] }));
       } else {
         if (process.env.NODE_ENV === 'development') {
@@ -336,7 +354,7 @@ export async function GET(request: Request) {
     
     // Search houses (Haeuser) - Enhanced with better address matching
     if (categories.includes('house')) {
-      if (accessibleHaeuserIds !== null && accessibleHaeuserIds.length === 0) {
+      if (!canSearchCategory('house') || (accessibleHaeuserIds !== null && accessibleHaeuserIds.length === 0)) {
         searchPromises.push(Promise.resolve({ type: 'house' as const, data: [] }));
       } else {
         searchPromises.push(
@@ -446,7 +464,7 @@ export async function GET(request: Request) {
     
     // Search apartments (Wohnungen) - Enhanced with house name search
     if (categories.includes('apartment')) {
-      if (accessibleHaeuserIds !== null && accessibleHaeuserIds.length === 0) {
+      if (!canSearchCategory('apartment') || (accessibleHaeuserIds !== null && accessibleHaeuserIds.length === 0)) {
         searchPromises.push(Promise.resolve({ type: 'apartment' as const, data: [] }));
       } else {
         searchPromises.push(
@@ -569,7 +587,7 @@ export async function GET(request: Request) {
     
     // Search finances (Finanzen) - Optimized with conditional numeric search
     if (categories.includes('finance')) {
-      if (accessibleWohnungIds !== null && accessibleWohnungIds.length === 0) {
+      if (!canSearchCategory('finance') || (accessibleWohnungIds !== null && accessibleWohnungIds.length === 0)) {
         searchPromises.push(Promise.resolve({ type: 'finance' as const, data: [] }));
       } else {
         const isNumericQuery = !isShowAllQuery && !isNaN(parseFloat(query));
@@ -644,7 +662,9 @@ export async function GET(request: Request) {
   }
     
     // Search tasks (Aufgaben) - Optimized with completion status ordering
-    if (categories.includes('task')) {
+    if (categories.includes('task') && !canSearchCategory('task')) {
+      searchPromises.push(Promise.resolve({ type: 'task' as const, data: [] }));
+    } else if (categories.includes('task')) {
       searchPromises.push(
         (async () => {
           try {
@@ -784,7 +804,7 @@ export async function GET(request: Request) {
     unstable_rethrow(error);
     console.error('Search API error:', error);
 
-    // 503 PERMISSION_CHECK_FAILED if the tenant right could not be checked
+    // 503 PERMISSION_CHECK_FAILED if a module right could not be checked
     const permissionResponse = apiPermissionErrorResponse(error);
     if (permissionResponse) return permissionResponse;
     
