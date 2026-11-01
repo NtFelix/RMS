@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useCloudStorageStore, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
 import { orgRoot, sharedRoot, sharedPath, privateRoot, privatePath, ARCHIVE_SEGMENT } from "@/lib/storage-paths"
 import { buildFallbackBreadcrumbs, STORAGE_ROOT_LABEL, SYSTEM_FOLDER_LABELS, ZONE_LABELS } from "@/lib/storage-navigation"
-import { usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
+import { PERMISSION_CHECK_FAILED_ERROR, usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
 import { useFolderNavigation } from "@/components/common/navigation-interceptor"
 import { useDirectoryActiveState } from "@/hooks/use-active-state-manager"
 interface FileTreeViewProps {
@@ -435,7 +435,11 @@ export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTr
       <div className={cn("flex flex-col items-start gap-2 text-sm text-destructive", className)}>
         <div className="flex items-center gap-2">
           <AlertCircle className="size-4" />
-          <span>Fehler beim Laden der Ordnerstruktur</span>
+          <span>
+            {error === PERMISSION_CHECK_FAILED_ERROR
+              ? "Die Berechtigungsprüfung ist vorübergehend fehlgeschlagen. Die Ordnerstruktur konnte nicht geladen werden."
+              : "Fehler beim Laden der Ordnerstruktur"}
+          </span>
         </div>
         <Button variant="outline" size="sm" onClick={refetch}>
           Erneut versuchen

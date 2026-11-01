@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { unstable_rethrow } from 'next/navigation'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 import { getAccessibleHaeuserIds } from '@/lib/object-scope'
-import { hasPermission } from '@/lib/permissions'
+import { checkPermission } from '@/lib/permissions'
+import { apiPermissionErrorResponse } from '@/lib/api-permission-response'
+import { PermissionCheckError, type Aktion, type Modul } from '@/lib/permissions-core'
 import { getActiveOrgId } from '@/lib/storage-access'
 import { OWN_PRIVATE_FOLDER_LABEL, STORAGE_ROOT_LABEL, SYSTEM_FOLDER_LABELS, ZONE_LABELS } from '@/lib/storage-navigation'
 import {
@@ -56,6 +58,10 @@ function archiveNode(zoneBase: string): TreeNode {
  * Module rights that the database asks for below a house (apartment level: `wohnungen:ansehen`, tenant level:
  * `mieter:ansehen`). The database decides on its own (storage policies), this only keeps the tree free of names and
  * folders the user could not open. Each right is read at most once per request, and only if a path needs it.
+ *
+ * If the check itself fails (not "right missing"), the read throws PermissionCheckError and the request is answered
+ * with 503 PERMISSION_CHECK_FAILED: an empty list would look like "no right" and could not be retried. Access stays
+ * denied, nothing is listed.
  */
 interface ViewRights {
   wohnungen: () => Promise<boolean>
@@ -63,13 +69,17 @@ interface ViewRights {
 }
 
 function createViewRights(): ViewRights {
-  const once = (read: () => Promise<boolean>) => {
+  const once = (modul: Modul, aktion: Aktion) => {
     let result: Promise<boolean> | undefined
-    return () => (result ??= read())
+    return () =>
+      (result ??= checkPermission(modul, aktion).then((outcome) => {
+        if (outcome === 'error') throw new PermissionCheckError()
+        return outcome === 'allowed'
+      }))
   }
   return {
-    wohnungen: once(() => hasPermission('wohnungen', 'ansehen')),
-    mieter: once(() => hasPermission('mieter', 'ansehen')),
+    wohnungen: once('wohnungen', 'ansehen'),
+    mieter: once('mieter', 'ansehen'),
   }
 }
 
@@ -139,6 +149,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ tree }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     unstable_rethrow(error)
+    const permissionResponse = error instanceof PermissionCheckError ? apiPermissionErrorResponse(error) : null
+    if (permissionResponse) {
+      console.error('Permission check failed while loading folder tree:', error)
+      return permissionResponse
+    }
     console.error('Unexpected error loading folder tree:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
