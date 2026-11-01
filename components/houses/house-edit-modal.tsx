@@ -22,9 +22,8 @@ import { toast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Building2, MapPin, Ruler, Info, Home, MoreHorizontal, Lightbulb, Eye, Trash2, type LucideIcon } from "lucide-react";
+import { Building2, MapPin, Ruler, Info, Lightbulb, Trash2, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CustomDropdown, CustomDropdownItem, CustomDropdownSeparator } from "@/components/ui/custom-dropdown";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -138,40 +137,25 @@ function ResizeHandle({
 
 function TopBar({
   houseInitialData,
-  onOverviewClick,
   onDeleteRequest,
 }: {
   houseInitialData: House | null;
-  onOverviewClick: () => void;
   onDeleteRequest: () => void;
 }) {
   if (!houseInitialData) return null;
 
   return (
     <div className="absolute top-0 left-0 right-0 h-14 flex items-center justify-end px-4 z-10 pointer-events-none">
-      <CustomDropdown
-        trigger={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-lg opacity-50 hover:opacity-100 hover:bg-hover-bg pointer-events-auto cursor-pointer h-8 w-8 active:scale-[0.995]"
-          >
-            <MoreHorizontal className="h-5 w-5" />
-            <span className="sr-only">Aktionen</span>
-          </Button>
-        }
-        align="end"
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={onDeleteRequest}
+        className="rounded-lg opacity-50 hover:opacity-100 hover:bg-hover-bg text-red-600 hover:text-red-600 pointer-events-auto cursor-pointer h-8 w-8 active:scale-[0.995]"
       >
-        <CustomDropdownItem onClick={onOverviewClick}>
-          <Eye className="h-4 w-4 mr-2" />
-          <span>Übersicht</span>
-        </CustomDropdownItem>
-        <CustomDropdownSeparator />
-        <CustomDropdownItem onClick={onDeleteRequest} className="text-red-600 focus:text-red-600">
-          <Trash2 className="h-4 w-4 mr-2" />
-          <span>Löschen</span>
-        </CustomDropdownItem>
-      </CustomDropdown>
+        <Trash2 className="h-4 w-4" />
+        <span className="sr-only">Löschen</span>
+      </Button>
     </div>
   );
 }
@@ -523,7 +507,6 @@ export function HouseEditModal(props: HouseEditModalProps) {
     houseModalOnSuccess,
     isHouseModalDirty,
     setHouseModalDirty,
-    openHausOverviewModal,
   } = useModalStore();
 
   const [formData, setFormData] = useState<HouseFormData>({
@@ -720,7 +703,6 @@ export function HouseEditModal(props: HouseEditModalProps) {
 
         <TopBar
           houseInitialData={houseInitialData}
-          onOverviewClick={() => houseInitialData && openHausOverviewModal(houseInitialData.id)}
           onDeleteRequest={handleDeleteStart}
         />
 

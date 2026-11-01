@@ -1,28 +1,11 @@
 import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen } from '@testing-library/react'
 import { useModalStore } from '@/hooks/use-modal-store'
-import type { ModalState } from '@/hooks/use-modal-store'
-import { HausOverviewModal } from '@/components/houses/haus-overview-modal'
 import { ApartmentTenantDetailsModal } from '@/components/apartments/apartment-tenant-details-modal'
 
 // Mock the modal store
 jest.mock('@/hooks/use-modal-store')
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>
-
-// Define the mock store type
-type MockModalStore = Partial<{
-  [K in keyof ModalState]: ModalState[K] extends (...args: any[]) => any 
-    ? jest.Mock<ReturnType<ModalState[K]>, Parameters<ModalState[K]>> 
-    : ModalState[K];
-}> & {
-  // Add any additional mock functions not in ModalState
-  [key: string]: unknown;
-};
-
-// Mock fetch for API calls
-global.fetch = jest.fn()
-const mockFetch = fetch as jest.MockedFunction<typeof fetch>
 
 // Mock format utilities
 jest.mock('@/utils/format', () => ({
@@ -36,67 +19,6 @@ jest.mock('@/hooks/use-toast', () => ({
 }))
 
 describe('Overview Modals User Flows', () => {
-  const mockHausData = {
-    id: '1',
-    name: 'Test Haus',
-    strasse: 'Teststraße 1',
-    ort: 'Teststadt',
-    totalArea: 135,
-    totalRent: 1200,
-    apartmentCount: 2,
-    tenantCount: 1,
-    summaryStats: {
-      averageRent: 1100,
-      medianRent: 1100,
-      averageSize: 67.5,
-      medianSize: 67.5,
-      occupancyRate: 50,
-      vacancyRate: 50,
-      averageRentPerSqm: 16.5,
-      totalPotentialRent: 2200,
-    },
-    wohnungen: [
-      {
-        id: '1',
-        name: 'Wohnung 1A',
-        groesse: 75,
-        miete: 1200,
-        status: 'vermietet' as const,
-        currentTenant: {
-          id: '1',
-          name: 'Max Mustermann',
-          einzug: '2023-01-01',
-        },
-      },
-      {
-        id: '2',
-        name: 'Wohnung 2B',
-        groesse: 60,
-        miete: 1000,
-        status: 'frei' as const,
-      },
-    ],
-  }
-
-  const mockWohnungData = {
-    id: '1',
-    name: 'Wohnung 1A',
-    groesse: 75,
-    miete: 1200,
-    hausName: 'Test Haus',
-    mieter: [
-      {
-        id: '1',
-        name: 'Max Mustermann',
-        email: 'max@example.com',
-        telefon: '+49123456789',
-        einzug: '2023-01-01',
-        auszug: null,
-        status: 'active' as const,
-      },
-    ],
-  }
-
   const mockApartmentTenantDetails = {
     apartment: {
       id: '1',
@@ -129,18 +51,6 @@ describe('Overview Modals User Flows', () => {
   }
 
   const mockModalStore = {
-    // Haus Overview Modal
-    isHausOverviewModalOpen: false,
-    hausOverviewData: undefined,
-    hausOverviewLoading: false,
-    hausOverviewError: undefined,
-    openHausOverviewModal: jest.fn(),
-    closeHausOverviewModal: jest.fn(),
-    setHausOverviewLoading: jest.fn(),
-    setHausOverviewError: jest.fn(),
-    setHausOverviewData: jest.fn(),
-    refreshHausOverviewData: jest.fn(),
-
     // Apartment Tenant Details Modal
     apartmentTenantDetailsData: undefined,
     apartmentTenantDetailsLoading: false,
@@ -163,43 +73,6 @@ describe('Overview Modals User Flows', () => {
     mockUseModalStore.mockImplementation(
       () => mockModalStore as unknown as ReturnType<typeof useModalStore>
     )
-    mockFetch.mockClear()
-  })
-
-  describe('Modal Store Integration', () => {
-    it('calls modal store functions correctly', () => {
-      // Test that modal store functions are available
-      expect(mockModalStore.openHausOverviewModal).toBeDefined()
-      expect(mockModalStore.openApartmentTenantDetailsModal).toBeDefined()
-      expect(mockModalStore.closeHausOverviewModal).toBeDefined()
-    })
-  })
-
-  describe('Modal Rendering', () => {
-    it('renders Haus overview modal when open', () => {
-      mockUseModalStore.mockReturnValue({
-        ...mockModalStore,
-        isHausOverviewModalOpen: true,
-        hausOverviewData: mockHausData,
-      } as any)
-
-      render(<HausOverviewModal />)
-
-      expect(screen.getByText('Test Haus - Übersicht')).toBeInTheDocument()
-      expect(screen.getByText('Wohnung 1A')).toBeInTheDocument()
-      expect(screen.getByText('Max Mustermann')).toBeInTheDocument()
-    })
-
-    it('does not render when modal is closed', () => {
-      mockUseModalStore.mockImplementation(() => ({
-        ...mockModalStore,
-        isHausOverviewModalOpen: false,
-      } as unknown as ReturnType<typeof useModalStore>))
-
-      render(<HausOverviewModal />)
-
-      expect(screen.queryByText('Test Haus - Übersicht')).not.toBeInTheDocument()
-    })
   })
 
   describe('Details Modal Integration', () => {
@@ -236,71 +109,4 @@ describe('Overview Modals User Flows', () => {
     })
   })
 
-  describe('Loading and Error States', () => {
-    it('shows loading state for Haus overview', () => {
-      mockUseModalStore.mockImplementation(() => ({
-        ...mockModalStore,
-        isHausOverviewModalOpen: true,
-        hausOverviewLoading: true,
-      } as unknown as ReturnType<typeof useModalStore>))
-
-      render(<HausOverviewModal />)
-
-      // Should show skeleton loading
-      expect(document.querySelector('.animate-pulse')).toBeInTheDocument()
-    })
-
-    it('shows error state for Haus overview', () => {
-      mockUseModalStore.mockReturnValue({
-        ...mockModalStore,
-        isHausOverviewModalOpen: true,
-        hausOverviewError: 'Network error',
-      } as any)
-
-      render(<HausOverviewModal />)
-
-      expect(screen.getAllByText('Fehler beim Laden')[0]).toBeInTheDocument()
-      expect(screen.getByText('Network error')).toBeInTheDocument()
-    })
-  })
-
-  describe('Data Display', () => {
-    it('displays summary statistics correctly', () => {
-      mockUseModalStore.mockReturnValue({
-        ...mockModalStore,
-        isHausOverviewModalOpen: true,
-        hausOverviewData: mockHausData,
-      } as any)
-
-      render(<HausOverviewModal />)
-
-      // Check that summary data is displayed
-      expect(screen.getByText('135 m²')).toBeInTheDocument() // Total area
-      expect(screen.getByText('2 Stk.')).toBeInTheDocument() // Apartment count
-      expect(screen.getByText('1 aktiv')).toBeInTheDocument() // Tenant count
-      expect(screen.getByText('1.200 €')).toBeInTheDocument() // Total rent
-    })
-
-    it('handles empty state correctly', () => {
-      const emptyHausData = {
-        ...mockHausData,
-        wohnungen: [],
-        apartmentCount: 0,
-        tenantCount: 0,
-        totalArea: 0,
-        totalRent: 0,
-      }
-
-      mockUseModalStore.mockReturnValue({
-        ...mockModalStore,
-        isHausOverviewModalOpen: true,
-        hausOverviewData: emptyHausData,
-      } as any)
-
-      render(<HausOverviewModal />)
-
-      expect(screen.getByText('Keine Wohnungen')).toBeInTheDocument()
-      expect(screen.getByText('Dieses Haus hat noch keine Wohnungen.')).toBeInTheDocument()
-    })
-  })
 })

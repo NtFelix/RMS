@@ -26,7 +26,6 @@ project-root/
 │   │   ├── __tests__/                  # General API tests
 │   │   ├── apartments/[apartmentId]/tenant/[tenantId]/details/__tests__/
 │   │   ├── finanzen/charts/__tests__/
-│   │   ├── haeuser/[id]/overview/__tests__/
 │   │   ├── search/__tests__/
 │   │   └── wohnungen/[id]/overview/__tests__/
 │   ├── landing/__tests__/              # Landing page tests

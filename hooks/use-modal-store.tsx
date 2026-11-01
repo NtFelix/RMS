@@ -9,42 +9,6 @@ import { AIDocumentationContext } from '@/types/ai';
 import type { KautionLoeschauswirkung } from '@/types/Kaution';
 
 // Overview Modal Types
-interface HausWithWohnungen {
-  id: string;
-  name: string;
-  strasse?: string;
-  plz?: number | string | null;
-  ort: string;
-  size?: string;
-  totalArea: number;
-  totalRent: number;
-  apartmentCount: number;
-  tenantCount: number;
-  summaryStats: {
-    averageRent: number;
-    medianRent: number;
-    averageSize: number;
-    medianSize: number;
-    occupancyRate: number;
-  };
-  wohnungen: WohnungOverviewData[];
-  /** `false` (only then present): the user may not see tenants (mieter:ansehen); no `currentTenant` is delivered. */
-  tenantAccess?: false;
-}
-
-interface WohnungOverviewData {
-  id: string;
-  name: string;
-  groesse: number;
-  miete: number;
-  status: 'frei' | 'vermietet';
-  currentTenant?: {
-    id: string;
-    name: string;
-    einzug?: string;
-  };
-}
-
 interface WohnungWithMieter {
   id: string;
   name: string;
@@ -342,18 +306,6 @@ export interface ModalState {
   openLoeschUebersicht: (config: LoeschUebersichtConfig) => void;
   closeLoeschUebersicht: () => void;
 
-  // Haus Overview Modal State
-  isHausOverviewModalOpen: boolean;
-  hausOverviewData?: HausWithWohnungen;
-  hausOverviewLoading: boolean;
-  hausOverviewError?: string;
-  openHausOverviewModal: (hausId: string) => void;
-  closeHausOverviewModal: (options?: CloseModalOptions) => void;
-  setHausOverviewLoading: (loading: boolean) => void;
-  setHausOverviewError: (error?: string) => void;
-  setHausOverviewData: (data?: HausWithWohnungen) => void;
-  refreshHausOverviewData: () => Promise<void>;
-
   // Wohnung Overview Modal State
   isWohnungOverviewModalOpen: boolean;
   wohnungOverviewData?: WohnungWithMieter;
@@ -617,13 +569,6 @@ const initialLoeschUebersichtState = {
   loeschUebersichtConfig: null as LoeschUebersichtConfig | null,
 };
 
-const initialHausOverviewModalState = {
-  isHausOverviewModalOpen: false,
-  hausOverviewData: undefined,
-  hausOverviewLoading: false,
-  hausOverviewError: undefined,
-};
-
 const initialWohnungOverviewModalState = {
   isWohnungOverviewModalOpen: false,
   wohnungOverviewData: undefined,
@@ -751,7 +696,6 @@ const createInitialModalState = () => ({
   ...initialKautionModalState,
   canViewKautionen: false, // bewusst nicht in initialKautionModalState: bleibt beim Schließen des Dialogs erhalten
   ...initialLoeschUebersichtState,
-  ...initialHausOverviewModalState,
   ...initialWohnungOverviewModalState,
   ...initialTenantPaymentOverviewModalState,
   ...initialApartmentTenantDetailsModalState,
@@ -961,71 +905,6 @@ export const useModalStore = create<ModalState>((set, get) => {
       set({ isLoeschUebersichtOpen: true, loeschUebersichtConfig: config });
     },
     closeLoeschUebersicht: () => set(initialLoeschUebersichtState),
-
-    // Haus Overview Modal
-    openHausOverviewModal: async (hausId: string) => {
-      set({
-        isHausOverviewModalOpen: true,
-        hausOverviewLoading: true,
-        hausOverviewError: undefined,
-        hausOverviewData: undefined
-      });
-
-      // Create timeout promise for 2-second limit
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('Das Laden dauert länger als erwartet. Bitte versuchen Sie es erneut.'));
-        }, 2000);
-      });
-
-      try {
-        const fetchPromise = fetch(`/api/haeuser/${hausId}/overview`).then(async (response) => {
-          if (!response.ok) {
-            throw new Error('Failed to fetch Haus overview data');
-          }
-          return response.json();
-        });
-
-        // Race between fetch and timeout
-        const data = await Promise.race([fetchPromise, timeoutPromise]);
-
-        set({
-          hausOverviewData: data,
-          hausOverviewLoading: false
-        });
-      } catch (error) {
-        set({
-          hausOverviewError: error instanceof Error ? error.message : 'An error occurred',
-          hausOverviewLoading: false
-        });
-      }
-    },
-    refreshHausOverviewData: async () => {
-      const state = get();
-      if (!state.hausOverviewData?.id) return;
-
-      set({ hausOverviewLoading: true, hausOverviewError: undefined });
-
-      try {
-        const response = await fetch(`/api/haeuser/${state.hausOverviewData.id}/overview`);
-        if (!response.ok) {
-          throw new Error('Failed to refresh Haus overview data');
-        }
-        const data = await response.json();
-        set({ hausOverviewData: data, hausOverviewLoading: false });
-      } catch (error) {
-        set({
-          hausOverviewError: error instanceof Error ? error.message : 'An error occurred',
-          hausOverviewLoading: false
-        });
-      }
-    },
-    closeHausOverviewModal: (options?: CloseModalOptions) => {
-      set(initialHausOverviewModalState);
-    },
-    setHausOverviewLoading: (loading: boolean) => set({ hausOverviewLoading: loading }),
-    setHausOverviewError: (error?: string) => set({ hausOverviewError: error }),
-    setHausOverviewData: (data?: HausWithWohnungen) => set({ hausOverviewData: data }),
 
     // Wohnung Overview Modal
     openWohnungOverviewModal: async (wohnungId: string) => {
