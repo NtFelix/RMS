@@ -37,6 +37,12 @@ const activeMember = (rolle: string, extra: Record<string, unknown> = {}): Answe
 
 const QUERY_ERROR = { message: 'canceling statement due to statement timeout' };
 
+/** Policies that grant mieter:ansehen, so a decision other than `allowed` can only come from the override */
+const grantingPolicies: Tables = {
+  Organisation_Mitglieder_Policies: { data: [{ policy_id: 'p1' }], error: null },
+  Organisation_Policies: { data: [{ berechtigungen: { module: { mieter: ['ansehen'] } } }], error: null },
+};
+
 describe('evaluatePermissionResult', () => {
   beforeEach(() => {
     jest.spyOn(console, 'error').mockImplementation();
@@ -72,6 +78,33 @@ describe('evaluatePermissionResult', () => {
       },
       expected: 'allowed',
     },
+    {
+      name: 'no override row: the policies decide (grant)',
+      tables: {
+        Organisation_Mitglieder: activeMember('member'),
+        Organisation_Mitglieder_Overrides: { data: null, error: null },
+        ...grantingPolicies,
+      },
+      expected: 'allowed',
+    },
+    {
+      name: 'override error does not matter for an owner (allowed before the override is read)',
+      tables: {
+        Organisation_Mitglieder: activeMember('owner'),
+        Organisation_Mitglieder_Overrides: { data: null, error: QUERY_ERROR },
+        ...grantingPolicies,
+      },
+      expected: 'allowed',
+    },
+    {
+      name: 'override error does not matter for an admin (allowed before the override is read)',
+      tables: {
+        Organisation_Mitglieder: activeMember('admin'),
+        Organisation_Mitglieder_Overrides: { data: null, error: QUERY_ERROR },
+        ...grantingPolicies,
+      },
+      expected: 'allowed',
+    },
     // denied: the right is missing
     { name: 'no membership', tables: { Organisation_Mitglieder: { data: null, error: null } }, expected: 'denied' },
     {
@@ -87,6 +120,24 @@ describe('evaluatePermissionResult', () => {
       },
       expected: 'denied',
     },
+    {
+      name: 'override revokes the action although a policy grants it',
+      tables: {
+        Organisation_Mitglieder: activeMember('member'),
+        Organisation_Mitglieder_Overrides: { data: { berechtigungen: { module: { mieter: [] } } }, error: null },
+        ...grantingPolicies,
+      },
+      expected: 'denied',
+    },
+    {
+      name: 'no override row: the policies decide (no grant)',
+      tables: {
+        Organisation_Mitglieder: activeMember('member'),
+        Organisation_Mitglieder_Overrides: { data: null, error: null },
+        Organisation_Mitglieder_Policies: { data: [], error: null },
+      },
+      expected: 'denied',
+    },
     { name: 'member without any policy', tables: { Organisation_Mitglieder: activeMember('member'), Organisation_Mitglieder_Policies: { data: [], error: null } }, expected: 'denied' },
     {
       name: 'policies without the module',
@@ -99,6 +150,15 @@ describe('evaluatePermissionResult', () => {
     },
     // error: the check itself failed
     { name: 'membership query fails', tables: { Organisation_Mitglieder: { data: null, error: QUERY_ERROR } }, expected: 'error' },
+    {
+      name: 'override query fails although a policy grants the action (fail-closed, no fallback to the policies)',
+      tables: {
+        Organisation_Mitglieder: activeMember('member'),
+        Organisation_Mitglieder_Overrides: { data: null, error: QUERY_ERROR },
+        ...grantingPolicies,
+      },
+      expected: 'error',
+    },
     {
       name: 'member policies query fails',
       tables: {
@@ -143,15 +203,15 @@ describe('evaluatePermissionResult', () => {
     expect(from).not.toHaveBeenCalled();
   });
 
-  it('keeps the former behaviour for a failed override query: it falls through to the policies', async () => {
+  it('logs a failed override query, so the cause is not lost', async () => {
     const supabase = fakeSupabase({
       Organisation_Mitglieder: activeMember('member'),
       Organisation_Mitglieder_Overrides: { data: null, error: QUERY_ERROR },
-      Organisation_Mitglieder_Policies: { data: [{ policy_id: 'p1' }], error: null },
-      Organisation_Policies: { data: [{ berechtigungen: { module: { mieter: ['ansehen'] } } }], error: null },
+      ...grantingPolicies,
     });
 
-    expect(await evaluatePermissionResult(supabase, USER, ORG, 'mieter', 'ansehen')).toBe('allowed');
+    expect(await evaluatePermissionResult(supabase, USER, ORG, 'mieter', 'ansehen')).toBe('error');
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('override'), QUERY_ERROR);
   });
 
   it('logs a failed query, so the cause is not lost', async () => {
