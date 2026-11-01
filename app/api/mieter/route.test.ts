@@ -4,7 +4,7 @@
 import { GET, POST, PUT } from './route';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { MIETER_SPALTEN_OHNE_KAUTION } from '@/lib/mieter-columns';
-import { hasPermission } from '@/lib/permissions';
+import { checkPermission } from '@/lib/permissions';
 
 /**
  * Leak-Schließung Altfeld "Mieter.kaution" (GH-6): Die Route liefert nur explizite Spalten ohne "kaution"
@@ -41,7 +41,7 @@ describe('/api/mieter', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (hasPermission as jest.Mock).mockResolvedValue(true);
+    (checkPermission as jest.Mock).mockResolvedValue('allowed');
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -64,7 +64,7 @@ describe('/api/mieter', () => {
 
   describe('GET ohne mieter:ansehen', () => {
     it('antwortet 403 und fragt die Datenbank nicht ab', async () => {
-      (hasPermission as jest.Mock).mockImplementation(async (modul: string, aktion: string) => !(modul === 'mieter' && aktion === 'ansehen'));
+      (checkPermission as jest.Mock).mockImplementation(async (modul: string, aktion: string) => (modul === 'mieter' && aktion === 'ansehen' ? 'denied' : 'allowed'));
       const from = jest.fn();
       (createSupabaseServerClient as jest.Mock).mockResolvedValue({ from });
 
@@ -72,7 +72,21 @@ describe('/api/mieter', () => {
 
       expect(res.status).toBe(403);
       expect(await res.json()).toEqual({ error: 'Permission denied', code: 'PERMISSION_DENIED' });
-      expect(hasPermission).toHaveBeenCalledWith('mieter', 'ansehen');
+      expect(checkPermission).toHaveBeenCalledWith('mieter', 'ansehen');
+      expect(from).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('GET wenn die Rechtepruefung selbst fehlschlaegt', () => {
+    it('antwortet 503 PERMISSION_CHECK_FAILED statt 403 und fragt die Datenbank nicht ab', async () => {
+      (checkPermission as jest.Mock).mockResolvedValue('error');
+      const from = jest.fn();
+      (createSupabaseServerClient as jest.Mock).mockResolvedValue({ from });
+
+      const res = await GET();
+
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({ error: 'Permission check failed', code: 'PERMISSION_CHECK_FAILED' });
       expect(from).not.toHaveBeenCalled();
     });
   });
