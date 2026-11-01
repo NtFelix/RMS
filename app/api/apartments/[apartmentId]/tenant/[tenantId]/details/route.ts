@@ -82,7 +82,7 @@ export async function GET(
     // This route delivers a tenant, so it needs mieter:ansehen: 403 PERMISSION_DENIED if the right is missing, 503
     // PERMISSION_CHECK_FAILED if the check itself failed (see the catch). The check starts together with the apartment
     // query (parallel, no extra round-trip) and is awaited right after it, before anything is evaluated or answered.
-    const { requireApiPermission } = await import("@/lib/api-permissions");
+    const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
     const permissionCheck = requireApiPermission('mieter', 'ansehen');
     permissionCheck.catch(() => {}); // the rejection still surfaces at the await below
 
@@ -123,6 +123,14 @@ export async function GET(
       return NextResponse.json(
         { error: "Fehler beim Laden der Wohnungsdaten." }, 
         { status: 500, headers: NO_CACHE_HEADERS }
+      );
+    }
+
+    // The apartment must belong to a house the user may access (house scope); checked before any tenant is read
+    if (apartment.haus_id && !(await verifyEntityInScope(apartment.haus_id))) {
+      return NextResponse.json(
+        { error: "Permission denied" },
+        { status: 403, headers: NO_CACHE_HEADERS }
       );
     }
 
