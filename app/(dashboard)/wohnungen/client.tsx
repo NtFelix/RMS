@@ -27,6 +27,7 @@ import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRent
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
 import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
+import { TenantCheckFailedNotice } from "@/components/apartments/tenant-check-failed-notice";
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -67,7 +68,28 @@ export default function WohnungenClientView({
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const reloadRef = useRef<(() => void) | null>(null);
-  const apartments = initialWohnungenData;
+  // Result of the partial reload of the tenant part (see reloadTenantData). Tied to the server data it was merged into:
+  // a router.refresh() brings new `initialWohnungenData` and thereby drops it.
+  const [tenantReload, setTenantReload] = useState<{
+    source: Wohnung[];
+    byId: Map<string, Pick<Wohnung, "tenant" | "tenantAccess" | "permissionCheckFailed">>;
+  } | null>(null);
+  const [isReloadingTenants, setIsReloadingTenants] = useState(false);
+  const apartments = useMemo(() => {
+    if (!tenantReload || tenantReload.source !== initialWohnungenData) return initialWohnungenData;
+    return initialWohnungenData.map((apt) => {
+      const reloaded = tenantReload.byId.get(apt.id);
+      if (!reloaded) return apt; // not part of the answer: stays as the server rendered it (tenant withheld)
+      // Only the tenant fields are taken over; everything else stays as it was
+      const merged: Wohnung = { ...apt };
+      delete merged.tenant;
+      delete merged.tenantAccess;
+      delete merged.permissionCheckFailed;
+      return Object.assign(merged, reloaded);
+    });
+  }, [initialWohnungenData, tenantReload]);
+  // Server signal: the mieter:ansehen check failed twice, so the withheld tenants may be hidden wrongly
+  const tenantCheckFailed = apartments.some((a) => a.permissionCheckFailed === true);
   const [selectedApartments, setSelectedApartments] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
@@ -147,6 +169,39 @@ export default function WohnungenClientView({
     router.refresh();
     window.dispatchEvent(new CustomEvent('refresh-sidebar-insights'));
   }, [router]);
+
+  // Reloads only the tenant part: asks /api/wohnungen again (which repeats the permission check) and takes over
+  // tenant, tenantAccess and permissionCheckFailed per apartment. The page, the other apartment data, the selection and
+  // the filters stay untouched (no router.refresh()). Any failure keeps the tenants withheld.
+  const reloadTenantData = useCallback(async (): Promise<void> => {
+    setIsReloadingTenants(true);
+    try {
+      const response = await fetch('/api/wohnungen', { cache: 'no-store' });
+      if (!response.ok) throw new Error(`GET /api/wohnungen: ${response.status}`);
+      const rows: Wohnung[] = await response.json();
+      const byId = new Map<string, Pick<Wohnung, "tenant" | "tenantAccess" | "permissionCheckFailed">>();
+      for (const row of rows) {
+        const reloaded: Pick<Wohnung, "tenant" | "tenantAccess" | "permissionCheckFailed"> = {};
+        if (row.tenantAccess === false) {
+          reloaded.tenantAccess = false;
+          if (row.permissionCheckFailed) reloaded.permissionCheckFailed = true;
+        } else if (row.tenant) {
+          reloaded.tenant = row.tenant;
+        }
+        byId.set(row.id, reloaded);
+      }
+      setTenantReload({ source: initialWohnungenData, byId });
+    } catch (error) {
+      console.error('Error reloading tenant data:', error);
+      toast({
+        title: "Fehler",
+        description: "Die Mieterdaten konnten nicht neu geladen werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReloadingTenants(false);
+    }
+  }, [initialWohnungenData]);
 
   // Dispatch initial statistics refresh to the sidebar on mount
   useEffect(() => {
@@ -390,6 +445,10 @@ export default function WohnungenClientView({
         onTabChange={setCurrentTab}
         layoutId="active-wohnungen-tab-pill"
       />
+
+      {tenantCheckFailed && (
+        <TenantCheckFailedNotice onReload={reloadTenantData} isReloading={isReloadingTenants} />
+      )}
 
       {currentTab === "apartments" ? (
         <>

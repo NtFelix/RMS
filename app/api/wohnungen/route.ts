@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
+import { checkTenantViewAccess } from "@/lib/tenant-view-access";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
 import { isTestEnv } from '@/lib/test-utils';
@@ -165,12 +166,13 @@ export async function POST(request: Request) {
 export async function GET() {
   try {
     // Apartment names and tenant data only for users who may see apartments (as the Wohnungen page does)
-    const { requireApiPermission, hasApiPermission } = await import("@/lib/api-permissions");
+    const { requireApiPermission } = await import("@/lib/api-permissions");
     // The tenant right starts at once and is awaited only before the tenant query, so it runs in parallel with the
-    // apartment query (no extra round-trip). The no-op catch only prevents an unhandled rejection when the
-    // wohnungen check below throws first; the real rejection still surfaces at the `await` further down.
-    const canViewTenantsPromise = hasApiPermission('mieter', 'ansehen');
-    canViewTenantsPromise.catch(() => {});
+    // apartment query (no extra round-trip); a failed check is repeated once inside (see checkTenantViewAccess). The
+    // no-op catch only prevents an unhandled rejection when the wohnungen check below throws first; a real rejection
+    // still surfaces at the `await` further down.
+    const tenantAccessPromise = checkTenantViewAccess();
+    tenantAccessPromise.catch(() => {});
     await requireApiPermission('wohnungen', 'ansehen');
 
     const supabase = await createSupabaseServerClient();
@@ -197,8 +199,12 @@ export async function GET() {
     }
 
     // Without mieter:ansehen only the dates for the occupation status are read: no name and no id of a tenant is even
-    // loaded, so none can leave through this route. A failed check throws PermissionCheckError (503).
-    const canViewTenants = await canViewTenantsPromise;
+    // loaded, so none can leave through this route. This holds the same when the check failed twice: the apartments
+    // are still answered (they depend on wohnungen:ansehen only), the tenants stay withheld and `permissionCheckFailed`
+    // tells the client that this may be wrong.
+    const tenantAccess = await tenantAccessPromise;
+    const canViewTenants = tenantAccess.canViewTenants;
+    const permissionCheckFailed = !tenantAccess.canViewTenants && tenantAccess.permissionCheckFailed;
 
     // Get tenants to determine occupation status
     // (two literal selects: the typed client cannot parse a column list that is chosen at runtime)
@@ -243,9 +249,10 @@ export async function GET() {
       }
 
       // Without mieter:ansehen: the status stays, `tenant` is absent and `tenantAccess: false` tells the client that
-      // this is "no access" and not "no tenant"
+      // this is "no access" and not "no tenant"; `permissionCheckFailed` only when the check failed (not for a
+      // missing right)
       if (!canViewTenants) {
-        return { ...apt, status, tenantAccess: false };
+        return { ...apt, status, tenantAccess: false, ...(permissionCheckFailed ? { permissionCheckFailed: true } : {}) };
       }
 
       return {
