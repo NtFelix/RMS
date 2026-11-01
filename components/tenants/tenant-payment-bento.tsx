@@ -11,6 +11,8 @@ export function TenantPaymentBento() {
   const {
     data,
     loading,
+    error,
+    noAccess,
     updatingStatus,
     fetchData,
     toggleRentPayment
@@ -53,6 +55,13 @@ export function TenantPaymentBento() {
           <div className="flex justify-center items-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
           </div>
+        ) : noAccess ? (
+          // The dashboard is open to every user: without mieter:ansehen and finanzen:ansehen this card is just inactive
+          <div className="text-center text-muted-foreground py-6">
+            Für die Mietzahlungen fehlt Ihnen die Berechtigung (Mieter und Finanzen ansehen).
+          </div>
+        ) : error ? (
+          <div role="alert" className="text-center text-muted-foreground py-6">{error}</div>
         ) : (
           <div className="flex flex-col gap-4">
             {data.length > 0 ? (
