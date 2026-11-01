@@ -125,11 +125,13 @@ export async function GET(
       );
     }
 
-    // mieter:ansehen is checked in the same round as the scope check (no extra round-trip). A failed check throws
-    // PermissionCheckError (503, see the catch) instead of being shown as "no access".
-    const { verifyEntityInScope, hasApiPermission } = await import("@/lib/api-permissions");
-    const [inScope, canViewTenants] = await Promise.all([
+    // haeuser:ansehen is required for the route (403 PERMISSION_DENIED if it is missing); mieter:ansehen only decides
+    // whether tenants are delivered. Both are checked in the same round as the scope check (no extra round-trip). A
+    // failed check throws PermissionCheckError (503, see the catch) instead of being shown as "no access".
+    const { verifyEntityInScope, requireApiPermission, hasApiPermission } = await import("@/lib/api-permissions");
+    const [inScope, , canViewTenants] = await Promise.all([
       verifyEntityInScope(hausId),
+      requireApiPermission('haeuser', 'ansehen'),
       hasApiPermission('mieter', 'ansehen'),
     ]);
     if (!inScope) {
@@ -294,7 +296,7 @@ export async function GET(
     });
 
   } catch (error) {
-    // 503 PERMISSION_CHECK_FAILED if the tenant right could not be checked
+    // 403 PERMISSION_DENIED / 503 PERMISSION_CHECK_FAILED if a module right is missing / could not be checked
     const permissionResponse = apiPermissionErrorResponse(error);
     if (permissionResponse) return permissionResponse;
     const logger = createRequestLogger(request);
