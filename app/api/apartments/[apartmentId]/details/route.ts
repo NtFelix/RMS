@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { createRequestLogger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 
 export async function GET(
   request: Request,
@@ -10,6 +11,12 @@ export async function GET(
   try {
     const supabase = await createSupabaseServerClient();
     const { apartmentId } = await params;
+
+    // Starts at once and is awaited only before the tenant query: runs in parallel with the apartment query. The
+    // no-op catch only prevents an unhandled rejection on an early return; the rejection still surfaces at the await.
+    const { hasApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
+    const canViewTenantsPromise = hasApiPermission('mieter', 'ansehen');
+    canViewTenantsPromise.catch(() => {});
 
     if (!apartmentId) {
       return NextResponse.json({ error: "Apartment ID ist erforderlich." }, { status: 400, headers: NO_CACHE_HEADERS });
@@ -49,7 +56,6 @@ export async function GET(
       );
     }
 
-    const { verifyEntityInScope } = await import("@/lib/api-permissions");
     if (apartment.haus_id && !(await verifyEntityInScope(apartment.haus_id))) {
       return NextResponse.json(
         { error: "Permission denied" }, 
@@ -57,17 +63,24 @@ export async function GET(
       );
     }
 
+    // Tenant data only with mieter:ansehen. Without it no tenant column is read at all; a failed check throws
+    // PermissionCheckError (503, see the catch) instead of being shown as "no access".
+    const canViewTenants = await canViewTenantsPromise;
+
     // Fetch current tenant (if any)
     const today = new Date().toISOString();
     // Nur die benötigten Spalten; das Altfeld "kaution" wird bewusst nicht gelesen.
-    const { data: tenant, error: tenantError } = await supabase
-      .from('Mieter')
-      .select('id, name, email, telefonnummer, einzug, auszug, notiz')
-      .eq('wohnung_id', apartmentId)
-      .or(`auszug.is.null,auszug.gt.${today}`)
-      .order('einzug', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const tenantResult = canViewTenants
+      ? await supabase
+          .from('Mieter')
+          .select('id, name, email, telefonnummer, einzug, auszug, notiz')
+          .eq('wohnung_id', apartmentId)
+          .or(`auszug.is.null,auszug.gt.${today}`)
+          .order('einzug', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : { data: null, error: null };
+    const { data: tenant, error: tenantError } = tenantResult;
 
     if (tenantError) {
       const logger = createRequestLogger(request);
@@ -100,6 +113,8 @@ export async function GET(
         condition: undefined,
         notes: undefined,
       },
+      // Without mieter:ansehen: no `tenant`; `tenantAccess: false` marks "no access" (not "no tenant")
+      ...(canViewTenants ? {} : { tenantAccess: false }),
       tenant: tenant ? {
         id: tenant.id,
         name: tenant.name,
@@ -115,6 +130,9 @@ export async function GET(
 
     return NextResponse.json(response, { status: 200, headers: NO_CACHE_HEADERS });
     } catch (error) {
+    // 503 PERMISSION_CHECK_FAILED if the tenant right could not be checked
+    const permissionResponse = apiPermissionErrorResponse(error);
+    if (permissionResponse) return permissionResponse;
     const logger = createRequestLogger(request);
     logger.error("Unexpected error in GET /api/apartments/[apartmentId]/details", error instanceof Error ? error : new Error(String(error)), {
       apartmentId: (await params).apartmentId

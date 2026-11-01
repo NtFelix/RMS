@@ -96,6 +96,39 @@ describe('HausOverviewModal', () => {
     expect(screen.getByText('Test Haus')).toBeInTheDocument();
   });
 
+  it('without mieter:ansehen shows "Kein Zugriff" for the rented apartment and keeps the status of the free one', () => {
+    mockUseModalStore.mockReturnValue({
+      isHausOverviewModalOpen: true,
+      hausOverviewData: {
+        ...mockHausData,
+        totalArea: 140,
+        totalRent: 1200,
+        tenantCount: 1,
+        apartmentCount: 2,
+        tenantAccess: false,
+        wohnungen: [
+          { id: '1', name: 'Wohnung 1', groesse: 80, miete: 1200, status: 'vermietet' as const },
+          { id: '2', name: 'Wohnung 2', groesse: 60, miete: 900, status: 'frei' as const },
+        ],
+      },
+      hausOverviewLoading: false,
+      hausOverviewError: undefined,
+      closeHausOverviewModal: jest.fn(),
+      setHausOverviewLoading: jest.fn(),
+      setHausOverviewError: jest.fn(),
+      setHausOverviewData: jest.fn(),
+      openWohnungModal: jest.fn(),
+      openWohnungOverviewModal: jest.fn(),
+    } as any);
+
+    render(<HausOverviewModal />);
+
+    expect(screen.getAllByText('Kein Zugriff')).toHaveLength(1);
+    expect(screen.getByText('Vermietet')).toBeInTheDocument();
+    expect(screen.getByText('Frei')).toBeInTheDocument();
+    expect(screen.queryByText('Max Mustermann')).not.toBeInTheDocument();
+  });
+
   it('should show loading skeleton when loading', () => {
     mockUseModalStore.mockReturnValue({
       isHausOverviewModalOpen: true,

@@ -1,4 +1,4 @@
-import { applyScopeFilter, applyWohnungScopeFilter, verifyEntityInScope, verifyWohnungInScope, requireApiPermission } from '@/lib/api-permissions';
+import { applyScopeFilter, applyWohnungScopeFilter, verifyEntityInScope, verifyWohnungInScope, requireApiPermission, hasApiPermission } from '@/lib/api-permissions';
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from '@/lib/object-scope';
 import { checkPermission } from '@/lib/permissions';
 import { PermissionCheckError } from '@/lib/permissions-core';
@@ -117,6 +117,24 @@ describe('api-permissions helper', () => {
       expect(error).toBeInstanceOf(PermissionCheckError);
       // same message as a missing right: routes that do not know the class still answer 403 as before
       expect(error.message).toBe('Permission denied');
+    });
+  });
+
+  describe('hasApiPermission', () => {
+    it('is true for allowed', async () => {
+      (checkPermission as jest.Mock).mockResolvedValue('allowed');
+      await expect(hasApiPermission('mieter', 'ansehen')).resolves.toBe(true);
+      expect(checkPermission).toHaveBeenCalledWith('mieter', 'ansehen');
+    });
+
+    it('is false for denied (missing right, no throw)', async () => {
+      (checkPermission as jest.Mock).mockResolvedValue('denied');
+      await expect(hasApiPermission('mieter', 'ansehen')).resolves.toBe(false);
+    });
+
+    it('throws PermissionCheckError for error (a failed check is never "false")', async () => {
+      (checkPermission as jest.Mock).mockResolvedValue('error');
+      await expect(hasApiPermission('mieter', 'ansehen')).rejects.toBeInstanceOf(PermissionCheckError);
     });
   });
 });

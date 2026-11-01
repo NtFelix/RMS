@@ -316,6 +316,7 @@ export function HausOverviewModal() {
                           <ApartmentTenantRow
                             apartment={apartment}
                             hausName={hausOverviewData.name}
+                            tenantAccess={hausOverviewData.tenantAccess !== false}
                             onEditApartment={() => handleEditApartment(apartment.id)}
                             onEditTenant={() => apartment.currentTenant && handleEditTenant(apartment.currentTenant.id)}
                             onViewDetails={() => handleViewDetails(apartment.id, apartment.currentTenant?.id)}
