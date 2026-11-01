@@ -1,6 +1,7 @@
 import { applyScopeFilter, applyWohnungScopeFilter, verifyEntityInScope, verifyWohnungInScope, requireApiPermission } from '@/lib/api-permissions';
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from '@/lib/object-scope';
-import { hasPermission } from '@/lib/permissions';
+import { checkPermission } from '@/lib/permissions';
+import { PermissionCheckError } from '@/lib/permissions-core';
 
 jest.mock('@/lib/object-scope', () => ({
   getAccessibleHaeuserIds: jest.fn(),
@@ -8,7 +9,7 @@ jest.mock('@/lib/object-scope', () => ({
 }));
 
 jest.mock('@/lib/permissions', () => ({
-  hasPermission: jest.fn(),
+  checkPermission: jest.fn(),
 }));
 
 describe('api-permissions helper', () => {
@@ -98,13 +99,24 @@ describe('api-permissions helper', () => {
 
   describe('requireApiPermission', () => {
     it('should not throw if permission is granted', async () => {
-      (hasPermission as jest.Mock).mockResolvedValue(true);
+      (checkPermission as jest.Mock).mockResolvedValue('allowed');
       await expect(requireApiPermission('haeuser', 'ansehen')).resolves.not.toThrow();
     });
 
-    it('should throw if permission is denied', async () => {
-      (hasPermission as jest.Mock).mockResolvedValue(false);
-      await expect(requireApiPermission('haeuser', 'ansehen')).rejects.toThrow('Permission denied');
+    it('should throw a plain "Permission denied" error (not a PermissionCheckError) if the right is missing', async () => {
+      (checkPermission as jest.Mock).mockResolvedValue('denied');
+      const error = await requireApiPermission('haeuser', 'ansehen').catch((e) => e);
+      expect(error).toBeInstanceOf(Error);
+      expect(error).not.toBeInstanceOf(PermissionCheckError);
+      expect(error.message).toBe('Permission denied');
+    });
+
+    it('should throw a PermissionCheckError if the check itself failed (access stays denied)', async () => {
+      (checkPermission as jest.Mock).mockResolvedValue('error');
+      const error = await requireApiPermission('haeuser', 'ansehen').catch((e) => e);
+      expect(error).toBeInstanceOf(PermissionCheckError);
+      // same message as a missing right: routes that do not know the class still answer 403 as before
+      expect(error.message).toBe('Permission denied');
     });
   });
 });

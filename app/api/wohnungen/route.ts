@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
-import { API_PERMISSION_DENIED_CODE } from "@/lib/permissions-core";
+import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
 import { isTestEnv } from '@/lib/test-utils';
@@ -242,12 +242,9 @@ export async function GET() {
     });
   } catch (e) {
     console.error("GET /api/wohnungen error:", e);
-    if ((e as Error).message === 'Permission denied') {
-      return NextResponse.json({ error: 'Permission denied', code: API_PERMISSION_DENIED_CODE }, {
-        status: 403,
-        headers: NO_CACHE_HEADERS
-      });
-    }
+    // 403 PERMISSION_DENIED (right missing) or 503 PERMISSION_CHECK_FAILED (the check itself failed)
+    const permissionResponse = apiPermissionErrorResponse(e);
+    if (permissionResponse) return permissionResponse;
     return NextResponse.json({ error: "Serverfehler bei Wohnungs-Abfrage." }, {
       status: 500,
       headers: NO_CACHE_HEADERS

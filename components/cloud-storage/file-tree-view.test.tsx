@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { FileTreeView } from '@/components/cloud-storage/file-tree-view'
 import { useCloudStorageStore } from '@/hooks/use-cloud-storage-store'
-import { usePropertyHierarchy } from '@/hooks/use-property-hierarchy'
+import { PERMISSION_CHECK_FAILED_ERROR, usePropertyHierarchy } from '@/hooks/use-property-hierarchy'
 import { useFolderNavigation } from '@/components/common/navigation-interceptor'
 
 // Mock the hooks
@@ -87,6 +87,25 @@ describe('FileTreeView', () => {
     render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     expect(screen.getByText('Fehler beim Laden der Ordnerstruktur')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }))
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('names a failed permission check of the server (retry helps) instead of the generic error, with the same retry', () => {
+    const refetch = jest.fn()
+    mockUsePropertyHierarchy.mockReturnValue({
+      houses: [],
+      apartments: [],
+      tenants: [],
+      isLoading: false,
+      error: PERMISSION_CHECK_FAILED_ERROR,
+      refetch,
+    })
+
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
+
+    expect(screen.getByText(/Berechtigungsprüfung ist vorübergehend fehlgeschlagen/)).toBeInTheDocument()
+    expect(screen.queryByText('Fehler beim Laden der Ordnerstruktur')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }))
     expect(refetch).toHaveBeenCalledTimes(1)
   })

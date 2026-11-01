@@ -1,6 +1,7 @@
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from '@/lib/object-scope';
-import { hasPermission } from '@/lib/permissions';
+import { checkPermission } from '@/lib/permissions';
 import type { Modul, Aktion } from '@/lib/permissions';
+import { PermissionCheckError } from '@/lib/permissions-core';
 
 /**
  * Applies the house_id scope filter to a query if access is restricted.
@@ -50,11 +51,16 @@ export async function verifyWohnungInScope(wohnungId: string): Promise<boolean> 
 
 /**
  * Requires the user to have the given module/action permission.
- * Throws an error if not allowed.
+ * Throws an error if not allowed: `Error('Permission denied')` for a missing right, PermissionCheckError (same message)
+ * if the check itself failed. Access is denied in both cases; the class only lets a route answer 503 instead of 403
+ * (see apiPermissionErrorResponse in lib/api-permission-response.ts).
  */
 export async function requireApiPermission(modul: Modul, aktion: Aktion): Promise<void> {
-  const allowed = await hasPermission(modul, aktion);
-  if (!allowed) {
+  const result = await checkPermission(modul, aktion);
+  if (result === 'error') {
+    throw new PermissionCheckError();
+  }
+  if (result !== 'allowed') {
     throw new Error('Permission denied');
   }
 }

@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
-import { API_PERMISSION_DENIED_CODE } from "@/lib/permissions-core";
+import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { MIETER_SPALTEN_OHNE_KAUTION, pickMieterSchreibbareFelder } from "@/lib/mieter-columns";
 
@@ -34,12 +34,9 @@ export async function GET() {
     });
   } catch (e) {
     console.error('Server error GET /api/mieter:', e);
-    if ((e as Error).message === 'Permission denied') {
-      return NextResponse.json({ error: 'Permission denied', code: API_PERMISSION_DENIED_CODE }, { 
-        status: 403,
-        headers: NO_CACHE_HEADERS 
-      });
-    }
+    // 403 PERMISSION_DENIED (right missing) or 503 PERMISSION_CHECK_FAILED (the check itself failed)
+    const permissionResponse = apiPermissionErrorResponse(e);
+    if (permissionResponse) return permissionResponse;
     return NextResponse.json({ error: 'Serverfehler bei Mieter-Abfrage.' }, { 
       status: 500,
       headers: NO_CACHE_HEADERS 

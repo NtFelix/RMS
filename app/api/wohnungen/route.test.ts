@@ -3,7 +3,7 @@
  */
 import { GET } from './route';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { hasPermission } from '@/lib/permissions';
+import { checkPermission } from '@/lib/permissions';
 
 /**
  * GET /api/wohnungen: Wohnungsnamen (und die eingebetteten Mieterdaten) nur mit wohnungen:ansehen.
@@ -29,7 +29,7 @@ function createBuilder(result: Result) {
 describe('GET /api/wohnungen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (hasPermission as jest.Mock).mockResolvedValue(true);
+    (checkPermission as jest.Mock).mockResolvedValue('allowed');
   });
 
   it('liefert mit wohnungen:ansehen die Wohnungen', async () => {
@@ -41,12 +41,12 @@ describe('GET /api/wohnungen', () => {
     const res = await GET();
 
     expect(res.status).toBe(200);
-    expect(hasPermission).toHaveBeenCalledWith('wohnungen', 'ansehen');
+    expect(checkPermission).toHaveBeenCalledWith('wohnungen', 'ansehen');
     expect(await res.json()).toEqual([expect.objectContaining({ id: 'a1', name: 'Wohnung 1', status: 'frei' })]);
   });
 
   it('antwortet ohne wohnungen:ansehen mit 403 und fragt weder Wohnungen noch Mieter ab', async () => {
-    (hasPermission as jest.Mock).mockImplementation(async (modul: string) => modul !== 'wohnungen');
+    (checkPermission as jest.Mock).mockImplementation(async (modul: string) => (modul === 'wohnungen' ? 'denied' : 'allowed'));
     const from = jest.fn();
     (createSupabaseServerClient as jest.Mock).mockResolvedValue({ from });
 
@@ -54,6 +54,19 @@ describe('GET /api/wohnungen', () => {
 
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: 'Permission denied', code: 'PERMISSION_DENIED' });
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it('antwortet 503 PERMISSION_CHECK_FAILED statt 403, wenn die Rechtepruefung selbst fehlschlaegt, und fragt nichts ab', async () => {
+    jest.spyOn(console, 'error').mockImplementation();
+    (checkPermission as jest.Mock).mockResolvedValue('error');
+    const from = jest.fn();
+    (createSupabaseServerClient as jest.Mock).mockResolvedValue({ from });
+
+    const res = await GET();
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: 'Permission check failed', code: 'PERMISSION_CHECK_FAILED' });
     expect(from).not.toHaveBeenCalled();
   });
 
@@ -69,7 +82,7 @@ describe('GET /api/wohnungen', () => {
 
   it('nutzt requireApiPermission: 500 statt 403, wenn die Rechtepruefung selbst eine Ausnahme wirft', async () => {
     jest.spyOn(console, 'error').mockImplementation();
-    (hasPermission as jest.Mock).mockRejectedValue(new Error('boom'));
+    (checkPermission as jest.Mock).mockRejectedValue(new Error('boom'));
 
     const res = await GET();
 

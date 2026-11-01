@@ -122,6 +122,7 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('@/lib/permissions', () => ({
   hasPermission: jest.fn().mockResolvedValue(true),
+  checkPermission: jest.fn().mockResolvedValue('allowed'),
   requirePermission: jest.fn().mockResolvedValue(undefined),
 }));
 
