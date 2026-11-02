@@ -16,6 +16,10 @@ export const FOLDER_NOT_AVAILABLE_MESSAGE =
 export const STORAGE_ACCESS_DENIED_MESSAGE =
   'Auf diese Datei oder diesen Ordner haben Sie keinen Zugriff.'
 
+/** Folder deletion: part of the contents was removed, the rest is refused (no names, no counts) */
+export const FOLDER_PARTIALLY_DELETED_MESSAGE =
+  'Der Ordner wurde nur teilweise gelöscht. Auf einen Teil des Inhalts haben Sie keinen Zugriff.'
+
 /**
  * Messages of Postgres / Supabase Storage for a refusal by row level security or missing privileges. Anchored on
  * purpose: the text must BE the database message (optionally behind ONE wrapper of our own, `Failed to copy file: ...`,

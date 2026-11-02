@@ -530,6 +530,8 @@ export function CloudStorage({
                         description: `Ordner "${folder.displayName || folder.name}" wurde dauerhaft gelöscht.`
                     })
                 } catch (error) {
+                    // Also after a failure: a partly deleted folder must not keep showing the files that are gone
+                    handleRefresh(false)
                     toast({
                         description: error instanceof Error ? error.message : "Der Ordner konnte nicht gelöscht werden.",
                         variant: "destructive"
@@ -538,7 +540,7 @@ export function CloudStorage({
                 }
             }
         })
-    }, [deleteFolder, toast])
+    }, [deleteFolder, handleRefresh, toast])
 
     /**
      * Handle upload

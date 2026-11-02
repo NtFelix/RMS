@@ -9,7 +9,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { folderMetadataFilter } from '@/lib/storage-paths';
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from '@/lib/object-scope';
 import { hasPermission } from '@/lib/permissions';
-import { FOLDER_NOT_AVAILABLE_MESSAGE, STORAGE_ACCESS_DENIED_MESSAGE } from '@/lib/storage-messages';
+import { FOLDER_NOT_AVAILABLE_MESSAGE, FOLDER_PARTIALLY_DELETED_MESSAGE, STORAGE_ACCESS_DENIED_MESSAGE } from '@/lib/storage-messages';
 
 // Mock dependencies
 jest.mock('@/lib/supabase-server', () => ({
@@ -48,6 +48,7 @@ describe('dateien/actions', () => {
   let mockStorageBuilder: {
     createSignedUrl: jest.Mock;
     remove: jest.Mock;
+    exists: jest.Mock;
   };
 
   beforeEach(() => {
@@ -73,6 +74,8 @@ describe('dateien/actions', () => {
       createSignedUrl: jest.fn(),
       // Like Supabase Storage: `data` lists the objects that were actually removed
       remove: jest.fn(async (paths: string[]) => ({ data: paths.map((name) => ({ name })), error: null })),
+      // Existence of an object that `remove` did not list (as the user sees it): exists unless a test says otherwise
+      exists: jest.fn(async () => ({ data: true, error: null })),
     };
 
     mockSupabase = {
@@ -435,13 +438,74 @@ describe('dateien/actions', () => {
         expect(removal.error).not.toContain('storage.internal')
       })
 
-      it('reports a file that storage did not remove (RLS gives no error, `data` stays empty) as refused, same text', async () => {
+      it('reports a file that storage did not remove and that still exists (RLS gives no error, `data` stays empty) as refused, same text', async () => {
+        user()
+        mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({
+          data: [{ dateipfad: FOLDER_PATH, dateiname: 'a.pdf' }, { dateipfad: FOLDER_PATH, dateiname: 'b.pdf' }],
+          error: null,
+        }))
+        mockStorageBuilder.remove.mockResolvedValueOnce({ data: [], error: null })
+
+        expect(await deleteFolder(FOLDER_PATH)).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE })
+        expect(mockStorageBuilder.remove).toHaveBeenCalledTimes(1) // no .keep removal for a folder that keeps its files
+      })
+
+      it('says "only partly deleted" if some files were removed and others are refused, and keeps the .keep', async () => {
         user()
         mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({
           data: [{ dateipfad: FOLDER_PATH, dateiname: 'a.pdf' }, { dateipfad: FOLDER_PATH, dateiname: 'b.pdf' }],
           error: null,
         }))
         mockStorageBuilder.remove.mockResolvedValueOnce({ data: [{ name: `${FOLDER_PATH}/a.pdf` }], error: null })
+
+        expect(await deleteFolder(FOLDER_PATH)).toEqual({ success: false, error: FOLDER_PARTIALLY_DELETED_MESSAGE })
+        expect(mockStorageBuilder.remove).toHaveBeenCalledTimes(1)
+      })
+
+      it('an orphaned metadata row (object does not exist) does not block the folder: success and the .keep is removed', async () => {
+        user()
+        mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({
+          data: [{ dateipfad: FOLDER_PATH, dateiname: 'a.pdf' }, { dateipfad: FOLDER_PATH, dateiname: 'orphan.pdf' }],
+          error: null,
+        }))
+        mockStorageBuilder.remove.mockResolvedValueOnce({ data: [{ name: `${FOLDER_PATH}/a.pdf` }], error: null })
+        mockStorageBuilder.exists.mockResolvedValue({ data: false, error: { statusCode: '404' } })
+
+        expect(await deleteFolder(FOLDER_PATH)).toEqual({ success: true })
+        expect(mockStorageBuilder.exists).toHaveBeenCalledTimes(1)
+        expect(mockStorageBuilder.exists).toHaveBeenCalledWith(`${FOLDER_PATH}/orphan.pdf`)
+        expect(mockStorageBuilder.remove).toHaveBeenLastCalledWith([`${FOLDER_PATH}/.keep`])
+      })
+
+      it('a folder with only orphaned rows is deletable, a refused file next to an orphan still refuses the folder', async () => {
+        user()
+        mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({
+          data: [{ dateipfad: FOLDER_PATH, dateiname: 'orphan.pdf' }],
+          error: null,
+        }))
+        mockStorageBuilder.remove.mockResolvedValueOnce({ data: [], error: null })
+        mockStorageBuilder.exists.mockResolvedValue({ data: false, error: { statusCode: '404' } })
+        expect(await deleteFolder(FOLDER_PATH)).toEqual({ success: true })
+
+        mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({
+          data: [{ dateipfad: FOLDER_PATH, dateiname: 'orphan.pdf' }, { dateipfad: FOLDER_PATH, dateiname: 'refused.pdf' }],
+          error: null,
+        }))
+        mockStorageBuilder.remove.mockResolvedValueOnce({ data: [], error: null })
+        mockStorageBuilder.exists.mockImplementation(async (path: string) =>
+          path.endsWith('refused.pdf') ? { data: true, error: null } : { data: false, error: { statusCode: '404' } })
+        expect(await deleteFolder(FOLDER_PATH)).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE })
+      })
+
+      it('a missing object without the view right of the select policy is not "gone" but refused (fail closed)', async () => {
+        user()
+        grant('dokumente:loeschen')
+        mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({
+          data: [{ dateipfad: FOLDER_PATH, dateiname: 'a.pdf' }],
+          error: null,
+        }))
+        mockStorageBuilder.remove.mockResolvedValueOnce({ data: [], error: null })
+        mockStorageBuilder.exists.mockResolvedValue({ data: false, error: { statusCode: '404' } })
 
         expect(await deleteFolder(FOLDER_PATH)).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE })
       })

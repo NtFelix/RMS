@@ -21,6 +21,7 @@ import {
 } from './storage-operations';
 import { folderMetadataFilter, assertPathAllowed } from './storage-paths';
 import { pathUtils } from './path-utils';
+import { hasPermission } from '@/lib/permissions';
 import { STORAGE_ACCESS_DENIED_MESSAGE } from './storage-messages';
 
 // Mock functions
@@ -146,6 +147,7 @@ function resetDefaults() {
   mockMove.mockResolvedValue({ error: null });
   mockCopy.mockResolvedValue({ error: null });
   mockExists.mockResolvedValue({ data: true, error: null });
+  (hasPermission as jest.Mock).mockReset().mockResolvedValue(true);
   // Like Supabase Storage: `data` lists the objects that were actually removed (the paths as they were passed)
   mockRemove.mockImplementation(async (paths: string[]) => ({ data: paths.map((name) => ({ name })), error: null }));
   mockCreateSignedUrls.mockImplementation((paths: string[]) =>
@@ -387,6 +389,7 @@ describe('removeFiles', () => {
     expect(result).toEqual({
       removed: [`${HOUSE}/a.pdf`, `${HOUSE}/c.pdf`],
       denied: ['org_org1/shared/other-house/b.pdf'],
+      alreadyGone: [],
     });
   });
 
@@ -415,15 +418,15 @@ describe('removeFiles', () => {
     mockOrgScope(['house456']);
     mockRemove.mockResolvedValue({ data: [{ name: `${HOUSE}/a.pdf` }], error: null });
     const result = await removeFiles([`${HOUSE}/a.pdf`, `${HOUSE}/wohnung1/b.pdf`]);
-    expect(result).toEqual({ removed: [`${HOUSE}/a.pdf`], denied: [`${HOUSE}/wohnung1/b.pdf`] });
+    expect(result).toEqual({ removed: [`${HOUSE}/a.pdf`], denied: [`${HOUSE}/wohnung1/b.pdf`], alreadyGone: [] });
   });
 
   it('reports everything as denied if storage removed nothing, also without `data`', async () => {
     mockOrgScope(['house456']);
     mockRemove.mockResolvedValue({ data: [], error: null });
-    expect(await removeFiles([`${HOUSE}/a.pdf`])).toEqual({ removed: [], denied: [`${HOUSE}/a.pdf`] });
+    expect(await removeFiles([`${HOUSE}/a.pdf`])).toEqual({ removed: [], denied: [`${HOUSE}/a.pdf`], alreadyGone: [] });
     mockRemove.mockResolvedValue({ data: null, error: null });
-    expect(await removeFiles([`${HOUSE}/a.pdf`])).toEqual({ removed: [], denied: [`${HOUSE}/a.pdf`] });
+    expect(await removeFiles([`${HOUSE}/a.pdf`])).toEqual({ removed: [], denied: [`${HOUSE}/a.pdf`], alreadyGone: [] });
   });
 
   it('keeps the order of the request and merges validation denials with storage denials', async () => {
@@ -433,6 +436,7 @@ describe('removeFiles', () => {
     expect(result).toEqual({
       removed: [`${HOUSE}/c.pdf`],
       denied: [`${HOUSE}/a.pdf`, 'org_org1/shared/other-house/b.pdf'],
+      alreadyGone: [],
     });
   });
 
@@ -442,8 +446,90 @@ describe('removeFiles', () => {
   });
 
   it('calls nothing for an empty list', async () => {
-    expect(await removeFiles([])).toEqual({ removed: [], denied: [] });
+    expect(await removeFiles([])).toEqual({ removed: [], denied: [], alreadyGone: [] });
     expect(mockGetUser).not.toHaveBeenCalled();
+  });
+
+  describe('objects that storage did not remove: refused or not there?', () => {
+    const missing = { data: false, error: { statusCode: '404', message: 'Object not found' } };
+    const APARTMENT = '11111111-1111-4111-8111-111111111111';
+    const TENANT = '22222222-2222-4222-8222-222222222222';
+
+    beforeEach(() => mockOrgScope(['house456']));
+
+    it('an object that does not exist (orphaned row, double click) is "alreadyGone", not denied, and nothing else is affected', async () => {
+      mockRemove.mockResolvedValue({ data: [{ name: `${HOUSE}/a.pdf` }], error: null });
+      mockExists.mockResolvedValue(missing);
+
+      const result = await removeFiles([`${HOUSE}/a.pdf`, `${HOUSE}/orphan.pdf`]);
+
+      expect(result).toEqual({ removed: [`${HOUSE}/a.pdf`], denied: [], alreadyGone: [`${HOUSE}/orphan.pdf`] });
+      expect(mockExists).toHaveBeenCalledTimes(1);
+      expect(mockExists).toHaveBeenCalledWith(`${HOUSE}/orphan.pdf`);
+    });
+
+    it('an object that is still there after the removal is denied', async () => {
+      mockRemove.mockResolvedValue({ data: [], error: null });
+      mockExists.mockImplementation(async (path: string) => (path.endsWith('kept.pdf') ? { data: true, error: null } : missing));
+
+      const result = await removeFiles([`${HOUSE}/kept.pdf`, `${HOUSE}/gone.pdf`]);
+
+      expect(result).toEqual({ removed: [], denied: [`${HOUSE}/kept.pdf`], alreadyGone: [`${HOUSE}/gone.pdf`] });
+    });
+
+    it('a check that fails (network, 5xx) counts as denied, never as gone', async () => {
+      mockRemove.mockResolvedValue({ data: [], error: null });
+      mockExists.mockRejectedValue(new Error('socket hang up'));
+
+      expect(await removeFiles([`${HOUSE}/a.pdf`])).toEqual({ removed: [], denied: [`${HOUSE}/a.pdf`], alreadyGone: [] });
+    });
+
+    it('does not check anything if storage removed everything', async () => {
+      await removeFiles([`${HOUSE}/a.pdf`, `${HOUSE}/b.pdf`]);
+      expect(mockExists).not.toHaveBeenCalled();
+    });
+
+    it('a missing object is only "gone" for a user who may see it: without the view rights of the select policy it stays denied', async () => {
+      mockRemove.mockResolvedValue({ data: [], error: null });
+      mockExists.mockResolvedValue(missing);
+      const tenantFile = `${HOUSE}/${APARTMENT}/${TENANT}/vertrag.pdf`;
+      const apartmentFile = `${HOUSE}/${APARTMENT}/x.pdf`;
+      const grant = (...granted: string[]) =>
+        (hasPermission as jest.Mock).mockImplementation(async (modul: string, aktion: string) => granted.includes(`${modul}:${aktion}`));
+
+      grant('dokumente:ansehen', 'wohnungen:ansehen', 'mieter:ansehen');
+      expect((await removeFiles([tenantFile, apartmentFile])).alreadyGone).toEqual([tenantFile, apartmentFile]);
+
+      grant('dokumente:ansehen', 'wohnungen:ansehen');
+      expect(await removeFiles([tenantFile, apartmentFile, `${HOUSE}/a.pdf`])).toEqual({
+        removed: [],
+        denied: [tenantFile],
+        alreadyGone: [apartmentFile, `${HOUSE}/a.pdf`],
+      });
+
+      grant('dokumente:ansehen');
+      expect((await removeFiles([apartmentFile, `${HOUSE}/a.pdf`])).denied).toEqual([apartmentFile]);
+
+      grant('wohnungen:ansehen', 'mieter:ansehen');
+      expect((await removeFiles([`${HOUSE}/a.pdf`])).denied).toEqual([`${HOUSE}/a.pdf`]);
+    });
+
+    it('checks many objects in bounded rounds', async () => {
+      const paths = Array.from({ length: 25 }, (_, i) => `${HOUSE}/f${i}.pdf`);
+      mockRemove.mockResolvedValue({ data: [], error: null });
+      let running = 0;
+      let peak = 0;
+      mockExists.mockImplementation(async () => {
+        running += 1;
+        peak = Math.max(peak, running);
+        await Promise.resolve();
+        running -= 1;
+        return missing;
+      });
+
+      expect((await removeFiles(paths)).alreadyGone).toHaveLength(25);
+      expect(peak).toBeLessThanOrEqual(10);
+    });
   });
 });
 

@@ -7,8 +7,10 @@ import {
     FOLDER_NOT_AVAILABLE_MESSAGE,
     isPermissionDeniedError,
     mapFolderRpcError,
+    FOLDER_PARTIALLY_DELETED_MESSAGE,
     STORAGE_ACCESS_DENIED_MESSAGE,
 } from '@/lib/storage-messages'
+import { classifyUnremovedObjects } from '@/lib/storage-operations'
 import { folderMetadataFilter, isPathInFolder, orgRoot, parseStoragePath, requiredViewModules } from '@/lib/storage-paths'
 import { unstable_rethrow } from 'next/navigation'
 
@@ -400,11 +402,21 @@ export async function deleteFolder(folderPath: string): Promise<{
                 return { success: false, error: deleteFolderErrorMessage(deleteError) }
             }
 
-            // A refusal by the delete policy is no error: the object is just missing from `data`. The listing of
-            // the metadata only knows the organisation, so this is where a refused folder shows up.
+            // A refusal by the delete policy is no error: the object is just missing from `data`, exactly like an
+            // object that does not exist (orphaned metadata row, deleted in parallel). Only objects that still
+            // exist for the user count as refused, the missing ones are already gone and must not block the folder.
+            // The listing of the metadata only knows the organisation, so this is where a refused folder shows up.
             const removedPaths = new Set<string>((Array.isArray(removed) ? removed : []).map((object: { name: string }) => object.name))
-            if (storagePaths.some((path) => !removedPaths.has(path))) {
-                return { success: false, error: STORAGE_ACCESS_DENIED_MESSAGE }
+            const notRemoved = storagePaths.filter((path) => !removedPaths.has(path))
+            if (notRemoved.length > 0) {
+                const { denied } = await classifyUnremovedObjects(supabase, notRemoved)
+                if (denied.length > 0) {
+                    // Some files are gone, the rest stays: the folder is not empty, so its .keep stays as well
+                    return {
+                        success: false,
+                        error: removedPaths.size > 0 ? FOLDER_PARTIALLY_DELETED_MESSAGE : STORAGE_ACCESS_DENIED_MESSAGE,
+                    }
+                }
             }
         }
 

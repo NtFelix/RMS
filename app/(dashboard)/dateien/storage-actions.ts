@@ -115,10 +115,10 @@ export async function createDownloadUrls(
   )
 }
 
-/** Removes files; paths the user may not write are not touched and come back in `denied` */
+/** Removes files; paths the user may not write are not touched and come back in `denied`, objects that no longer exist in `alreadyGone` */
 export async function removeObjects(
   paths: string[],
-): Promise<StorageActionResult<{ removed: string[]; denied: string[] }>> {
+): Promise<StorageActionResult<{ removed: string[]; denied: string[]; alreadyGone: string[] }>> {
   if (!isPathList(paths)) return invalidInput('removeObjects')
   return run('removeObjects', (ctx) => removeFiles(paths, {}, ctx))
 }
@@ -126,7 +126,7 @@ export async function removeObjects(
 /** Permanently removes files, only accepted inside an archive */
 export async function permanentlyDeleteObjects(
   paths: string[],
-): Promise<StorageActionResult<{ removed: string[]; denied: string[] }>> {
+): Promise<StorageActionResult<{ removed: string[]; denied: string[]; alreadyGone: string[] }>> {
   if (!isPathList(paths)) return invalidInput('permanentlyDeleteObjects')
   return run('permanentlyDeleteObjects', (ctx) => removeFiles(paths, { onlyArchived: true }, ctx))
 }
