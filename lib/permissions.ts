@@ -1,4 +1,5 @@
 import { ensureAuth } from "@/lib/auth-utils";
+import { isNotAuthenticatedError } from "@/lib/auth-errors";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { evaluatePermission, evaluatePermissionResult, type Modul, type Aktion, type PermissionCheckResult } from "./permissions-core";
@@ -10,8 +11,11 @@ export { evaluatePermission, evaluatePermissionResult, type Modul, type Aktion, 
  * exception). `error` is NO decision: callers must deny access for it as for `denied` (fail-closed) and may only
  * change the message / offer a retry.
  *
- * Not authenticated counts as `denied` (as before: it was false), because the failure of the session lookup cannot be
- * told apart from "no session" here.
+ * Not signed in (no valid session) counts as `denied`, as before (it was false). If the lookup of the user itself fails
+ * technically (auth service unreachable, 5xx, rate limit, see AuthLookupError), that is an `error`, not "not signed in".
+ *
+ * Every failed check is logged exactly once, by whoever detects it (here, or evaluatePermissionResult, which catches
+ * its own failures and never throws), so this function adds no second line for an `error` it merely passes on.
  */
 export async function checkPermission(modul: Modul, aktion: Aktion): Promise<PermissionCheckResult> {
   try {
@@ -20,15 +24,16 @@ export async function checkPermission(modul: Modul, aktion: Aktion): Promise<Per
       auth = await ensureAuth();
     } catch (authError) {
       unstable_rethrow(authError);
-      console.error(`Exception checking permission for ${modul}:${aktion}:`, authError);
-      return 'denied';
+      if (isNotAuthenticatedError(authError)) return 'denied';
+      console.error(`Permission check ${modul}:${aktion} failed (user lookup):`, authError);
+      return 'error';
     }
     const { supabase, user } = auth;
 
     // Resolve current organisation ID
     const { data: orgId, error: orgError } = await supabase.rpc('current_organisation_id');
     if (orgError) {
-      console.error(`Error fetching current_organisation_id for hasPermission:`, orgError);
+      console.error(`Permission check ${modul}:${aktion} failed (current_organisation_id lookup):`, orgError);
       return 'error';
     }
 
@@ -39,7 +44,7 @@ export async function checkPermission(modul: Modul, aktion: Aktion): Promise<Per
     return await evaluatePermissionResult(supabase, user.id, orgId, modul, aktion);
   } catch (error) {
     unstable_rethrow(error);
-    console.error(`Exception checking permission for ${modul}:${aktion}:`, error);
+    console.error(`Permission check ${modul}:${aktion} failed (unexpected exception):`, error);
     return 'error';
   }
 }

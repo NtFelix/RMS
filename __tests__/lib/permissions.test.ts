@@ -4,6 +4,7 @@
  */
 
 import { ensureAuth } from '@/lib/auth-utils';
+import { AuthLookupError } from '@/lib/auth-errors';
 import { evaluatePermissionResult } from '@/lib/permissions-core';
 
 // jest.setup.js replaces the module with a mock, here the real one is under test
@@ -75,6 +76,37 @@ describe('checkPermission / hasPermission', () => {
     expect(await checkPermission('mieter', 'ansehen')).toBe('denied');
     expect(await hasPermission('mieter', 'ansehen')).toBe(false);
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('a failed user lookup (AuthLookupError, same message as "not signed in") is an error, not denied; logged once', async () => {
+    mockEnsureAuth.mockRejectedValue(new AuthLookupError());
+
+    expect(await checkPermission('mieter', 'ansehen')).toBe('error');
+    expect(await hasPermission('mieter', 'ansehen')).toBe(false);
+    expect(console.error).toHaveBeenCalledTimes(2); // one line per call, not two
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('mieter:ansehen'), expect.any(AuthLookupError));
+    expect(rpc).not.toHaveBeenCalled();
+    expect(mockEvaluate).not.toHaveBeenCalled();
+  });
+
+  it('an unexpected exception of ensureAuth (neither "not signed in" nor a lookup error) is an error', async () => {
+    mockEnsureAuth.mockRejectedValue(new Error('cookies() failed'));
+
+    expect(await checkPermission('mieter', 'ansehen')).toBe('error');
+  });
+
+  it('"not signed in" is no failure: denied, nothing logged', async () => {
+    mockEnsureAuth.mockRejectedValue(new Error('Nicht authentifiziert. Bitte melden Sie sich an.'));
+
+    expect(await checkPermission('mieter', 'ansehen')).toBe('denied');
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it('an error of the evaluation is logged by the evaluation only (checkPermission adds no second line)', async () => {
+    mockEvaluate.mockResolvedValue('error');
+
+    expect(await checkPermission('mieter', 'ansehen')).toBe('error');
+    expect(console.error).not.toHaveBeenCalled(); // the mock evaluation logs nothing, so checkPermission must not either
   });
 
   it('requirePermission still redirects to /unauthorized for denied AND for a failed check (no loosening)', async () => {
