@@ -106,7 +106,7 @@ describe('WohnungenClientView - Hinweis bei fehlgeschlagener Mieter-Rechteprüfu
 
     await waitFor(() => expect(screen.queryByText(MESSAGE)).not.toBeInTheDocument());
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(mockFetch).toHaveBeenCalledWith('/api/wohnungen', expect.anything());
+    expect(mockFetch).toHaveBeenCalledWith('/api/wohnungen', expect.objectContaining({ cache: 'no-store' }));
     expect(mockRefresh).not.toHaveBeenCalled();
     expect(screen.getByTestId('apt-a1')).toHaveTextContent('Wohnung 1|Erika Beispiel');
     expect(screen.getByTestId('apt-a2')).toHaveTextContent('Wohnung 2|kein-mieter');
@@ -176,11 +176,45 @@ describe('WohnungenClientView - Hinweis bei fehlgeschlagener Mieter-Rechteprüfu
 
     await user.click(screen.getByRole('button', { name: /Erneut laden/ }));
 
-    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' })));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive', description: 'Die Mieterdaten konnten nicht neu geladen werden.' })));
     expect(screen.getByText(MESSAGE)).toBeInTheDocument();
     expect(screen.getByTestId('apt-a1')).toHaveTextContent('kein-zugriff');
     expect(screen.getByRole('button', { name: /Erneut laden/ })).toBeEnabled();
     expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  it('eine im Reload fehlende Wohnung bleibt wie vom Server geliefert ausgeblendet, der Hinweis bleibt', async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([
+        { id: 'a1', name: 'Wohnung 1', status: 'vermietet', tenant: { id: 'm1', name: 'Erika Beispiel', einzug: '2020-01-01', auszug: null } },
+      ]),
+    });
+    render(<WohnungenClientView {...props(hidden({ permissionCheckFailed: true }))} />);
+
+    await user.click(screen.getByRole('button', { name: /Erneut laden/ }));
+
+    await waitFor(() => expect(screen.getByTestId('apt-a1')).toHaveTextContent('Erika Beispiel'));
+    expect(screen.getByTestId('apt-a2')).toHaveTextContent('kein-zugriff');
+    expect(screen.getByText(MESSAGE)).toBeInTheDocument();
+  });
+
+  it('waehrend des Ladens ist der Knopf deaktiviert (kein zweiter Abruf)', async () => {
+    const user = userEvent.setup();
+    let resolveFetch: (value: unknown) => void = () => {};
+    mockFetch.mockReturnValue(new Promise((resolve) => { resolveFetch = resolve; }));
+    render(<WohnungenClientView {...props(hidden({ permissionCheckFailed: true }))} />);
+
+    await user.click(screen.getByRole('button', { name: /Erneut laden/ }));
+
+    const button = screen.getByRole('button', { name: /Erneut laden/ });
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    resolveFetch({ ok: true, json: () => Promise.resolve([]) });
+    await waitFor(() => expect(screen.getByRole('button', { name: /Erneut laden/ })).toBeEnabled());
   });
 
   it('verwirft das Reload-Ergebnis, wenn der Server neue Daten liefert (router.refresh)', async () => {
