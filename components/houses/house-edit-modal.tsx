@@ -151,6 +151,7 @@ function TopBar({
         variant="ghost"
         size="icon"
         onClick={onDeleteRequest}
+        title="Löschen"
         className="rounded-lg opacity-50 hover:opacity-100 hover:bg-hover-bg text-red-600 hover:text-red-600 pointer-events-auto cursor-pointer h-8 w-8 active:scale-[0.995]"
       >
         <Trash2 className="h-4 w-4" />
