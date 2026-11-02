@@ -36,6 +36,7 @@ describe('storage-messages', () => {
       // behind one wrapper of our own code
       'Upload konnte nicht vorbereitet werden: new row violates row-level security policy',
       'Failed to copy file: permission denied for table objects',
+      'Failed to copy file to target location: permission denied for schema storage',
     ])('recognises "%s"', (message) => {
       expect(isPermissionDeniedMessage(message)).toBe(true)
     })
@@ -57,16 +58,35 @@ describe('storage-messages', () => {
       'Source file not found: Rechnung 42501.pdf in org_x/shared/h',
       'Source file not found: forbidden.pdf in org_x/shared/h',
       'Die Datei "new row violates row-level security policy.pdf" ist zu groß',
+      // a free prefix (user input after a colon) is no wrapper of ours, and `permission denied for` needs a kind of object
+      'Datei existiert bereits: permission denied for foo.pdf',
+      'Datei existiert bereits: new row violates row-level security policy',
+      'Ordner Rechnungen: Invalid path: x',
+      'x: insufficient_privilege',
+      'permission denied for foo.pdf',
+      'Failed to copy file: permission denied for Rechnung.pdf',
+      'Failed to copy file: Datei: permission denied for table objects',
     ])('does not treat %p as a refusal', (message) => {
       expect(isPermissionDeniedMessage(message)).toBe(false)
     })
   })
 
   describe('isPermissionDeniedError', () => {
-    it('recognises SQLSTATE 42501 and HTTP 403 of the error object, whatever the message says', () => {
+    it('recognises SQLSTATE 42501 and a 403 with the error name of a policy refusal, whatever the message says', () => {
       expect(isPermissionDeniedError({ code: '42501', message: 'whatever' })).toBe(true)
       expect(isPermissionDeniedError({ statusCode: '403', error: 'Unauthorized', message: 'The resource was not found' })).toBe(true)
-      expect(isPermissionDeniedError({ status: 403, message: 'x' })).toBe(true)
+      expect(isPermissionDeniedError({ status: 403, error: 'Forbidden', message: 'x' })).toBe(true)
+      expect(isPermissionDeniedError({ status: 403, statusCode: '403', error: 'AccessDenied', message: 'x' })).toBe(true)
+    })
+
+    it('does not treat every 403 as a refusal (size, quota) nor a user-controlled text behind a colon', () => {
+      expect(isPermissionDeniedError({ status: 403, message: 'x' })).toBe(false)
+      expect(isPermissionDeniedError({ statusCode: '403', error: 'QuotaExceeded', message: 'Speicherkontingent überschritten' })).toBe(false)
+      expect(isPermissionDeniedError({ statusCode: 403, message: 'Datei zu groß: Unauthorized.pdf' })).toBe(false)
+      expect(isPermissionDeniedError({ statusCode: '413', error: 'Unauthorized', message: 'Payload too large' })).toBe(false)
+      expect(isPermissionDeniedError(new Error('Datei existiert bereits: permission denied for foo.pdf'))).toBe(false)
+      expect(isPermissionDeniedError({ message: 'Datei existiert bereits: new row violates row-level security policy' })).toBe(false)
+      expect(isPermissionDeniedError('Datei existiert bereits: permission denied for foo.pdf')).toBe(false)
     })
 
     it('recognises an anchored message and a plain string', () => {
