@@ -102,6 +102,24 @@ describe('GET /api/finance-entries: finanzen:ansehen', () => {
     expect(res.status).toBe(403);
   });
 
+  it('antwortet ohne Anmeldung weiter mit 401 (nicht 403) und prueft weder Recht noch liest Daten', async () => {
+    mockFinanzenAnsehen('denied');
+    const { from, rpc } = setup();
+    (createSupabaseServerClient as jest.Mock).mockResolvedValue({
+      from,
+      rpc,
+      auth: { getUser: jest.fn(async () => ({ data: { user: null }, error: null })) },
+    });
+
+    const res = await call();
+
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: 'Unauthorized' });
+    expect(checkPermission).not.toHaveBeenCalled();
+    expect(from).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it('antwortet 503 PERMISSION_CHECK_FAILED, wenn die Pruefung von finanzen:ansehen fehlschlaegt', async () => {
     mockFinanzenAnsehen('error');
     const { from, rpc } = setup();
