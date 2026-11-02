@@ -196,19 +196,19 @@ export async function GET(request: Request) {
     // scope lookups (no extra round-trip); a failed check throws PermissionCheckError (503, see the catch) instead of
     // being shown as "no access".
     const { hasApiPermission } = await import("@/lib/api-permissions");
+    const requestedCategories = new Set(categories);
     const modulesToCheck = new Set<Modul>();
     for (const [category, modul] of Object.entries(SEARCH_CATEGORY_MODULE)) {
-      if (categories.includes(category)) modulesToCheck.add(modul);
+      if (requestedCategories.has(category)) modulesToCheck.add(modul);
     }
-    if (categories.includes('apartment')) modulesToCheck.add('mieter');
-    const grantedModules = new Set<Modul>();
-    const [accessibleHaeuserIds, accessibleWohnungIds] = await Promise.all([
+    if (requestedCategories.has('apartment')) modulesToCheck.add('mieter');
+    const modules = Array.from(modulesToCheck);
+    const [accessibleHaeuserIds, accessibleWohnungIds, ...grants] = await Promise.all([
       getAccessibleHaeuserIds(),
       getAccessibleWohnungIds(),
-      ...Array.from(modulesToCheck, async (modul) => {
-        if (await hasApiPermission(modul, 'ansehen')) grantedModules.add(modul);
-      }),
+      ...modules.map((modul) => hasApiPermission(modul, 'ansehen')),
     ]);
+    const grantedModules = new Set(modules.filter((_, i) => grants[i]));
     const canSearchCategory = (category: string) => grantedModules.has(SEARCH_CATEGORY_MODULE[category]);
     const canViewTenantsOfApartments = grantedModules.has('mieter');
     // Without mieter:ansehen only `auszug` (for the status rented / free) is read from Mieter: no name, no move-in
