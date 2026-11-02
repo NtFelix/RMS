@@ -272,7 +272,7 @@ describe('GET /api/dateien/tree', () => {
 
       expect(children.map((c) => c.path)).toEqual([`${APARTMENT_PATH}/apartment_documents`, `${APARTMENT_PATH}/Eigener Ordner`])
       expect(JSON.stringify(children)).not.toContain('Mieter Eins')
-      expect(queries.filter((q) => q.table === 'Mieter')).toHaveLength(0)
+      expect(JSON.stringify(children)).not.toContain(TENANT_ID)
     })
 
     it('wohnungen:ansehen without mieter:ansehen: the tenant folder itself is empty', async () => {
@@ -488,6 +488,49 @@ describe('GET /api/dateien/tree', () => {
 
         await expectCheckFailed(`${APARTMENT_PATH}/${TENANT_ID}`)
         expect((await childrenOf(HOUSE_PATH)).map((c) => c.path)).toContain(APARTMENT_PATH)
+      })
+
+      /** mieter:ansehen cannot be decided, everything else is granted */
+      function failMieterCheck() {
+        ;(checkPermission as jest.Mock).mockImplementation(async (modul: string) => (modul === 'mieter' ? 'error' : 'allowed'))
+      }
+
+      it('apartment level with tenants: a failing mieter:ansehen is a 503, no tenant name or folder is ever listed', async () => {
+        failMieterCheck()
+        mockList.mockResolvedValue({ data: [folder('Eigener Ordner')], error: null })
+
+        await expectCheckFailed(APARTMENT_PATH)
+      })
+
+      it('apartment level without tenants: mieter:ansehen is not needed, so a failing check does not fail the folder', async () => {
+        failMieterCheck()
+        tables.Mieter = []
+        mockList.mockResolvedValue({ data: [folder('Eigener Ordner')], error: null })
+
+        const children = await childrenOf(APARTMENT_PATH)
+
+        expect(children.map((c) => c.path)).toEqual([`${APARTMENT_PATH}/apartment_documents`, `${APARTMENT_PATH}/Eigener Ordner`])
+        expect(checkPermission).not.toHaveBeenCalledWith('mieter', 'ansehen')
+      })
+
+      it('a failed check ends the request at once: the right is asked once and nothing is listed (never allowed)', async () => {
+        failMieterCheck()
+        jest.spyOn(console, 'error').mockImplementation()
+
+        const response = await GET(request(`${APARTMENT_PATH}/${TENANT_ID}`))
+
+        expect(response.status).toBe(503)
+        expect((checkPermission as jest.Mock).mock.calls.filter(([modul]) => modul === 'mieter')).toHaveLength(1)
+      })
+
+      it('a plain Error("Permission denied") is answered as in the sibling routes: 403 PERMISSION_DENIED, not a 500', async () => {
+        jest.spyOn(console, 'error').mockImplementation()
+        ;(getAccessibleHaeuserIds as jest.Mock).mockRejectedValue(new Error('Permission denied'))
+
+        const response = await GET(request(HOUSE_PATH))
+
+        expect(response.status).toBe(403)
+        expect(await response.json()).toEqual({ error: 'Permission denied', code: 'PERMISSION_DENIED' })
       })
 
       it('filtered listing (Rechnungen): 503 instead of a list without apartment folders', async () => {

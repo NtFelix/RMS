@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ tree }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     unstable_rethrow(error)
-    const permissionResponse = error instanceof PermissionCheckError ? apiPermissionErrorResponse(error) : null
+    const permissionResponse = apiPermissionErrorResponse(error)
     if (permissionResponse) {
       console.error('Permission check failed while loading folder tree:', error)
       return permissionResponse
@@ -256,14 +256,16 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
       .eq('haus_id', houseId)
       .maybeSingle()
     if (!apartment) return []
-    // Tenants (names and folders) only for users with mieter:ansehen
-    const { data: tenants } = (await rights.mieter())
-      ? await supabase.from('Mieter').select('id, name').eq('wohnung_id', apartmentId)
-      : { data: [] }
-    const tenantNodes: TreeNode[] = (tenants ?? []).map((t: { id: string; name: string | null }) =>
+    // Tenants (names and folders) only for users with mieter:ansehen. The right is read lazily, only if the apartment
+    // has tenants to show: a failing check must not take down the apartment documents and custom folders, which do
+    // not need it. With tenants present, a failed check still ends in 503 (no tenant is listed without a confirmed right).
+    const { data: tenantRows } = await supabase.from('Mieter').select('id, name').eq('wohnung_id', apartmentId)
+    const hasTenants = (tenantRows ?? []).length > 0
+    const tenants: Array<{ id: string; name: string | null }> = hasTenants && (await rights.mieter()) ? tenantRows : []
+    const tenantNodes: TreeNode[] = tenants.map((t) =>
       folderNode(sharedPath(orgId, houseId, apartmentId, t.id), t.name || t.id, t.name || undefined),
     )
-    const known = new Set<string>([APARTMENT_DOCUMENTS, ...(tenants ?? []).map((t: { id: string }) => t.id)])
+    const known = new Set<string>([APARTMENT_DOCUMENTS, ...tenants.map((t) => t.id)])
     const customNodes = await listCustomFolderNodes(supabase, folderPath, known, (segment) =>
       sharedPath(orgId, houseId, apartmentId, segment),
     )
