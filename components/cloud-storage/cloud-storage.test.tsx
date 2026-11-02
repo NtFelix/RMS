@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { CloudStorage } from '@/components/cloud-storage/cloud-storage'
+import { useCloudStorageStore } from '@/hooks/use-cloud-storage-store'
 
 /**
  * A folder that could not be loaded (refused by the database, missing, technical error) is shown as an error and
@@ -123,14 +124,34 @@ describe('CloudStorage: a folder that failed to load', () => {
   })
 
   it('follows a new server-side result: the error of the props appears and disappears with them', () => {
-    const { rerender } = renderStorage()
+    // The pages key the component by path and error (one reset mechanism): a new result is a new instance
+    const keyed = (path: string, error?: string) => (
+      <CloudStorage key={`${path}\n${error ?? ''}`} userId="u1" orgId={ORG} initialPath={path} initialError={error} />
+    )
+    const { rerender } = render(keyed(PATH))
     expect(screen.queryByText(REFUSED, { selector: 'p' })).not.toBeInTheDocument()
 
-    rerender(<CloudStorage userId="u1" orgId={ORG} initialPath={`${PATH}/gesperrt`} initialError={REFUSED} />)
+    rerender(keyed(`${PATH}/gesperrt`, REFUSED))
     expect(screen.getByText(REFUSED, { selector: 'p' })).toBeInTheDocument()
 
-    rerender(<CloudStorage userId="u1" orgId={ORG} initialPath={`${PATH}/offen`} />)
+    // same folder, other result (e.g. after router.refresh)
+    rerender(keyed(`${PATH}/gesperrt`))
     expect(screen.queryByText(REFUSED, { selector: 'p' })).not.toBeInTheDocument()
+
+    rerender(keyed(`${PATH}/offen`))
+    expect(screen.queryByText(REFUSED, { selector: 'p' })).not.toBeInTheDocument()
+  })
+
+  it('a refused folder does not keep the files of the previous folder in the global store', () => {
+    const previous = [{ name: 'alt.pdf', id: 'x', updated_at: '', created_at: '', last_accessed_at: '', metadata: {}, size: 1 }]
+    const first = render(<CloudStorage key="a" userId="u1" orgId={ORG} initialPath={PATH} initialFiles={previous} />)
+    expect(useCloudStorageStore.getState().files).toHaveLength(1)
+    first.unmount()
+
+    render(<CloudStorage key="b" userId="u1" orgId={ORG} initialPath={`${PATH}/gesperrt`} initialFiles={[]} initialFolders={[]} initialError={REFUSED} />)
+
+    expect(useCloudStorageStore.getState().files).toEqual([])
+    expect(useCloudStorageStore.getState().folders).toEqual([])
   })
 
   it('a successful reload clears the error', async () => {

@@ -127,17 +127,12 @@ export function CloudStorage({
     // Track initialization
     const isInitialized = useRef(false)
 
-    // Error of the first (server-side) load: without it a refused folder would look like an empty one. It follows the
-    // props (a new server-side load of another folder or with another result starts from its own error) and is
-    // cleared only by a successful load of the folder, never by the user: "ignoring" it would show the folder that
-    // could not be read as an empty, writable one.
+    // Error of the first (server-side) load: without it a refused folder would look like an empty one. A new
+    // server-side load (other folder or other result) is a new instance: the pages key this component by path and
+    // error, which starts the state (this error, selection, search) and the store initialisation below from scratch.
+    // The error is cleared only by a successful load of the folder, never by the user: "ignoring" it would show the
+    // folder that could not be read as an empty, writable one.
     const [initialLoadError, setInitialLoadError] = useState<string | null>(initialError ?? null)
-    const initialLoadKey = `${initialPath}\n${initialError ?? ''}`
-    const [seenInitialLoadKey, setSeenInitialLoadKey] = useState(initialLoadKey)
-    if (seenInitialLoadKey !== initialLoadKey) {
-        setSeenInitialLoadKey(initialLoadKey)
-        setInitialLoadError(initialError ?? null)
-    }
 
     // A folder that failed to load (refused, missing or technical error) must not offer upload or creating anything
     const displayError = navigationError || initialLoadError
@@ -164,8 +159,10 @@ export function CloudStorage({
             
             setCurrentPath(initialPath)
 
-            if (initialFiles.length > 0) setFiles(initialFiles)
-            if (initialFolders.length > 0) setFolders(initialFolders)
+            // Also when empty: the store is global and outlives this instance, a refused or empty folder must not
+            // keep the files of the previous one (they would also drive the skeleton count)
+            setFiles(initialFiles)
+            setFolders(initialFolders)
             if (initialBreadcrumbs.length > 0) setBreadcrumbs(initialBreadcrumbs)
 
             setError(null)

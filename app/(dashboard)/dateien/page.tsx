@@ -32,6 +32,8 @@ async function CloudStorageContent() {
 
     return (
         <CloudStorage
+            // A new server-side result (e.g. after router.refresh) starts from its own state (error included)
+            key={`${initialPath}\n${loadError ?? ''}`}
             userId={user.id}
             orgId={orgId}
             initialPath={initialPath}
