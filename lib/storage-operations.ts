@@ -18,6 +18,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ensureAuth } from '@/lib/auth-utils';
+import { hasPermission } from '@/lib/permissions';
 import { pathUtils, isKeepFile } from './path-utils';
 import {
   ARCHIVE_SEGMENT,
@@ -34,11 +35,13 @@ import {
   parseArchivePath,
   parseStoragePath,
   privateRoot,
+  requiredViewModules,
   sharedRoot,
   type PathAccessContext,
   type PathAccessMode,
 } from '@/lib/storage-paths';
 import { validateFileInfo } from '@/lib/storage-file-rules';
+import { STORAGE_ACCESS_DENIED_MESSAGE } from '@/lib/storage-messages';
 
 export interface StorageObject {
   name: string;
@@ -386,18 +389,84 @@ async function archiveFileInContext(path: string, ctx: StorageContext): Promise<
   return archivePath;
 }
 
+/** Parallel existence checks (HEAD requests) per round: bounded, a refused folder can hold hundreds of objects */
+const EXISTENCE_CHECK_CONCURRENCY = 10;
+
+/**
+ * Sorts objects that storage did NOT remove (they are missing from the `data` of `remove()`). Storage reports a
+ * refusal by the delete policy and an object that does not exist (orphaned `Dokumente_Metadaten` row, double click,
+ * deleted in parallel) the same way, so `data` alone cannot tell them apart. The answer comes from the object itself,
+ * seen with the rights of the user (the select policy):
+ *   - the object is still visible          -> `denied` (it exists and was not removed)
+ *   - it is not visible AND the user may see such objects (`dokumente:ansehen`, `wohnungen:ansehen` / `mieter:ansehen`
+ *     where the path needs them, the same rights as the select policy) -> `gone`: it does not exist (any more)
+ *   - it is not visible, but the user lacks a view right, or the check fails -> `denied` (fail closed: for them
+ *     "not visible" says nothing about existence)
+ * `gone` paths were not touched by this call. Callers treat them as already removed, they never report a name or the
+ * existence of an object that the user may not see.
+ */
+export async function classifyUnremovedObjects(
+  supabase: SupabaseClient,
+  paths: string[],
+): Promise<{ denied: string[]; gone: string[] }> {
+  if (paths.length === 0) return { denied: [], gone: [] };
+  const bucket = supabase.storage.from(STORAGE_BUCKET);
+
+  const visible = new Map<string, boolean>();
+  for (let i = 0; i < paths.length; i += EXISTENCE_CHECK_CONCURRENCY) {
+    await Promise.all(paths.slice(i, i + EXISTENCE_CHECK_CONCURRENCY).map(async (path) => {
+      try {
+        const { data } = await bucket.exists(path);
+        visible.set(path, data !== false);
+      } catch {
+        // Not a clear "does not exist" (network, 5xx, 403): treated as existing, i.e. denied
+        visible.set(path, true);
+      }
+    }));
+  }
+
+  const missing = paths.filter((path) => visible.get(path) === false);
+  const gone: string[] = [];
+  if (missing.length > 0) {
+    // Which view rights the select policy needs for each missing path (a path the checks cannot read is never "gone")
+    const requirements = missing.map((path) => {
+      try {
+        return { path, required: requiredViewModules(path) };
+      } catch {
+        return { path, required: null };
+      }
+    });
+    const [dokumente, wohnungen, mieter] = await Promise.all([
+      hasPermission('dokumente', 'ansehen'),
+      requirements.some(({ required }) => required?.wohnungen) ? hasPermission('wohnungen', 'ansehen') : true,
+      requirements.some(({ required }) => required?.mieter) ? hasPermission('mieter', 'ansehen') : true,
+    ]);
+    for (const { path, required } of requirements) {
+      if (required && dokumente && (!required.wohnungen || wohnungen) && (!required.mieter || mieter)) gone.push(path);
+    }
+  }
+
+  const goneSet = new Set(gone);
+  const denied = paths.filter((path) => !goneSet.has(path));
+  return { denied, gone };
+}
+
 /**
  * Removes files from storage. Paths the user may not write are not touched but reported in `denied`,
  * the rest is removed in one call. With `onlyArchived` only paths inside an archive are accepted
  * (permanent deletion). The Dokumente_Metadaten rows are removed by a database trigger on storage.objects
  * (see migration 20251124000003).
+ *
+ * `alreadyGone` lists paths that storage did not remove because the object does not exist (any more), see
+ * classifyUnremovedObjects: nothing is left to delete, so this is no refusal. A Dokumente_Metadaten row of such an
+ * object is not touched here (the trigger only fires for a removed object).
  */
 export async function removeFiles(
   paths: string[],
   options: { onlyArchived?: boolean } = {},
   ctx?: StorageContext,
-): Promise<{ removed: string[]; denied: string[] }> {
-  if (paths.length === 0) return { removed: [], denied: [] };
+): Promise<{ removed: string[]; denied: string[]; alreadyGone: string[] }> {
+  if (paths.length === 0) return { removed: [], denied: [], alreadyGone: [] };
   const context = ctx ?? await getStorageContext();
 
   const checks = await Promise.all(paths.map(async (path) => {
@@ -413,17 +482,33 @@ export async function removeFiles(
     }
   }));
   const allowed = paths.filter((_, i) => checks[i]);
-  const denied = paths.filter((_, i) => !checks[i]);
 
+  // Storage reports a refusal by the delete policy (and a missing object) not as an error: the object is simply
+  // missing from `data`. Only what the response lists counts as removed. What is missing is checked once more
+  // (classifyUnremovedObjects): a refused object is denied (same answer as for a path that failed validation, so a
+  // refused object cannot be told apart from one that does not exist), a missing one is already gone.
+  let removedByStorage = new Set<string>();
+  let goneByCheck = new Set<string>();
   if (allowed.length > 0) {
-    const { error } = await context.supabase.storage.from(STORAGE_BUCKET).remove(allowed);
+    const { data, error } = await context.supabase.storage.from(STORAGE_BUCKET).remove(allowed);
     if (error) {
       console.error('Supabase delete error:', error);
       throw new Error(`Failed to delete files: ${error.message}`);
     }
+    removedByStorage = new Set((Array.isArray(data) ? data : []).map((object: { name: string }) => object.name));
+    const notRemoved = allowed.filter((path) => !removedByStorage.has(path));
+    goneByCheck = new Set((await classifyUnremovedObjects(context.supabase, notRemoved)).gone);
   }
 
-  return { removed: allowed, denied };
+  const removed: string[] = [];
+  const denied: string[] = [];
+  const alreadyGone: string[] = [];
+  paths.forEach((path, i) => {
+    if (checks[i] && removedByStorage.has(path)) removed.push(path);
+    else if (checks[i] && goneByCheck.has(path)) alreadyGone.push(path);
+    else denied.push(path);
+  });
+  return { removed, denied, alreadyGone };
 }
 
 /**
@@ -677,7 +762,7 @@ export async function createSignedUrls(
       return true;
     } catch (error) {
       if (!(error instanceof StoragePathError)) throw error;
-      results.set(path, { path, url: null, error: 'Invalid path' });
+      results.set(path, { path, url: null, error: STORAGE_ACCESS_DENIED_MESSAGE });
       return false;
     }
   }));

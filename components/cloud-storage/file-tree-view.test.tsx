@@ -73,19 +73,22 @@ describe('FileTreeView', () => {
     expect(document.querySelector('.animate-pulse')).toBeInTheDocument()
   })
 
-  it('renders error state', () => {
+  it('renders error state with a retry that reloads the hierarchy', () => {
+    const refetch = jest.fn()
     mockUsePropertyHierarchy.mockReturnValue({
       houses: [],
       apartments: [],
       tenants: [],
       isLoading: false,
       error: 'Failed to load data',
-      refetch: jest.fn(),
+      refetch,
     })
 
     render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     expect(screen.getByText('Fehler beim Laden der Ordnerstruktur')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }))
+    expect(refetch).toHaveBeenCalledTimes(1)
   })
 
   it('renders tree structure with houses and apartments', async () => {

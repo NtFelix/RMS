@@ -1,10 +1,15 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { API_PERMISSION_DENIED_CODE } from "@/lib/permissions-core";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { MIETER_SPALTEN_OHNE_KAUTION, pickMieterSchreibbareFelder } from "@/lib/mieter-columns";
 
 export async function GET() {
   try {
+    // Tenant names and data only for users who may see tenants (as the Mieter page does)
+    const { requireApiPermission } = await import("@/lib/api-permissions");
+    await requireApiPermission('mieter', 'ansehen');
+
     const supabase = await createSupabaseServerClient();
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     const accessibleWohnungIds = await getAccessibleWohnungIds();
@@ -29,6 +34,12 @@ export async function GET() {
     });
   } catch (e) {
     console.error('Server error GET /api/mieter:', e);
+    if ((e as Error).message === 'Permission denied') {
+      return NextResponse.json({ error: 'Permission denied', code: API_PERMISSION_DENIED_CODE }, { 
+        status: 403,
+        headers: NO_CACHE_HEADERS 
+      });
+    }
     return NextResponse.json({ error: 'Serverfehler bei Mieter-Abfrage.' }, { 
       status: 500,
       headers: NO_CACHE_HEADERS 

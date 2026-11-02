@@ -18,6 +18,13 @@ export type Modul =
 export type Aktion = 'ansehen' | 'erstellen' | 'bearbeiten' | 'loeschen' | 'verwalten';
 
 /**
+ * `code` in the body of an API answer 403 that stems from a failed permission check (see requireApiPermission), as
+ * opposed to a 403 of something else in front of the route (proxy, firewall). Clients that treat "no right" as a
+ * normal state (empty list instead of an error) rely on it.
+ */
+export const API_PERMISSION_DENIED_CODE = 'PERMISSION_DENIED';
+
+/**
  * Direct evaluation of permission logic in TypeScript to handle both
  * canonical array format and legacy boolean key-value formats.
  * Designed to be dependency-free so it is safe to use in Edge runtime/middleware.

@@ -4,6 +4,7 @@
 import { GET, POST, PUT } from './route';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { MIETER_SPALTEN_OHNE_KAUTION } from '@/lib/mieter-columns';
+import { hasPermission } from '@/lib/permissions';
 
 /**
  * Leak-Schließung Altfeld "Mieter.kaution" (GH-6): Die Route liefert nur explizite Spalten ohne "kaution"
@@ -40,6 +41,7 @@ describe('/api/mieter', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (hasPermission as jest.Mock).mockResolvedValue(true);
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -57,6 +59,21 @@ describe('/api/mieter', () => {
       expect(res.status).toBe(200);
       expect(builder.select).toHaveBeenCalledWith(MIETER_SPALTEN_OHNE_KAUTION);
       expect(builder.select.mock.calls[0][0]).not.toMatch(/\*|kaution/i);
+    });
+  });
+
+  describe('GET ohne mieter:ansehen', () => {
+    it('antwortet 403 und fragt die Datenbank nicht ab', async () => {
+      (hasPermission as jest.Mock).mockImplementation(async (modul: string, aktion: string) => !(modul === 'mieter' && aktion === 'ansehen'));
+      const from = jest.fn();
+      (createSupabaseServerClient as jest.Mock).mockResolvedValue({ from });
+
+      const res = await GET();
+
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({ error: 'Permission denied', code: 'PERMISSION_DENIED' });
+      expect(hasPermission).toHaveBeenCalledWith('mieter', 'ansehen');
+      expect(from).not.toHaveBeenCalled();
     });
   });
 

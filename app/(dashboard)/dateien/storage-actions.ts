@@ -2,6 +2,7 @@
 
 import { unstable_rethrow } from 'next/navigation'
 import { StoragePathError } from '@/lib/storage-paths'
+import { isPermissionDeniedError, STORAGE_ACCESS_DENIED_MESSAGE } from '@/lib/storage-messages'
 import { MAX_PATHS_PER_REQUEST } from '@/lib/storage-file-rules'
 import {
   archiveFile,
@@ -41,10 +42,18 @@ export type StorageActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string }
 
-/** Error text for the client: access errors are generic, the rest is the message of our own checks */
+/**
+ * Error text for the client: access errors are generic (German, the same text for a refused and a missing path),
+ * the rest is the message of our own checks. A refusal by the database (storage policy, e.g. missing
+ * `wohnungen:ansehen` / `mieter:ansehen` below a house) is not decided here, it only gets the same text instead
+ * of the raw Postgres message.
+ */
 function toErrorMessage(error: unknown): string {
   if (error instanceof StoragePathError) {
-    return error.code === 'LEGACY_PATH' ? error.message : 'Invalid path'
+    return error.code === 'LEGACY_PATH' ? error.message : STORAGE_ACCESS_DENIED_MESSAGE
+  }
+  if (error instanceof Error && isPermissionDeniedError(error)) {
+    return STORAGE_ACCESS_DENIED_MESSAGE
   }
   return error instanceof Error ? error.message : 'Storage operation failed'
 }
@@ -106,10 +115,10 @@ export async function createDownloadUrls(
   )
 }
 
-/** Removes files; paths the user may not write are not touched and come back in `denied` */
+/** Removes files; paths the user may not write are not touched and come back in `denied`, objects that no longer exist in `alreadyGone` */
 export async function removeObjects(
   paths: string[],
-): Promise<StorageActionResult<{ removed: string[]; denied: string[] }>> {
+): Promise<StorageActionResult<{ removed: string[]; denied: string[]; alreadyGone: string[] }>> {
   if (!isPathList(paths)) return invalidInput('removeObjects')
   return run('removeObjects', (ctx) => removeFiles(paths, {}, ctx))
 }
@@ -117,7 +126,7 @@ export async function removeObjects(
 /** Permanently removes files, only accepted inside an archive */
 export async function permanentlyDeleteObjects(
   paths: string[],
-): Promise<StorageActionResult<{ removed: string[]; denied: string[] }>> {
+): Promise<StorageActionResult<{ removed: string[]; denied: string[]; alreadyGone: string[] }>> {
   if (!isPathList(paths)) return invalidInput('permanentlyDeleteObjects')
   return run('permanentlyDeleteObjects', (ctx) => removeFiles(paths, { onlyArchived: true }, ctx))
 }
