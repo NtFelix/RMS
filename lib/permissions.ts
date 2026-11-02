@@ -3,7 +3,7 @@ import { isNotAuthenticatedError } from "@/lib/auth-errors";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { evaluatePermission, evaluatePermissionResult, type Modul, type Aktion, type PermissionCheckResult } from "./permissions-core";
-export { evaluatePermission, evaluatePermissionResult, type Modul, type Aktion, type PermissionCheckResult };
+export { evaluatePermission, type Modul, type Aktion };
 
 /**
  * Checks the permission of the current authenticated user for a module and action and tells "the right is missing"
