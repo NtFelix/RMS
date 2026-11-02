@@ -68,7 +68,7 @@ export async function GET(
     // and is awaited right after it, before anything is evaluated or answered. mieter:ansehen is awaited only before the
     // tenant query. The no-op catches only prevent an unhandled rejection on an early return; the rejection still
     // surfaces at the await.
-    const { requireApiPermission, hasApiPermission } = await import("@/lib/api-permissions");
+    const { requireApiPermission, hasApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
     const permissionCheck = requireApiPermission('wohnungen', 'ansehen');
     permissionCheck.catch(() => {});
     const canViewTenantsPromise = hasApiPermission('mieter', 'ansehen');
@@ -109,7 +109,6 @@ export async function GET(
       );
     }
 
-    const { verifyEntityInScope } = await import("@/lib/api-permissions");
     if (wohnungData.haus_id && !(await verifyEntityInScope(wohnungData.haus_id))) {
       return NextResponse.json(
         { error: "Permission denied" },
