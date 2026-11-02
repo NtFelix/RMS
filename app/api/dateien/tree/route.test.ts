@@ -406,6 +406,42 @@ describe('GET /api/dateien/tree', () => {
       })
     })
 
+    describe('invalid folder names (over the length limit, control characters) hide no unrelated folder', () => {
+      const tooLong = 'a'.repeat(300)
+      const withControl = 'Ordner\u0007mit Klingel'
+
+      it('are listed below house_documents and Rechnungen, also for a user without module rights', async () => {
+        grant()
+        mockList.mockResolvedValue({ data: [folder(tooLong), folder(withControl), folder('Allgemein')], error: null })
+
+        for (const parent of [`${HOUSE_PATH}/house_documents`, `${HOUSE_PATH}/Rechnungen`]) {
+          const names = (await childrenOf(parent)).map((c) => c.name)
+          expect(names.sort()).toEqual([tooLong, withControl, 'Allgemein'].sort())
+        }
+      })
+
+      it('are listed below an apartment folder with wohnungen:ansehen and still need exactly the right of their parent', async () => {
+        grant('wohnungen:ansehen')
+        mockList.mockResolvedValue({ data: [folder(tooLong), folder(withControl)], error: null })
+        expect((await childrenOf(`${APARTMENT_PATH}/apartment_documents`)).map((c) => c.name).sort()).toEqual([tooLong, withControl].sort())
+
+        // the parent itself is refused without the right: nothing is listed, whatever the names are
+        grant()
+        expect(await childrenOf(`${APARTMENT_PATH}/apartment_documents`)).toEqual([])
+      })
+
+      it('an id-like segment of a path that is invalid for another reason (too long) stays hidden', async () => {
+        grant()
+        const deep = [...Array.from({ length: 4 }, () => 'b'.repeat(200)), 'c'.repeat(70)]
+        const parent = [`${HOUSE_PATH}/Rechnungen`, ...deep].join('/')
+        mockList.mockResolvedValue({ data: [folder(APARTMENT_ID), folder('Allgemein')], error: null })
+
+        const names = (await childrenOf(parent)).map((c) => c.name)
+
+        expect(names).toEqual(['Allgemein'])
+      })
+    })
+
     it('the house scope stays as it is: houses and the private area do not ask for module rights', async () => {
       grant()
 

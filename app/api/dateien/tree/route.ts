@@ -76,17 +76,24 @@ function createViewRights(): ViewRights {
 /**
  * Keeps only the nodes the user may open: whatever the classification of requiredViewModules (the same one that
  * guards the listing of a folder) assigns to the apartment or tenant level needs the matching right. This also covers
- * archive paths (`__archive__/{timestamp}/...`) and every spelling of an id. A path that cannot be classified cannot
- * be opened either and is left out.
+ * archive paths (`__archive__/{timestamp}/...`) and every spelling of an id.
+ *
+ * A node whose path cannot be parsed (segment over the length limit, control characters, path too long) is not
+ * dropped by that alone: an unrelated folder must not vanish because of an invalid name. Such a segment cannot be an
+ * apartment or tenant id (ids are fixed-length hex), so the node needs exactly what its parent folder needs
+ * (`parentRequired`, the parent was parsed and its rights were checked). Only if the last segment LOOKS like an id
+ * (the path is invalid for another reason, e.g. too long) the node cannot be classified safely and stays hidden.
  */
-async function filterByViewRights(nodes: TreeNode[], rights: ViewRights): Promise<TreeNode[]> {
+async function filterByViewRights(nodes: TreeNode[], rights: ViewRights, parentRequired: ViewModuleRequirement): Promise<TreeNode[]> {
   const classified: Array<{ node: TreeNode; required: ViewModuleRequirement }> = []
   for (const node of nodes) {
     try {
       classified.push({ node, required: requiredViewModules(node.path) })
     } catch (error) {
-      if (error instanceof StoragePathError) continue
-      throw error
+      if (!(error instanceof StoragePathError)) throw error
+      const lastSegment = node.path.slice(node.path.lastIndexOf('/') + 1)
+      if (ID_SEGMENT_PATTERN.test(lastSegment)) continue
+      classified.push({ node, required: parentRequired })
     }
   }
   // A right is only read if some node needs it
@@ -265,6 +272,7 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
   const nodes = await filterByViewRights(
     await listFolderNodes(supabase, folderPath, lookup, (segment) => `${folderPath}/${segment}`),
     rights,
+    required,
   )
   if (parsed.zone === 'private' && parsed.rest.length === 0) {
     return [archiveNode(folderPath), ...nodes]
