@@ -28,8 +28,19 @@ export interface Tenant {
   telefonnummer?: string
 }
 
-/** `error` of the hook if the permission check of the server failed (retry helps), see fetchOptionalList */
-export const PERMISSION_CHECK_FAILED_ERROR = 'Permission check failed'
+/** Thrown by fetchOptionalList if the permission check of the server failed (retry helps), see there */
+class PermissionCheckFailedError extends Error {
+  constructor() {
+    super('Permission check failed')
+    this.name = 'PermissionCheckFailedError'
+  }
+}
+
+/**
+ * What kind of failure `error` stands for: `permission-check` = the permission check of the server itself failed (not
+ * "right missing", a retry helps), `load` = any other failure. `null` without an error.
+ */
+export type PropertyHierarchyErrorKind = 'permission-check' | 'load'
 
 interface PropertyHierarchyState {
   houses: House[]
@@ -37,6 +48,7 @@ interface PropertyHierarchyState {
   tenants: Tenant[]
   isLoading: boolean
   error: string | null
+  errorKind: PropertyHierarchyErrorKind | null
 }
 
 /**
@@ -52,7 +64,7 @@ async function fetchOptionalList<T>(url: string, label: string): Promise<T[]> {
     const body = await response.json().catch(() => null)
     if (response.status === 403 && body?.code === API_PERMISSION_DENIED_CODE) return []
     if (response.status === 503 && body?.code === API_PERMISSION_CHECK_FAILED_CODE) {
-      throw new Error(PERMISSION_CHECK_FAILED_ERROR)
+      throw new PermissionCheckFailedError()
     }
   }
   if (!response.ok) {
@@ -67,7 +79,8 @@ export function usePropertyHierarchy() {
     apartments: [],
     tenants: [],
     isLoading: true,
-    error: null
+    error: null,
+    errorKind: null
   })
 
   // Bumped by refetch(): runs the effect again (retry after an error)
@@ -77,7 +90,7 @@ export function usePropertyHierarchy() {
     let cancelled = false
     const fetchData = async () => {
       try {
-        setState(prev => ({ ...prev, isLoading: true, error: null }))
+        setState(prev => ({ ...prev, isLoading: true, error: null, errorKind: null }))
 
         // Fetch houses
         const housesResponse = await fetch('/api/haeuser')
@@ -99,7 +112,8 @@ export function usePropertyHierarchy() {
           apartments,
           tenants,
           isLoading: false,
-          error: null
+          error: null,
+          errorKind: null
         })
       } catch (error) {
         console.error('Error fetching property hierarchy:', error)
@@ -107,7 +121,8 @@ export function usePropertyHierarchy() {
         setState(prev => ({
           ...prev,
           isLoading: false,
-          error: error instanceof Error ? error.message : 'Failed to load data'
+          error: error instanceof Error ? error.message : 'Failed to load data',
+          errorKind: error instanceof PermissionCheckFailedError ? 'permission-check' : 'load'
         }))
       }
     }

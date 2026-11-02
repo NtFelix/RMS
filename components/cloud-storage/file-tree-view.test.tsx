@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { FileTreeView } from '@/components/cloud-storage/file-tree-view'
 import { useCloudStorageStore } from '@/hooks/use-cloud-storage-store'
-import { PERMISSION_CHECK_FAILED_ERROR, usePropertyHierarchy } from '@/hooks/use-property-hierarchy'
+import { usePropertyHierarchy } from '@/hooks/use-property-hierarchy'
 import { useFolderNavigation } from '@/components/common/navigation-interceptor'
 
 // Mock the hooks
@@ -38,6 +38,7 @@ describe('FileTreeView', () => {
       files: [],
       isLoading: false,
       error: null,
+      errorKind: null,
       uploadQueue: [],
       isUploading: false,
       previewFile: null,
@@ -65,6 +66,7 @@ describe('FileTreeView', () => {
       tenants: [],
       isLoading: true,
       error: null,
+      errorKind: null,
       refetch: jest.fn(),
     })
 
@@ -81,6 +83,7 @@ describe('FileTreeView', () => {
       tenants: [],
       isLoading: false,
       error: 'Failed to load data',
+      errorKind: 'load',
       refetch,
     })
 
@@ -98,7 +101,8 @@ describe('FileTreeView', () => {
       apartments: [],
       tenants: [],
       isLoading: false,
-      error: PERMISSION_CHECK_FAILED_ERROR,
+      error: 'Permission check failed',
+      errorKind: 'permission-check',
       refetch,
     })
 
@@ -108,6 +112,23 @@ describe('FileTreeView', () => {
     expect(screen.queryByText('Fehler beim Laden der Ordnerstruktur')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }))
     expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('decides on the kind of the error, not on its text: a "load" error with that text keeps the generic message', () => {
+    mockUsePropertyHierarchy.mockReturnValue({
+      houses: [],
+      apartments: [],
+      tenants: [],
+      isLoading: false,
+      error: 'Permission check failed',
+      errorKind: 'load',
+      refetch: jest.fn(),
+    })
+
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
+
+    expect(screen.getByText('Fehler beim Laden der Ordnerstruktur')).toBeInTheDocument()
+    expect(screen.queryByText(/Berechtigungsprüfung ist vorübergehend fehlgeschlagen/)).not.toBeInTheDocument()
   })
 
   it('renders tree structure with houses and apartments', async () => {
@@ -123,6 +144,7 @@ describe('FileTreeView', () => {
       ],
       isLoading: false,
       error: null,
+      errorKind: null,
       refetch: jest.fn(),
     })
 
@@ -146,6 +168,7 @@ describe('FileTreeView', () => {
       tenants: [],
       isLoading: false,
       error: null,
+      errorKind: null,
       refetch: jest.fn(),
     })
 
@@ -175,6 +198,7 @@ describe('FileTreeView', () => {
       tenants: [],
       isLoading: false,
       error: null,
+      errorKind: null,
       refetch: jest.fn(),
     })
 
@@ -197,6 +221,7 @@ describe('FileTreeView', () => {
       tenants: [],
       isLoading: false,
       error: null,
+      errorKind: null,
       refetch: jest.fn(),
     })
 
@@ -224,6 +249,7 @@ describe('FileTreeView', () => {
       ],
       isLoading: false,
       error: null,
+      errorKind: null,
       refetch: jest.fn(),
     })
 

@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { PERMISSION_CHECK_FAILED_ERROR, usePropertyHierarchy } from './use-property-hierarchy'
+import { usePropertyHierarchy } from './use-property-hierarchy'
 
 /**
  * Hierarchy of the file tree: apartments need wohnungen:ansehen, tenants mieter:ansehen (the routes answer 403
@@ -89,6 +89,7 @@ describe('usePropertyHierarchy', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
     expect(result.current.error).toBe('Failed to fetch apartments')
+    expect(result.current.errorKind).toBe('load')
   })
   it('treats a 403 without the permission code (not from the permission check, e.g. a proxy) as an error, not as "no right"', async () => {
     mockFetch({
@@ -136,7 +137,7 @@ describe('usePropertyHierarchy', () => {
       const { result } = renderHook(() => usePropertyHierarchy())
       await waitFor(() => expect(result.current.isLoading).toBe(false))
 
-      expect(result.current.error).toBe(PERMISSION_CHECK_FAILED_ERROR)
+      expect(result.current.errorKind).toBe('permission-check')
       expect(result.current.error).not.toBeNull()
     })
 
@@ -164,6 +165,7 @@ describe('usePropertyHierarchy', () => {
       await waitFor(() => expect(result.current.isLoading).toBe(false))
 
       expect(result.current.error).toBe('Failed to fetch apartments')
+      expect(result.current.errorKind).toBe('load')
       expect(result.current.apartments).toEqual([])
     })
 
@@ -174,7 +176,7 @@ describe('usePropertyHierarchy', () => {
         '/api/mieter': { status: 200, body: TENANTS },
       })
       const { result } = renderHook(() => usePropertyHierarchy())
-      await waitFor(() => expect(result.current.error).toBe(PERMISSION_CHECK_FAILED_ERROR))
+      await waitFor(() => expect(result.current.errorKind).toBe('permission-check'))
 
       mockFetch({
         '/api/haeuser': { status: 200, body: HOUSES },
@@ -185,6 +187,7 @@ describe('usePropertyHierarchy', () => {
       await waitFor(() => expect(result.current.isLoading).toBe(false))
 
       expect(result.current.error).toBeNull()
+      expect(result.current.errorKind).toBeNull()
       expect(result.current.apartments).toEqual(APARTMENTS)
       expect(result.current.tenants).toEqual(TENANTS)
     })

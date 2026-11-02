@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useCloudStorageStore, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
 import { orgRoot, sharedRoot, sharedPath, privateRoot, privatePath, ARCHIVE_SEGMENT } from "@/lib/storage-paths"
 import { buildFallbackBreadcrumbs, STORAGE_ROOT_LABEL, SYSTEM_FOLDER_LABELS, ZONE_LABELS } from "@/lib/storage-navigation"
-import { PERMISSION_CHECK_FAILED_ERROR, usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
+import { usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
 import { useFolderNavigation } from "@/components/common/navigation-interceptor"
 import { useDirectoryActiveState } from "@/hooks/use-active-state-manager"
 interface FileTreeViewProps {
@@ -48,7 +48,7 @@ export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTr
   const { isDirectoryActive, getDirectoryActiveClasses } = useDirectoryActiveState()
 
   // Fetch real data from API
-  const { houses, apartments, tenants, isLoading, error, refetch } = usePropertyHierarchy()
+  const { houses, apartments, tenants, isLoading, error, errorKind, refetch } = usePropertyHierarchy()
 
   // Build tree structure from data
   useEffect(() => {
@@ -436,7 +436,7 @@ export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTr
         <div className="flex items-center gap-2">
           <AlertCircle className="size-4" />
           <span>
-            {error === PERMISSION_CHECK_FAILED_ERROR
+            {errorKind === 'permission-check'
               ? "Die Berechtigungsprüfung ist vorübergehend fehlgeschlagen. Die Ordnerstruktur konnte nicht geladen werden."
               : "Fehler beim Laden der Ordnerstruktur"}
           </span>
