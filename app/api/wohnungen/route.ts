@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
-import { checkTenantViewAccess } from "@/lib/tenant-view-access";
+import { checkTenantViewAccess, withheldTenantFields } from "@/lib/tenant-view-access";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
 import { isTestEnv } from '@/lib/test-utils';
@@ -205,7 +205,6 @@ export async function GET() {
     // tells the client that this may be wrong.
     const tenantAccess = await tenantAccessPromise;
     const canViewTenants = tenantAccess.canViewTenants;
-    const permissionCheckFailed = !tenantAccess.canViewTenants && tenantAccess.permissionCheckFailed;
 
     // Get tenants to determine occupation status
     // (two literal selects: the typed client cannot parse a column list that is chosen at runtime)
@@ -254,7 +253,7 @@ export async function GET() {
       // this is "no access" and not "no tenant"; `permissionCheckFailed` only when the check failed (not for a
       // missing right)
       if (!canViewTenants) {
-        return { ...apt, status, tenantAccess: false, ...(permissionCheckFailed ? { permissionCheckFailed: true } : {}) };
+        return { ...apt, status, ...withheldTenantFields(tenantAccess) };
       }
 
       return {

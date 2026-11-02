@@ -1,7 +1,7 @@
 /** @jest-environment node */
 
 import { checkPermission } from '@/lib/permissions';
-import { checkTenantViewAccess, TENANT_CHECK_RETRY_DELAY_MS } from '@/lib/tenant-view-access';
+import { checkTenantViewAccess, TENANT_CHECK_RETRY_DELAY_MS, withheldTenantFields } from '@/lib/tenant-view-access';
 
 /**
  * checkTenantViewAccess: `mieter:ansehen` with ONE retry after a failed check (`error`), never for `denied`.
@@ -79,5 +79,18 @@ describe('checkTenantViewAccess', () => {
 
     await expect(checkTenantViewAccess({ delayMs: 0 })).rejects.toThrow('boom');
     expect(mockCheck).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('withheldTenantFields', () => {
+  it('missing right: tenantAccess false, no failure signal', () => {
+    expect(withheldTenantFields({ canViewTenants: false, permissionCheckFailed: false })).toEqual({ tenantAccess: false });
+  });
+
+  it('failed check: tenantAccess false plus the failure signal', () => {
+    expect(withheldTenantFields({ canViewTenants: false, permissionCheckFailed: true })).toEqual({
+      tenantAccess: false,
+      permissionCheckFailed: true,
+    });
   });
 });

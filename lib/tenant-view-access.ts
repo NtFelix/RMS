@@ -40,3 +40,14 @@ export async function checkTenantViewAccess(
   if (result === 'allowed') return { canViewTenants: true };
   return { canViewTenants: false, permissionCheckFailed: result === 'error' };
 }
+
+/**
+ * Fields of an apartment row whose tenant is withheld: `tenantAccess: false` ("no access", not "no tenant") and, only
+ * if the check FAILED (not for a missing right), `permissionCheckFailed: true`. Shared by the page and the route so the
+ * signal is built in one place.
+ */
+export function withheldTenantFields(access: TenantViewAccess): { tenantAccess: false; permissionCheckFailed?: true } {
+  return !access.canViewTenants && access.permissionCheckFailed
+    ? { tenantAccess: false, permissionCheckFailed: true }
+    : { tenantAccess: false };
+}

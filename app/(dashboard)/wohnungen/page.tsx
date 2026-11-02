@@ -11,7 +11,7 @@ import type { Wohnung } from "@/types/Wohnung";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 import { pickCurrentTenantPerApartment } from "@/lib/tenant-access";
 import { hasPermission } from "@/lib/permissions";
-import { checkTenantViewAccess } from "@/lib/tenant-view-access";
+import { checkTenantViewAccess, withheldTenantFields } from "@/lib/tenant-view-access";
 import { redirect } from "next/navigation";
 
 import { Suspense } from "react";
@@ -48,7 +48,6 @@ async function WohnungenContent() {
   }
   // Failed twice: the page still loads and the tenants stay withheld as for a missing right (fail-closed); the flag lets
   // the client say that this may be wrong and offer a reload of the tenant part.
-  const permissionCheckFailed = !tenantAccess.canViewTenants && tenantAccess.permissionCheckFailed;
   const canViewTenants = tenantAccess.canViewTenants;
 
   let apartmentCount = 0;
@@ -171,8 +170,7 @@ async function WohnungenContent() {
         ...apt,
         Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
         status,
-        tenantAccess: false,
-        ...(permissionCheckFailed ? { permissionCheckFailed: true } : {}),
+        ...withheldTenantFields(tenantAccess),
       } as Wohnung;
     }
     return {

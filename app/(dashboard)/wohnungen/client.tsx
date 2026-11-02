@@ -29,6 +29,9 @@ import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
 import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 import { TenantCheckFailedNotice } from "@/components/apartments/tenant-check-failed-notice";
 
+// The tenant part of an apartment row (what a partial reload replaces)
+type TenantFields = Pick<Wohnung, "tenant" | "tenantAccess" | "permissionCheckFailed">;
+
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
   initialWohnungenData: Wohnung[];
@@ -72,7 +75,7 @@ export default function WohnungenClientView({
   // a router.refresh() brings new `initialWohnungenData` and thereby drops it.
   const [tenantReload, setTenantReload] = useState<{
     source: Wohnung[];
-    byId: Map<string, Pick<Wohnung, "tenant" | "tenantAccess" | "permissionCheckFailed">>;
+    byId: Map<string, TenantFields>;
   } | null>(null);
   const [isReloadingTenants, setIsReloadingTenants] = useState(false);
   const apartments = useMemo(() => {
@@ -179,9 +182,9 @@ export default function WohnungenClientView({
       const response = await fetch('/api/wohnungen', { cache: 'no-store' });
       if (!response.ok) throw new Error(`GET /api/wohnungen: ${response.status}`);
       const rows: Wohnung[] = await response.json();
-      const byId = new Map<string, Pick<Wohnung, "tenant" | "tenantAccess" | "permissionCheckFailed">>();
+      const byId = new Map<string, TenantFields>();
       for (const row of rows) {
-        const reloaded: Pick<Wohnung, "tenant" | "tenantAccess" | "permissionCheckFailed"> = {};
+        const reloaded: TenantFields = {};
         if (row.tenantAccess === false) {
           reloaded.tenantAccess = false;
           if (row.permissionCheckFailed) reloaded.permissionCheckFailed = true;
