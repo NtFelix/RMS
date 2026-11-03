@@ -22,6 +22,7 @@ import {
 } from "@/lib/kautionen-belege";
 import { MAX_FILE_SIZE } from "@/lib/finance-file-constants";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
+import { StoragePathError, assertPathAllowed, parseStoragePath, requiredViewModules } from "@/lib/storage-paths";
 
 const ORG_ID = "22222222-2222-4222-8222-222222222222";
 const HAUS_ID = "55555555-5555-4555-8555-555555555555";
@@ -87,19 +88,39 @@ describe("erzeugeBelegDateiname und anzeigeNameAusDateiname", () => {
 });
 
 describe("baueBelegOrdner und baueBelegPfad", () => {
-  it("baut den Ordner org_<org>/shared/<haus>/<wohnung>/<mieter> aus den IDs", () => {
-    expect(baueBelegOrdner({ orgId: ORG_ID, hausId: HAUS_ID, wohnungId: WOHNUNG_ID, mieterId: MIETER_ID })).toBe(
-      `org_${ORG_ID}/shared/${HAUS_ID}/${WOHNUNG_ID}/${MIETER_ID}`
-    );
+  it("baut den Ordner org_<org>/shared/<haus>/Kautionen/<mieter> aus den IDs (kein Wohnungssegment)", () => {
+    const ordner = baueBelegOrdner({ orgId: ORG_ID, hausId: HAUS_ID, mieterId: MIETER_ID });
+    expect(ordner).toBe(`org_${ORG_ID}/shared/${HAUS_ID}/Kautionen/${MIETER_ID}`);
+    expect(ordner).not.toContain(WOHNUNG_ID);
+  });
+
+  it("liegt in der Zone, die der Parser als Kautionen-Ordner erkennt, und verlangt nur das Kautionenrecht", () => {
+    const ordner = baueBelegOrdner({ orgId: ORG_ID, hausId: HAUS_ID, mieterId: MIETER_ID }) as string;
+    expect(parseStoragePath(ordner)).toMatchObject({ zone: "shared", houseId: HAUS_ID, rest: ["Kautionen", MIETER_ID] });
+    expect(requiredViewModules(`${ordner}/1765000000000_Beleg.pdf`)).toEqual({
+      wohnungen: false,
+      mieter: false,
+      kautionen: true,
+      finanzen: false,
+      dokumente: false,
+    });
+  });
+
+  it("lässt den Schreibzugriff in einem Haus des Scopes zu, nicht in einem fremden Haus", () => {
+    const ordner = baueBelegOrdner({ orgId: ORG_ID, hausId: HAUS_ID, mieterId: MIETER_ID }) as string;
+    const ctx = { orgId: ORG_ID, userId: "u", accessibleHouseIds: [HAUS_ID] };
+    expect(() => assertPathAllowed(ordner, ctx, "write")).not.toThrow();
+    expect(() => assertPathAllowed(ordner, { ...ctx, accessibleHouseIds: [] }, "write")).toThrow(StoragePathError);
   });
 
   it.each([
     ["eine fehlerhafte Org-ID", { orgId: "../etc" }],
     ["eine fehlerhafte Haus-ID", { hausId: "../etc" }],
     ["eine fehlende Mieter-ID", { mieterId: "" }],
-    ["eine Wohnungs-ID mit Pfadteil", { wohnungId: `${WOHNUNG_ID}/../x` }],
+    ["eine Mieter-ID mit Pfadteil", { mieterId: `${MIETER_ID}/../x` }],
+    ["eine Mieter-ID in geschweiften Klammern", { mieterId: `{${MIETER_ID}}` }],
   ])("liefert null bei %s, damit kein Pfad aus unsicheren Werten entsteht", (_label, aenderung) => {
-    const ids = { orgId: ORG_ID, hausId: HAUS_ID, wohnungId: WOHNUNG_ID, mieterId: MIETER_ID, ...aenderung };
+    const ids = { orgId: ORG_ID, hausId: HAUS_ID, mieterId: MIETER_ID, ...aenderung };
     expect(baueBelegOrdner(ids)).toBeNull();
   });
 

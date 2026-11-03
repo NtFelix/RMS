@@ -34,7 +34,8 @@ const BEWEGUNG_ID = "33333333-3333-4333-8333-333333333333";
 const DOKUMENT_ID = "99999999-9999-4999-8999-999999999999";
 const ZEITSTEMPEL = 1765000000000;
 const ORG_ID = "44444444-4444-4444-8444-444444444444";
-const ORDNER = `org_${ORG_ID}/shared/${HAUS_ID}/${WOHNUNG_ID}/${MIETER_ID}`;
+/** Receipts live in the folder of the deposit module: no apartment segment (the module right is enough to read and write it). */
+const ORDNER = `org_${ORG_ID}/shared/${HAUS_ID}/Kautionen/${MIETER_ID}`;
 /** Houses the user may access (null = all houses). Changed per test for the scope cases. */
 let zugaenglicheHaeuser: string[] | null = null;
 
@@ -303,6 +304,36 @@ describe("Ordner aus der Datenbank", () => {
     expect(pfad).toBe(`${ORDNER}/${ZEITSTEMPEL}_Rechnung_Mai_2026.pdf`);
     expect(JSON.stringify(mockUpload.mock.calls)).not.toContain("fremd");
     expect(JSON.stringify(mockInsert.mock.calls)).not.toContain("fremd");
+  });
+
+  it("legt den Beleg unter Kautionen/<mieter> ab, ohne Wohnungssegment (Segment 4 genau 'Kautionen')", async () => {
+    const response = await POST(anfrage({ bewegungId: BEWEGUNG_ID, file: pdf() }));
+
+    expect(response.status).toBe(200);
+    const [pfad] = mockUpload.mock.calls[0].slice(1) as [string];
+    expect(pfad.split("/").slice(0, 5)).toEqual([`org_${ORG_ID}`, "shared", HAUS_ID, "Kautionen", MIETER_ID]);
+    expect(pfad).not.toContain(WOHNUNG_ID);
+    expect(mockInsert.mock.calls[0][0]).toMatchObject({ dateipfad: ORDNER });
+  });
+
+  it("verlangt nur das Kautionenrecht: ohne dokumente, wohnungen:ansehen und mieter:ansehen klappt der Upload", async () => {
+    mockHasPermission.mockImplementation(async (modul: string) => modul === "kautionen");
+
+    const response = await POST(anfrage({ bewegungId: BEWEGUNG_ID, file: pdf() }));
+
+    expect(response.status).toBe(200);
+    expect(mockUpload).toHaveBeenCalledTimes(1);
+    const geprueft = mockHasPermission.mock.calls.map(([modul]) => modul);
+    expect(geprueft).toEqual(["kautionen", "kautionen"]);
+  });
+
+  it("lehnt den Upload ohne Kautionenrecht ab, auch wenn dokumente, wohnungen und mieter erlaubt sind", async () => {
+    mockHasPermission.mockImplementation(async (modul: string) => modul !== "kautionen");
+
+    const response = await POST(anfrage({ bewegungId: BEWEGUNG_ID, file: pdf() }));
+
+    expect(response.status).toBe(403);
+    expect(mockUpload).not.toHaveBeenCalled();
   });
 });
 
