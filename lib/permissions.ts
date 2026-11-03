@@ -70,21 +70,43 @@ export async function requirePermission(modul: Modul, aktion: Aktion): Promise<v
 }
 
 /**
- * Checks if the current user is an owner or admin in the active organization.
+ * Checks if the current user is an owner or admin in the active organisation (database function
+ * `is_org_admin_or_owner`: role owner/admin and active membership) and tells "no admin" (`denied`) apart from "the check
+ * itself failed" (`error`), like checkPermission. `error` is NO decision: callers must deny access for it (fail-closed).
+ *
+ * Unlike checkPermission this is a pure role check: it does not look at module rights, and a user without an active
+ * organisation is `denied` (the database function returns false then). Not signed in is `denied`; a technically failed
+ * user lookup (AuthLookupError) is an `error`.
  */
-export async function isOrgAdminOrOwner(): Promise<boolean> {
+export async function checkOrgAdminOrOwner(): Promise<PermissionCheckResult> {
   try {
-    const { supabase } = await ensureAuth();
-    const { data: isAdmin, error } = await supabase.rpc('is_org_admin_or_owner');
+    let auth: Awaited<ReturnType<typeof ensureAuth>>;
+    try {
+      auth = await ensureAuth();
+    } catch (authError) {
+      unstable_rethrow(authError);
+      if (isNotAuthenticatedError(authError)) return 'denied';
+      console.error("Error checking isOrgAdminOrOwner (user lookup):", authError);
+      return 'error';
+    }
+    const { data: isAdmin, error } = await auth.supabase.rpc('is_org_admin_or_owner');
     if (error) {
       console.error("Error checking isOrgAdminOrOwner:", error);
-      return false;
+      return 'error';
     }
-    return !!isAdmin;
+    return isAdmin === true ? 'allowed' : 'denied';
   } catch (error) {
     unstable_rethrow(error);
     console.error("Exception checking isOrgAdminOrOwner:", error);
-    return false;
+    return 'error';
   }
+}
+
+/**
+ * Checks if the current user is an owner or admin in the active organization.
+ * Fail-closed: false if not authenticated or if the check fails (use checkOrgAdminOrOwner to tell those apart).
+ */
+export async function isOrgAdminOrOwner(): Promise<boolean> {
+  return (await checkOrgAdminOrOwner()) === 'allowed';
 }
 

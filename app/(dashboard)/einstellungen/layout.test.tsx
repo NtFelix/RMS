@@ -96,6 +96,16 @@ describe("SettingsLayoutGate", () => {
     },
   );
 
+  it.each([
+    [true, true],
+    [false, false],
+  ])("canExportData bei isOrgAdminOrOwner=%s ist %s, unabhängig von hasPermission", async (isAdmin, expected) => {
+    mockIsOrgAdminOrOwner.mockResolvedValue(isAdmin);
+    mockHasPermission.mockResolvedValue(true);
+
+    expect((await gateProps()).canExportData).toBe(expected);
+  });
+
   it("reicht children unverändert an SettingsLayoutClient weiter", async () => {
     const children = <span data-testid="content" />;
 
