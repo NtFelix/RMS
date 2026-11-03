@@ -1,6 +1,6 @@
-import { applyScopeFilter, applyWohnungScopeFilter, verifyEntityInScope, verifyWohnungInScope, requireApiPermission } from '@/lib/api-permissions';
+import { applyScopeFilter, applyWohnungScopeFilter, verifyEntityInScope, verifyWohnungInScope, requireApiPermission, requireApiOrgAdmin } from '@/lib/api-permissions';
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from '@/lib/object-scope';
-import { checkPermission } from '@/lib/permissions';
+import { checkOrgAdminOrOwner, checkPermission } from '@/lib/permissions';
 import { PermissionCheckError } from '@/lib/permissions-core';
 
 jest.mock('@/lib/object-scope', () => ({
@@ -10,6 +10,7 @@ jest.mock('@/lib/object-scope', () => ({
 
 jest.mock('@/lib/permissions', () => ({
   checkPermission: jest.fn(),
+  checkOrgAdminOrOwner: jest.fn(),
 }));
 
 describe('api-permissions helper', () => {
@@ -117,6 +118,29 @@ describe('api-permissions helper', () => {
       expect(error).toBeInstanceOf(PermissionCheckError);
       // same message as a missing right: routes that do not know the class still answer 403 as before
       expect(error.message).toBe('Permission denied');
+    });
+  });
+
+  describe('requireApiOrgAdmin', () => {
+    it('should not throw for owner/admin', async () => {
+      (checkOrgAdminOrOwner as jest.Mock).mockResolvedValue('allowed');
+      await expect(requireApiOrgAdmin()).resolves.toBeUndefined();
+    });
+
+    it('should throw a plain "Permission denied" error (not a PermissionCheckError) for a non-admin, module rights do not matter', async () => {
+      (checkOrgAdminOrOwner as jest.Mock).mockResolvedValue('denied');
+      (checkPermission as jest.Mock).mockResolvedValue('allowed');
+      const error = await requireApiOrgAdmin().catch((e) => e);
+      expect(error).toBeInstanceOf(Error);
+      expect(error).not.toBeInstanceOf(PermissionCheckError);
+      expect(error.message).toBe('Permission denied');
+      expect(checkPermission).not.toHaveBeenCalled();
+    });
+
+    it('should throw a PermissionCheckError if the role lookup itself failed (access stays denied)', async () => {
+      (checkOrgAdminOrOwner as jest.Mock).mockResolvedValue('error');
+      const error = await requireApiOrgAdmin().catch((e) => e);
+      expect(error).toBeInstanceOf(PermissionCheckError);
     });
   });
 });

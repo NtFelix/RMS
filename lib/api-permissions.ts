@@ -1,5 +1,5 @@
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from '@/lib/object-scope';
-import { checkPermission } from '@/lib/permissions';
+import { checkOrgAdminOrOwner, checkPermission } from '@/lib/permissions';
 import type { Modul, Aktion } from '@/lib/permissions';
 import { PermissionCheckError } from '@/lib/permissions-core';
 
@@ -57,6 +57,22 @@ export async function verifyWohnungInScope(wohnungId: string): Promise<boolean> 
  */
 export async function requireApiPermission(modul: Modul, aktion: Aktion): Promise<void> {
   const result = await checkPermission(modul, aktion);
+  if (result === 'error') {
+    throw new PermissionCheckError();
+  }
+  if (result !== 'allowed') {
+    throw new Error('Permission denied');
+  }
+}
+
+/**
+ * Requires the user to be owner or admin of the active organisation (role check, independent of module rights).
+ * Throws like requireApiPermission: `Error('Permission denied')` if the user is no owner/admin, PermissionCheckError
+ * (same message) if the role lookup itself failed. Access is denied in both cases (fail-closed); a route answers 403 or
+ * 503 with apiPermissionErrorResponse.
+ */
+export async function requireApiOrgAdmin(): Promise<void> {
+  const result = await checkOrgAdminOrOwner();
   if (result === 'error') {
     throw new PermissionCheckError();
   }
