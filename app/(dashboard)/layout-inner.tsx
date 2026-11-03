@@ -28,8 +28,6 @@ const AblesungenModal = dynamic(() => import('@/components/meters/ablesungen-mod
 const ZaehlerModal = dynamic(() => import('@/components/meters/zaehler-modal').then(mod => mod.ZaehlerModal), { ssr: false })
 const KautionDialog = dynamic(() => import('@/components/kaution/kaution-dialog').then(mod => mod.KautionDialog), { ssr: false })
 const KautionLoeschUebersichtSheet = dynamic(() => import('@/components/kaution/kaution-loesch-uebersicht-sheet').then(mod => mod.KautionLoeschUebersichtSheet), { ssr: false })
-const WohnungOverviewModal = dynamic(() => import('@/components/apartments/wohnung-overview-modal').then(mod => mod.WohnungOverviewModal), { ssr: false })
-const ApartmentTenantDetailsModal = dynamic(() => import('@/components/apartments/apartment-tenant-details-modal').then(mod => mod.ApartmentTenantDetailsModal), { ssr: false })
 const FileUploadModal = dynamic(() => import('@/components/cloud-storage/file-upload-modal').then(mod => mod.FileUploadModal), { ssr: false })
 const FileRenameModal = dynamic(() => import('@/components/cloud-storage/file-rename-modal').then(mod => mod.FileRenameModal), { ssr: false })
 const CreateFolderModal = dynamic(() => import('@/components/cloud-storage/create-folder-modal').then(mod => mod.CreateFolderModal), { ssr: false })
@@ -162,10 +160,6 @@ export default function DashboardInnerLayout({
         </KautionDialogGate>
         {/* Übersicht "Kautionen werden mitgelöscht": erscheint beim Löschen von Haus/Wohnung/Mieter mit gebuchter Kaution (lib/kautionen-loeschen.ts) */}
         {loeschUebersichtGeladen && <KautionLoeschUebersichtSheet />}
-        {/* WohnungOverviewModal - Displays Wohnung overview with all Mieter */}
-        <WohnungOverviewModal />
-        {/* ApartmentTenantDetailsModal - Displays detailed apartment-tenant information */}
-        <ApartmentTenantDetailsModal />
         {/* FileUploadModal - Global file upload modal */}
         <FileUploadModal />
         {/* FileRenameModal - Global file rename modal */}
