@@ -36,6 +36,8 @@ import type { Zaehler as SharedMeter, ZaehlerAblesung } from "@/lib/types";
 import { formatNumber } from "@/utils/format";
 import { ZaehlerTyp, ZAEHLER_CONFIG } from "@/lib/zaehler-types";
 import { getMeterIcon, getMeterBgColor } from "@/components/meters/meter-card";
+import { TenantCheckFailedNotice } from "@/components/apartments/tenant-check-failed-notice";
+import { TENANT_NO_ACCESS_LABEL } from "@/lib/tenant-access";
 
 // Local interface for UI presentation
 interface Meter {
@@ -114,6 +116,9 @@ export function MeterAblesungenModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredOutCount, setFilteredOutCount] = useState(0);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  // `false`: the user may not see tenants (mieter:ansehen); `permissionCheckFailed`: the check itself failed
+  const [tenantAccess, setTenantAccess] = useState(true);
+  const [permissionCheckFailed, setPermissionCheckFailed] = useState(false);
 
   // Store raw data for import modal
   const [rawMeters, setRawMeters] = useState<SharedMeter[]>([]);
@@ -139,6 +144,8 @@ export function MeterAblesungenModal({
       }
 
       const { wohnungen, meters, readings, mieter: allMieter } = result.data;
+      setTenantAccess(result.data.tenantAccess !== false);
+      setPermissionCheckFailed(result.data.permissionCheckFailed === true);
 
       setRawMeters(meters as unknown as SharedMeter[]);
       setRawReadings(readings as unknown as ZaehlerAblesung[]);
@@ -260,10 +267,11 @@ export function MeterAblesungenModal({
           </DialogHeader>
 
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 py-4">
+            {permissionCheckFailed && <TenantCheckFailedNotice onReload={loadData} isReloading={isLoading} />}
             {meterList.length > 0 && (
               <div className="flex gap-2 items-center">
                 <SearchInput
-                  placeholder="Wohnung, Mieter, Zähler-ID oder Typ suchen..."
+                  placeholder={tenantAccess ? "Wohnung, Mieter, Zähler-ID oder Typ suchen..." : "Wohnung, Zähler-ID oder Typ suchen..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onClear={() => setSearchQuery("")}
@@ -344,7 +352,12 @@ export function MeterAblesungenModal({
                                       <Badge variant="outline" className="text-xs bg-white dark:bg-zinc-900">
                                         {ZAEHLER_CONFIG[entry.zaehler_typ]?.label || 'Zähler'}
                                       </Badge>
-                                      {entry.mieter_name && (
+                                      {!tenantAccess ? (
+                                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                                          <User className="h-3 w-3 mr-1" />
+                                          {TENANT_NO_ACCESS_LABEL}
+                                        </Badge>
+                                      ) : entry.mieter_name && (
                                         <Badge variant="outline" className="text-xs">
                                           <User className="h-3 w-3 mr-1" />
                                           {entry.mieter_name}
