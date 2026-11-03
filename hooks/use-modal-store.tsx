@@ -8,64 +8,6 @@ import { TenantBentoItem } from '@/types/tenant-payment';
 import { AIDocumentationContext } from '@/types/ai';
 import type { KautionLoeschauswirkung } from '@/types/Kaution';
 
-// Overview Modal Types
-interface WohnungWithMieter {
-  id: string;
-  name: string;
-  groesse: number;
-  miete: number;
-  hausName: string;
-  mieter: MieterOverviewData[];
-  /** `false` (only then present): the user may not see tenants (mieter:ansehen); `mieter` is empty because of that. */
-  tenantAccess?: false;
-  /** Only present together with `tenantAccess: false`: occupation status without tenant data. */
-  status?: 'frei' | 'vermietet';
-}
-
-interface MieterOverviewData {
-  id: string;
-  name: string;
-  email?: string;
-  telefon?: string;
-  einzug?: string;
-  auszug?: string;
-  status: 'active' | 'moved_out';
-}
-
-// Apartment-Tenant Details Modal Types
-interface ApartmentTenantDetailsData {
-  apartment: {
-    id: string;
-    name: string;
-    groesse: number;
-    miete: number;
-    haus_id?: string; // Add haus_id to the interface
-    hausName: string;
-    amenities?: string[];
-    condition?: string;
-    notes?: string;
-  };
-  tenant?: {
-    id: string;
-    name: string;
-    email?: string;
-    telefon?: string;
-    einzug?: string;
-    auszug?: string;
-    leaseTerms?: string;
-    paymentHistory?: Array<{
-      id: string;
-      amount: number;
-      date: string;
-      status: 'paid' | 'pending' | 'overdue';
-      description?: string;
-    }>;
-    notes?: string;
-  };
-  /** `false` (only then present): the user may not see tenants (mieter:ansehen); `tenant` is absent because of that. */
-  tenantAccess?: false;
-}
-
 interface ConfirmationModalConfig {
   title: string;
   description: string;
@@ -306,18 +248,6 @@ export interface ModalState {
   openLoeschUebersicht: (config: LoeschUebersichtConfig) => void;
   closeLoeschUebersicht: () => void;
 
-  // Wohnung Overview Modal State
-  isWohnungOverviewModalOpen: boolean;
-  wohnungOverviewData?: WohnungWithMieter;
-  wohnungOverviewLoading: boolean;
-  wohnungOverviewError?: string;
-  openWohnungOverviewModal: (wohnungId: string) => void;
-  closeWohnungOverviewModal: (options?: CloseModalOptions) => void;
-  setWohnungOverviewLoading: (loading: boolean) => void;
-  setWohnungOverviewError: (error?: string) => void;
-  setWohnungOverviewData: (data?: WohnungWithMieter) => void;
-  refreshWohnungOverviewData: () => Promise<void>;
-
   // Tenant Payment Overview Modal State
   isTenantPaymentOverviewModalOpen: boolean;
   tenantPaymentOverviewData?: TenantBentoItem[];
@@ -328,18 +258,6 @@ export interface ModalState {
   setTenantPaymentOverviewLoading: (loading: boolean) => void;
   setTenantPaymentOverviewError: (error?: string) => void;
   setTenantPaymentOverviewData: (data?: TenantBentoItem[]) => void;
-
-  // Apartment-Tenant Details Modal State
-  isApartmentTenantDetailsModalOpen: boolean;
-  apartmentTenantDetailsData?: ApartmentTenantDetailsData;
-  apartmentTenantDetailsLoading: boolean;
-  apartmentTenantDetailsError?: string;
-  openApartmentTenantDetailsModal: (apartmentId: string, tenantId?: string) => void;
-  closeApartmentTenantDetailsModal: (options?: CloseModalOptions) => void;
-  setApartmentTenantDetailsLoading: (loading: boolean) => void;
-  setApartmentTenantDetailsError: (error?: string) => void;
-  setApartmentTenantDetailsData: (data?: ApartmentTenantDetailsData) => void;
-  refreshApartmentTenantDetailsData: () => Promise<void>;
 
   // Upload Modal State
   isUploadModalOpen: boolean;
@@ -569,25 +487,11 @@ const initialLoeschUebersichtState = {
   loeschUebersichtConfig: null as LoeschUebersichtConfig | null,
 };
 
-const initialWohnungOverviewModalState = {
-  isWohnungOverviewModalOpen: false,
-  wohnungOverviewData: undefined,
-  wohnungOverviewLoading: false,
-  wohnungOverviewError: undefined,
-};
-
 const initialTenantPaymentOverviewModalState = {
   isTenantPaymentOverviewModalOpen: false,
   tenantPaymentOverviewData: undefined,
   tenantPaymentOverviewLoading: false,
   tenantPaymentOverviewError: undefined,
-};
-
-const initialApartmentTenantDetailsModalState = {
-  isApartmentTenantDetailsModalOpen: false,
-  apartmentTenantDetailsData: undefined,
-  apartmentTenantDetailsLoading: false,
-  apartmentTenantDetailsError: undefined,
 };
 
 const initialUploadModalState = {
@@ -696,9 +600,7 @@ const createInitialModalState = () => ({
   ...initialKautionModalState,
   canViewKautionen: false, // bewusst nicht in initialKautionModalState: bleibt beim Schließen des Dialogs erhalten
   ...initialLoeschUebersichtState,
-  ...initialWohnungOverviewModalState,
   ...initialTenantPaymentOverviewModalState,
-  ...initialApartmentTenantDetailsModalState,
   ...initialUploadModalState,
   ...initialFileRenameModalState,
   ...initialAIAssistantModalState,
@@ -906,71 +808,6 @@ export const useModalStore = create<ModalState>((set, get) => {
     },
     closeLoeschUebersicht: () => set(initialLoeschUebersichtState),
 
-    // Wohnung Overview Modal
-    openWohnungOverviewModal: async (wohnungId: string) => {
-      set({
-        isWohnungOverviewModalOpen: true,
-        wohnungOverviewLoading: true,
-        wohnungOverviewError: undefined,
-        wohnungOverviewData: undefined
-      });
-
-      // Create timeout promise for 2-second limit
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('Das Laden dauert länger als erwartet. Bitte versuchen Sie es erneut.'));
-        }, 2000);
-      });
-
-      try {
-        const fetchPromise = fetch(`/api/wohnungen/${wohnungId}/overview`).then(async (response) => {
-          if (!response.ok) {
-            throw new Error('Failed to fetch Wohnung overview data');
-          }
-          return response.json();
-        });
-
-        // Race between fetch and timeout
-        const data = await Promise.race([fetchPromise, timeoutPromise]);
-
-        set({
-          wohnungOverviewData: data,
-          wohnungOverviewLoading: false
-        });
-      } catch (error) {
-        set({
-          wohnungOverviewError: error instanceof Error ? error.message : 'An error occurred',
-          wohnungOverviewLoading: false
-        });
-      }
-    },
-    refreshWohnungOverviewData: async () => {
-      const state = get();
-      if (!state.wohnungOverviewData?.id) return;
-
-      set({ wohnungOverviewLoading: true, wohnungOverviewError: undefined });
-
-      try {
-        const response = await fetch(`/api/wohnungen/${state.wohnungOverviewData.id}/overview`);
-        if (!response.ok) {
-          throw new Error('Failed to refresh Wohnung overview data');
-        }
-        const data = await response.json();
-        set({ wohnungOverviewData: data, wohnungOverviewLoading: false });
-      } catch (error) {
-        set({
-          wohnungOverviewError: error instanceof Error ? error.message : 'An error occurred',
-          wohnungOverviewLoading: false
-        });
-      }
-    },
-    closeWohnungOverviewModal: (options?: CloseModalOptions) => {
-      set(initialWohnungOverviewModalState);
-    },
-    setWohnungOverviewLoading: (loading: boolean) => set({ wohnungOverviewLoading: loading }),
-    setWohnungOverviewError: (error?: string) => set({ wohnungOverviewError: error }),
-    setWohnungOverviewData: (data?: WohnungWithMieter) => set({ wohnungOverviewData: data }),
-
     // Tenant Payment Overview Modal
     openTenantPaymentOverviewModal: () => {
       set({
@@ -986,79 +823,6 @@ export const useModalStore = create<ModalState>((set, get) => {
     setTenantPaymentOverviewLoading: (loading: boolean) => set({ tenantPaymentOverviewLoading: loading }),
     setTenantPaymentOverviewError: (error?: string) => set({ tenantPaymentOverviewError: error }),
     setTenantPaymentOverviewData: (data?: TenantBentoItem[]) => set({ tenantPaymentOverviewData: data }),
-
-    // Apartment-Tenant Details Modal
-    openApartmentTenantDetailsModal: async (apartmentId: string, tenantId?: string) => {
-      set({
-        isApartmentTenantDetailsModalOpen: true,
-        apartmentTenantDetailsLoading: true,
-        apartmentTenantDetailsError: undefined,
-        apartmentTenantDetailsData: undefined
-      });
-
-      // Create timeout promise for 2-second limit
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('Das Laden dauert länger als erwartet. Bitte versuchen Sie es erneut.'));
-        }, 2000);
-      });
-
-      try {
-        const url = tenantId
-          ? `/api/apartments/${apartmentId}/tenant/${tenantId}/details`
-          : `/api/apartments/${apartmentId}/details`;
-
-        const fetchPromise = fetch(url).then(async (response) => {
-          if (!response.ok) {
-            throw new Error('Failed to fetch apartment-tenant details');
-          }
-          return response.json();
-        });
-
-        // Race between fetch and timeout
-        const data = await Promise.race([fetchPromise, timeoutPromise]);
-
-        set({
-          apartmentTenantDetailsData: data,
-          apartmentTenantDetailsLoading: false
-        });
-      } catch (error) {
-        set({
-          apartmentTenantDetailsError: error instanceof Error ? error.message : 'An error occurred',
-          apartmentTenantDetailsLoading: false
-        });
-      }
-    },
-    refreshApartmentTenantDetailsData: async () => {
-      const state = get();
-      if (!state.apartmentTenantDetailsData?.apartment?.id) return;
-
-      set({ apartmentTenantDetailsLoading: true, apartmentTenantDetailsError: undefined });
-
-      try {
-        const url = state.apartmentTenantDetailsData.tenant
-          ? `/api/apartments/${state.apartmentTenantDetailsData.apartment.id}/tenant/${state.apartmentTenantDetailsData.tenant.id}/details`
-          : `/api/apartments/${state.apartmentTenantDetailsData.apartment.id}/details`;
-
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error('Failed to refresh apartment-tenant details');
-        }
-        const data = await response.json();
-        set({ apartmentTenantDetailsData: data, apartmentTenantDetailsLoading: false });
-      } catch (error) {
-        set({
-          apartmentTenantDetailsError: error instanceof Error ? error.message : 'An error occurred',
-          apartmentTenantDetailsLoading: false
-        });
-      }
-    },
-    closeApartmentTenantDetailsModal: (options?: CloseModalOptions) => {
-      set(initialApartmentTenantDetailsModalState);
-    },
-    setApartmentTenantDetailsLoading: (loading: boolean) => set({ apartmentTenantDetailsLoading: loading }),
-    setApartmentTenantDetailsError: (error?: string) => set({ apartmentTenantDetailsError: error }),
-    setApartmentTenantDetailsData: (data?: ApartmentTenantDetailsData) => set({ apartmentTenantDetailsData: data }),
 
     // Upload Modal
     openUploadModal: (targetPath: string, onComplete?: () => void, files?: File[]) => set({

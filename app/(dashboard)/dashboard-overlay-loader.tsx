@@ -37,11 +37,9 @@ export default function DashboardOverlayLoader() {
       state.isWohnungModalOpen ||
       state.isAufgabeModalOpen ||
       state.isBetriebskostenModalOpen ||
-      state.isWasserzaehlerModalOpen ||
-      state.isWohnungOverviewModalOpen
+      state.isWasserzaehlerModalOpen
 
     const isUtilityModalOpen =
-      state.isApartmentTenantDetailsModalOpen ||
       state.isConfirmationModalOpen ||
       state.isTenantPaymentEditModalOpen ||
       state.isTenantPaymentOverviewModalOpen ||

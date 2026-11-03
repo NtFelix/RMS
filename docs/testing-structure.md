@@ -24,10 +24,8 @@ project-root/
 │   │   └── wohnungen/__tests__/        # Apartment tests
 │   ├── api/
 │   │   ├── __tests__/                  # General API tests
-│   │   ├── apartments/[apartmentId]/tenant/[tenantId]/details/__tests__/
 │   │   ├── finanzen/charts/__tests__/
-│   │   ├── search/__tests__/
-│   │   └── wohnungen/[id]/overview/__tests__/
+│   │   └── search/__tests__/
 │   ├── landing/__tests__/              # Landing page tests
 │   ├── modern/components/__tests__/    # Modern components tests
 │   └── subscription-locked/__tests__/  # Subscription tests
