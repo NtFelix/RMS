@@ -9,6 +9,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { logAction } from '@/lib/logging-middleware';
 import { capturePostHogEvent } from '@/lib/posthog-helpers';
+import { checkPermission } from '@/lib/permissions';
 
 // Mock dependencies
 jest.mock('@/lib/supabase-server', () => ({
@@ -118,6 +119,112 @@ describe('meter-actions', () => {
 
       expect(result.success).toBe(false);
       expect(result.message).toBe('DB Error');
+    });
+  });
+
+  describe('getMeterForHausAction: Mieterdaten nur mit mieter:ansehen', () => {
+    // Synthetische Daten
+    const tenant = { id: 't1', name: 'Test Mieter', wohnung_id: 'w1', einzug: '2024-01-01', auszug: null };
+    const mockCheck = checkPermission as jest.Mock;
+
+    afterEach(() => {
+      mockCheck.mockReset();
+      mockCheck.mockResolvedValue('allowed');
+    });
+
+    const mockRpcWithTenant = () => {
+      mockSupabase.rpc.mockResolvedValue({
+        data: [{ wohnungen: [{ id: 'w1' }], meters: [{ id: 'm1', wohnung_id: 'w1' }], readings: [], mieter: [tenant] }],
+        error: null
+      });
+    };
+
+    const mockFallbackWithTenant = () => {
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: { code: '42883' } });
+      const tables: string[] = [];
+      mockSupabase.from.mockImplementation((table: string) => {
+        tables.push(table);
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          in: jest.fn().mockReturnThis(),
+          order: jest.fn().mockReturnThis(),
+          then: (resolve: any) => {
+            let data: any[] = [];
+            if (table === 'Wohnungen') data = [{ id: 'w1', haus_id: 'house1' }];
+            if (table === 'Zaehler') data = [{ id: 'm1', wohnung_id: 'w1' }];
+            if (table === 'Mieter') data = [tenant];
+            resolve({ data, error: null });
+          }
+        };
+      });
+      return tables;
+    };
+
+    describe.each([
+      ['RPC', mockRpcWithTenant],
+      ['Fallback', mockFallbackWithTenant]
+    ])('%s', (_name, setup) => {
+      it('liefert die Mieter mit mieter:ansehen', async () => {
+        mockCheck.mockResolvedValue('allowed');
+        setup();
+
+        const result = await getMeterForHausAction('house1');
+
+        expect(result.success).toBe(true);
+        expect(result.data?.mieter).toEqual([expect.objectContaining({ id: 't1', name: 'Test Mieter' })]);
+        expect(result.data).not.toHaveProperty('tenantAccess');
+        expect(mockCheck).toHaveBeenCalledWith('mieter', 'ansehen');
+      });
+
+      it('hält die Mieter ohne mieter:ansehen zurück (Zähler bleiben)', async () => {
+        mockCheck.mockResolvedValue('denied');
+        setup();
+
+        const result = await getMeterForHausAction('house1');
+
+        expect(result.success).toBe(true);
+        expect(result.data?.meters).toHaveLength(1);
+        expect(result.data?.mieter).toEqual([]);
+        expect(result.data?.tenantAccess).toBe(false);
+        expect(result.data).not.toHaveProperty('permissionCheckFailed');
+        expect(JSON.stringify(result)).not.toContain('Test Mieter');
+        expect(mockCheck).toHaveBeenCalledTimes(1);
+      });
+
+      it('fail-closed: schlägt die Prüfung (auch nach Wiederholung) fehl, bleiben die Mieter zurückgehalten und es wird permissionCheckFailed gemeldet', async () => {
+        mockCheck.mockResolvedValue('error');
+        setup();
+
+        const result = await getMeterForHausAction('house1');
+
+        expect(result.success).toBe(true);
+        expect(result.data?.meters).toHaveLength(1);
+        expect(result.data?.mieter).toEqual([]);
+        expect(result.data?.tenantAccess).toBe(false);
+        expect(result.data?.permissionCheckFailed).toBe(true);
+        expect(JSON.stringify(result)).not.toContain('Test Mieter');
+        expect(mockCheck).toHaveBeenCalledTimes(2);
+      });
+
+      it('wiederholt eine fehlgeschlagene Prüfung einmal; danach allowed liefert die Mieter', async () => {
+        mockCheck.mockResolvedValueOnce('error').mockResolvedValueOnce('allowed');
+        setup();
+
+        const result = await getMeterForHausAction('house1');
+
+        expect(result.data?.mieter).toEqual([expect.objectContaining({ id: 't1' })]);
+        expect(result.data).not.toHaveProperty('tenantAccess');
+      });
+    });
+
+    it('Fallback liest die Mieter-Tabelle ohne mieter:ansehen gar nicht', async () => {
+      mockCheck.mockResolvedValue('denied');
+      const tables = mockFallbackWithTenant();
+
+      await getMeterForHausAction('house1');
+
+      expect(tables).not.toContain('Mieter');
     });
   });
 
