@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { TENANT_CHECK_FAILED_MESSAGE } from "@/lib/tenant-access"
 
 interface TenantCheckFailedNoticeProps {
-  /** Reloads only the tenant part (not the whole page). */
+  /** Reloads the data that contains the tenants (the caller decides how much that is: a part of a page or a whole list). */
   onReload: () => void
   isReloading?: boolean
 }

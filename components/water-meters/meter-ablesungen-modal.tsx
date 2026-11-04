@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { isoToGermanDate } from "@/utils/date-calculations";
+import { getTodayISOString, isoToGermanDate } from "@/utils/date-calculations";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +37,7 @@ import { formatNumber } from "@/utils/format";
 import { ZaehlerTyp, ZAEHLER_CONFIG } from "@/lib/zaehler-types";
 import { getMeterIcon, getMeterBgColor } from "@/components/meters/meter-card";
 import { TenantCheckFailedNotice } from "@/components/apartments/tenant-check-failed-notice";
-import { TENANT_NO_ACCESS_LABEL } from "@/lib/tenant-access";
+import { pickCurrentTenantPerApartment, TENANT_NO_ACCESS_LABEL } from "@/lib/tenant-access";
 
 // Local interface for UI presentation
 interface Meter {
@@ -116,9 +116,10 @@ export function MeterAblesungenModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredOutCount, setFilteredOutCount] = useState(0);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  // `false`: the user may not see tenants (mieter:ansehen); `permissionCheckFailed`: the check itself failed
-  const [tenantAccess, setTenantAccess] = useState(true);
-  const [permissionCheckFailed, setPermissionCheckFailed] = useState(false);
+  // Tenant visibility as the server reports it: `hidden` = the user may not see tenants (mieter:ansehen),
+  // `check-failed` = the check itself failed (hidden as well, but the right might be there)
+  const [tenantView, setTenantView] = useState<'visible' | 'hidden' | 'check-failed'>('visible');
+  const tenantAccess = tenantView === 'visible';
 
   // Store raw data for import modal
   const [rawMeters, setRawMeters] = useState<SharedMeter[]>([]);
@@ -144,8 +145,9 @@ export function MeterAblesungenModal({
       }
 
       const { wohnungen, meters, readings, mieter: allMieter } = result.data;
-      setTenantAccess(result.data.tenantAccess !== false);
-      setPermissionCheckFailed(result.data.permissionCheckFailed === true);
+      setTenantView(
+        result.data.tenantAccess !== false ? 'visible' : result.data.permissionCheckFailed === true ? 'check-failed' : 'hidden'
+      );
 
       setRawMeters(meters as unknown as SharedMeter[]);
       setRawReadings(readings as unknown as ZaehlerAblesung[]);
@@ -162,9 +164,15 @@ export function MeterAblesungenModal({
       const filteredCount = totalMetersCount - allZaehler.length;
       setFilteredOutCount(filteredCount);
 
+      // The current tenant per apartment (not just the first row: a moved-out tenant may come first)
+      const mieterByWohnung = pickCurrentTenantPerApartment(
+        allMieter as Array<{ id: string; name: string; wohnung_id: string | null; auszug: string | null }>,
+        getTodayISOString()
+      );
+
       const meterInfoList: MeterInfo[] = allZaehler.map((meter) => {
         const meterReadings = readings.filter((r: any) => r.zaehler_id === meter.id);
-        const mieter = allMieter.find((m: any) => m.wohnung_id === meter.wohnung_id);
+        const mieter = mieterByWohnung.get(meter.wohnung_id);
 
         const sortedReadings = meterReadings.sort((a: any, b: any) =>
           new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime()
@@ -267,7 +275,7 @@ export function MeterAblesungenModal({
           </DialogHeader>
 
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 py-4">
-            {permissionCheckFailed && <TenantCheckFailedNotice onReload={loadData} isReloading={isLoading} />}
+            {tenantView === 'check-failed' && <TenantCheckFailedNotice onReload={loadData} isReloading={isLoading} />}
             {meterList.length > 0 && (
               <div className="flex gap-2 items-center">
                 <SearchInput
