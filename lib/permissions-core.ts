@@ -26,7 +26,7 @@ export const API_PERMISSION_DENIED_CODE = 'PERMISSION_DENIED';
 
 /**
  * `code` in the body of an API answer 503 when the permission check itself failed (database timeout, failed lookup of
- * the organisation, exception), as opposed to PERMISSION_DENIED ("the right is missing"). Access stays denied in both
+ * the organisation, failed read of the member override, exception), as opposed to PERMISSION_DENIED ("the right is missing"). Access stays denied in both
  * cases; the code only tells a client that a retry can help.
  */
 export const API_PERMISSION_CHECK_FAILED_CODE = 'PERMISSION_CHECK_FAILED';
@@ -62,7 +62,10 @@ export class PermissionCheckError extends Error {
  *
  * Wherever a query fails or throws, this returns `error`; every other path returns `allowed` or `denied`. This includes
  * the query of the member override: it can revoke a right, so a failed override query must not fall back to the
- * policies (the former implementation did, and could grant a right the override had taken away).
+ * policies (the former implementation did, and could grant a right the override had taken away). The same holds for
+ * an override whose entry for the module is unreadable: `denied`, as in the DB function check_permission.
+ * So a failed read of the override table also shows up as `error` (503 in the API routes), not only the lookup of the
+ * organisation or of the policies.
  */
 export async function evaluatePermissionResult(
   supabase: any,
@@ -135,6 +138,11 @@ export async function evaluatePermissionResult(
         } else if (typeof moduleOver === 'object' && moduleOver !== null) {
           return moduleOver[aktion] ? 'allowed' : 'denied';
         }
+        // The module is present in the override but in no readable shape (null, string, number, ...). As in
+        // check_permission (DB): a present module entry is authoritative, so an unreadable one denies and must not
+        // fall back to the policies (that could grant a right the override meant to take away).
+        console.error(`Unreadable member override for ${modul}:${aktion} (type ${moduleOver === null ? 'null' : typeof moduleOver}), denying`);
+        return 'denied';
       }
     }
 

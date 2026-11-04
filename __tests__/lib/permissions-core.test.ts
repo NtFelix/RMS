@@ -105,6 +105,23 @@ describe('evaluatePermissionResult', () => {
       },
       expected: 'allowed',
     },
+    {
+      name: 'override query error does not matter for the owner of the hidden personal organisation',
+      tables: {
+        Organisation_Mitglieder: activeMember('member', { Organisation: { ist_versteckt: true, owner_id: USER } }),
+        Organisation_Mitglieder_Overrides: { data: null, error: QUERY_ERROR },
+      },
+      expected: 'allowed',
+    },
+    {
+      name: 'override only for another module: the policies decide for this one (grant)',
+      tables: {
+        Organisation_Mitglieder: activeMember('member'),
+        Organisation_Mitglieder_Overrides: { data: { berechtigungen: { module: { finanzen: [] } } }, error: null },
+        ...grantingPolicies,
+      },
+      expected: 'allowed',
+    },
     // denied: the right is missing
     { name: 'no membership', tables: { Organisation_Mitglieder: { data: null, error: null } }, expected: 'denied' },
     {
@@ -129,6 +146,15 @@ describe('evaluatePermissionResult', () => {
       },
       expected: 'denied',
     },
+    ...([['null', null], ['a string', 'ansehen'], ['a number', 1]] as const).map(([what, value]): Case => ({
+      name: `override entry for the module is unreadable (${what}) although a policy grants the action (no fallback to the policies)`,
+      tables: {
+        Organisation_Mitglieder: activeMember('member'),
+        Organisation_Mitglieder_Overrides: { data: { berechtigungen: { module: { mieter: value } } }, error: null },
+        ...grantingPolicies,
+      },
+      expected: 'denied',
+    })),
     {
       name: 'no override row: the policies decide (no grant)',
       tables: {
@@ -155,6 +181,17 @@ describe('evaluatePermissionResult', () => {
       tables: {
         Organisation_Mitglieder: activeMember('member'),
         Organisation_Mitglieder_Overrides: { data: null, error: QUERY_ERROR },
+        ...grantingPolicies,
+      },
+      expected: 'error',
+    },
+    {
+      name: 'override query throws although a policy grants the action',
+      tables: {
+        Organisation_Mitglieder: activeMember('member'),
+        Organisation_Mitglieder_Overrides: async () => {
+          throw new Error('network down');
+        },
         ...grantingPolicies,
       },
       expected: 'error',
