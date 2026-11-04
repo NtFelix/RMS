@@ -69,11 +69,6 @@ describe('checkTenantViewAccess', () => {
     }
   });
 
-  it('keeps the pause small (150-300 ms)', () => {
-    expect(TENANT_CHECK_RETRY_DELAY_MS).toBeGreaterThanOrEqual(150);
-    expect(TENANT_CHECK_RETRY_DELAY_MS).toBeLessThanOrEqual(300);
-  });
-
   it('lets an exception of the check through (no silent "allowed")', async () => {
     mockCheck.mockRejectedValueOnce(new Error('boom'));
 

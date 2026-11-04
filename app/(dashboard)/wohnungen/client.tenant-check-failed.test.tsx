@@ -11,9 +11,10 @@ import type { Wohnung } from '@/types/Wohnung';
  */
 
 const mockRefresh = jest.fn();
+let mockSearchParams = new URLSearchParams();
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), refresh: mockRefresh }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
   usePathname: () => '/',
 }));
 jest.mock('@/hooks/use-modal-store');
@@ -79,6 +80,17 @@ describe('WohnungenClientView - Hinweis bei fehlgeschlagener Mieter-Rechteprüfu
     expect(screen.queryByText(MESSAGE)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Erneut laden/ })).not.toBeInTheDocument();
     expect(screen.getByTestId('apt-a1')).toHaveTextContent('kein-zugriff');
+  });
+
+  it('zeigt auf dem Tab "Uebersicht" keinen Hinweis (dort stehen keine Mieter)', () => {
+    mockSearchParams = new URLSearchParams('tab=overview');
+    try {
+      render(<WohnungenClientView {...props(hidden({ permissionCheckFailed: true }))} />);
+
+      expect(screen.queryByText(MESSAGE)).not.toBeInTheDocument();
+    } finally {
+      mockSearchParams = new URLSearchParams();
+    }
   });
 
   it('zeigt mit Mieterzugriff keinen Hinweis', () => {
@@ -183,7 +195,7 @@ describe('WohnungenClientView - Hinweis bei fehlgeschlagener Mieter-Rechteprüfu
     expect(mockRefresh).not.toHaveBeenCalled();
   });
 
-  it('eine im Reload fehlende Wohnung bleibt wie vom Server geliefert ausgeblendet, der Hinweis bleibt', async () => {
+  it('eine im Reload fehlende Wohnung bleibt ausgeblendet, haelt aber den Hinweis nicht fest (kein Reload koennte ihn aufloesen)', async () => {
     const user = userEvent.setup();
     mockFetch.mockResolvedValue({
       ok: true,
@@ -197,7 +209,7 @@ describe('WohnungenClientView - Hinweis bei fehlgeschlagener Mieter-Rechteprüfu
 
     await waitFor(() => expect(screen.getByTestId('apt-a1')).toHaveTextContent('Erika Beispiel'));
     expect(screen.getByTestId('apt-a2')).toHaveTextContent('kein-zugriff');
-    expect(screen.getByText(MESSAGE)).toBeInTheDocument();
+    expect(screen.queryByText(MESSAGE)).not.toBeInTheDocument();
   });
 
   it('waehrend des Ladens ist der Knopf deaktiviert (kein zweiter Abruf)', async () => {
@@ -213,7 +225,8 @@ describe('WohnungenClientView - Hinweis bei fehlgeschlagener Mieter-Rechteprüfu
     await user.click(button);
     expect(mockFetch).toHaveBeenCalledTimes(1);
 
-    resolveFetch({ ok: true, json: () => Promise.resolve([]) });
+    // the check still fails on the server: signal stays, button is usable again
+    resolveFetch({ ok: true, json: () => Promise.resolve(hidden({ permissionCheckFailed: true })) });
     await waitFor(() => expect(screen.getByRole('button', { name: /Erneut laden/ })).toBeEnabled());
   });
 
