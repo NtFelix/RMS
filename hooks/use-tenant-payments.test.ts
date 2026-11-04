@@ -86,7 +86,7 @@ describe('useTenantPayments: Zugriff auf /api/tenants-data', () => {
     const { result } = await load()
 
     expect(result.current.noAccess).toBe(false)
-    expect(result.current.error).toBe('Failed to fetch tenant data')
+    expect(result.current.error).toBe('Mietzahlungen konnten nicht geladen werden.')
   })
 
   it('behandelt 500 als Fehler', async () => {
@@ -95,7 +95,7 @@ describe('useTenantPayments: Zugriff auf /api/tenants-data', () => {
     const { result } = await load()
 
     expect(result.current.noAccess).toBe(false)
-    expect(result.current.error).toBe('Failed to fetch tenant data')
+    expect(result.current.error).toBe('Mietzahlungen konnten nicht geladen werden.')
   })
 
   it('setzt "kein Zugriff" bei einem erneuten erfolgreichen Laden zurueck', async () => {

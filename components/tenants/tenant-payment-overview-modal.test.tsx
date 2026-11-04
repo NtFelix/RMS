@@ -42,11 +42,11 @@ describe('TenantPaymentOverviewModal', () => {
   })
 
   it('zeigt einen Ladefehler weiter als Fehler, nicht als "Kein Zugriff"', () => {
-    mockHook({ error: 'Failed to fetch tenant data' })
+    mockHook({ error: 'Mietzahlungen konnten nicht geladen werden.' })
 
     render(<TenantPaymentOverviewModal />)
 
     expect(screen.queryByText('Kein Zugriff')).not.toBeInTheDocument()
-    expect(screen.getByText(/Failed to fetch tenant data/)).toBeInTheDocument()
+    expect(screen.getByText(/Mietzahlungen konnten nicht geladen werden./)).toBeInTheDocument()
   })
 })

@@ -39,7 +39,7 @@ export function useTenantPayments() {
                 }
             }
             if (!response.ok) {
-                throw new Error('Failed to fetch tenant data')
+                throw new Error('Mietzahlungen konnten nicht geladen werden.')
             }
 
             const { tenants } = await response.json()
