@@ -124,12 +124,22 @@ describe('checkPermission / hasPermission', () => {
   });
 });
 
+/** rpc mock that answers by function name: current_organisation_id and is_org_admin_or_owner */
+function mockRpc({ orgId = 'org-1', orgError = null, isAdmin = true, adminError = null }: {
+  orgId?: string | null; orgError?: unknown; isAdmin?: boolean | null | undefined; adminError?: unknown;
+}) {
+  rpc.mockImplementation(async (name: string) =>
+    name === 'current_organisation_id'
+      ? { data: orgError ? null : orgId, error: orgError }
+      : { data: adminError ? null : isAdmin, error: adminError });
+}
+
 describe('checkOrgAdminOrOwner / isOrgAdminOrOwner', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.spyOn(console, 'error').mockImplementation();
     mockEnsureAuth.mockResolvedValue({ supabase: { rpc }, user: { id: 'user-1' } });
-    rpc.mockResolvedValue({ data: true, error: null });
+    mockRpc({ isAdmin: true });
   });
   afterEach(() => {
     jest.restoreAllMocks();
@@ -140,23 +150,36 @@ describe('checkOrgAdminOrOwner / isOrgAdminOrOwner', () => {
     expect(await isOrgAdminOrOwner()).toBe(true);
     expect(rpc).toHaveBeenCalledWith('is_org_admin_or_owner');
 
-    for (const data of [false, null]) {
-      rpc.mockResolvedValue({ data, error: null });
+    for (const isAdmin of [false, null]) {
+      mockRpc({ isAdmin });
       expect(await checkOrgAdminOrOwner()).toBe('denied');
       expect(await isOrgAdminOrOwner()).toBe(false);
     }
   });
 
   it('a failed rpc (error object or exception) is an error, not denied; isOrgAdminOrOwner stays false (fail-closed), logged', async () => {
-    rpc.mockResolvedValueOnce({ data: null, error: { message: 'rpc failed' } });
+    mockRpc({ isAdmin: undefined, adminError: { message: 'rpc failed' } });
     expect(await checkOrgAdminOrOwner()).toBe('error');
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('isOrgAdminOrOwner'), { message: 'rpc failed' });
 
-    rpc.mockRejectedValueOnce(new Error('network down'));
+    rpc.mockImplementation(async () => { throw new Error('network down'); });
     expect(await checkOrgAdminOrOwner()).toBe('error');
 
-    rpc.mockResolvedValueOnce({ data: null, error: { message: 'rpc failed' } });
+    mockRpc({ isAdmin: undefined, adminError: { message: 'rpc failed' } });
     expect(await isOrgAdminOrOwner()).toBe(false);
+  });
+
+  it('personal account (no organisation) is allowed without asking the database function; a failed organisation lookup is an error', async () => {
+    mockRpc({ orgId: null, isAdmin: false });
+    expect(await checkOrgAdminOrOwner()).toBe('allowed');
+    expect(await isOrgAdminOrOwner()).toBe(true);
+    expect(rpc).not.toHaveBeenCalledWith('is_org_admin_or_owner');
+
+    mockRpc({ orgError: { message: 'org lookup failed' } });
+    expect(await checkOrgAdminOrOwner()).toBe('error');
+    expect(await isOrgAdminOrOwner()).toBe(false);
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('current_organisation_id'), { message: 'org lookup failed' });
+    expect(rpc).not.toHaveBeenCalledWith('is_org_admin_or_owner');
   });
 
   it('not signed in is denied (nothing logged); a failed user lookup or unexpected ensureAuth exception is an error', async () => {
@@ -170,6 +193,6 @@ describe('checkOrgAdminOrOwner / isOrgAdminOrOwner', () => {
     mockEnsureAuth.mockRejectedValueOnce(new Error('cookies() failed'));
     expect(await checkOrgAdminOrOwner()).toBe('error');
     expect(await isOrgAdminOrOwner()).toBe(true); // mocks are consumed, default is admin again
-    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith('is_org_admin_or_owner');
   });
 });
