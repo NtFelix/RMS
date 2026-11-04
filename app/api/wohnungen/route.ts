@@ -7,6 +7,7 @@ import { isTestEnv } from '@/lib/test-utils';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 import { normalizeApartmentLimit } from '@/lib/utils/subscription';
 import { getTodayISOString, isTenantActive } from '@/utils/date-calculations';
+import { pickCurrentTenantPerApartment } from '@/lib/tenant-access';
 
 
 export async function POST(request: Request) {
@@ -232,9 +233,10 @@ export async function GET() {
     // Add status and tenant information
     const todayStr = getTodayISOString();
 
+    const tenantByApartment = pickCurrentTenantPerApartment(tenants ?? [], todayStr);
     const enrichedApartments = (apartments || []).map(apt => {
-      // Find tenant for this apartment
-      const tenant = (tenants || []).find(t => t.wohnung_id === apt.id);
+      // The current tenant of this apartment (not just the first row: moved-out tenants may come first)
+      const tenant = tenantByApartment.get(apt.id);
 
       // Determine if apartment is free or rented
       let status = 'frei';

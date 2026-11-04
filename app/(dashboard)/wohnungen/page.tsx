@@ -9,6 +9,7 @@ import { isTestEnv } from '@/lib/test-utils';
 import WohnungenClientView from './client'; // Import the default export from client.tsx
 import type { Wohnung } from "@/types/Wohnung";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
+import { pickCurrentTenantPerApartment } from "@/lib/tenant-access";
 import { checkPermission, hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 
@@ -157,13 +158,8 @@ async function WohnungenContent() {
 
   const todayStr = getTodayISOString();
 
-  type Tenant = NonNullable<typeof tenants>[number];
-  const tenantMap = (tenants ?? []).reduce((map, t) => {
-    if (t.wohnung_id && !map.has(t.wohnung_id)) {
-      map.set(t.wohnung_id, t);
-    }
-    return map;
-  }, new Map<string, Tenant>());
+  // The current tenant per apartment (not just the first row: moved-out tenants may come first)
+  const tenantMap = pickCurrentTenantPerApartment(tenants ?? [], todayStr);
 
   const initialWohnungen: Wohnung[] = rawApartments ? rawApartments.map((apt) => {
     const tenant = tenantMap.get(apt.id);

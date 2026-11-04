@@ -101,12 +101,12 @@ describe('GET /api/wohnungen', () => {
     ];
 
     /** Der Mieter-Builder liefert nur die Spalten, die tatsaechlich selektiert wurden (wie PostgREST). */
-    function setup() {
+    function setup(rowsOfMieter: Array<Record<string, unknown>> = mieterRows) {
       const wohnungen = createBuilder({ data: wohnungenRows, error: null });
       const mieter = createBuilder({ data: [], error: null });
       mieter.select.mockImplementation((columns: string) => {
         const wanted = columns.split(',').map(c => c.trim());
-        const rows = mieterRows.map(row =>
+        const rows = rowsOfMieter.map(row =>
           Object.fromEntries(Object.entries(row).filter(([key]) => wanted.includes(key)))
         );
         (mieter as unknown as { then: unknown }).then = (resolve: (v: Result) => unknown) =>
@@ -143,6 +143,22 @@ describe('GET /api/wohnungen', () => {
       expect(body[1]).toEqual(expect.objectContaining({ id: 'a2', status: 'frei' }));
       expect(body[1].tenant).toEqual(expect.objectContaining({ name: 'Max Muster' }));
       expect(body.every((apt: Record<string, unknown>) => !('tenantAccess' in apt))).toBe(true);
+    });
+
+    it('zeigt eine Wohnung als vermietet, auch wenn die Zeile des ausgezogenen Mieters zuerst kommt', async () => {
+      mockRights('allowed');
+      setup([
+        { id: 'm0', wohnung_id: 'a1', name: 'Max Muster', einzug: '2015-01-01', auszug: '2016-01-01' },
+        { id: 'm1', wohnung_id: 'a1', name: 'Erika Beispiel', einzug: '2020-01-01', auszug: null },
+      ]);
+
+      const body = await (await GET()).json();
+
+      expect(body[0]).toEqual(expect.objectContaining({
+        id: 'a1',
+        status: 'vermietet',
+        tenant: expect.objectContaining({ id: 'm1', name: 'Erika Beispiel' }),
+      }));
     });
 
     it('liefert ohne mieter:ansehen keinen Mieter (weder geladen noch ausgeliefert), aber den korrekten Status', async () => {
