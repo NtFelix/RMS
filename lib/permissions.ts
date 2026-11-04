@@ -74,9 +74,9 @@ export async function requirePermission(modul: Modul, aktion: Aktion): Promise<v
  * `is_org_admin_or_owner`: role owner/admin and active membership) and tells "no admin" (`denied`) apart from "the check
  * itself failed" (`error`), like checkPermission. `error` is NO decision: callers must deny access for it (fail-closed).
  *
- * Unlike checkPermission this is a pure role check: it does not look at module rights, and a user without an active
- * organisation is `denied` (the database function returns false then). Not signed in is `denied`; a technically failed
- * user lookup (AuthLookupError) is an `error`.
+ * Unlike checkPermission this is a pure role check: it does not look at module rights. A personal account (no active
+ * organisation) is `allowed`, as in checkPermission. Not signed in is `denied`; a technically failed user lookup
+ * (AuthLookupError) or failed lookup of the organisation is an `error`.
  */
 export async function checkOrgAdminOrOwner(): Promise<PermissionCheckResult> {
   try {
@@ -89,6 +89,15 @@ export async function checkOrgAdminOrOwner(): Promise<PermissionCheckResult> {
       console.error("Error checking isOrgAdminOrOwner (user lookup):", authError);
       return 'error';
     }
+    // The database function returns false without an active organisation, but a personal account has full access
+    // there (as in checkPermission and the settings UI): it is its own admin, so the check ends here for it.
+    const { data: orgId, error: orgError } = await auth.supabase.rpc('current_organisation_id');
+    if (orgError) {
+      console.error("Error checking isOrgAdminOrOwner (current_organisation_id lookup):", orgError);
+      return 'error';
+    }
+    if (!orgId) return 'allowed';
+
     const { data: isAdmin, error } = await auth.supabase.rpc('is_org_admin_or_owner');
     if (error) {
       console.error("Error checking isOrgAdminOrOwner:", error);
