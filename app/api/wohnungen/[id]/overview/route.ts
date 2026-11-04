@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createRequestLogger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 
 interface WohnungWithMieter {
   id: string;
@@ -10,6 +11,10 @@ interface WohnungWithMieter {
   miete: number;
   hausName: string;
   mieter: MieterOverviewData[];
+  /** Only present (as `false`) without mieter:ansehen: `mieter` is then empty because of a missing right, not because there are no tenants. */
+  tenantAccess?: false;
+  /** Only present together with `tenantAccess: false`: occupation status without any tenant data. */
+  status?: 'frei' | 'vermietet';
 }
 
 interface MieterOverviewData {
@@ -58,8 +63,19 @@ export async function GET(
       );
     }
 
+    // Both checks start at once. wohnungen:ansehen is required for the route: 403 PERMISSION_DENIED if it is missing, 503
+    // PERMISSION_CHECK_FAILED if the check itself failed (see the catch); it runs in parallel with the apartment query
+    // and is awaited right after it, before anything is evaluated or answered. mieter:ansehen is awaited only before the
+    // tenant query. The no-op catches only prevent an unhandled rejection on an early return; the rejection still
+    // surfaces at the await.
+    const { requireApiPermission, hasApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
+    const permissionCheck = requireApiPermission('wohnungen', 'ansehen');
+    permissionCheck.catch(() => {});
+    const canViewTenantsPromise = hasApiPermission('mieter', 'ansehen');
+    canViewTenantsPromise.catch(() => {});
+
     // Fetch Wohnung with Haus information
-    const { data: wohnungData, error: wohnungError } = await supabase
+    const wohnungQuery = supabase
       .from('Wohnungen')
       .select(`
         id, 
@@ -71,6 +87,7 @@ export async function GET(
       `)
       .eq('id', wohnungId)
       .single();
+    const [{ data: wohnungData, error: wohnungError }] = await Promise.all([wohnungQuery, permissionCheck]);
 
     if (wohnungError) {
       const logger = createRequestLogger(request);
@@ -92,7 +109,6 @@ export async function GET(
       );
     }
 
-    const { verifyEntityInScope } = await import("@/lib/api-permissions");
     if (wohnungData.haus_id && !(await verifyEntityInScope(wohnungData.haus_id))) {
       return NextResponse.json(
         { error: "Permission denied" },
@@ -100,12 +116,49 @@ export async function GET(
       );
     }
 
+    // Tenants only with mieter:ansehen. Without it `mieter` stays empty (only move-out dates are read, for the status); a failed
+    // check throws PermissionCheckError (503, see the catch) instead of being shown as "no access".
+    const canViewTenants = await canViewTenantsPromise;
+
+    // Get today's date in YYYY-MM-DD format in local time
+    const now = new Date()
+    const todayStr = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-')
+
+    // Without mieter:ansehen only the move-out dates are read (for the status vermietet / frei): no name, id or
+    // contact data of a tenant is loaded.
+    let occupationStatus: 'frei' | 'vermietet' | undefined;
+    if (!canViewTenants) {
+      const { data: auszugData, error: auszugError } = await supabase
+        .from('Mieter')
+        .select('auszug')
+        .eq('wohnung_id', wohnungId);
+      if (auszugError) {
+        const logger = createRequestLogger(request);
+        logger.error("Error fetching Mieter status", new Error(auszugError.message), {
+          wohnungId,
+          errorCode: auszugError.code,
+          details: auszugError.details
+        });
+        return NextResponse.json(
+          { error: "Fehler beim Laden der Mieterdaten." },
+          { status: 500, headers: NO_CACHE_HEADERS }
+        );
+      }
+      occupationStatus = (auszugData || []).some(m => !m.auszug || m.auszug > todayStr) ? 'vermietet' : 'frei';
+    }
+
     // Fetch all Mieter for this Wohnung (current and historical)
-    const { data: mieterData, error: mieterError } = await supabase
-      .from('Mieter')
-      .select('id, name, email, telefonnummer, einzug, auszug')
-      .eq('wohnung_id', wohnungId)
-      .order('einzug', { ascending: false, nullsFirst: false });
+    const { data: mieterData, error: mieterError } = canViewTenants
+      ? await supabase
+          .from('Mieter')
+          .select('id, name, email, telefonnummer, einzug, auszug')
+          .eq('wohnung_id', wohnungId)
+          .order('einzug', { ascending: false, nullsFirst: false })
+      : { data: [], error: null };
 
     if (mieterError) {
       const logger = createRequestLogger(request);
@@ -122,13 +175,6 @@ export async function GET(
     }
 
     // Process Mieter with status and validate data
-    // Get today's date in YYYY-MM-DD format in local time
-    const now = new Date()
-    const todayStr = [
-      now.getFullYear(),
-      String(now.getMonth() + 1).padStart(2, '0'),
-      String(now.getDate()).padStart(2, '0')
-    ].join('-')
 
     const mieter: MieterOverviewData[] = (mieterData || []).map(mieterItem => {
       // Validate required fields
@@ -178,12 +224,16 @@ export async function GET(
       groesse: typedWohnungData.groesse || 0,
       miete: typedWohnungData.miete || 0,
       hausName: typedWohnungData.Haeuser?.[0]?.name || 'Unbekannt',
-      mieter
+      mieter,
+      ...(canViewTenants ? {} : { tenantAccess: false as const, status: occupationStatus })
     };
 
     return NextResponse.json(response, { status: 200, headers: NO_CACHE_HEADERS });
 
   } catch (error) {
+    // 403 PERMISSION_DENIED / 503 PERMISSION_CHECK_FAILED if a module right is missing / could not be checked
+    const permissionResponse = apiPermissionErrorResponse(error);
+    if (permissionResponse) return permissionResponse;
     const logger = createRequestLogger(request);
     logger.error("Unexpected error in GET /api/wohnungen/[id]/overview", error instanceof Error ? error : new Error(String(error)), {
       wohnungId: (await params).id

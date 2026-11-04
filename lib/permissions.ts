@@ -1,34 +1,61 @@
 import { ensureAuth } from "@/lib/auth-utils";
+import { isNotAuthenticatedError } from "@/lib/auth-errors";
 import { redirect, unstable_rethrow } from "next/navigation";
 
-import { evaluatePermission, type Modul, type Aktion } from "./permissions-core";
+import { evaluatePermission, evaluatePermissionResult, type Modul, type Aktion, type PermissionCheckResult } from "./permissions-core";
 export { evaluatePermission, type Modul, type Aktion };
 
 /**
- * Checks if the current authenticated user has permission for a specific module and action.
- * Fail-closed: returns false if not authenticated or if an error occurs.
+ * Checks the permission of the current authenticated user for a module and action and tells "the right is missing"
+ * (`denied`) apart from "the check itself failed" (`error`: failed lookup of the organisation, database error,
+ * exception). `error` is NO decision: callers must deny access for it as for `denied` (fail-closed) and may only
+ * change the message / offer a retry.
+ *
+ * Not signed in (no valid session) counts as `denied`, as before (it was false). If the lookup of the user itself fails
+ * technically (auth service unreachable, 5xx, rate limit, see AuthLookupError), that is an `error`, not "not signed in".
+ *
+ * Every failed check is logged exactly once, by whoever detects it (here, or evaluatePermissionResult, which catches
+ * its own failures and never throws), so this function adds no second line for an `error` it merely passes on.
  */
-export async function hasPermission(modul: Modul, aktion: Aktion): Promise<boolean> {
+export async function checkPermission(modul: Modul, aktion: Aktion): Promise<PermissionCheckResult> {
   try {
-    const { supabase, user } = await ensureAuth();
-    
+    let auth: Awaited<ReturnType<typeof ensureAuth>>;
+    try {
+      auth = await ensureAuth();
+    } catch (authError) {
+      unstable_rethrow(authError);
+      if (isNotAuthenticatedError(authError)) return 'denied';
+      console.error(`Permission check ${modul}:${aktion} failed (user lookup):`, authError);
+      return 'error';
+    }
+    const { supabase, user } = auth;
+
     // Resolve current organisation ID
     const { data: orgId, error: orgError } = await supabase.rpc('current_organisation_id');
     if (orgError) {
-      console.error(`Error fetching current_organisation_id for hasPermission:`, orgError);
-      return false;
+      console.error(`Permission check ${modul}:${aktion} failed (current_organisation_id lookup):`, orgError);
+      return 'error';
     }
 
     if (!orgId) {
-      return true; // Personal accounts have full access
+      return 'allowed'; // Personal accounts have full access
     }
 
-    return await evaluatePermission(supabase, user.id, orgId, modul, aktion);
+    return await evaluatePermissionResult(supabase, user.id, orgId, modul, aktion);
   } catch (error) {
     unstable_rethrow(error);
-    console.error(`Exception checking permission for ${modul}:${aktion}:`, error);
-    return false;
+    console.error(`Permission check ${modul}:${aktion} failed (unexpected exception):`, error);
+    return 'error';
   }
+}
+
+/**
+ * Checks if the current authenticated user has permission for a specific module and action.
+ * Fail-closed: returns false if not authenticated or if an error occurs (use checkPermission to tell a failed check
+ * apart from a missing right).
+ */
+export async function hasPermission(modul: Modul, aktion: Aktion): Promise<boolean> {
+  return (await checkPermission(modul, aktion)) === 'allowed';
 }
 
 /**

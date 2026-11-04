@@ -48,7 +48,7 @@ export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTr
   const { isDirectoryActive, getDirectoryActiveClasses } = useDirectoryActiveState()
 
   // Fetch real data from API
-  const { houses, apartments, tenants, isLoading, error, refetch } = usePropertyHierarchy()
+  const { houses, apartments, tenants, isLoading, error, errorKind, refetch } = usePropertyHierarchy()
 
   // Build tree structure from data
   useEffect(() => {
@@ -435,7 +435,11 @@ export function FileTreeView({ orgId, userId, className, onFolderClick }: FileTr
       <div className={cn("flex flex-col items-start gap-2 text-sm text-destructive", className)}>
         <div className="flex items-center gap-2">
           <AlertCircle className="size-4" />
-          <span>Fehler beim Laden der Ordnerstruktur</span>
+          <span>
+            {errorKind === 'permission-check'
+              ? "Die Berechtigungsprüfung ist vorübergehend fehlgeschlagen. Die Ordnerstruktur konnte nicht geladen werden."
+              : "Fehler beim Laden der Ordnerstruktur"}
+          </span>
         </div>
         <Button variant="outline" size="sm" onClick={refetch}>
           Erneut versuchen
