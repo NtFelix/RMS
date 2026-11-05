@@ -12,8 +12,9 @@ interface TenantCheckFailedNoticeProps {
 }
 
 /**
- * Shown only when the server reports `permissionCheckFailed` (the `mieter:ansehen` check failed twice): tenant data
- * is withheld as for a missing right, but the right might be there. Never rendered for a plain "Kein Zugriff".
+ * Shown only when an answer carries `permissionCheckFailed` (see `withheldTenantFields`: the `mieter:ansehen` check
+ * failed twice): tenant data is withheld as for a missing right, but the right might be there. Never rendered for a
+ * plain "Kein Zugriff".
  */
 export function TenantCheckFailedNotice({ onReload, isReloading = false }: TenantCheckFailedNoticeProps) {
   return (
