@@ -21,18 +21,19 @@ const baseData = {
   readings: [],
 }
 
-const renderModal = () =>
-  render(
+const modal = (hausId: string) => (
     <MeterAblesungenModal
       isOpen
       onClose={jest.fn()}
-      hausId="h1"
+      hausId={hausId}
       hausName="Musterhaus"
       startdatum="2024-01-01"
       enddatum="2024-12-31"
       nebenkostenId="n1"
     />
   )
+
+const renderModal = () => render(modal('h1'))
 
 describe('MeterAblesungenModal Mieteranzeige', () => {
   beforeEach(() => jest.clearAllMocks())
@@ -67,7 +68,10 @@ describe('MeterAblesungenModal Mieteranzeige', () => {
     renderModal()
 
     expect(await screen.findByText(TENANT_CHECK_FAILED_MESSAGE)).toBeInTheDocument()
-    expect(screen.getByText('Kein Zugriff')).toBeInTheDocument()
+    // no verdict per meter: "Kein Zugriff" would claim a denial that was never decided
+    expect(screen.getByText('Z-001')).toBeInTheDocument()
+    expect(screen.queryByText('Kein Zugriff')).not.toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Wohnung, Zähler-ID oder Typ suchen...')).toBeInTheDocument()
 
     mockAction.mockResolvedValue({
       success: true,
@@ -79,5 +83,95 @@ describe('MeterAblesungenModal Mieteranzeige', () => {
     expect(mockAction).toHaveBeenCalledTimes(2)
     expect(screen.queryByText(TENANT_CHECK_FAILED_MESSAGE)).not.toBeInTheDocument()
     expect(screen.queryByText('Kein Zugriff')).not.toBeInTheDocument()
+  })
+
+  describe('Zustand beim Hauswechsel und bei Ladefehlern', () => {
+    let consoleError: jest.SpyInstance
+    beforeEach(() => {
+      consoleError = jest.spyOn(console, 'error').mockImplementation()
+    })
+    afterEach(() => consoleError.mockRestore())
+
+    const failedCheckData = { ...baseData, mieter: [], tenantAccess: false, permissionCheckFailed: true }
+    const otherHouseData = {
+      wohnungen: [{ id: 'w2', name: 'Wohnung 2B', groesse: 50 }],
+      meters: [{ id: 'm2', custom_id: 'Z-002', wohnung_id: 'w2', eichungsdatum: '2099-01-01', zaehler_typ: 'kaltwasser', einheit: 'm³' }],
+      readings: [],
+      mieter: [{ id: 't2', name: 'Anderer Mieter', wohnung_id: 'w2' }],
+    }
+
+    it('Hauswechsel: Zähler, Mietername und Tenant-Zustand des alten Hauses verschwinden sofort, bis das neue Haus geladen ist', async () => {
+      mockAction.mockResolvedValueOnce({ success: true, data: failedCheckData })
+      const { rerender } = renderModal()
+      expect(await screen.findByText(TENANT_CHECK_FAILED_MESSAGE)).toBeInTheDocument()
+
+      let resolveNext: (value: unknown) => void = () => {}
+      mockAction.mockReturnValueOnce(new Promise((resolve) => { resolveNext = resolve }))
+      rerender(modal('h2'))
+
+      await waitFor(() => expect(screen.queryByText('Z-001')).not.toBeInTheDocument())
+      expect(screen.queryByText(TENANT_CHECK_FAILED_MESSAGE)).not.toBeInTheDocument()
+
+      resolveNext({ success: true, data: otherHouseData })
+      expect(await screen.findByText('Anderer Mieter')).toBeInTheDocument()
+      expect(screen.queryByText('Z-001')).not.toBeInTheDocument()
+    })
+
+    it('Hauswechsel: eine späte Antwort des alten Hauses überschreibt das neue Haus nicht', async () => {
+      let resolveOld: (value: unknown) => void = () => {}
+      mockAction.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve }))
+      const { rerender } = renderModal()
+
+      mockAction.mockResolvedValueOnce({ success: true, data: otherHouseData })
+      rerender(modal('h2'))
+      expect(await screen.findByText('Anderer Mieter')).toBeInTheDocument()
+
+      resolveOld({ success: true, data: failedCheckData })
+      await new Promise((resolve) => setTimeout(resolve, 20))
+
+      expect(screen.getByText('Anderer Mieter')).toBeInTheDocument()
+      expect(screen.queryByText('Z-001')).not.toBeInTheDocument()
+      expect(screen.queryByText(TENANT_CHECK_FAILED_MESSAGE)).not.toBeInTheDocument()
+    })
+
+    it('Hauswechsel: die späte Antwort des alten Hauses beendet die Ladeanzeige des neuen Hauses nicht', async () => {
+      let resolveOld: (value: unknown) => void = () => {}
+      mockAction.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve }))
+      const { rerender } = renderModal()
+      mockAction.mockReturnValueOnce(new Promise(() => {})) // the new house stays loading
+      rerender(modal('h2'))
+      await waitFor(() => expect(mockAction).toHaveBeenCalledTimes(2))
+
+      resolveOld({ success: true, data: failedCheckData })
+      await new Promise((resolve) => setTimeout(resolve, 20))
+
+      expect(screen.getByText('Lade Zählerdaten...')).toBeInTheDocument()
+    })
+
+    it('Hauswechsel mit Ladefehler: nichts vom alten Haus bleibt stehen', async () => {
+      mockAction.mockResolvedValueOnce({ success: true, data: failedCheckData })
+      const { rerender } = renderModal()
+      expect(await screen.findByText(TENANT_CHECK_FAILED_MESSAGE)).toBeInTheDocument()
+
+      mockAction.mockResolvedValueOnce({ success: false, message: 'Fehler' })
+      rerender(modal('h2'))
+
+      await waitFor(() => expect(mockAction).toHaveBeenCalledTimes(2))
+      await waitFor(() => expect(screen.queryByText('Z-001')).not.toBeInTheDocument())
+      expect(screen.queryByText(TENANT_CHECK_FAILED_MESSAGE)).not.toBeInTheDocument()
+    })
+
+    it('"Erneut laden" schlägt fehl: Liste und Hinweis werden zurückgesetzt (kein halber Altzustand)', async () => {
+      mockAction.mockResolvedValueOnce({ success: true, data: failedCheckData })
+      renderModal()
+      const reload = await screen.findByRole('button', { name: /Erneut laden/ })
+
+      mockAction.mockResolvedValueOnce({ success: false, message: 'Fehler' })
+      fireEvent.click(reload)
+      await waitFor(() => expect(mockAction).toHaveBeenCalledTimes(2))
+
+      await waitFor(() => expect(screen.queryByText('Z-001')).not.toBeInTheDocument())
+      expect(screen.queryByText(TENANT_CHECK_FAILED_MESSAGE)).not.toBeInTheDocument()
+    })
   })
 })

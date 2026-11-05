@@ -218,6 +218,111 @@ describe('meter-actions', () => {
       });
     });
 
+    describe('Prüfung von mieter:ansehen auf Pfaden ohne Mieterdaten', () => {
+      const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+      // Longer than the retry pause (200 ms): an unaborted retry would have run by then
+      const PAST_RETRY_PAUSE_MS = 350;
+
+      it('RPC-Fehler: die ausgefallene Prüfung wird nicht wiederholt (kein Retry im Hintergrund)', async () => {
+        mockCheck.mockResolvedValue('error');
+        mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
+
+        const result = await getMeterForHausAction('house1');
+        await sleep(PAST_RETRY_PAUSE_MS);
+
+        expect(result).toEqual({ success: false, message: 'DB Error' });
+        expect(mockCheck).toHaveBeenCalledTimes(1);
+      });
+
+      it('"Keine Daten gefunden.": die ausgefallene Prüfung wird nicht wiederholt', async () => {
+        mockCheck.mockResolvedValue('error');
+        mockSupabase.rpc.mockResolvedValue({ data: [], error: null });
+
+        const result = await getMeterForHausAction('house1');
+        await sleep(PAST_RETRY_PAUSE_MS);
+
+        expect(result).toEqual({ success: false, message: 'Keine Daten gefunden.' });
+        expect(mockCheck).toHaveBeenCalledTimes(1);
+      });
+
+      it('wirft die Prüfung selbst und die RPC schlägt fehl: die Aktion antwortet normal, keine unbehandelte Ablehnung', async () => {
+        const unhandled: unknown[] = [];
+        const onUnhandled = (reason: unknown) => unhandled.push(reason);
+        process.on('unhandledRejection', onUnhandled);
+        try {
+          mockCheck.mockRejectedValue(new Error('check boom'));
+          mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
+
+          const result = await getMeterForHausAction('house1');
+          await sleep(50);
+
+          expect(result).toEqual({ success: false, message: 'DB Error' });
+          expect(unhandled).toEqual([]);
+        } finally {
+          process.off('unhandledRejection', onUnhandled);
+        }
+      });
+
+      it('Ausnahme der RPC: die ausgefallene Prüfung wird nicht wiederholt', async () => {
+        mockCheck.mockResolvedValue('error');
+        mockSupabase.rpc.mockRejectedValue(new Error('network'));
+
+        const result = await getMeterForHausAction('house1');
+        await sleep(PAST_RETRY_PAUSE_MS);
+
+        expect(result.success).toBe(false);
+        expect(mockCheck).toHaveBeenCalledTimes(1);
+      });
+
+      it('Fallback ohne Wohnungen im Haus: die ausgefallene Prüfung wird nicht wiederholt', async () => {
+        mockCheck.mockResolvedValue('error');
+        mockSupabase.rpc.mockResolvedValue({ data: null, error: { code: '42883' } });
+        mockSupabase.from.mockImplementation(() => ({
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          order: jest.fn().mockReturnThis(),
+          then: (resolve: any) => resolve({ data: [], error: null })
+        }));
+
+        const result = await getMeterForHausAction('house1');
+        await sleep(PAST_RETRY_PAUSE_MS);
+
+        expect(result.success).toBe(true);
+        expect(mockCheck).toHaveBeenCalledTimes(1);
+      });
+
+      it('Normalfall bleibt parallel: die Prüfung läuft, während die RPC noch aussteht', async () => {
+        mockCheck.mockResolvedValue('allowed');
+        let resolveRpc: (value: unknown) => void = () => {};
+        mockSupabase.rpc.mockReturnValue(new Promise(resolve => { resolveRpc = resolve; }));
+
+        const pending = getMeterForHausAction('house1');
+        await sleep(20);
+
+        expect(mockSupabase.rpc).toHaveBeenCalled();
+        expect(mockCheck).toHaveBeenCalledWith('mieter', 'ansehen'); // already started, RPC still open
+
+        resolveRpc({ data: [{ wohnungen: [], meters: [], readings: [], mieter: [tenant] }], error: null });
+        expect((await pending).data?.mieter).toEqual([expect.objectContaining({ id: 't1' })]);
+      });
+
+      it('Fallback wartet mit den Wohnungs-/Zähler-Abfragen nicht auf die Prüfung', async () => {
+        let resolveCheck: (value: string) => void = () => {};
+        mockCheck.mockReturnValue(new Promise(resolve => { resolveCheck = resolve; }));
+        const tables = mockFallbackWithTenant();
+
+        const pending = getMeterForHausAction('house1');
+        await sleep(20);
+
+        expect(tables).toEqual(['Wohnungen', 'Zaehler']); // queried while the check is still open, Mieter not yet
+
+        resolveCheck('allowed');
+        const result = await pending;
+        expect(tables).toContain('Mieter');
+        expect(result.data?.mieter).toEqual([expect.objectContaining({ id: 't1' })]);
+      });
+    });
+
     it('Fallback liest die Mieter-Tabelle ohne mieter:ansehen gar nicht', async () => {
       mockCheck.mockResolvedValue('denied');
       const tables = mockFallbackWithTenant();
