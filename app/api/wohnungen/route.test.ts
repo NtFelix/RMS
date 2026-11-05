@@ -223,11 +223,10 @@ describe('GET /api/wohnungen', () => {
       expect(body[0].tenant).toEqual({ id: 'm1', name: 'Erika Beispiel', einzug: '2020-01-01', auszug: null });
       for (const apt of body) {
         expect(apt).not.toHaveProperty('tenantAccess');
-        expect(apt).not.toHaveProperty('permissionCheckFailed');
       }
     });
 
-    it('Retry schlaegt ebenfalls fehl: 200 mit den Wohnungen, aber ohne Mieter (fail-closed) und mit permissionCheckFailed', async () => {
+    it('Retry schlaegt ebenfalls fehl: 200 mit den Wohnungen, aber ohne Mieter (fail-closed)', async () => {
       jest.spyOn(console, 'error').mockImplementation();
       mockMieterSequence('error');
       const { mieter } = setup();
@@ -242,8 +241,8 @@ describe('GET /api/wohnungen', () => {
       expect(mieter.select).toHaveBeenCalledWith('wohnung_id, auszug, einzug');
       expect(mieter.select).not.toHaveBeenCalledWith(expect.stringContaining('name'));
       expect(body).toEqual([
-        expect.objectContaining({ id: 'a1', status: 'vermietet', tenantAccess: false, permissionCheckFailed: true }),
-        expect.objectContaining({ id: 'a2', status: 'frei', tenantAccess: false, permissionCheckFailed: true }),
+        expect.objectContaining({ id: 'a1', status: 'vermietet', tenantAccess: false }),
+        expect.objectContaining({ id: 'a2', status: 'frei', tenantAccess: false }),
       ]);
       for (const apt of body) {
         expect(apt).not.toHaveProperty('tenant');
@@ -253,7 +252,7 @@ describe('GET /api/wohnungen', () => {
       }
     });
 
-    it('echtes denied: kein Retry und kein permissionCheckFailed-Signal', async () => {
+    it('echtes denied: kein Retry', async () => {
       mockMieterSequence('denied');
       setup();
 
@@ -264,11 +263,10 @@ describe('GET /api/wohnungen', () => {
       expect(mieterChecks()).toHaveLength(1);
       for (const apt of body) {
         expect(apt.tenantAccess).toBe(false);
-        expect(apt).not.toHaveProperty('permissionCheckFailed');
       }
     });
 
-    it('error, dann denied: das Recht fehlt, also ohne permissionCheckFailed-Signal', async () => {
+    it('error, dann denied: das Recht fehlt, Mieter ausgeblendet', async () => {
       jest.spyOn(console, 'error').mockImplementation();
       mockMieterSequence('error', 'denied');
       setup();
@@ -278,7 +276,6 @@ describe('GET /api/wohnungen', () => {
       expect(mieterChecks()).toHaveLength(2);
       for (const apt of body) {
         expect(apt.tenantAccess).toBe(false);
-        expect(apt).not.toHaveProperty('permissionCheckFailed');
         expect(apt).not.toHaveProperty('tenant');
       }
     });

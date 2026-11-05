@@ -11,7 +11,7 @@ import type { Wohnung } from "@/types/Wohnung";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 import { pickCurrentTenantPerApartment } from "@/lib/tenant-access";
 import { hasPermission } from "@/lib/permissions";
-import { checkTenantViewAccess, withheldTenantFields } from "@/lib/tenant-view-access";
+import { checkTenantViewAccess } from "@/lib/tenant-view-access";
 import { redirect } from "next/navigation";
 
 import { Suspense } from "react";
@@ -46,8 +46,8 @@ async function WohnungenContent() {
   if (!canView) {
     redirect('/unauthorized');
   }
-  // Failed twice: the page still loads and the tenants stay withheld as for a missing right (fail-closed); the flag lets
-  // the client say that this may be wrong and offer a reload of the tenant part.
+  // Failed twice: the page still loads and the tenants stay withheld as for a missing right (fail-closed). Nothing on
+  // this page shows tenants, so there is nothing to flag or to reload.
   const canViewTenants = tenantAccess.canViewTenants;
 
   let apartmentCount = 0;
@@ -164,13 +164,12 @@ async function WohnungenContent() {
       status = 'vermietet';
     }
     if (!canViewTenants) {
-      // Status stays; `tenant` is absent and `tenantAccess: false` marks "no access" (not "no tenant");
-      // `permissionCheckFailed` only when the check failed, not for a missing right
+      // Status stays; `tenant` is absent and `tenantAccess: false` marks "no access" (not "no tenant")
       return {
         ...apt,
         Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
         status,
-        ...withheldTenantFields(tenantAccess),
+        tenantAccess: false,
       } as Wohnung;
     }
     return {
