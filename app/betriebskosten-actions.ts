@@ -32,7 +32,7 @@ import {
 
 // Import logger for performance monitoring
 import { logger } from '@/utils/logger';
-import { checkTenantViewAccess, withheldTenantFields, type TenantViewAccess } from '@/lib/tenant-view-access';
+import { checkTenantViewAccess, withheldTenantFields, type TenantViewAccess, type WithheldTenantFields } from '@/lib/tenant-view-access';
 import { findDuplicateNachRechnungName, normalizeBerechnungsart } from '@/utils/betriebskosten';
 import { type Rechenbasis, RECHENBASIS_KALENDERTAGE, RECHENBASIS_360_TAGE, isValid360Period } from '@/utils/rechentage';
 import { BERECHNUNGSART_OPTIONS } from '@/lib/constants';
@@ -1001,7 +1001,7 @@ export async function getWasserzaehlerByHausAndYearAction(
   success: boolean;
   // Without mieter:ansehen (or if that check failed) both lists are empty and `tenantAccess: false` (plus
   // `permissionCheckFailed: true` for a failed check) tells the caller that this is "no access", not "no tenants"
-  data?: { mieterList: Mieter[]; existingReadings: Wasserzaehler[] } & Partial<ReturnType<typeof withheldTenantFields>>;
+  data?: { mieterList: Mieter[]; existingReadings: Wasserzaehler[] } & Partial<WithheldTenantFields>;
   message?: string;
 }> {
   try {
@@ -1697,8 +1697,10 @@ async function getMeterModalDataActionImpl(
 
   // The rows of this answer are tenants (name, id): they only leave this action with mieter:ansehen. The check runs
   // alongside the data query (no extra round-trip); a failed check is repeated once inside (see checkTenantViewAccess).
-  // The no-op catch only prevents an unhandled rejection if an early return skips the await.
-  const tenantAccessPromise = checkTenantViewAccess();
+  // Paths that return without tenant data (RPC error, Nebenkosten not found) never wait for it: the `finally` aborts
+  // it, so no retry pause is left running. The no-op catch only prevents an unhandled rejection on those paths.
+  const tenantCheck = new AbortController();
+  const tenantAccessPromise = checkTenantViewAccess({ signal: tenantCheck.signal });
   tenantAccessPromise.catch(() => {});
 
   try {
@@ -1738,8 +1740,6 @@ async function getMeterModalDataActionImpl(
           originalError
         });
 
-        const tenantAccess = await tenantAccessPromise;
-
         // Fallback implementation using regular queries
         const { data: nebenkostenData, error: nebenkostenError } = await supabase
           .from("Nebenkosten")
@@ -1756,6 +1756,8 @@ async function getMeterModalDataActionImpl(
         }
 
         // Every row is a tenant, so without mieter:ansehen there is nothing to show: the Mieter table is not even read
+        // (the decision is only needed here, it ran alongside the Nebenkosten query above)
+        const tenantAccess = await tenantAccessPromise;
         if (!tenantAccess.canViewTenants) {
           return denyMeterModalTenants(tenantAccess);
         }
@@ -1944,6 +1946,8 @@ async function getMeterModalDataActionImpl(
       success: false,
       message: userMessage
     };
+  } finally {
+    tenantCheck.abort();
   }
 }
 

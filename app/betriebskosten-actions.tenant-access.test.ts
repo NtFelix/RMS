@@ -233,3 +233,22 @@ describe('getWasserzaehlerByHausAndYearAction: Mieterliste nur mit mieter:ansehe
     expect(result.data).not.toHaveProperty('tenantAccess');
   });
 });
+
+describe('getMeterModalDataAction: Prüfung ohne Mieterdaten', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCheck.mockReset();
+  });
+
+  it('auf dem RPC-Fehlerpfad bleibt kein Retry zurück (die Prüfung wird abgebrochen)', async () => {
+    mockCheck.mockResolvedValue('error');
+    mockSupabaseTables();
+    mockRpc.mockResolvedValue({ success: false, message: 'boom' });
+
+    const result = await getMeterModalDataAction('nk1');
+    await new Promise((resolve) => setTimeout(resolve, 400)); // longer than the retry pause
+
+    expect(result.success).toBe(false);
+    expect(mockCheck).toHaveBeenCalledTimes(1);
+  });
+});
