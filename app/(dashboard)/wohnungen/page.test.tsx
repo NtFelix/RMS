@@ -4,7 +4,7 @@
  * Tests für die Wohnungen-Seite (Server Component): Mieterdaten (`tenant`) nur mit `mieter:ansehen`.
  * Ohne das Recht werden Name/id gar nicht erst gelesen, der Status (frei/vermietet) bleibt aus Ein-/Auszug berechnet.
  * Faellt die Pruefung von mieter:ansehen aus, wird sie einmal wiederholt; schlaegt auch der Retry fehl, laedt die Seite
- * trotzdem, die Mieter bleiben ausgeblendet (fail-closed) und `permissionCheckFailed` markiert den Fall.
+ * trotzdem, die Mieter bleiben ausgeblendet (fail-closed), genau wie bei fehlendem Recht.
  * Alle Daten sind synthetische Platzhalter.
  */
 
@@ -151,7 +151,7 @@ describe("WohnungenPage - mieter:ansehen", () => {
     }
     const mieterChecks = () => mockCheckPermission.mock.calls.filter(([modul]) => modul === "mieter");
 
-    it("Retry klappt: Mieterdaten wie bisher, kein Signal", async () => {
+    it("Retry klappt: Mieterdaten wie bisher", async () => {
       const selects = setupSequence("error", "allowed");
 
       const { initialWohnungenData } = (await renderPage()).props as { initialWohnungenData: any[] };
@@ -161,11 +161,10 @@ describe("WohnungenPage - mieter:ansehen", () => {
       expect(initialWohnungenData[0].tenant).toEqual(expect.objectContaining({ name: "Erika Beispiel" }));
       for (const w of initialWohnungenData) {
         expect(w).not.toHaveProperty("tenantAccess");
-        expect(w).not.toHaveProperty("permissionCheckFailed");
       }
     });
 
-    it("Retry schlaegt fehl: Seite laedt mit Wohnungsdaten, Mieter fail-closed ausgeblendet, permissionCheckFailed gesetzt", async () => {
+    it("Retry schlaegt fehl: Seite laedt mit Wohnungsdaten, Mieter fail-closed ausgeblendet", async () => {
       const selects = setupSequence("error");
 
       const element = await renderPage();
@@ -180,14 +179,13 @@ describe("WohnungenPage - mieter:ansehen", () => {
       for (const w of initialWohnungenData) {
         expect(w).not.toHaveProperty("tenant");
         expect(w.tenantAccess).toBe(false);
-        expect(w.permissionCheckFailed).toBe(true);
       }
       for (const forbidden of ["Erika Beispiel", "Max Muster", "m1", "2020-01-01"]) {
         expect(text).not.toContain(forbidden);
       }
     });
 
-    it("echtes denied: kein Retry und kein Signal", async () => {
+    it("echtes denied: kein Retry", async () => {
       setupSequence("denied");
 
       const { initialWohnungenData } = (await renderPage()).props as { initialWohnungenData: any[] };
@@ -195,7 +193,6 @@ describe("WohnungenPage - mieter:ansehen", () => {
       expect(mieterChecks()).toHaveLength(1);
       for (const w of initialWohnungenData) {
         expect(w.tenantAccess).toBe(false);
-        expect(w).not.toHaveProperty("permissionCheckFailed");
       }
     });
 

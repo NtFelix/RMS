@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
-import { checkTenantViewAccess, withheldTenantFields } from "@/lib/tenant-view-access";
+import { checkTenantViewAccess } from "@/lib/tenant-view-access";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
 import { isTestEnv } from '@/lib/test-utils';
@@ -201,8 +201,7 @@ export async function GET() {
 
     // Without mieter:ansehen only the dates for the occupation status are read: no name and no id of a tenant is even
     // loaded, so none can leave through this route. This holds the same when the check failed twice: the apartments
-    // are still answered (they depend on wohnungen:ansehen only), the tenants stay withheld and `permissionCheckFailed`
-    // tells the client that this may be wrong.
+    // are still answered (they depend on wohnungen:ansehen only) and the tenants stay withheld (fail-closed).
     const tenantAccess = await tenantAccessPromise;
     const canViewTenants = tenantAccess.canViewTenants;
 
@@ -250,10 +249,9 @@ export async function GET() {
       }
 
       // Without mieter:ansehen: the status stays, `tenant` is absent and `tenantAccess: false` tells the client that
-      // this is "no access" and not "no tenant"; `permissionCheckFailed` only when the check failed (not for a
-      // missing right)
+      // this is "no access" and not "no tenant"
       if (!canViewTenants) {
-        return { ...apt, status, ...withheldTenantFields(tenantAccess) };
+        return { ...apt, status, tenantAccess: false };
       }
 
       return {

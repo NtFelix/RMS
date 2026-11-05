@@ -27,10 +27,6 @@ import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRent
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
 import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
-import { TenantCheckFailedNotice } from "@/components/apartments/tenant-check-failed-notice";
-
-// The tenant part of an apartment row (what a partial reload replaces)
-type TenantFields = Pick<Wohnung, "tenant" | "tenantAccess" | "permissionCheckFailed">;
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -71,30 +67,7 @@ export default function WohnungenClientView({
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const reloadRef = useRef<(() => void) | null>(null);
-  // Result of the partial reload of the tenant part (see reloadTenantData). Tied to the server data it was merged into:
-  // a router.refresh() brings new `initialWohnungenData` and thereby drops it.
-  const [tenantReload, setTenantReload] = useState<{
-    source: Wohnung[];
-    byId: Map<string, TenantFields>;
-  } | null>(null);
-  const [isReloadingTenants, setIsReloadingTenants] = useState(false);
-  // State updates land after the render, so a second click in the same tick would still see `false`: guard with a ref
-  const isReloadingTenantsRef = useRef(false);
-  const apartments = useMemo(() => {
-    if (!tenantReload || tenantReload.source !== initialWohnungenData) return initialWohnungenData;
-    return initialWohnungenData.map((apt) => {
-      // Only the tenant fields are replaced; everything else stays as it was. An apartment that is not part of the
-      // successful answer (deleted or out of scope in the meantime) keeps the tenant withheld, but not the failure
-      // signal: no reload could ever resolve it, so it must not keep the notice on screen.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- the three fields are dropped on purpose
-      const { tenant: _tenant, tenantAccess: _tenantAccess, permissionCheckFailed: _failed, ...rest } = apt;
-      const reloaded = tenantReload.byId.get(apt.id);
-      if (reloaded) return { ...rest, ...reloaded };
-      return apt.permissionCheckFailed ? { ...rest, tenantAccess: apt.tenantAccess } : apt;
-    });
-  }, [initialWohnungenData, tenantReload]);
-  // Server signal: the mieter:ansehen check failed twice, so the withheld tenants may be hidden wrongly
-  const tenantCheckFailed = apartments.some((a) => a.permissionCheckFailed === true);
+  const apartments = initialWohnungenData;
   const [selectedApartments, setSelectedApartments] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
@@ -174,42 +147,6 @@ export default function WohnungenClientView({
     router.refresh();
     window.dispatchEvent(new CustomEvent('refresh-sidebar-insights'));
   }, [router]);
-
-  // Reloads only the tenant part: asks /api/wohnungen again (which repeats the permission check) and takes over
-  // tenant, tenantAccess and permissionCheckFailed per apartment. The page, the other apartment data, the selection and
-  // the filters stay untouched (no router.refresh()). Any failure keeps the tenants withheld.
-  const reloadTenantData = useCallback(async (): Promise<void> => {
-    if (isReloadingTenantsRef.current) return;
-    isReloadingTenantsRef.current = true;
-    setIsReloadingTenants(true);
-    try {
-      const response = await fetch('/api/wohnungen', { cache: 'no-store' });
-      if (!response.ok) throw new Error(`GET /api/wohnungen: ${response.status}`);
-      const rows: Wohnung[] = await response.json();
-      const byId = new Map<string, TenantFields>();
-      for (const row of rows) {
-        const reloaded: TenantFields = {};
-        if (row.tenantAccess === false) {
-          reloaded.tenantAccess = false;
-          if (row.permissionCheckFailed) reloaded.permissionCheckFailed = true;
-        } else if (row.tenant) {
-          reloaded.tenant = row.tenant;
-        }
-        byId.set(row.id, reloaded);
-      }
-      setTenantReload({ source: initialWohnungenData, byId });
-    } catch (error) {
-      console.error('Error reloading tenant data:', error);
-      toast({
-        title: "Fehler",
-        description: "Die Mieterdaten konnten nicht neu geladen werden.",
-        variant: "destructive",
-      });
-    } finally {
-      isReloadingTenantsRef.current = false;
-      setIsReloadingTenants(false);
-    }
-  }, [initialWohnungenData]);
 
   // Dispatch initial statistics refresh to the sidebar on mount
   useEffect(() => {
@@ -456,9 +393,6 @@ export default function WohnungenClientView({
 
       {currentTab === "apartments" ? (
         <>
-          {tenantCheckFailed && (
-            <TenantCheckFailedNotice onReload={reloadTenantData} isReloading={isReloadingTenants} />
-          )}
           <div className={`${STAT_CARD_ROW_CLASS} animate-in fade-in duration-300`}>
             <StatCard
               title="Wohnungen gesamt"
