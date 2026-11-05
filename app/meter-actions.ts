@@ -6,7 +6,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import type { Zaehler, ZaehlerAblesung, Wohnung, Mieter } from "@/lib/types";
 import { logAction } from '@/lib/logging-middleware';
 import { capturePostHogEvent } from '@/lib/posthog-helpers';
-import { checkTenantViewAccess, withheldTenantFields, type TenantViewAccess } from '@/lib/tenant-view-access';
+import { checkTenantViewAccess, applyTenantAccess, type TenantViewAccess, type WithheldTenantFields } from '@/lib/tenant-view-access';
 
 type SupabaseClientType = SupabaseClient;
 
@@ -39,8 +39,11 @@ export async function getMeterForHausAction(hausId: string) {
   const startTime = Date.now();
 
   // The tenant right is checked alongside the meter query (no extra round-trip); a failed check is repeated once inside
-  // (see checkTenantViewAccess). The no-op catch only prevents an unhandled rejection if the query path returns first.
-  const tenantAccessPromise = checkTenantViewAccess();
+  // (see checkTenantViewAccess). Paths that return without tenant data (RPC error, no data, empty house) never wait for
+  // it: the `finally` aborts it, so no retry pause is left running. The no-op catch only prevents an unhandled rejection
+  // on those paths.
+  const tenantCheck = new AbortController();
+  const tenantAccessPromise = checkTenantViewAccess({ signal: tenantCheck.signal });
   tenantAccessPromise.catch(() => {});
 
   try {
@@ -65,7 +68,7 @@ export async function getMeterForHausAction(hausId: string) {
         console.log(`[${new Date().toISOString()}] [WARN] Database function 'get_zaehler_for_haus' not available, using fallback queries`);
 
         // Fallback to individual queries
-        return await getMeterForHausFallback(supabase, hausId, startTime, await tenantAccessPromise);
+        return await getMeterForHausFallback(supabase, hausId, startTime, tenantAccessPromise);
       }
 
       console.error("Error fetching meter data for house:", error);
@@ -103,14 +106,15 @@ Context: ${JSON.stringify({
         readings: result.readings || [],
         // Without mieter:ansehen (or if the check failed) no tenant leaves this action: the list stays empty and
         // `tenantAccess: false` tells the modal that this is "no access" and not "no tenant"
-        mieter: tenantAccess.canViewTenants ? result.mieter || [] : [],
-        ...(tenantAccess.canViewTenants ? {} : withheldTenantFields(tenantAccess))
+        ...applyTenantAccess<MieterBasic>(tenantAccess, result.mieter || [])
       }
     };
   } catch (error: unknown) {
     console.error("Unexpected error in getMeterForHausAction:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
+  } finally {
+    tenantCheck.abort();
   }
 }
 
@@ -137,7 +141,7 @@ interface FallbackResult {
     meters: Zaehler[];
     readings: ZaehlerAblesung[];
     mieter: MieterBasic[];
-  } & Partial<ReturnType<typeof withheldTenantFields>>;
+  } & Partial<WithheldTenantFields>;
   message?: string;
 }
 
@@ -145,7 +149,7 @@ async function getMeterForHausFallback(
   supabase: SupabaseClientType,
   hausId: string,
   startTime: number,
-  tenantAccess: TenantViewAccess
+  tenantAccessPromise: Promise<TenantViewAccess>
 ): Promise<FallbackResult> {
   try {
     const { data: wohnungen, error: wohnungenError } = await supabase
@@ -173,6 +177,9 @@ async function getMeterForHausFallback(
     if (metersError) throw metersError;
 
     const meterIds = meters?.map((m: Zaehler) => m.id) || [];
+
+    // Only here the tenant decision is needed (it ran alongside the queries above, not before them)
+    const tenantAccess = await tenantAccessPromise;
 
     const [
       { data: readings, error: readingsError },
@@ -205,8 +212,7 @@ async function getMeterForHausFallback(
         wohnungen: (wohnungen || []) as unknown as WohnungBasic[],
         meters: (meters || []) as unknown as Zaehler[],
         readings: (readings || []) as unknown as ZaehlerAblesung[],
-        mieter: (mieter || []) as unknown as MieterBasic[],
-        ...(tenantAccess.canViewTenants ? {} : withheldTenantFields(tenantAccess))
+        ...applyTenantAccess(tenantAccess, (mieter || []) as unknown as MieterBasic[])
       }
     };
   } catch (error: unknown) {

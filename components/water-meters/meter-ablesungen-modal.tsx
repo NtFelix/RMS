@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { getTodayISOString, isoToGermanDate } from "@/utils/date-calculations";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { isoToGermanDate } from "@/utils/date-calculations";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +37,7 @@ import { formatNumber } from "@/utils/format";
 import { ZaehlerTyp, ZAEHLER_CONFIG } from "@/lib/zaehler-types";
 import { getMeterIcon, getMeterBgColor } from "@/components/meters/meter-card";
 import { TenantCheckFailedNotice } from "@/components/apartments/tenant-check-failed-notice";
-import { pickCurrentTenantPerApartment, TENANT_NO_ACCESS_LABEL } from "@/lib/tenant-access";
+import { TENANT_NO_ACCESS_LABEL } from "@/lib/tenant-access";
 
 // Local interface for UI presentation
 interface Meter {
@@ -128,6 +128,20 @@ export function MeterAblesungenModal({
   const { toast } = useToast();
   const { openAblesungenModal } = useModalStore();
 
+  // Only the newest load may write its result: a slower answer for a previous house must not overwrite the current one
+  const loadRequestRef = useRef(0);
+  // The house whose data is currently on screen
+  const shownHausIdRef = useRef<string | null>(null);
+
+  // Back to the empty initial state, so nothing of another house (meters, tenant names, tenant view) stays on screen
+  const resetData = () => {
+    setMeterList([]);
+    setRawMeters([]);
+    setRawReadings([]);
+    setFilteredOutCount(0);
+    setTenantView('visible');
+  };
+
   useEffect(() => {
     if (isOpen && hausId) {
       loadData();
@@ -135,10 +149,17 @@ export function MeterAblesungenModal({
   }, [isOpen, hausId]);
 
   const loadData = async () => {
+    const requestId = ++loadRequestRef.current;
+    // Another house than the one on screen: drop its data first (a reload of the same house keeps what it shows)
+    if (shownHausIdRef.current !== hausId) {
+      resetData();
+      shownHausIdRef.current = hausId;
+    }
     setIsLoading(true);
     try {
       const { getMeterForHausAction } = await import('@/app/meter-actions');
       const result = await getMeterForHausAction(hausId);
+      if (requestId !== loadRequestRef.current) return;
 
       if (!result.success || !result.data) {
         throw new Error(result.message || "Failed to fetch data");
@@ -164,15 +185,9 @@ export function MeterAblesungenModal({
       const filteredCount = totalMetersCount - allZaehler.length;
       setFilteredOutCount(filteredCount);
 
-      // The current tenant per apartment (not just the first row: a moved-out tenant may come first)
-      const mieterByWohnung = pickCurrentTenantPerApartment(
-        allMieter as Array<{ id: string; name: string; wohnung_id: string | null; auszug: string | null }>,
-        getTodayISOString()
-      );
-
       const meterInfoList: MeterInfo[] = allZaehler.map((meter) => {
         const meterReadings = readings.filter((r: any) => r.zaehler_id === meter.id);
-        const mieter = mieterByWohnung.get(meter.wohnung_id);
+        const mieter = allMieter.find((m: any) => m.wohnung_id === meter.wohnung_id);
 
         const sortedReadings = meterReadings.sort((a: any, b: any) =>
           new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime()
@@ -209,14 +224,17 @@ export function MeterAblesungenModal({
 
       setMeterList(meterInfoList);
     } catch (error) {
+      if (requestId !== loadRequestRef.current) return;
       console.error("Error loading data:", error);
+      // A failed load leaves no half-old state behind (no list, tenant view or raw data of the previous load)
+      resetData();
       toast({
         title: "Fehler",
         description: "Die Daten konnten nicht geladen werden.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      if (requestId === loadRequestRef.current) setIsLoading(false);
     }
   };
 
@@ -360,12 +378,13 @@ export function MeterAblesungenModal({
                                       <Badge variant="outline" className="text-xs bg-white dark:bg-zinc-900">
                                         {ZAEHLER_CONFIG[entry.zaehler_typ]?.label || 'Zähler'}
                                       </Badge>
-                                      {!tenantAccess ? (
+                                      {/* "Kein Zugriff" only for a real missing right; after a failed check the notice says it */}
+                                      {tenantView === 'hidden' ? (
                                         <Badge variant="outline" className="text-xs text-muted-foreground">
                                           <User className="h-3 w-3 mr-1" />
                                           {TENANT_NO_ACCESS_LABEL}
                                         </Badge>
-                                      ) : entry.mieter_name && (
+                                      ) : tenantAccess && entry.mieter_name && (
                                         <Badge variant="outline" className="text-xs">
                                           <User className="h-3 w-3 mr-1" />
                                           {entry.mieter_name}
