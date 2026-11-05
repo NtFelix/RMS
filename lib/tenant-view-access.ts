@@ -27,27 +27,59 @@ export type TenantViewAccess =
  * Never returns `canViewTenants: true` unless a check answered exactly `allowed`.
  */
 export async function checkTenantViewAccess(
-  options: { delayMs?: number } = {}
+  options: { delayMs?: number; signal?: AbortSignal } = {}
 ): Promise<TenantViewAccess> {
-  const { delayMs = TENANT_CHECK_RETRY_DELAY_MS } = options;
+  const { delayMs = TENANT_CHECK_RETRY_DELAY_MS, signal } = options;
 
   let result = await checkPermission('mieter', 'ansehen');
   if (result === 'error') {
-    await new Promise<void>(resolve => setTimeout(resolve, delayMs));
-    result = await checkPermission('mieter', 'ansehen');
+    // A caller that no longer needs the answer (it returned without tenant data) aborts: no pause, no second check.
+    // The answer then stays "failed" (fail-closed), so an abort can never turn into `allowed`.
+    if (!(await pauseUnlessAborted(delayMs, signal))) {
+      result = await checkPermission('mieter', 'ansehen');
+    }
   }
 
   if (result === 'allowed') return { canViewTenants: true };
   return { canViewTenants: false, permissionCheckFailed: result === 'error' };
 }
 
+/** Waits `ms`; resolves `true` at once if `signal` is (or gets) aborted, `false` after the full pause. */
+function pauseUnlessAborted(ms: number, signal?: AbortSignal): Promise<boolean> {
+  if (signal?.aborted) return Promise.resolve(true);
+  return new Promise<boolean>(resolve => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve(false);
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+export type WithheldTenantFields = { tenantAccess: false; permissionCheckFailed?: true };
+
 /**
  * Fields of an apartment row whose tenant is withheld: `tenantAccess: false` ("no access", not "no tenant") and, only
  * if the check FAILED (not for a missing right), `permissionCheckFailed: true`. Shared by the page and the route so the
  * signal is built in one place.
  */
-export function withheldTenantFields(access: TenantViewAccess): { tenantAccess: false; permissionCheckFailed?: true } {
+export function withheldTenantFields(access: TenantViewAccess): WithheldTenantFields {
   return !access.canViewTenants && access.permissionCheckFailed
     ? { tenantAccess: false, permissionCheckFailed: true }
     : { tenantAccess: false };
+}
+
+/**
+ * Tenant part of an answer that also contains other data: the tenants themselves with `mieter:ansehen`, otherwise an
+ * empty list plus `withheldTenantFields`. One place for the gate, so no caller can build the withholding differently.
+ */
+export function applyTenantAccess<T>(
+  access: TenantViewAccess,
+  mieter: T[]
+): { mieter: T[] } & Partial<WithheldTenantFields> {
+  return access.canViewTenants ? { mieter } : { mieter: [], ...withheldTenantFields(access) };
 }
