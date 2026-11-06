@@ -41,6 +41,8 @@ export interface Apartment {
     einzug?: string
     auszug?: string
   } | null
+  /** `false`: the user may not see tenants (mieter:ansehen); `tenant` is then absent. Absent/`true`: as before. */
+  tenantAccess?: boolean
 }
 
 type ApartmentSortKey = "name" | "groesse" | "miete" | "pricePerSqm" | "haus" | "status"

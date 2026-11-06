@@ -40,13 +40,16 @@ const from = jest.fn();
 const rpc = jest.fn();
 const getUser = jest.fn();
 
-/** Fake of the database function: true only for the roles owner and admin */
-function setRole(rolle: Rolle) {
-  rpc.mockImplementation(async (name: string) =>
-    name === 'is_org_admin_or_owner'
-      ? { data: rolle === 'owner' || rolle === 'admin', error: null }
-      : { data: null, error: { message: `unexpected rpc ${name}` } }
-  );
+/**
+ * Fake of the database functions: current_organisation_id returns the active organisation (null = personal account),
+ * is_org_admin_or_owner is true only for the roles owner and admin
+ */
+function setRole(rolle: Rolle, organisationId: string | null = 'org-1') {
+  rpc.mockImplementation(async (name: string) => {
+    if (name === 'current_organisation_id') return { data: organisationId, error: null };
+    if (name === 'is_org_admin_or_owner') return { data: rolle === 'owner' || rolle === 'admin', error: null };
+    return { data: null, error: { message: `unexpected rpc ${name}` } };
+  });
 }
 
 beforeEach(() => {
@@ -89,6 +92,16 @@ describe('GET /api/export (nur Inhaber/Administratoren)', () => {
     expect(mockGenerateZIP).toHaveBeenCalledTimes(1);
   });
 
+  it('liefert dem Einzelkonto ohne Organisation das ZIP (kein Rollenabruf nötig)', async () => {
+    setRole('mitglied', null);
+
+    const res = await GET();
+
+    expect(res.status).toBe(200);
+    expect(rpc).not.toHaveBeenCalledWith('is_org_admin_or_owner');
+    expect(mockGenerateZIP).toHaveBeenCalledTimes(1);
+  });
+
   it('weist ein normales Mitglied mit allen Modulrechten mit 403 PERMISSION_DENIED ab und liest keine Tabelle', async () => {
     setRole('mitglied');
 
@@ -113,7 +126,11 @@ describe('GET /api/export (nur Inhaber/Administratoren)', () => {
   });
 
   it('antwortet mit 503 PERMISSION_CHECK_FAILED, wenn die Rollenabfrage einen Fehler liefert, und exportiert nichts', async () => {
-    rpc.mockResolvedValue({ data: null, error: { message: 'rpc failed' } });
+    rpc.mockImplementation(async (name: string) =>
+      name === 'is_org_admin_or_owner'
+        ? { data: null, error: { message: 'rpc failed' } }
+        : { data: 'org-1', error: null }
+    );
 
     const res = await GET();
 
@@ -125,7 +142,10 @@ describe('GET /api/export (nur Inhaber/Administratoren)', () => {
   });
 
   it('antwortet mit 503, wenn die Rollenabfrage eine Exception wirft, und exportiert nichts', async () => {
-    rpc.mockRejectedValue(new Error('network down'));
+    rpc.mockImplementation(async (name: string) => {
+      if (name === 'is_org_admin_or_owner') throw new Error('network down');
+      return { data: 'org-1', error: null };
+    });
 
     const res = await GET();
 

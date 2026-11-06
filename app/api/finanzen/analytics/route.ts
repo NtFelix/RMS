@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { unstable_rethrow } from "next/navigation";
 import { calculateFinancialSummary, type FinanceTransaction } from "@/utils/financeCalculations";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 
 interface FinanceRecord {
   betrag: number;
@@ -17,6 +18,11 @@ import type { MonthlyData } from "@/utils/financeCalculations";
 
 export async function GET(request: Request) {
   try {
+    // Delivers Finanzen, so it needs finanzen:ansehen: 403 PERMISSION_DENIED if the right is missing, 503
+    // PERMISSION_CHECK_FAILED if the check itself failed (see the catch). Checked before anything is read.
+    const { requireApiPermission } = await import("@/lib/api-permissions");
+    await requireApiPermission('finanzen', 'ansehen');
+
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action') || 'summary';
     const year = parseInt(searchParams.get('year') ?? new Date().getFullYear().toString(), 10);
@@ -58,6 +64,9 @@ export async function GET(request: Request) {
     
   } catch (error) {
     unstable_rethrow(error);
+    // 403 PERMISSION_DENIED (right missing) or 503 PERMISSION_CHECK_FAILED (the check itself failed)
+    const permissionResponse = apiPermissionErrorResponse(error);
+    if (permissionResponse) return permissionResponse;
     console.error('❌ [Finance Analytics] API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS });
   }

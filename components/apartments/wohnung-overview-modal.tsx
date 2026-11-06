@@ -13,10 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { useModalStore } from "@/hooks/use-modal-store";
+import { useModalStore, type ModalState } from "@/hooks/use-modal-store";
 import { formatNumber, formatCurrency } from "@/utils/format";
 import { Edit, Eye, Phone, Mail, AlertCircle, RefreshCw, Clock, Home, Users, Ruler, Euro, Calendar, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { TENANT_NO_ACCESS_LABEL } from "@/lib/tenant-access";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SummaryCardSkeleton } from "@/components/skeletons/summary-card-skeleton";
@@ -37,6 +38,51 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+// Shown instead of the tenant table without mieter:ansehen (not an error and not "Keine Mieter")
+const NoTenantAccessState = () => (
+  <div className="flex flex-col items-center justify-center py-8 space-y-4" role="status">
+    <div className="text-center space-y-2">
+      <h3 className="text-lg font-semibold">{TENANT_NO_ACCESS_LABEL}</h3>
+      <p className="text-sm text-muted-foreground">
+        Für die Mieterdaten dieser Wohnung fehlt Ihnen die Berechtigung.
+      </p>
+    </div>
+  </div>
+);
+
+type WohnungOverview = NonNullable<ModalState['wohnungOverviewData']>;
+
+const STATUS_LABEL = { vermietet: "Vermietet", frei: "Frei" } as const;
+
+// Texts of the cards "Mieter Status" and "Belegung". Without mieter:ansehen the API delivers no tenants (only the
+// status): show "Kein Zugriff", never "0/0" or "Leer".
+function getOccupancyCards(data: WohnungOverview) {
+  if (data.tenantAccess === false) {
+    return {
+      status: { value: TENANT_NO_ACCESS_LABEL, description: data.status ? STATUS_LABEL[data.status] : "" },
+      occupation: { value: TENANT_NO_ACCESS_LABEL, description: "" },
+    };
+  }
+
+  const activeTenants = data.mieter?.filter(m => m.status === 'active').length || 0;
+  const totalTenants = data.mieter?.length || 0;
+  const currentTenant = data.mieter?.find(m => m.status === 'active');
+  const occupancyDays = currentTenant?.einzug
+    ? Math.floor((Date.now() - new Date(currentTenant.einzug).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  return {
+    status: {
+      value: `${activeTenants}/${totalTenants}`,
+      description: activeTenants > 0 ? "Vermietet" : "Frei",
+    },
+    occupation: {
+      value: occupancyDays > 0 ? `${occupancyDays} Tage` : "Leer",
+      description: currentTenant ? `seit ${new Date(currentTenant.einzug!).toLocaleDateString('de-DE')}` : "Keine aktiven Mieter",
+    },
+  };
+}
 
 export function WohnungOverviewModal() {
   const {
@@ -344,15 +390,8 @@ export function WohnungOverviewModal() {
   const SummaryCards = () => {
     if (!wohnungOverviewData) return null;
 
-    const activeTenants = wohnungOverviewData.mieter?.filter(m => m.status === 'active').length || 0;
-    const totalTenants = wohnungOverviewData.mieter?.length || 0;
     const pricePerSqm = wohnungOverviewData.groesse > 0 ? wohnungOverviewData.miete / wohnungOverviewData.groesse : 0;
-
-    // Find current tenant for occupancy info
-    const currentTenant = wohnungOverviewData.mieter?.find(m => m.status === 'active');
-    const occupancyDays = currentTenant?.einzug
-      ? Math.floor((Date.now() - new Date(currentTenant.einzug).getTime()) / (1000 * 60 * 60 * 24))
-      : 0;
+    const occupancy = getOccupancyCards(wohnungOverviewData);
 
     const cards = [
       {
@@ -369,14 +408,12 @@ export function WohnungOverviewModal() {
       },
       {
         title: "Mieter Status",
-        value: `${activeTenants}/${totalTenants}`,
-        description: activeTenants > 0 ? "Vermietet" : "Frei",
+        ...occupancy.status,
         icon: <Users className="h-5 w-5 text-muted-foreground" />,
       },
       {
         title: "Belegung",
-        value: occupancyDays > 0 ? `${occupancyDays} Tage` : "Leer",
-        description: currentTenant ? `seit ${new Date(currentTenant.einzug!).toLocaleDateString('de-DE')}` : "Keine aktiven Mieter",
+        ...occupancy.occupation,
         icon: <Calendar className="h-5 w-5 text-muted-foreground" />,
       },
     ];
@@ -401,8 +438,8 @@ export function WohnungOverviewModal() {
     );
   };
 
-  // Empty state component
-  const EmptyState = () => (
+  // Empty state component ("Kein Zugriff" instead of "Keine Mieter" without mieter:ansehen)
+  const EmptyState = () => wohnungOverviewData?.tenantAccess === false ? <NoTenantAccessState /> : (
     <div className="flex flex-col items-center justify-center py-8 space-y-4">
       <div className="text-center space-y-2">
         <h3 className="text-lg font-semibold">Keine Mieter</h3>
@@ -446,7 +483,7 @@ export function WohnungOverviewModal() {
             <LoadingSkeleton />
           ) : wohnungOverviewError ? (
             <ErrorState />
-          ) : !wohnungOverviewData?.mieter?.length ? (
+          ) : wohnungOverviewData?.tenantAccess === false || !wohnungOverviewData?.mieter?.length ? (
             <div className="space-y-6">
               <SummaryCards />
               <EmptyState />

@@ -28,6 +28,8 @@ interface HausWithWohnungen {
     occupancyRate: number;
   };
   wohnungen: WohnungOverviewData[];
+  /** `false` (only then present): the user may not see tenants (mieter:ansehen); no `currentTenant` is delivered. */
+  tenantAccess?: false;
 }
 
 interface WohnungOverviewData {
@@ -50,6 +52,10 @@ interface WohnungWithMieter {
   miete: number;
   hausName: string;
   mieter: MieterOverviewData[];
+  /** `false` (only then present): the user may not see tenants (mieter:ansehen); `mieter` is empty because of that. */
+  tenantAccess?: false;
+  /** Only present together with `tenantAccess: false`: occupation status without tenant data. */
+  status?: 'frei' | 'vermietet';
 }
 
 interface MieterOverviewData {
@@ -92,6 +98,8 @@ interface ApartmentTenantDetailsData {
     }>;
     notes?: string;
   };
+  /** `false` (only then present): the user may not see tenants (mieter:ansehen); `tenant` is absent because of that. */
+  tenantAccess?: false;
 }
 
 interface ConfirmationModalConfig {

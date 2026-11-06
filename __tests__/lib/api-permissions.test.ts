@@ -1,4 +1,4 @@
-import { applyScopeFilter, applyWohnungScopeFilter, verifyEntityInScope, verifyWohnungInScope, requireApiPermission, requireApiOrgAdmin } from '@/lib/api-permissions';
+import { applyScopeFilter, applyWohnungScopeFilter, verifyEntityInScope, verifyWohnungInScope, requireApiPermission, requireApiOrgAdmin, hasApiPermission } from '@/lib/api-permissions';
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from '@/lib/object-scope';
 import { checkOrgAdminOrOwner, checkPermission } from '@/lib/permissions';
 import { PermissionCheckError } from '@/lib/permissions-core';
@@ -141,6 +141,24 @@ describe('api-permissions helper', () => {
       (checkOrgAdminOrOwner as jest.Mock).mockResolvedValue('error');
       const error = await requireApiOrgAdmin().catch((e) => e);
       expect(error).toBeInstanceOf(PermissionCheckError);
+    });
+  });
+
+  describe('hasApiPermission', () => {
+    it('is true for allowed', async () => {
+      (checkPermission as jest.Mock).mockResolvedValue('allowed');
+      await expect(hasApiPermission('mieter', 'ansehen')).resolves.toBe(true);
+      expect(checkPermission).toHaveBeenCalledWith('mieter', 'ansehen');
+    });
+
+    it('is false for denied (missing right, no throw)', async () => {
+      (checkPermission as jest.Mock).mockResolvedValue('denied');
+      await expect(hasApiPermission('mieter', 'ansehen')).resolves.toBe(false);
+    });
+
+    it('throws PermissionCheckError for error (a failed check is never "false")', async () => {
+      (checkPermission as jest.Mock).mockResolvedValue('error');
+      await expect(hasApiPermission('mieter', 'ansehen')).rejects.toBeInstanceOf(PermissionCheckError);
     });
   });
 });
