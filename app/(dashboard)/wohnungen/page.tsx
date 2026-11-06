@@ -10,7 +10,8 @@ import WohnungenClientView from './client'; // Import the default export from cl
 import type { Wohnung } from "@/types/Wohnung";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 import { pickCurrentTenantPerApartment } from "@/lib/tenant-access";
-import { checkPermission, hasPermission } from "@/lib/permissions";
+import { hasPermission } from "@/lib/permissions";
+import { checkTenantViewAccess } from "@/lib/tenant-view-access";
 import { redirect } from "next/navigation";
 
 import { Suspense } from "react";
@@ -30,29 +31,24 @@ async function WohnungenContent() {
 
   // Permission check.
   // `mieter:ansehen` runs in the same round as the others: it only decides whether tenant data is delivered with the
-  // apartments (checkPermission, not hasPermission, so that a failed check is not mistaken for a missing right).
-  const [canView, canCreate, canEdit, canDelete, canViewMeters, mieterAnsehen, accessibleIdsResult] = await Promise.all([
+  // apartments, never whether the page loads (checkTenantViewAccess, not hasPermission, so that a failed check is
+  // repeated once and not mistaken for a missing right).
+  const [canView, canCreate, canEdit, canDelete, canViewMeters, tenantAccess, accessibleIdsResult] = await Promise.all([
     hasPermission('wohnungen', 'ansehen'),
     hasPermission('wohnungen', 'erstellen'),
     hasPermission('wohnungen', 'bearbeiten'),
     hasPermission('wohnungen', 'loeschen'),
     hasPermission('zaehler', 'ansehen'),
-    checkPermission('mieter', 'ansehen'),
+    checkTenantViewAccess(),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
   const accessibleIds = accessibleIdsResult.data;
   if (!canView) {
     redirect('/unauthorized');
   }
-  if (mieterAnsehen === 'error') {
-    // No decision: neither tenant names (right might be there) nor "Kein Zugriff" (right might be there) are shown
-    return (
-      <div role="alert" className="p-8 text-center text-muted-foreground">
-        Die Berechtigungen konnten nicht geprüft werden. Bitte versuchen Sie es später erneut.
-      </div>
-    );
-  }
-  const canViewTenants = mieterAnsehen === 'allowed';
+  // Failed twice: the page still loads and the tenants stay withheld as for a missing right (fail-closed). Nothing on
+  // this page shows tenants, so there is nothing to flag or to reload.
+  const canViewTenants = tenantAccess.canViewTenants;
 
   let apartmentCount = 0;
   let userIsEligibleToAdd = false;
