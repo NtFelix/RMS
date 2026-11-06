@@ -33,6 +33,7 @@ export default function TenantPaymentOverviewModal() {
     data,
     loading,
     error,
+    noAccess,
     updatingStatus,
     fetchData,
     toggleRentPayment
@@ -162,6 +163,13 @@ export default function TenantPaymentOverviewModal() {
           {loading ? (
             <div className="flex justify-center items-center py-20">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+            </div>
+          ) : noAccess ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <h3 className="text-lg font-semibold mb-2">Kein Zugriff</h3>
+              <p className="text-muted-foreground">
+                Für die Mietzahlungen fehlt Ihnen die Berechtigung (Mieter und Finanzen ansehen).
+              </p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
