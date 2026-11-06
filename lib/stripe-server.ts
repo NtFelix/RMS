@@ -91,7 +91,8 @@ const planCacheKey = (priceId: string) => `plan-details-${priceId}`;
 
 /**
  * Drops cached plan details for one price (or all prices when omitted).
- * Call this e.g. from a Stripe webhook on price.updated / product.updated.
+ * Not called outside tests: the Stripe webhook lives in the Supabase Edge Function (mietevo-db),
+ * so changed prices/products only show up after the cache TTL expires.
  */
 export function clearPlanDetailsCache(priceId?: string) {
   if (priceId === undefined) {
