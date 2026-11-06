@@ -63,14 +63,19 @@ export async function GET(
       );
     }
 
-    // Starts at once and is awaited only before the tenant query: runs in parallel with the apartment query. The
-    // no-op catch only prevents an unhandled rejection on an early return; the rejection still surfaces at the await.
-    const { hasApiPermission } = await import("@/lib/api-permissions");
+    // Both checks start at once. wohnungen:ansehen is required for the route: 403 PERMISSION_DENIED if it is missing, 503
+    // PERMISSION_CHECK_FAILED if the check itself failed (see the catch); it runs in parallel with the apartment query
+    // and is awaited right after it, before anything is evaluated or answered. mieter:ansehen is awaited only before the
+    // tenant query. The no-op catches only prevent an unhandled rejection on an early return; the rejection still
+    // surfaces at the await.
+    const { requireApiPermission, hasApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
+    const permissionCheck = requireApiPermission('wohnungen', 'ansehen');
+    permissionCheck.catch(() => {});
     const canViewTenantsPromise = hasApiPermission('mieter', 'ansehen');
     canViewTenantsPromise.catch(() => {});
 
     // Fetch Wohnung with Haus information
-    const { data: wohnungData, error: wohnungError } = await supabase
+    const wohnungQuery = supabase
       .from('Wohnungen')
       .select(`
         id, 
@@ -82,6 +87,7 @@ export async function GET(
       `)
       .eq('id', wohnungId)
       .single();
+    const [{ data: wohnungData, error: wohnungError }] = await Promise.all([wohnungQuery, permissionCheck]);
 
     if (wohnungError) {
       const logger = createRequestLogger(request);
@@ -103,7 +109,6 @@ export async function GET(
       );
     }
 
-    const { verifyEntityInScope } = await import("@/lib/api-permissions");
     if (wohnungData.haus_id && !(await verifyEntityInScope(wohnungData.haus_id))) {
       return NextResponse.json(
         { error: "Permission denied" },
@@ -226,7 +231,7 @@ export async function GET(
     return NextResponse.json(response, { status: 200, headers: NO_CACHE_HEADERS });
 
   } catch (error) {
-    // 503 PERMISSION_CHECK_FAILED if the tenant right could not be checked
+    // 403 PERMISSION_DENIED / 503 PERMISSION_CHECK_FAILED if a module right is missing / could not be checked
     const permissionResponse = apiPermissionErrorResponse(error);
     if (permissionResponse) return permissionResponse;
     const logger = createRequestLogger(request);
