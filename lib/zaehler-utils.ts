@@ -27,7 +27,12 @@ export const sumAllZaehlerValues = (
     values: Record<string, number> | null | undefined
 ): number => {
     if (!values) return 0;
-    return Object.values(values).reduce((sum, v) => sum + v, 0);
+    return Object.values(values).reduce((sum, v) => {
+        if (typeof v === 'number') {
+            return sum + v;
+        }
+        return sum;
+    }, 0);
 };
 
 /**
