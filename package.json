@@ -28,7 +28,7 @@
     "@google/genai": "^1.45.0",
     "@hookform/resolvers": "^3.10.0",
     "@opentelemetry/api-logs": "^0.221.0",
-    "@opentelemetry/exporter-logs-otlp-http": "^0.221.0",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.300.0",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.221.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
     "@opentelemetry/instrumentation-http": "^0.221.0",
