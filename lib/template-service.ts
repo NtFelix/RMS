@@ -297,6 +297,7 @@ export class OptimisticTemplateService {
       inhalt: templateData.inhalt,
       kategorie: templateData.kategorie,
       kontext_anforderungen: templateData.kontext_anforderungen,
+      vorauszahlung_satz: templateData.vorauszahlung_satz ?? null,
       erstellt_von: 'current-user',
       organisation_id: 'current-org',
       erstellungsdatum: new Date().toISOString(),
@@ -346,6 +347,7 @@ export class OptimisticTemplateService {
       inhalt: templateData.inhalt,
       kategorie: templateData.kategorie,
       kontext_anforderungen: templateData.kontext_anforderungen,
+      ...(templateData.vorauszahlung_satz !== undefined && { vorauszahlung_satz: templateData.vorauszahlung_satz }),
       aktualisiert_am: new Date().toISOString(),
     };
 

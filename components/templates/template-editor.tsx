@@ -5,7 +5,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Mention from '@tiptap/extension-mention';
 import tippy, { Instance as TippyInstance } from 'tippy.js';
 import { useCallback, useEffect, useRef, useMemo } from 'react';
-import { MENTION_VARIABLES } from '@/lib/template-constants';
+import { MENTION_VARIABLES, MentionVariable } from '@/lib/template-constants';
 import { filterMentionVariables } from '@/lib/mention-utils';
 import { MentionList } from './mention-list';
 import { Button } from '@/components/ui/button';
@@ -78,19 +78,33 @@ function debounce<T extends (...args: any[]) => any>(
   };
 }
 
+interface TemplateEditorComponentProps extends TemplateEditorProps {
+  /** Variables offered after @ (defaults to all); may change while the editor is open */
+  variables?: MentionVariable[];
+  /** Small inline field without toolbar, e.g. for a single sentence */
+  compact?: boolean;
+}
+
 export function TemplateEditor({
   content,
   onChange,
   placeholder = 'Beginnen Sie mit der Eingabe... Verwenden Sie @ für Variablen',
   className,
   readOnly = false,
-}: TemplateEditorProps) {
+  variables = MENTION_VARIABLES,
+  compact = false,
+}: TemplateEditorComponentProps) {
   const lastContentRef = useRef<string>('');
   const containerRef = useRef<HTMLDivElement>(null);
+  // The suggestion is configured once with the editor, so it reads the current variables through a ref
+  const variablesRef = useRef(variables);
+  useEffect(() => {
+    variablesRef.current = variables;
+  }, [variables]);
 
   const debouncedFilter = useMemo(() => 
     debounce((query: string, resolve: (val: any) => void) => {
-      const result = filterMentionVariables(MENTION_VARIABLES, query).slice(0, 10);
+      const result = filterMentionVariables(variablesRef.current, query).slice(0, 10);
       resolve(result);
     }, 150), 
   []);
@@ -225,7 +239,7 @@ export function TemplateEditor({
       ref={containerRef}
       className={cn('flex flex-col h-full bg-background relative', className)}
     >
-      {!readOnly && (
+      {!readOnly && !compact && (
         <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b bg-muted/20 backdrop-blur-md overflow-x-auto no-scrollbar sticky top-0 z-10">
           <div className="flex items-center gap-1">
             <ToolbarButton
@@ -304,14 +318,18 @@ export function TemplateEditor({
         <EditorContent
           editor={editor}
           className={cn(
-            'prose prose-slate dark:prose-invert max-w-none focus:outline-hidden min-h-full p-10 lg:p-14 text-foreground/80 leading-relaxed',
+            'prose prose-slate dark:prose-invert max-w-none focus:outline-hidden min-h-full text-foreground/80 leading-relaxed',
+            compact ? 'px-3 py-2 text-sm' : 'p-10 lg:p-14',
             'transition-all duration-300 ease-in-out',
             readOnly && 'cursor-default'
           )}
         />
 
         {editor.isEmpty && !readOnly && (
-          <div className="absolute top-10 lg:top-14 left-10 lg:left-14 text-muted-foreground/30 pointer-events-none text-xl font-medium select-none italic">
+          <div className={cn(
+            'absolute text-muted-foreground/30 pointer-events-none font-medium select-none italic',
+            compact ? 'top-2 left-3 text-sm' : 'top-10 lg:top-14 left-10 lg:left-14 text-xl'
+          )}>
             {placeholder}
           </div>
         )}

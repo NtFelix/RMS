@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 
 import { z } from 'zod';
 import { JSONContent } from '@tiptap/react';
@@ -35,10 +36,26 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { TemplateEditor } from '@/components/templates/template-editor';
-import { TEMPLATE_CATEGORIES, TemplateCategory, TEMPLATE_TYPE_CONFIGS, TEMPLATE_ICON_MAP } from '@/lib/template-constants';
+import {
+  TEMPLATE_CATEGORIES,
+  TemplateCategory,
+  TEMPLATE_TYPE_CONFIGS,
+  TEMPLATE_ICON_MAP,
+  BETRIEBSKOSTENABRECHNUNG_CATEGORY,
+  VORAUSZAHLUNG_SATZ_VARIABLES,
+  getMentionVariablesForTemplateCategory,
+} from '@/lib/template-constants';
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/constants';
+import { templateUsesVorauszahlungSatz } from '@/lib/mail/template-variables';
 import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from '@/lib/accessibility-constants';
 import { TemplateEditorModalProps } from '@/types/template';
-import { validateTemplate, validateMentionVariables, isEmptyTipTapContent } from '@/lib/template-validation';
+import {
+  validateTemplate,
+  validateMentionVariables,
+  validateVorauszahlungSatz,
+  isEmptyTipTapContent,
+  hasTipTapContent,
+} from '@/lib/template-validation';
 import { toast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
@@ -111,8 +128,24 @@ export function TemplateEditorModal({
   const [step, setStep] = useState<Step>('category');
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory | null>(null);
   const [editorContent, setEditorContent] = useState<JSONContent | undefined>(undefined);
+  const [satzContent, setSatzContent] = useState<JSONContent | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  const abrechnungVersandEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.ABRECHNUNG_VERSAND_ENABLED);
+  // The Betriebskostenabrechnung type is offered behind its flag; a template that already has it keeps it
+  const availableCategories = useMemo(
+    () =>
+      TEMPLATE_CATEGORIES.filter(
+        category =>
+          category !== BETRIEBSKOSTENABRECHNUNG_CATEGORY ||
+          abrechnungVersandEnabled ||
+          template?.kategorie === BETRIEBSKOSTENABRECHNUNG_CATEGORY
+      ),
+    [abrechnungVersandEnabled, template?.kategorie]
+  );
+  const isBetriebskostenabrechnung = selectedCategory === BETRIEBSKOSTENABRECHNUNG_CATEGORY;
+  const editorVariables = useMemo(() => getMentionVariablesForTemplateCategory(selectedCategory), [selectedCategory]);
 
   const {
     setTemplateEditorModalDirty,
@@ -175,6 +208,7 @@ export function TemplateEditorModal({
           kategorie: template.kategorie,
         });
         setEditorContent(template.inhalt);
+        setSatzContent(template.vorauszahlung_satz ?? undefined);
       } else {
         // Creating new template - start with category selection
         setStep('category');
@@ -186,6 +220,7 @@ export function TemplateEditorModal({
           kategorie: undefined,
         });
         setEditorContent(undefined);
+        setSatzContent(undefined);
       }
       setTemplateEditorModalDirty(false);
     }
@@ -225,6 +260,10 @@ export function TemplateEditorModal({
         inhalt: editorContent,
         kategorie: data.kategorie,
         kontext_anforderungen: [], // Will be populated based on mentions in content
+        // Only Betriebskostenabrechnung templates carry the sentence; other types leave the column untouched
+        ...(data.kategorie === BETRIEBSKOSTENABRECHNUNG_CATEGORY && {
+          vorauszahlung_satz: hasTipTapContent(satzContent) ? satzContent! : null,
+        }),
       };
 
       const validation = validateTemplate(templatePayload);
@@ -251,8 +290,20 @@ export function TemplateEditorModal({
         return;
       }
 
-      // Validate mention variables
-      const mentionValidation = validateMentionVariables(editorContent);
+      // Validate mention variables (the Abrechnung variables only exist in Betriebskostenabrechnung templates)
+      const mentionValidation = validateMentionVariables(editorContent, data.kategorie);
+      const satzValidation = templatePayload.vorauszahlung_satz
+        ? validateVorauszahlungSatz(templatePayload.vorauszahlung_satz)
+        : { isValid: true, errors: [] };
+      if (!satzValidation.isValid) {
+        setValidationErrors(satzValidation.errors.map(error => error.message));
+        toast({
+          title: 'Ungültige Variablen',
+          description: 'Der Satz zur Vorauszahlungserhöhung darf nur den alten und neuen Betrag und das Datum verwenden.',
+          variant: 'destructive',
+        });
+        return;
+      }
       if (!mentionValidation.isValid) {
         const mentionErrors = mentionValidation.errors.map(error => error.message);
         setValidationErrors(mentionErrors);
@@ -303,6 +354,15 @@ export function TemplateEditorModal({
     // Clear form errors for content
     if (templateForm.formState.errors.inhalt) {
       templateForm.clearErrors('inhalt');
+    }
+  };
+
+  // Handle Vorauszahlung sentence change
+  const handleSatzChange = (html: string, json: JSONContent) => {
+    setSatzContent(json);
+    setTemplateEditorModalDirty(true);
+    if (validationErrors.length > 0) {
+      setValidationErrors([]);
     }
   };
 
@@ -442,7 +502,7 @@ export function TemplateEditorModal({
                             <SelectValue placeholder="Kategorie wählen" />
                           </SelectTrigger>
                           <SelectContent>
-                            {TEMPLATE_CATEGORIES.map((cat) => {
+                            {availableCategories.map((cat) => {
                               const meta = TEMPLATE_TYPE_CONFIGS[cat];
                               const Icon = TEMPLATE_ICON_MAP[meta.icon];
                               return (
@@ -495,8 +555,11 @@ export function TemplateEditorModal({
                         name="kategorie"
                         render={({ field }) => (
                           <FormItem>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                              {TEMPLATE_CATEGORIES.map((category) => {
+                            <div className={cn(
+                              "grid grid-cols-1 gap-6",
+                              availableCategories.length > 3 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"
+                            )}>
+                              {availableCategories.map((category) => {
                                 const meta = TEMPLATE_TYPE_CONFIGS[category];
                                 const Icon = TEMPLATE_ICON_MAP[meta.icon];
                                 const isSelected = field.value === category;
@@ -526,7 +589,7 @@ export function TemplateEditorModal({
 
                                       <div className="space-y-2">
                                         <h4 className={cn(
-                                          "font-bold text-xl tracking-tight",
+                                          "font-bold text-xl tracking-tight hyphens-manual",
                                           isSelected ? "text-primary" : "text-foreground/80"
                                         )}>{meta.label}</h4>
                                         <p className="text-sm text-muted-foreground leading-relaxed">
@@ -587,6 +650,7 @@ export function TemplateEditorModal({
                           <TemplateEditor
                             content={editorContent}
                             onChange={handleEditorChange}
+                            variables={editorVariables}
                             placeholder="Beginnen Sie mit der Eingabe... Verwenden Sie @ für Variablen wie @Mieter.Name"
                             className="flex-1 border-0 focus-within:ring-0 rounded-none h-full"
                           />
@@ -601,6 +665,35 @@ export function TemplateEditorModal({
                         </div>
                       )}
                     />
+
+                    {/* Betriebskostenabrechnung: sentence announcing a Vorauszahlungserhöhung */}
+                    {isBetriebskostenabrechnung && (
+                      <section className="shrink-0 border-t bg-muted/10 px-6 py-3 space-y-2" aria-labelledby={`${editorId}-satz-label`}>
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                          <h3 id={`${editorId}-satz-label`} className="text-sm font-semibold text-foreground">
+                            Satz zur Vorauszahlungserhöhung
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            Erscheint an der Stelle von @Vorauszahlung.Satz, nur wenn eine Erhöhung gesetzt ist. Variablen: @Vorauszahlung.Alter_Betrag, .Neuer_Betrag, .Ab_Datum
+                          </p>
+                        </div>
+                        <div className="h-24 rounded-xl border bg-background overflow-hidden">
+                          <TemplateEditor
+                            content={satzContent}
+                            onChange={handleSatzChange}
+                            variables={VORAUSZAHLUNG_SATZ_VARIABLES}
+                            placeholder="z.B. Ab dem @Vorauszahlung.Ab_Datum beträgt Ihre monatliche Vorauszahlung @Vorauszahlung.Neuer_Betrag."
+                            compact
+                          />
+                        </div>
+                        {hasTipTapContent(satzContent) && !templateUsesVorauszahlungSatz(editorContent) && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3 shrink-0" />
+                            Der Text enthält @Vorauszahlung.Satz noch nicht, deshalb wird der Satz nirgends eingefügt.
+                          </p>
+                        )}
+                      </section>
+                    )}
 
                     {/* Row 2: Footer with Save & Abort */}
                     <footer className="shrink-0 flex items-center justify-end gap-3 px-6 pb-4 pt-4 bg-transparent border-t">

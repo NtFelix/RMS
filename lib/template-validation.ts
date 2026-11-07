@@ -1,5 +1,11 @@
 import { TemplatePayload } from '@/types/template';
-import { TEMPLATE_CATEGORIES } from '@/lib/template-constants';
+import {
+  TEMPLATE_CATEGORIES,
+  MENTION_VARIABLES,
+  MentionVariable,
+  VORAUSZAHLUNG_SATZ_VARIABLES,
+  getMentionVariablesForTemplateCategory,
+} from '@/lib/template-constants';
 import { JSONContent } from '@tiptap/react';
 
 export interface ValidationError {
@@ -134,6 +140,17 @@ export function isEmptyTipTapContent(content: JSONContent): boolean {
 }
 
 /**
+ * Whether TipTap content holds anything at all: visible text or a variable.
+ * Unlike isEmptyTipTapContent, a paragraph that only holds a variable counts as content.
+ */
+export function hasTipTapContent(content: JSONContent | null | undefined): boolean {
+  if (!content) return false;
+  if (content.type === 'text') return !!content.text?.trim();
+  if (content.type === 'mention') return true;
+  return Array.isArray(content.content) && content.content.some(hasTipTapContent);
+}
+
+/**
  * Sanitize template data before saving
  */
 export function sanitizeTemplateData(templateData: TemplatePayload): TemplatePayload {
@@ -141,7 +158,8 @@ export function sanitizeTemplateData(templateData: TemplatePayload): TemplatePay
     titel: templateData.titel.trim(),
     inhalt: templateData.inhalt,
     kategorie: templateData.kategorie,
-    kontext_anforderungen: templateData.kontext_anforderungen || []
+    kontext_anforderungen: templateData.kontext_anforderungen || [],
+    ...(templateData.vorauszahlung_satz !== undefined && { vorauszahlung_satz: templateData.vorauszahlung_satz })
   };
 }
 
@@ -187,23 +205,30 @@ export function getTemplatePreview(content: JSONContent, maxLength: number = 150
 }
 
 /**
- * Validate mention variables in template content
+ * Validate mention variables in template content.
+ * Without a category every known variable is accepted; with one, only the variables that category offers
+ * (the Abrechnung and Vorauszahlung variables belong to Betriebskostenabrechnung templates).
  */
-export function validateMentionVariables(content: JSONContent): ValidationResult {
+export function validateMentionVariables(content: JSONContent, category?: string | null): ValidationResult {
+  const allowed = category === undefined ? MENTION_VARIABLES : getMentionVariablesForTemplateCategory(category);
+  return validateMentionVariablesAgainst(content, allowed, 'inhalt');
+}
+
+/** Validate the Vorauszahlung sentence: it may only use the old/new amount and the date of the increase */
+export function validateVorauszahlungSatz(content: JSONContent | null | undefined): ValidationResult {
+  if (!content) return { isValid: true, errors: [] };
+  return validateMentionVariablesAgainst(content, VORAUSZAHLUNG_SATZ_VARIABLES, 'vorauszahlung_satz');
+}
+
+function validateMentionVariablesAgainst(content: JSONContent, allowed: MentionVariable[], field: string): ValidationResult {
   const errors: ValidationError[] = [];
-  const validMentionIds = new Set([
-    'mieter.name', 'mieter.vorname', 'mieter.nachname', 'mieter.email', 'mieter.telefon',
-    'wohnung.adresse', 'wohnung.strasse', 'wohnung.hausnummer', 'wohnung.plz', 'wohnung.ort',
-    'wohnung.zimmer', 'wohnung.groesse', 'haus.name', 'haus.adresse',
-    'datum.heute', 'datum.monat', 'datum.jahr',
-    'vermieter.name', 'vermieter.adresse', 'vermieter.telefon', 'vermieter.email'
-  ]);
+  const validMentionIds = new Set(allowed.map(variable => variable.id));
 
   function validateNode(node: any): void {
     if (node.type === 'mention' && node.attrs?.id) {
       if (!validMentionIds.has(node.attrs.id)) {
         errors.push({
-          field: 'inhalt',
+          field,
           message: `Ungültige Mention-Variable: ${node.attrs.id}`
         });
       }

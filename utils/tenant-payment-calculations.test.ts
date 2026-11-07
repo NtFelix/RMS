@@ -1,5 +1,5 @@
 
-import { getLatestNebenkostenAmount, calculateMissedPayments } from '@/utils/tenant-payment-calculations';
+import { getLatestNebenkostenAmount, getNebenkostenAmountAt, calculateMissedPayments, upsertNebenkostenScheduleEntry } from '@/utils/tenant-payment-calculations';
 import { PAYMENT_KEYWORDS } from "@/utils/constants"
 
 // Mock constants if needed, but they are imported directly.
@@ -40,6 +40,35 @@ describe('Tenant Payment Calculations', () => {
                 { amount: "150", date: '2023-01-01' }
             ];
             expect(getLatestNebenkostenAmount(entries)).toBe(150);
+        });
+
+        it('ignores an announced increase that does not apply yet', () => {
+            const entries = [
+                { amount: 80, date: '2000-01-01' },
+                { amount: 95, date: '2999-01-01' }
+            ];
+            expect(getLatestNebenkostenAmount(entries)).toBe(80);
+        });
+    });
+
+    describe('getNebenkostenAmountAt', () => {
+        const entries = [
+            { amount: 80, date: '2025-01-01' },
+            { amount: 95, date: '2026-01-01' }
+        ];
+
+        it('returns the entry that applies on the date', () => {
+            expect(getNebenkostenAmountAt(entries, '2025-12-31')).toBe(80);
+            expect(getNebenkostenAmountAt(entries, '2026-01-01')).toBe(95);
+            expect(getNebenkostenAmountAt(entries, '2027-06-30')).toBe(95);
+        });
+
+        it('falls back to the earliest upcoming entry before the first one applies', () => {
+            expect(getNebenkostenAmountAt(entries, '2024-06-30')).toBe(80);
+        });
+
+        it('compares German and timestamped dates by day', () => {
+            expect(getNebenkostenAmountAt([{ amount: 70, date: '1.1.2025' }, { amount: 90, date: '2026-01-01T00:00:00Z' }], '2025-12-31')).toBe(70);
         });
     });
 
@@ -155,3 +184,20 @@ describe('Tenant Payment Calculations', () => {
         });
     });
 });
+
+describe('upsertNebenkostenScheduleEntry', () => {
+    it('appends a new dated entry', () => {
+        expect(upsertNebenkostenScheduleEntry([{ id: 'a', amount: '80', date: '2025-01-01' }], { amount: 95, date: '2026-01-01' }, 'new'))
+            .toEqual([{ id: 'a', amount: '80', date: '2025-01-01' }, { id: 'new', amount: '95', date: '2026-01-01' }])
+    })
+
+    it('replaces the amount of an entry with the same day', () => {
+        expect(upsertNebenkostenScheduleEntry([{ id: 'a', amount: 80, date: '2026-01-01T00:00:00Z' }], { amount: 95, date: '2026-01-01' }, 'new'))
+            .toEqual([{ id: 'a', amount: '95', date: '2026-01-01T00:00:00Z' }])
+    })
+
+    it('starts a schedule for a tenant without one', () => {
+        expect(upsertNebenkostenScheduleEntry(null, { amount: 60, date: '2026-01-01' }, 'new'))
+            .toEqual([{ id: 'new', amount: '60', date: '2026-01-01' }])
+    })
+})
