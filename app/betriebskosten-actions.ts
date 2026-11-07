@@ -17,6 +17,7 @@ import {
   AbrechnungModalData,
   HouseApartment,
   OptimizedActionResponse,
+  MeterModalResponse,
   SafeRpcCallResult,
   AbrechnungCalculationResult,
   TenantCalculationResult
@@ -31,6 +32,7 @@ import {
 
 // Import logger for performance monitoring
 import { logger } from '@/utils/logger';
+import { checkTenantViewAccess, withheldTenantFields, type TenantViewAccess, type WithheldTenantFields } from '@/lib/tenant-view-access';
 import { findDuplicateNachRechnungName, normalizeBerechnungsart } from '@/utils/betriebskosten';
 import { type Rechenbasis, RECHENBASIS_KALENDERTAGE, RECHENBASIS_360_TAGE, isValid360Period } from '@/utils/rechentage';
 import { BERECHNUNGSART_OPTIONS } from '@/lib/constants';
@@ -995,7 +997,13 @@ export async function getRechnungenForNebenkostenAction(nebenkostenId: string): 
 export async function getWasserzaehlerByHausAndYearAction(
   hausId: string,
   year: string
-): Promise<{ success: boolean; data?: { mieterList: Mieter[]; existingReadings: Wasserzaehler[] }; message?: string }> {
+): Promise<{
+  success: boolean;
+  // Without mieter:ansehen (or if that check failed) both lists are empty and `tenantAccess: false` (plus
+  // `permissionCheckFailed: true` for a failed check) tells the caller that this is "no access", not "no tenants"
+  data?: { mieterList: Mieter[]; existingReadings: Wasserzaehler[] } & Partial<WithheldTenantFields>;
+  message?: string;
+}> {
   try {
     if (!hausId || !year) {
       return { success: false, message: "Haus-ID und Jahr sind erforderlich." };
@@ -1026,6 +1034,14 @@ export async function getWasserzaehlerByHausAndYearAction(
     if (haeuserIds !== null && !haeuserIds.includes(hausId)) {
       return { success: false, message: "Zugriff auf dieses Haus verweigert." };
     }
+
+    // The tenant list is the whole point of this answer, so the right is checked BEFORE anything is read: without
+    // mieter:ansehen (or if the check failed, fail-closed) neither the Mieter table nor the readings are touched
+    const tenantAccess = await checkTenantViewAccess();
+    if (!tenantAccess.canViewTenants) {
+      return { success: true, data: { mieterList: [], existingReadings: [], ...withheldTenantFields(tenantAccess) } };
+    }
+
     const { mieterList, existingReadings } = await fetchMeterReadingsByHausAndYear(hausId, year);
 
     return {
@@ -1632,9 +1648,14 @@ export async function getLatestBetriebskostenByHausId(hausId: string) {
   }
 }
 
+/** The answer of getMeterModalDataAction without tenant right: no rows, only the signal (fail-closed). */
+function denyMeterModalTenants(access: Extract<TenantViewAccess, { canViewTenants: false }>): MeterModalResponse {
+  return { success: true, data: [], ...withheldTenantFields(access) };
+}
+
 async function getMeterModalDataActionImpl(
   nebenkostenId: string
-): Promise<OptimizedActionResponse<MeterModalData[]>> {
+): Promise<MeterModalResponse> {
   if (!nebenkostenId || nebenkostenId.trim() === '') {
     logger.warn('Invalid nebenkosten ID provided to getWasserzaehlerModalDataAction', {
       nebenkostenId,
@@ -1673,6 +1694,14 @@ async function getMeterModalDataActionImpl(
       return { success: false, message: "Zugriff verweigert." };
     }
   }
+
+  // The rows of this answer are tenants (name, id): they only leave this action with mieter:ansehen. The check runs
+  // alongside the data query (no extra round-trip); a failed check is repeated once inside (see checkTenantViewAccess).
+  // Paths that return without tenant data (RPC error, Nebenkosten not found) never wait for it: the `finally` aborts
+  // it, so no retry pause is left running. The no-op catch only prevents an unhandled rejection on those paths.
+  const tenantCheck = new AbortController();
+  const tenantAccessPromise = checkTenantViewAccess({ signal: tenantCheck.signal });
+  tenantAccessPromise.catch(() => {});
 
   try {
 
@@ -1724,6 +1753,13 @@ async function getMeterModalDataActionImpl(
             nebenkostenId
           });
           return { success: false, message: "Nebenkosten-Eintrag nicht gefunden." };
+        }
+
+        // Every row is a tenant, so without mieter:ansehen there is nothing to show: the Mieter table is not even read
+        // (the decision is only needed here, it ran alongside the Nebenkosten query above)
+        const tenantAccess = await tenantAccessPromise;
+        if (!tenantAccess.canViewTenants) {
+          return denyMeterModalTenants(tenantAccess);
         }
 
         // Get tenants who lived in the house during the billing period
@@ -1880,6 +1916,12 @@ async function getMeterModalDataActionImpl(
       return result;
     }
 
+    const tenantAccess = await tenantAccessPromise;
+    if (!tenantAccess.canViewTenants) {
+      // The database function returns tenant rows: they are dropped here, before anything leaves the action
+      return denyMeterModalTenants(tenantAccess);
+    }
+
     logger.info('Successfully fetched Wasserzähler modal data using optimized function', {
       userId: user.id,
       nebenkostenId,
@@ -1904,6 +1946,8 @@ async function getMeterModalDataActionImpl(
       success: false,
       message: userMessage
     };
+  } finally {
+    tenantCheck.abort();
   }
 }
 
