@@ -54,7 +54,10 @@ const SCOPE_RPC = "kautionen_pruefe_objektzugriff";
 const DOKUMENT_ID = "99999999-9999-4999-8999-999999999999";
 const MUSTER_ORG = "33333333-3333-4333-8333-333333333333";
 const MUSTER_HAUS = "55555555-5555-4555-8555-555555555555";
-const MUSTER_PFAD = `org_${MUSTER_ORG}/shared/${MUSTER_HAUS}/66666666-6666-4666-8666-666666666666/11111111-1111-4111-8111-111111111111`;
+/** Receipt folder of the deposit module: `shared/{house}/Kautionen/{tenantId}` (no apartment segment). */
+const MUSTER_PFAD = `org_${MUSTER_ORG}/shared/${MUSTER_HAUS}/Kautionen/11111111-1111-4111-8111-111111111111`;
+/** Receipt in the old layout (apartment/tenant): not rebuilt, the stored path is used as it is. */
+const ALTER_PFAD_WOHNUNG = `org_${MUSTER_ORG}/shared/${MUSTER_HAUS}/66666666-6666-4666-8666-666666666666/11111111-1111-4111-8111-111111111111`;
 /** Legacy receipt of the signed-in user (`user-1`, see the auth mock) and of another user. */
 const ALTER_PFAD_EIGEN = "user_user-1/haus/wohnung/mieter";
 const ALTER_PFAD_FREMD = "user_muster/haus/wohnung/mieter";
@@ -1896,6 +1899,46 @@ describe("getKautionBelegUrlAction", () => {
     expect(mockCreateSignedUrl).toHaveBeenCalledWith("documents", `${MUSTER_PFAD}/1765000000000_Muster-Beleg.pdf`, 300, {
       download: "Muster-Beleg.pdf",
     });
+  });
+
+  it("öffnet einen Beleg unter Kautionen/ mit dem Kautionenrecht allein (kein dokumente, wohnungen:ansehen, mieter:ansehen)", async () => {
+    mockHasPermission.mockImplementation(async (modul: string) => modul === "kautionen");
+    rpcOk(BELEG_ROW);
+
+    const result = await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
+
+    expect(result).toEqual({ success: true, data: { url: SIGNED_URL } });
+    expect(mockCreateSignedUrl).toHaveBeenCalledWith("documents", expect.stringContaining("/Kautionen/"), 300, expect.any(Object));
+    expect(new Set(mockHasPermission.mock.calls.map(([modul]) => modul))).toEqual(new Set(["kautionen"]));
+  });
+
+  it("öffnet ohne Kautionenrecht nichts, auch nicht mit dokumente/wohnungen/mieter", async () => {
+    mockHasPermission.mockImplementation(async (modul: string) => modul !== "kautionen");
+    rpcOk(BELEG_ROW);
+
+    const result = await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
+
+    expect(result.success).toBe(false);
+    expect(mockCreateSignedUrl).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalledWith("get_kaution_beleg", expect.anything());
+  });
+
+  it("verweigert einen gespeicherten Pfad unter Kautionen/ ohne gültige Mieter-ID (KA003), ohne Link", async () => {
+    rpcOk({ ...BELEG_ROW, dateipfad: `org_${MUSTER_ORG}/shared/${MUSTER_HAUS}/Kautionen/kein-mieter` });
+
+    const result = await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
+
+    expect(result.error?.code).toBe("KA003");
+    expect(mockCreateSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("liest den Pfad eines Belegs im alten Layout (Wohnung/Mieter) aus den Metadaten, ohne ihn neu zu bauen", async () => {
+    rpcOk({ ...BELEG_ROW, dateipfad: ALTER_PFAD_WOHNUNG });
+
+    const result = await getKautionBelegUrlAction({ dokumentId: DOKUMENT_ID });
+
+    expect(result).toEqual({ success: true, data: { url: SIGNED_URL } });
+    expect(mockCreateSignedUrl).toHaveBeenCalledWith("documents", `${ALTER_PFAD_WOHNUNG}/1765000000000_Muster-Beleg.pdf`, 300, expect.any(Object));
   });
 
   it("does not revalidate and logs nothing on success (read action)", async () => {

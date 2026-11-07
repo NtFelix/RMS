@@ -514,6 +514,41 @@ describe('removeFiles', () => {
       expect((await removeFiles([`${HOUSE}/a.pdf`])).denied).toEqual([`${HOUSE}/a.pdf`]);
     });
 
+    it('below Kautionen / Rechnungen a missing object is "gone" with the module right INSTEAD of dokumente, wohnungen and mieter', async () => {
+      mockRemove.mockResolvedValue({ data: [], error: null });
+      mockExists.mockResolvedValue(missing);
+      const receipt = `${HOUSE}/Kautionen/${TENANT}/beleg.pdf`;
+      const invoice = `${HOUSE}/Rechnungen/${APARTMENT}/rechnung.pdf`;
+      const grant = (...granted: string[]) =>
+        (hasPermission as jest.Mock).mockImplementation(async (modul: string, aktion: string) => granted.includes(`${modul}:${aktion}`));
+
+      grant('kautionen:ansehen', 'finanzen:ansehen');
+      expect(await removeFiles([receipt, invoice])).toEqual({ removed: [], denied: [], alreadyGone: [receipt, invoice] });
+
+      grant('kautionen:ansehen');
+      expect(await removeFiles([receipt, invoice])).toEqual({ removed: [], denied: [invoice], alreadyGone: [receipt] });
+
+      grant('finanzen:ansehen');
+      expect(await removeFiles([receipt, invoice])).toEqual({ removed: [], denied: [receipt], alreadyGone: [invoice] });
+
+      // the old rights do not replace the module right
+      grant('dokumente:ansehen', 'wohnungen:ansehen', 'mieter:ansehen');
+      expect(await removeFiles([receipt, invoice])).toEqual({ removed: [], denied: [receipt, invoice], alreadyGone: [] });
+    });
+
+    it('a Kautionen path asks only for kautionen:ansehen, an ordinary path only for dokumente:ansehen', async () => {
+      mockRemove.mockResolvedValue({ data: [], error: null });
+      mockExists.mockResolvedValue(missing);
+      (hasPermission as jest.Mock).mockReset().mockResolvedValue(true);
+
+      await removeFiles([`${HOUSE}/Kautionen/${TENANT}/beleg.pdf`]);
+      expect((hasPermission as jest.Mock).mock.calls).toEqual([['kautionen', 'ansehen']]);
+
+      (hasPermission as jest.Mock).mockClear();
+      await removeFiles([`${HOUSE}/a.pdf`]);
+      expect((hasPermission as jest.Mock).mock.calls).toEqual([['dokumente', 'ansehen']]);
+    });
+
     it('checks many objects in bounded rounds', async () => {
       const paths = Array.from({ length: 25 }, (_, i) => `${HOUSE}/f${i}.pdf`);
       mockRemove.mockResolvedValue({ data: [], error: null });

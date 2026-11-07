@@ -27,9 +27,14 @@ import {
  *
  * Request: `multipart/form-data` with `bewegungId` (UUID of the booking) and `file`.
  * Flow: sign-in -> module right (`kautionen: bearbeiten` and `ansehen`, like the database) -> input check -> folder
- * from the DATABASE (booking -> deposit -> tenant -> apartment, read with the user's own client, so RLS applies;
+ * from the DATABASE (booking -> deposit -> tenant -> apartment -> house, read with the user's own client, so RLS applies;
  * the client never sends a folder) -> upload to the storage -> metadata row -> RPC `kaution_beleg_zuordnen`.
  * If the RPC fails, the metadata row and the storage object are removed again.
+ *
+ * Folder: `org_{org}/shared/{house}/Kautionen/{tenantId}`. That folder needs the module right `kautionen` and the house
+ * scope only (no `dokumente`, no apartment or tenant right), so the role of a deposit clerk can upload without them.
+ * Rollout: the database rule for `Kautionen/` must be live BEFORE this route is (see the PR text), otherwise the old
+ * storage policy treats `Kautionen/` as an ordinary house folder (needs `dokumente`) and refuses a deposit-only role.
  *
  * Privacy: neither the file name nor amounts or names are logged; the log has the action name and the error code only.
  * Security relevant: not production ready until the maintainer has reviewed it. The database checks the object scope
@@ -41,7 +46,7 @@ import {
 const LOG_NAME = "kautionBelegHochladen";
 
 /**
- * Folder of the booking, read from the database. `null` if the booking is not visible (or incomplete).
+ * Folder of the booking (`.../{house}/Kautionen/{tenantId}`), read from the database. `null` if the booking is not visible (or incomplete).
  * The organisation comes from the server (`getActiveOrgId`), never from the client.
  */
 async function ermittleBelegOrdner(supabase: SupabaseClient, orgId: string, bewegungId: string): Promise<string | null> {
@@ -77,7 +82,7 @@ async function ermittleBelegOrdner(supabase: SupabaseClient, orgId: string, bewe
   if (wohnungFehler) throw wohnungFehler;
   if (!wohnung?.haus_id) return null;
 
-  return baueBelegOrdner({ orgId, hausId: wohnung.haus_id, wohnungId: wohnung.id, mieterId: mieter.id });
+  return baueBelegOrdner({ orgId, hausId: wohnung.haus_id, mieterId: mieter.id });
 }
 
 /** Removes a stored file again (rollback). Errors are logged by code only and never returned to the client. */

@@ -17,7 +17,7 @@
 import { MAX_FILE_SIZE, MAX_FILE_SIZE_LABEL, isSupportedMimeType } from "@/lib/finance-file-constants";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE, mapKautionError, type KautionRpcError } from "@/lib/kautionen-errors";
 import { isUuid } from "@/lib/kautionen-validation";
-import { sharedPath } from "@/lib/storage-paths";
+import { KAUTIONEN_SEGMENT, sharedPath } from "@/lib/storage-paths";
 
 /** Storage bucket for all documents (same bucket as the finance documents). */
 export const BELEG_STORAGE_BUCKET = "documents";
@@ -81,18 +81,23 @@ export function anzeigeNameAusDateiname(dateiname: string): string {
 }
 
 /**
- * Folder of a receipt: `org_{orgId}/shared/{haus}/{wohnung}/{mieter}` (GH-27: ID-based, house-scoped, see `lib/storage-paths.ts`).
+ * Folder of a receipt: `org_{orgId}/shared/{haus}/Kautionen/{mieterId}` (GH-27: ID-based, house-scoped, see
+ * `lib/storage-paths.ts`). The folder `Kautionen` is owned by the deposit module: reading and writing it needs the module
+ * right `kautionen` (plus the house scope), NOT `dokumente` and NOT the apartment or tenant right, so a role that only works
+ * with deposits can upload and open receipts. The apartment is not part of the path (a tenant belongs to one apartment at a
+ * time; the move of a tenant must not orphan receipts).
  * Returns `null` if one of the IDs is not a UUID, so no folder is built from malformed values.
  *
- * TRANSITION (GH-27 PR 2 -> PR 3): receipts uploaded before this layout are stored under `user_{uid}/...`. Their path is
- * read from the database (`Dokumente_Metadaten.dateipfad`) and is never rebuilt. Only NEW uploads use this function.
- * Reads of legacy receipts are allowed for their own uploader only (`checkStoragePathAccess` with
- * `allowLegacyOwnRead`); deleting them is not allowed. TODO(GH-27 PR3): backfill, then remove the legacy rule.
+ * Old layout `org_{orgId}/shared/{haus}/{wohnung}/{mieter}` (and the `user_{uid}/...` layout before it): there are no
+ * receipts in it in production and no migration. Reading is not special-cased: the download action reads the stored path
+ * from the database (`Dokumente_Metadaten.dateipfad`) and never rebuilds it, so an old receipt stays readable exactly as far
+ * as the database rules for ITS path allow (apartment and tenant right), and only its own uploader for a `user_` path. Only
+ * NEW uploads use this function.
  */
-export function baueBelegOrdner(ids: { orgId: string; hausId: string; wohnungId: string; mieterId: string }): string | null {
-  if (!isUuid(ids.orgId) || !isUuid(ids.hausId) || !isUuid(ids.wohnungId) || !isUuid(ids.mieterId)) return null;
+export function baueBelegOrdner(ids: { orgId: string; hausId: string; mieterId: string }): string | null {
+  if (!isUuid(ids.orgId) || !isUuid(ids.hausId) || !isUuid(ids.mieterId)) return null;
   // isUuid already guarantees valid path segments, so sharedPath cannot throw here
-  return sharedPath(ids.orgId, ids.hausId, ids.wohnungId, ids.mieterId);
+  return sharedPath(ids.orgId, ids.hausId, KAUTIONEN_SEGMENT, ids.mieterId);
 }
 
 /** Storage key of a receipt: folder (`dateipfad`) plus file name (`dateiname`), as the document management uses it. */

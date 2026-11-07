@@ -288,23 +288,46 @@ describe('GET /api/dateien/tree', () => {
       expect(await childrenOf(TENANT_PATH)).toEqual([])
     })
 
-    it('Rechnungen: without wohnungen:ansehen no apartment folder (and no id) is shown, other folders stay', async () => {
-      grant()
+    it('Rechnungen: with finanzen:ansehen alone (no wohnungen, no mieter) the apartment folders are listed, by id and without apartment query', async () => {
+      grant('finanzen:ansehen')
       mockList.mockResolvedValue({ data: [folder(APARTMENT_ID), folder(ORPHAN_ID), folder('Allgemein')], error: null })
 
       const children = await childrenOf(`${HOUSE_PATH}/Rechnungen`)
 
-      expect(children.map((c) => c.path)).toEqual([`${HOUSE_PATH}/Rechnungen/Allgemein`])
+      expect(children.map((c) => c.path).sort()).toEqual(
+        [`${HOUSE_PATH}/Rechnungen/${APARTMENT_ID}`, `${HOUSE_PATH}/Rechnungen/${ORPHAN_ID}`, `${HOUSE_PATH}/Rechnungen/Allgemein`].sort(),
+      )
+      // the apartment NAME is apartment data: it is only looked up for users who may see apartments
+      expect(JSON.stringify(children)).not.toContain('Wohnung 1')
       expect(queries.filter((q) => q.table === 'Wohnungen')).toHaveLength(0)
     })
 
-    it('Rechnungen: a folder of an apartment is empty without wohnungen:ansehen and listed with it', async () => {
+    it('Rechnungen: with finanzen:ansehen and wohnungen:ansehen the apartment folders carry the apartment name', async () => {
+      grant('finanzen:ansehen', 'wohnungen:ansehen')
+      mockList.mockResolvedValue({ data: [folder(APARTMENT_ID)], error: null })
+
+      const children = await childrenOf(`${HOUSE_PATH}/Rechnungen`)
+
+      expect(children.map((c) => c.displayName)).toEqual(['Wohnung 1'])
+    })
+
+    it('Rechnungen: without finanzen:ansehen the folder is empty, whatever other rights exist (nothing is listed or queried)', async () => {
+      grant('wohnungen:ansehen', 'mieter:ansehen', 'kautionen:ansehen')
+      mockList.mockResolvedValue({ data: [folder(APARTMENT_ID), folder('Allgemein')], error: null })
+
+      expect(await childrenOf(`${HOUSE_PATH}/Rechnungen`)).toEqual([])
+      expect(await childrenOf(`${HOUSE_PATH}/Rechnungen/${APARTMENT_ID}`)).toEqual([])
+      expect(mockList).not.toHaveBeenCalled()
+      expect(queries).toHaveLength(0)
+    })
+
+    it('Rechnungen: a folder of an apartment is listed with finanzen:ansehen alone and empty without it', async () => {
       mockList.mockResolvedValue({ data: [folder('2026')], error: null })
-      grant()
+      grant('wohnungen:ansehen')
       expect(await childrenOf(`${HOUSE_PATH}/Rechnungen/${APARTMENT_ID}`)).toEqual([])
       expect(mockList).not.toHaveBeenCalled()
 
-      grant('wohnungen:ansehen')
+      grant('finanzen:ansehen')
       expect((await childrenOf(`${HOUSE_PATH}/Rechnungen/${APARTMENT_ID}`)).map((c) => c.path)).toEqual([`${HOUSE_PATH}/Rechnungen/${APARTMENT_ID}/2026`])
     })
 
@@ -312,12 +335,21 @@ describe('GET /api/dateien/tree', () => {
       const ARCHIVE = `${HOUSE_PATH}/__archive__/2026-10-29T10-00-00-000Z`
 
       it('without wohnungen:ansehen: no apartment id folder below the timestamp, other archived folders stay', async () => {
-        grant()
-        mockList.mockResolvedValue({ data: [folder(APARTMENT_ID), folder('house_documents'), folder('Rechnungen')], error: null })
+        grant('finanzen:ansehen', 'kautionen:ansehen')
+        mockList.mockResolvedValue({ data: [folder(APARTMENT_ID), folder('house_documents'), folder('Rechnungen'), folder('Kautionen')], error: null })
 
         const paths = (await childrenOf(ARCHIVE)).map((c) => c.path)
 
-        expect(paths).toEqual([`${ARCHIVE}/house_documents`, `${ARCHIVE}/Rechnungen`])
+        expect(paths).toEqual([`${ARCHIVE}/house_documents`, `${ARCHIVE}/Kautionen`, `${ARCHIVE}/Rechnungen`])
+      })
+
+      it('archived Kautionen and Rechnungen need their module right, house_documents stays', async () => {
+        grant('wohnungen:ansehen', 'mieter:ansehen')
+        mockList.mockResolvedValue({ data: [folder('house_documents'), folder('Rechnungen'), folder('Kautionen')], error: null })
+
+        expect((await childrenOf(ARCHIVE)).map((c) => c.path)).toEqual([`${ARCHIVE}/house_documents`])
+        expect(await childrenOf(`${ARCHIVE}/Kautionen/${TENANT_ID}`)).toEqual([])
+        expect(await childrenOf(`${ARCHIVE}/Rechnungen`)).toEqual([])
       })
 
       it('with wohnungen:ansehen: the archived apartment folder is listed', async () => {
@@ -327,11 +359,16 @@ describe('GET /api/dateien/tree', () => {
         expect((await childrenOf(ARCHIVE)).map((c) => c.path)).toEqual([`${ARCHIVE}/${APARTMENT_ID}`])
       })
 
-      it('without wohnungen:ansehen: no apartment id folder below archived Rechnungen (level 7)', async () => {
-        grant()
+      it('archived Rechnungen (level 7): the apartment id folders need finanzen:ansehen, not wohnungen:ansehen', async () => {
         mockList.mockResolvedValue({ data: [folder(APARTMENT_ID), folder('Allgemein')], error: null })
 
-        expect((await childrenOf(`${ARCHIVE}/Rechnungen`)).map((c) => c.path)).toEqual([`${ARCHIVE}/Rechnungen/Allgemein`])
+        grant('wohnungen:ansehen')
+        expect(await childrenOf(`${ARCHIVE}/Rechnungen`)).toEqual([])
+
+        grant('finanzen:ansehen')
+        expect((await childrenOf(`${ARCHIVE}/Rechnungen`)).map((c) => c.path).sort()).toEqual(
+          [`${ARCHIVE}/Rechnungen/${APARTMENT_ID}`, `${ARCHIVE}/Rechnungen/Allgemein`].sort(),
+        )
       })
 
       it('the archived apartment folder is empty without wohnungen:ansehen, its tenant folder needs mieter:ansehen too', async () => {
@@ -367,12 +404,22 @@ describe('GET /api/dateien/tree', () => {
       const NO_HYPHENS = LETTERS_ID.replace(/-/g, '')
       const BRACED = `{${LETTERS_ID}}`
 
-      it('hides them below Rechnungen and at the house level without wohnungen:ansehen', async () => {
+      it('hides them below the archive timestamp and at the house level without wohnungen:ansehen', async () => {
         grant()
         mockList.mockResolvedValue({ data: [folder(UPPER), folder(NO_HYPHENS), folder(BRACED), folder('Allgemein')], error: null })
 
-        expect((await childrenOf(`${HOUSE_PATH}/Rechnungen`)).map((c) => c.name)).toEqual(['Allgemein'])
+        expect((await childrenOf(`${HOUSE_PATH}/__archive__/2026-10-29T10-00-00-000Z`)).map((c) => c.name)).toEqual(['Allgemein'])
         expect((await childrenOf(HOUSE_PATH)).map((c) => c.name)).toEqual(['Archiv', 'house_documents', 'Allgemein'])
+      })
+
+      it('below Rechnungen they are finance folders: listed with finanzen:ansehen, hidden without it', async () => {
+        mockList.mockResolvedValue({ data: [folder(UPPER), folder(NO_HYPHENS), folder(BRACED)], error: null })
+
+        grant('wohnungen:ansehen')
+        expect(await childrenOf(`${HOUSE_PATH}/Rechnungen`)).toEqual([])
+
+        grant('finanzen:ansehen')
+        expect((await childrenOf(`${HOUSE_PATH}/Rechnungen`)).map((c) => c.name).sort()).toEqual([UPPER, NO_HYPHENS, BRACED].sort())
       })
 
       it('opens none of them without wohnungen:ansehen', async () => {
@@ -384,7 +431,9 @@ describe('GET /api/dateien/tree', () => {
       })
     })
 
-    describe('Rechnungen: the filter hides exactly what is classified as apartment folder', () => {
+    describe('the filter hides exactly what is classified as apartment folder (below an archive timestamp)', () => {
+      const ARCHIVE = `${HOUSE_PATH}/__archive__/2026-10-29T10-00-00-000Z`
+
       it('keeps own folders that only look similar to an id', async () => {
         grant()
         mockList.mockResolvedValue({
@@ -392,7 +441,7 @@ describe('GET /api/dateien/tree', () => {
           error: null,
         })
 
-        const names = (await childrenOf(`${HOUSE_PATH}/Rechnungen`)).map((c) => c.name)
+        const names = (await childrenOf(ARCHIVE)).map((c) => c.name)
 
         expect(names.sort()).toEqual(['66666666-6666-4666-8666-66666666666', '66666666-6666-4666-8666-666666666666-alt', 'Rechnungen 2026'])
       })
@@ -402,7 +451,7 @@ describe('GET /api/dateien/tree', () => {
         const upper = 'abcdefab-cdef-4abc-8def-abcdefabcdef'.toUpperCase()
         mockList.mockResolvedValue({ data: [folder(upper), folder('Allgemein')], error: null })
 
-        expect((await childrenOf(`${HOUSE_PATH}/Rechnungen`)).map((c) => c.name).sort()).toEqual([upper, 'Allgemein'].sort())
+        expect((await childrenOf(ARCHIVE)).map((c) => c.name).sort()).toEqual([upper, 'Allgemein'].sort())
       })
     })
 
@@ -410,8 +459,8 @@ describe('GET /api/dateien/tree', () => {
       const tooLong = 'a'.repeat(300)
       const withControl = 'Ordner\u0007mit Klingel'
 
-      it('are listed below house_documents and Rechnungen, also for a user without module rights', async () => {
-        grant()
+      it('are listed below house_documents without module rights and below Rechnungen with finanzen:ansehen', async () => {
+        grant('finanzen:ansehen')
         mockList.mockResolvedValue({ data: [folder(tooLong), folder(withControl), folder('Allgemein')], error: null })
 
         for (const parent of [`${HOUSE_PATH}/house_documents`, `${HOUSE_PATH}/Rechnungen`]) {
@@ -431,7 +480,7 @@ describe('GET /api/dateien/tree', () => {
       })
 
       it('an id-like segment of a path that is invalid for another reason (too long) stays hidden', async () => {
-        grant()
+        grant('finanzen:ansehen')
         const deep = [...Array.from({ length: 4 }, () => 'b'.repeat(200)), 'c'.repeat(70)]
         const parent = [`${HOUSE_PATH}/Rechnungen`, ...deep].join('/')
         mockList.mockResolvedValue({ data: [folder(APARTMENT_ID), folder('Allgemein')], error: null })
@@ -533,7 +582,7 @@ describe('GET /api/dateien/tree', () => {
         expect(await response.json()).toEqual({ error: 'Permission denied', code: 'PERMISSION_DENIED' })
       })
 
-      it('filtered listing (Rechnungen): 503 instead of a list without apartment folders', async () => {
+      it('Rechnungen with finanzen:ansehen: a failing wohnungen:ansehen (apartment names) is a 503, not a list with ids only', async () => {
         failWohnungenCheck()
 
         await expectCheckFailed(`${HOUSE_PATH}/Rechnungen`)
@@ -551,6 +600,151 @@ describe('GET /api/dateien/tree', () => {
         expect((await childrenOf(`org_${ORG_ID}/shared`)).map((c) => c.path)).toEqual([HOUSE_PATH])
         const response = await GET({ url: 'http://localhost/api/dateien/tree' } as unknown as NextRequest)
         expect(response.status).toBe(200)
+      })
+    })
+
+    describe('module folders Kautionen (kautionen:ansehen) and Rechnungen (finanzen:ansehen)', () => {
+      const KAUTIONEN = `${HOUSE_PATH}/Kautionen`
+      const KAUTION_MIETER = `${KAUTIONEN}/${TENANT_ID}`
+      const RECHNUNGEN = `${HOUSE_PATH}/Rechnungen`
+      const queriedRights = () => new Set((checkPermission as jest.Mock).mock.calls.map(([modul, aktion]) => `${modul}:${aktion}`))
+
+      it('a role with kautionen:ansehen only sees Kautionen and its tenant folders, but no apartment folder, no Rechnungen', async () => {
+        grant('kautionen:ansehen')
+        mockList.mockResolvedValue({ data: [folder('Kautionen'), folder('Rechnungen'), folder('Eigener Ordner'), folder(APARTMENT_ID)], error: null })
+
+        const house = (await childrenOf(HOUSE_PATH)).map((c) => c.path)
+
+        expect(house).toContain(KAUTIONEN)
+        expect(house).not.toContain(RECHNUNGEN)
+        expect(house).not.toContain(APARTMENT_PATH)
+        expect(house).toContain(`${HOUSE_PATH}/Eigener Ordner`)
+      })
+
+      it('lists the tenant folders below Kautionen with kautionen:ansehen alone, without asking for apartment, tenant or documents rights', async () => {
+        grant('kautionen:ansehen')
+        mockList.mockResolvedValue({ data: [folder(TENANT_ID)], error: null })
+
+        const children = await childrenOf(KAUTIONEN)
+        expect(children.map((c) => c.path)).toEqual([KAUTION_MIETER])
+        // no tenant name is looked up (that would be tenant data): the folder keeps its id
+        expect(children[0].name).toBe(TENANT_ID)
+        expect(JSON.stringify(children)).not.toContain('Mieter Eins')
+
+        mockList.mockResolvedValue({ data: [folder('Unterordner')], error: null })
+        expect((await childrenOf(KAUTION_MIETER)).map((c) => c.path)).toEqual([`${KAUTION_MIETER}/Unterordner`])
+
+        expect(queriedRights()).toEqual(new Set(['kautionen:ansehen']))
+        expect(queries.map((q) => q.table)).not.toContain('Wohnungen')
+        expect(queries.map((q) => q.table)).not.toContain('Mieter')
+      })
+
+      it('a role without kautionen:ansehen sees no Kautionen folder and cannot list it, even with wohnungen, mieter and finanzen', async () => {
+        grant('wohnungen:ansehen', 'mieter:ansehen', 'finanzen:ansehen')
+        mockList.mockResolvedValue({ data: [folder('Kautionen'), folder('Eigener Ordner')], error: null })
+
+        expect((await childrenOf(HOUSE_PATH)).map((c) => c.path)).not.toContain(KAUTIONEN)
+        mockList.mockClear()
+        expect(await childrenOf(KAUTIONEN)).toEqual([])
+        expect(await childrenOf(KAUTION_MIETER)).toEqual([])
+        expect(await childrenOf(`${KAUTION_MIETER}/Unterordner`)).toEqual([])
+        expect(mockList).not.toHaveBeenCalled()
+      })
+
+      it('a role with finanzen:ansehen only sees Rechnungen (apartment folders by id) but not Kautionen', async () => {
+        grant('finanzen:ansehen')
+        mockList.mockResolvedValue({ data: [folder('Kautionen'), folder('Rechnungen')], error: null })
+
+        const house = (await childrenOf(HOUSE_PATH)).map((c) => c.path)
+        expect(house).toContain(RECHNUNGEN)
+        expect(house).not.toContain(KAUTIONEN)
+
+        mockList.mockResolvedValue({ data: [folder(APARTMENT_ID)], error: null })
+        expect((await childrenOf(RECHNUNGEN)).map((c) => c.path)).toEqual([`${RECHNUNGEN}/${APARTMENT_ID}`])
+      })
+
+      it('a role without finanzen:ansehen sees no Rechnungen folder at the house level', async () => {
+        grant('kautionen:ansehen', 'wohnungen:ansehen')
+        mockList.mockResolvedValue({ data: [folder('Rechnungen')], error: null })
+
+        expect((await childrenOf(HOUSE_PATH)).map((c) => c.path)).not.toContain(RECHNUNGEN)
+      })
+
+      it('look-alike names are ordinary folders: no module right is needed for them', async () => {
+        grant()
+        const names = ['kautionen', 'Kautionen ', 'Kаutionen', 'rechnungen', 'Rechnungen ']
+        mockList.mockResolvedValue({ data: names.map((n) => folder(n)), error: null })
+
+        const listed = (await childrenOf(HOUSE_PATH)).map((c) => c.name)
+
+        for (const name of names) expect(listed).toContain(name)
+        // listing a look-alike folder is not refused for lack of a module right
+        expect((await childrenOf(`${HOUSE_PATH}/kautionen`)).length).toBeGreaterThan(0)
+        expect(queriedRights().has('kautionen:ansehen')).toBe(false)
+        expect(queriedRights().has('finanzen:ansehen')).toBe(false)
+      })
+
+      it('Kautionen below an apartment folder is an ordinary folder (only the position after the house counts)', async () => {
+        grant('wohnungen:ansehen')
+        mockList.mockResolvedValue({ data: [folder('Kautionen')], error: null })
+
+        expect((await childrenOf(APARTMENT_PATH)).map((c) => c.path)).toContain(`${APARTMENT_PATH}/Kautionen`)
+      })
+
+      describe('the permission check itself fails: fail closed with 503, nothing is listed', () => {
+        afterEach(() => {
+          jest.restoreAllMocks()
+        })
+
+        async function expect503(path: string) {
+          jest.spyOn(console, 'error').mockImplementation()
+          const response = await GET(request(path))
+          expect(response.status).toBe(503)
+          expect(await response.json()).toEqual({ error: 'Permission check failed', code: 'PERMISSION_CHECK_FAILED' })
+        }
+
+        const failing = (failed: string) =>
+          (checkPermission as jest.Mock).mockImplementation(async (modul: string) => (modul === failed ? 'error' : 'allowed'))
+
+        it.each([[KAUTIONEN], [KAUTION_MIETER], [`${KAUTION_MIETER}/Unterordner`]])('kautionen:ansehen unreadable: 503 at %s', async (path) => {
+          failing('kautionen')
+          mockList.mockResolvedValue({ data: [folder(TENANT_ID)], error: null })
+
+          await expect503(path)
+          expect(mockList).not.toHaveBeenCalled()
+        })
+
+        it('kautionen:ansehen unreadable: 503 at the house level if a Kautionen folder is there (no silent hiding)', async () => {
+          failing('kautionen')
+          mockList.mockResolvedValue({ data: [folder('Kautionen')], error: null })
+
+          await expect503(HOUSE_PATH)
+        })
+
+        it('finanzen:ansehen unreadable: 503 at Rechnungen and below it', async () => {
+          failing('finanzen')
+          mockList.mockResolvedValue({ data: [folder(APARTMENT_ID)], error: null })
+
+          await expect503(RECHNUNGEN)
+          await expect503(`${RECHNUNGEN}/${APARTMENT_ID}`)
+          expect(mockList).not.toHaveBeenCalled()
+        })
+
+        it('finanzen:ansehen unreadable: 503 at the house level if a Rechnungen folder is there', async () => {
+          failing('finanzen')
+          mockList.mockResolvedValue({ data: [folder('Rechnungen')], error: null })
+
+          await expect503(HOUSE_PATH)
+        })
+
+        it('the house level without module folders is not affected by failing kautionen/finanzen checks', async () => {
+          ;(checkPermission as jest.Mock).mockImplementation(async (modul: string) => (modul === 'kautionen' || modul === 'finanzen' ? 'error' : 'allowed'))
+          mockList.mockResolvedValue({ data: [folder('Eigener Ordner')], error: null })
+
+          const children = await childrenOf(HOUSE_PATH)
+
+          expect(children.map((c) => c.path)).toContain(`${HOUSE_PATH}/Eigener Ordner`)
+        })
       })
     })
 
