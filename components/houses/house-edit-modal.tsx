@@ -137,12 +137,14 @@ function ResizeHandle({
 
 function TopBar({
   houseInitialData,
+  canDelete = true,
   onDeleteRequest,
 }: {
   houseInitialData: House | null;
+  canDelete?: boolean;
   onDeleteRequest: () => void;
 }) {
-  if (!houseInitialData) return null;
+  if (!houseInitialData?.id || !canDelete) return null;
 
   return (
     <div className="absolute top-0 left-0 right-0 h-14 flex items-center justify-end px-4 z-10 pointer-events-none">
@@ -506,6 +508,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
     closeHouseModal,
     houseInitialData,
     houseModalOnSuccess,
+    houseModalCanDelete = true,
     isHouseModalDirty,
     setHouseModalDirty,
   } = useModalStore();
@@ -568,7 +571,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
   };
 
   const handleDelete = async () => {
-    if (!houseInitialData || isPending) return;
+    if (!houseInitialData || !houseModalCanDelete || isPending) return;
     try {
       setIsDeleting(true);
       const result = await deleteHouseAction(houseInitialData.id);
@@ -606,7 +609,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
 
   // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
   const handleDeleteStart = () => {
-    if (!houseInitialData || isPending) return;
+    if (!houseInitialData?.id || !houseModalCanDelete || isPending) return;
     void starteLoeschenMitKautionen("Haeuser", [houseInitialData.id], { einfach: () => setDeleteDialogOpen(true), loeschen: handleDelete });
   };
 
@@ -704,6 +707,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
 
         <TopBar
           houseInitialData={houseInitialData}
+          canDelete={houseModalCanDelete}
           onDeleteRequest={handleDeleteStart}
         />
 
