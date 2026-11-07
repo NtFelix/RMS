@@ -188,8 +188,9 @@ export interface ModalState {
   isHouseModalOpen: boolean;
   houseInitialData?: any;
   houseModalOnSuccess?: (data: any) => void;
+  houseModalCanDelete?: boolean;
   isHouseModalDirty: boolean;
-  openHouseModal: (initialData?: any, onSuccess?: (data: any) => void) => void;
+  openHouseModal: (initialData?: any, onSuccess?: (data: any) => void, canDelete?: boolean) => void;
   closeHouseModal: (options?: CloseModalOptions) => void;
   setHouseModalDirty: (isDirty: boolean) => void;
 
@@ -504,6 +505,7 @@ const initialHouseModalState = {
   isHouseModalOpen: false,
   houseInitialData: undefined,
   houseModalOnSuccess: undefined,
+  houseModalCanDelete: true,
   isHouseModalDirty: false,
 };
 
@@ -767,10 +769,11 @@ export const useModalStore = create<ModalState>((set, get) => {
     setTenantModalDirty: (isDirty) => set({ isTenantModalDirty: isDirty }),
 
     // House Modal
-    openHouseModal: (initialData, onSuccess) => set({
+    openHouseModal: (initialData, onSuccess, canDelete = true) => set({
       isHouseModalOpen: true,
       houseInitialData: initialData,
       houseModalOnSuccess: onSuccess,
+      houseModalCanDelete: canDelete,
       isHouseModalDirty: false
     }),
     closeHouseModal: createCloseHandler('isHouseModalDirty', initialHouseModalState),
