@@ -115,12 +115,6 @@ export type MeterModalResponse = OptimizedActionResponse<MeterModalData[]> & {
 };
 
 /**
- * Tenant visibility in the Wasserzähler modal: `hidden` = the user may not see tenants (mieter:ansehen),
- * `check-failed` = the check itself failed (hidden as well, but the right might be there).
- */
-export type TenantView = 'visible' | 'hidden' | 'check-failed';
-
-/**
  * Parameters for the get_nebenkosten_with_metrics database function
  */
 export type GetNebenkostenWithMetricsParams = {

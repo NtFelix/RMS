@@ -17,10 +17,7 @@ import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
 import type { MeterReadingFormEntry, MeterReadingFormData } from "@/lib/types";
-import type { MeterModalData, TenantView } from "@/types/optimized-betriebskosten";
-import { getMeterModalDataAction } from "@/app/betriebskosten-actions";
-import { TenantCheckFailedNotice } from "@/components/apartments/tenant-check-failed-notice";
-import { TENANT_NO_ACCESS_LABEL } from "@/lib/tenant-access";
+import { MeterModalData } from "@/types/optimized-betriebskosten";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 import {
@@ -84,11 +81,6 @@ interface ModalWasserzaehlerEntry extends Omit<MeterReadingFormEntry, 'ablese_da
   warning?: string;
 }
 
-/** The tenant view of an answer of getMeterModalDataAction (see MeterModalResponse). */
-function tenantViewOf(result: { tenantAccess?: false; permissionCheckFailed?: true }): TenantView {
-  return result.tenantAccess !== false ? 'visible' : result.permissionCheckFailed === true ? 'check-failed' : 'hidden';
-}
-
 export function WasserzaehlerModal() {
   const {
     isWasserzaehlerModalOpen,
@@ -96,17 +88,11 @@ export function WasserzaehlerModal() {
     wasserzaehlerMieterList,
     wasserzaehlerExistingReadings,
     wasserzaehlerOptimizedData,
-    wasserzaehlerTenantView,
     wasserzaehlerOnSave,
     isWasserzaehlerModalDirty,
     closeWasserzaehlerModal,
     setWasserzaehlerModalDirty,
-    setWasserzaehlerOptimizedData,
   } = useModalStore();
-  // The view lives in the store (set by whoever opens the modal, reset when it closes), so nothing of an earlier
-  // house stays behind. Names are only ever put into the form with `visible`.
-  const tenantView = wasserzaehlerTenantView ?? 'visible';
-  const tenantAccess = tenantView === 'visible';
 
   // Type assertion for wasserzaehlerOnSave since we know it will be provided by the modal store
   const handleSave = wasserzaehlerOnSave as (data: MeterReadingFormData) => Promise<{ success: boolean; message?: string }>;
@@ -117,7 +103,6 @@ export function WasserzaehlerModal() {
   const [generalDate, setGeneralDate] = useState<Date | undefined>(new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTag, setFilterTag] = useState<string>("all");
-  const [isReloadingTenants, setIsReloadingTenants] = useState(false);
   const [apartmentUsage, setApartmentUsage] = useState<{ [key: string]: string }>({});
   const { toast } = useToast();
 
@@ -171,7 +156,7 @@ export function WasserzaehlerModal() {
             id: crypto.randomUUID(),
             mieter_id: modalData.mieter_id,
             zaehler_id: modalData.meter_id, // Explicitly pass meter ID
-            mieter_name: tenantAccess ? modalData.mieter_name : undefined,
+            mieter_name: modalData.mieter_name,
             wohnung_name: modalData.wohnung_name,
             wohnung_groesse: modalData.wohnung_groesse,
             ablese_datum: modalData.current_reading?.ablese_datum || '',
@@ -192,7 +177,7 @@ export function WasserzaehlerModal() {
               id: existingReadingForMieter?.id || crypto.randomUUID(),
               mieter_id: mieter.id,
               zaehler_id: existingReadingForMieter?.zaehler_id,
-              mieter_name: tenantAccess ? mieter.name : undefined,
+              mieter_name: mieter.name,
               wohnung_name: mieter.Wohnungen?.name || 'Unbekannte Wohnung',
               wohnung_groesse: mieter.Wohnungen?.groesse || 0,
               ablese_datum: existingReadingForMieter?.ablese_datum || '',
@@ -221,7 +206,7 @@ export function WasserzaehlerModal() {
       setFormData([]);
       setInitialFormData([]);
     }
-  }, [isWasserzaehlerModalOpen, wasserzaehlerNebenkosten, wasserzaehlerOptimizedData, wasserzaehlerMieterList, wasserzaehlerExistingReadings, tenantAccess, setWasserzaehlerModalDirty, toast]);
+  }, [isWasserzaehlerModalOpen, wasserzaehlerNebenkosten, wasserzaehlerOptimizedData, wasserzaehlerMieterList, wasserzaehlerExistingReadings, setWasserzaehlerModalDirty, toast]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -290,34 +275,6 @@ export function WasserzaehlerModal() {
     });
   };
 
-  // Reloads the data that contains the tenants (the whole answer: the rows are the tenants)
-  const handleReloadTenants = async () => {
-    if (!wasserzaehlerNebenkosten) return;
-    setIsReloadingTenants(true);
-    try {
-      const result = await getMeterModalDataAction(wasserzaehlerNebenkosten.id);
-      if (!result.success) {
-        // The old state stays (still without names): a failed reload never reveals anything
-        toast({
-          title: "Fehler",
-          description: result.message || "Die Daten konnten nicht neu geladen werden.",
-          variant: "destructive",
-        });
-        return;
-      }
-      setWasserzaehlerOptimizedData(result.data ?? [], tenantViewOf(result));
-    } catch (error) {
-      console.error("Error reloading Wasserzaehler modal data:", error);
-      toast({
-        title: "Fehler",
-        description: "Die Daten konnten nicht neu geladen werden.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsReloadingTenants(false);
-    }
-  };
-
   const handleSubmit = async () => {
     if (!wasserzaehlerNebenkosten || !wasserzaehlerOnSave) {
       toast({
@@ -345,8 +302,7 @@ export function WasserzaehlerModal() {
         id: entry.id, // Preserve ID
         mieter_id: entry.mieter_id,
         zaehler_id: entry.zaehler_id,
-        // Never send the label or a name that was not meant to be shown
-        mieter_name: tenantAccess ? entry.mieter_name : undefined,
+        mieter_name: entry.mieter_name,
         // Date can be empty; server will default to today if missing
         ablese_datum: entry.ablese_datum,
         zaehlerstand: parseFloat(entry.zaehlerstand) || 0,
@@ -442,7 +398,7 @@ export function WasserzaehlerModal() {
     let filteredData = augmentedData.filter(entry => {
       // Search filter
       const matchesSearch = searchQuery === "" ||
-        (tenantAccess && (entry.mieter_name || "").toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (entry.mieter_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         entry.wohnung_name.toLowerCase().includes(searchQuery.toLowerCase());
 
       if (!matchesSearch) return false;
@@ -469,7 +425,7 @@ export function WasserzaehlerModal() {
     });
 
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
-  }, [formData, searchQuery, filterTag, tenantAccess]);
+  }, [formData, searchQuery, filterTag]);
 
   if (!wasserzaehlerNebenkosten) {
     return null;
@@ -492,9 +448,6 @@ export function WasserzaehlerModal() {
         </DialogHeader>
 
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 py-4">
-          {tenantView === 'check-failed' && (
-            <TenantCheckFailedNotice onReload={handleReloadTenants} isReloading={isReloadingTenants} />
-          )}
           {/* General Date Picker */}
           {formData.length > 0 && (
             <div className="p-4 border rounded-3xl space-y-3 bg-white dark:bg-zinc-900 shadow-xs">
@@ -532,7 +485,7 @@ export function WasserzaehlerModal() {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder={tenantAccess ? "Mieter oder Wohnung suchen..." : "Wohnung suchen..."}
+                    placeholder="Mieter oder Wohnung suchen..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-9 pr-9"
@@ -683,11 +636,7 @@ export function WasserzaehlerModal() {
                           <div className="flex items-start gap-2">
                             <User className="h-4 w-4 text-muted-foreground mt-1" />
                             <div>
-                              {tenantView === 'hidden' ? (
-                                <p className="font-semibold text-muted-foreground">{TENANT_NO_ACCESS_LABEL}</p>
-                              ) : tenantAccess ? (
-                                <p className="font-semibold">{entry.mieter_name}</p>
-                              ) : null}
+                              <p className="font-semibold">{entry.mieter_name}</p>
                               <p className="text-sm text-muted-foreground">
                                 {entry.wohnung_groesse} m²
                               </p>
@@ -788,19 +737,7 @@ export function WasserzaehlerModal() {
           ) : (
             <div className="flex flex-col justify-center items-center h-40 gap-3">
               <Building2 className="h-12 w-12 text-muted-foreground/50" />
-              {tenantView === 'hidden' ? (
-                <>
-                  <Badge variant="outline" className="text-xs text-muted-foreground">
-                    <User className="h-3 w-3 mr-1" />
-                    {TENANT_NO_ACCESS_LABEL}
-                  </Badge>
-                  <p className="text-muted-foreground text-center">
-                    Die Zählerstände sind je Mieter erfasst. Ohne die Berechtigung „Mieter ansehen“ werden hier keine Mieter angezeigt.
-                  </p>
-                </>
-              ) : tenantAccess ? (
-                <p className="text-muted-foreground">Keine Mieter für diesen Zeitraum und dieses Haus gefunden.</p>
-              ) : null}
+              <p className="text-muted-foreground">Keine Mieter für diesen Zeitraum und dieses Haus gefunden.</p>
             </div>
           )}
         </div>
