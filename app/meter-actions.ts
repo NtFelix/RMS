@@ -6,6 +6,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import type { Zaehler, ZaehlerAblesung, Wohnung, Mieter } from "@/lib/types";
 import { logAction } from '@/lib/logging-middleware';
 import { capturePostHogEvent } from '@/lib/posthog-helpers';
+import { checkTenantViewAccess, applyTenantAccess, type TenantViewAccess, type WithheldTenantFields } from '@/lib/tenant-view-access';
 
 type SupabaseClientType = SupabaseClient;
 
@@ -37,6 +38,14 @@ export async function getMeterForHausAction(hausId: string) {
   }
   const startTime = Date.now();
 
+  // The tenant right is checked alongside the meter query (no extra round-trip); a failed check is repeated once inside
+  // (see checkTenantViewAccess). Paths that return without tenant data (RPC error, no data, empty house) never wait for
+  // it: the `finally` aborts it, so no retry pause is left running. The no-op catch only prevents an unhandled rejection
+  // on those paths.
+  const tenantCheck = new AbortController();
+  const tenantAccessPromise = checkTenantViewAccess({ signal: tenantCheck.signal });
+  tenantAccessPromise.catch(() => {});
+
   try {
 
     // Try to use optimized database function first
@@ -59,7 +68,7 @@ export async function getMeterForHausAction(hausId: string) {
         console.log(`[${new Date().toISOString()}] [WARN] Database function 'get_zaehler_for_haus' not available, using fallback queries`);
 
         // Fallback to individual queries
-        return await getMeterForHausFallback(supabase, hausId, startTime);
+        return await getMeterForHausFallback(supabase, hausId, startTime, tenantAccessPromise);
       }
 
       console.error("Error fetching meter data for house:", error);
@@ -72,6 +81,7 @@ export async function getMeterForHausAction(hausId: string) {
 
     const executionTime = Date.now() - startTime;
     const result = data[0];
+    const tenantAccess = await tenantAccessPromise;
 
     // Log successful RPC call
     // Log successful RPC call
@@ -94,13 +104,17 @@ Context: ${JSON.stringify({
         wohnungen: result.wohnungen || [],
         meters: result.meters || [],
         readings: result.readings || [],
-        mieter: result.mieter || []
+        // Without mieter:ansehen (or if the check failed) no tenant leaves this action: the list stays empty and
+        // `tenantAccess: false` tells the modal that this is "no access" and not "no tenant"
+        ...applyTenantAccess<MieterBasic>(tenantAccess, result.mieter || [])
       }
     };
   } catch (error: unknown) {
     console.error("Unexpected error in getMeterForHausAction:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
+  } finally {
+    tenantCheck.abort();
   }
 }
 
@@ -127,14 +141,15 @@ interface FallbackResult {
     meters: Zaehler[];
     readings: ZaehlerAblesung[];
     mieter: MieterBasic[];
-  };
+  } & Partial<WithheldTenantFields>;
   message?: string;
 }
 
 async function getMeterForHausFallback(
   supabase: SupabaseClientType,
   hausId: string,
-  startTime: number
+  startTime: number,
+  tenantAccessPromise: Promise<TenantViewAccess>
 ): Promise<FallbackResult> {
   try {
     const { data: wohnungen, error: wohnungenError } = await supabase
@@ -163,6 +178,9 @@ async function getMeterForHausFallback(
 
     const meterIds = meters?.map((m: Zaehler) => m.id) || [];
 
+    // Only here the tenant decision is needed (it ran alongside the queries above, not before them)
+    const tenantAccess = await tenantAccessPromise;
+
     const [
       { data: readings, error: readingsError },
       { data: mieter, error: mieterError }
@@ -175,11 +193,14 @@ async function getMeterForHausFallback(
           .order('ablese_datum', { ascending: false })
         : { data: null, error: null },
 
-      supabase
-        .from("Mieter")
-        .select("id, name, wohnung_id, einzug, auszug")
-        .in("wohnung_id", wohnungIds)
-        .order('name', { ascending: true })
+      // Without mieter:ansehen the tenants are not even read
+      tenantAccess.canViewTenants
+        ? supabase
+          .from("Mieter")
+          .select("id, name, wohnung_id, einzug, auszug")
+          .in("wohnung_id", wohnungIds)
+          .order('name', { ascending: true })
+        : { data: null, error: null }
     ]);
 
     if (readingsError) throw readingsError;
@@ -191,7 +212,7 @@ async function getMeterForHausFallback(
         wohnungen: (wohnungen || []) as unknown as WohnungBasic[],
         meters: (meters || []) as unknown as Zaehler[],
         readings: (readings || []) as unknown as ZaehlerAblesung[],
-        mieter: (mieter || []) as unknown as MieterBasic[]
+        ...applyTenantAccess(tenantAccess, (mieter || []) as unknown as MieterBasic[])
       }
     };
   } catch (error: unknown) {
