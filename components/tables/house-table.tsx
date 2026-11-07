@@ -19,8 +19,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, Home, MapPin, Ruler, Euro, TrendingUp, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil, Eye } from "lucide-react"
-import { useModalStore } from "@/hooks/use-modal-store"
+import { ChevronsUpDown, ArrowUp, ArrowDown, Home, MapPin, Ruler, Euro, TrendingUp, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil } from "lucide-react"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { formatPlzOrt } from "@/lib/address"
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary"
@@ -322,11 +321,11 @@ function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectH
             contextMenuRefs.current.delete(house.id)
           }
         }}
-        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
+        className={`relative transition-all duration-200 ease-out transform ${flags.canEdit ? 'cursor-pointer hover:scale-[1.005] active:scale-[0.998]' : ''} ${isSelected
           ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
           : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
         }`}
-        onClick={() => flags.canEdit ? onEdit(house) : useModalStore.getState().openHausOverviewModal(house.id)}
+        onClick={flags.canEdit ? () => onEdit(house) : undefined}
       >
         <TableCell
           className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
@@ -375,13 +374,6 @@ function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectH
                 variant: 'primary',
                 disabled: !flags.canEdit,
                 tooltip: !flags.canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
-              },
-              {
-                id: `overview-${house.id}`,
-                icon: Eye,
-                label: "Übersicht",
-                onClick: () => useModalStore.getState().openHausOverviewModal(house.id),
-                variant: 'default',
               },
               {
                 id: `more-${house.id}`,

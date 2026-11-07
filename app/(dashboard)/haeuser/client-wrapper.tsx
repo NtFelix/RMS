@@ -698,12 +698,12 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
   const handleEdit = useCallback(
     (house: House) => {
       try {
-        openHouseModal(house, refreshTable);
+        openHouseModal(house, refreshTable, canDelete);
       } catch (error) {
         console.error('Error opening house modal:', error);
       }
     },
-    [openHouseModal, refreshTable]
+    [openHouseModal, refreshTable, canDelete]
   );
 
   const summary = useMemo(() => {

@@ -479,6 +479,28 @@ describe('HouseTable', () => {
     });
   });
 
+  describe('Row interactions without edit permission', () => {
+    it('does not call onEdit and has no clickable styling when canEdit is false', async () => {
+      const user = userEvent.setup();
+      render(
+        <HouseTable
+          filter="all"
+          searchQuery=""
+          onEdit={mockOnEdit}
+          initialHouses={mockHouses}
+          canEdit={false}
+        />
+      );
+
+      const firstRow = screen.getByText('Haus Alpha').closest('tr');
+      await user.click(firstRow!);
+
+      expect(mockOnEdit).not.toHaveBeenCalled();
+      expect(firstRow).not.toHaveClass('cursor-pointer');
+      expect(firstRow).not.toHaveClass('hover:scale-[1.005]');
+    });
+  });
+
   describe('Data fetching', () => {
     it('fetches houses when no initial data provided', async () => {
       await React.act(async () => {

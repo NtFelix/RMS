@@ -28,8 +28,7 @@ const houseModalOnSuccess = jest.fn();
 async function klickeLoeschen() {
   const user = userEvent.setup();
   render(<HouseEditModal serverAction={jest.fn()} />);
-  await user.click(screen.getByRole('button', { name: 'Aktionen' }));
-  await user.click(await screen.findByText('Löschen'));
+  await user.click(screen.getByRole('button', { name: 'Löschen' }));
   return user;
 }
 
@@ -43,7 +42,6 @@ describe('HouseEditModal delete with Kautionen overview', () => {
       houseModalOnSuccess,
       isHouseModalDirty: false,
       setHouseModalDirty: jest.fn(),
-      openHausOverviewModal: jest.fn(),
     });
     mockDelete.mockResolvedValue({ success: true });
   });
@@ -76,5 +74,33 @@ describe('HouseEditModal delete with Kautionen overview', () => {
     expect(mockDelete).not.toHaveBeenCalled();
     expect(houseModalOnSuccess).not.toHaveBeenCalled();
     expect(screen.queryByText('Haus löschen?')).not.toBeInTheDocument();
+  });
+
+  it('hides the delete button when houseModalCanDelete is false and shows it when true or omitted', () => {
+    (useModalStore as unknown as jest.Mock).mockReturnValue({
+      isHouseModalOpen: true,
+      closeHouseModal,
+      houseInitialData: { id: 'house-1', name: 'Haus Alpha', ort: 'Berlin' },
+      houseModalOnSuccess,
+      houseModalCanDelete: false,
+      isHouseModalDirty: false,
+      setHouseModalDirty: jest.fn(),
+    });
+
+    const { rerender } = render(<HouseEditModal serverAction={jest.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Löschen' })).not.toBeInTheDocument();
+
+    (useModalStore as unknown as jest.Mock).mockReturnValue({
+      isHouseModalOpen: true,
+      closeHouseModal,
+      houseInitialData: { id: 'house-1', name: 'Haus Alpha', ort: 'Berlin' },
+      houseModalOnSuccess,
+      houseModalCanDelete: true,
+      isHouseModalDirty: false,
+      setHouseModalDirty: jest.fn(),
+    });
+
+    rerender(<HouseEditModal serverAction={jest.fn()} />);
+    expect(screen.getByRole('button', { name: 'Löschen' })).toBeInTheDocument();
   });
 });
