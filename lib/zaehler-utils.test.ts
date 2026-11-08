@@ -25,6 +25,11 @@ describe('sumZaehlerValues', () => {
     expect(result).toBe(15);
   });
 
+  it('should only count water meter types by default when every meter type is present', () => {
+    // kaltwasser (1) + warmwasser (2); a change to WATER_METER_TYPES must show up here
+    expect(sumZaehlerValues(ALL_TYPES_VALUES)).toBe(3);
+  });
+
   it('should use WATER_METER_TYPES as default types', () => {
     const values = { kaltwasser: 3, warmwasser: 7, strom: 50 };
 
