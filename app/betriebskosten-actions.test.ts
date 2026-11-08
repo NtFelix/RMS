@@ -572,6 +572,96 @@ describe('betriebskosten-actions', () => {
       expect(result).toEqual({ success: true });
     });
   });
+
+  describe('zaehlerkosten runtime validation', () => {
+    const baseFormData = {
+      startdatum: '2023-01-01',
+      enddatum: '2023-12-31',
+      nebenkostenart: ['Grundsteuer'],
+      betrag: [100],
+      berechnungsart: ['pro Flaeche'],
+      haeuser_id: 'house1',
+    };
+    const SECRET_LIKE_VALUE = '987654';
+
+    beforeEach(() => {
+      mockSupabase.single.mockResolvedValue({ data: { id: 'nb1' }, error: null });
+    });
+
+    it.each([
+      ['positive numbers', { kaltwasser: 12.5, warmwasser: 3 }],
+      ['negative numbers (credits)', { kaltwasser: -40 }],
+      ['zero', { kaltwasser: 0, warmwasser: 0 }],
+    ])('accepts a map of finite numbers (%s) and passes it to Supabase on create', async (_name, zaehlerkosten) => {
+      const result = await createNebenkosten({ ...baseFormData, zaehlerkosten });
+
+      expect(result.success).toBe(true);
+      expect(mockSupabase.insert).toHaveBeenCalledWith([expect.objectContaining({ zaehlerkosten })]);
+    });
+
+    it.each([
+      ['a string value', { kaltwasser: '12' }],
+      ['NaN', { kaltwasser: NaN }],
+      ['Infinity', { kaltwasser: Infinity }],
+      ['-Infinity', { kaltwasser: -Infinity }],
+      ['null as value', { kaltwasser: null }],
+      ['an array as value', { kaltwasser: [1, 2] }],
+      ['an array instead of an object', [1, 2]],
+      ['a string instead of an object', 'kaltwasser'],
+    ])('rejects %s on create without touching Supabase', async (_name, zaehlerkosten) => {
+      const result = await createNebenkosten({ ...baseFormData, zaehlerkosten: zaehlerkosten as any });
+
+      expect(result).toEqual({
+        success: false,
+        message: 'Ungültige Zählerkosten: Werte müssen Zahlen sein.',
+        data: null,
+      });
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['a string value', { kaltwasser: SECRET_LIKE_VALUE as any }],
+      ['NaN', { kaltwasser: NaN }],
+      ['an array as value', { kaltwasser: [5] }],
+    ])('rejects %s on update without touching Supabase', async (_name, zaehlerkosten) => {
+      const result = await updateNebenkosten('nb1', { zaehlerkosten });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Ungültige Zählerkosten: Werte müssen Zahlen sein.');
+      expect(mockSupabase.update).not.toHaveBeenCalled();
+    });
+
+    it('does not echo the rejected input value in the message or the log', async () => {
+      const result = await createNebenkosten({ ...baseFormData, zaehlerkosten: { kaltwasser: SECRET_LIKE_VALUE as any } });
+
+      expect(result.message).not.toContain(SECRET_LIKE_VALUE);
+      expect(JSON.stringify((logAction as jest.Mock).mock.calls)).not.toContain(SECRET_LIKE_VALUE);
+    });
+
+    it.each([
+      ['null on create', 'create', null],
+      ['undefined on create', 'create', undefined],
+    ])('allows %s', async (_name, _mode, zaehlerkosten) => {
+      const result = await createNebenkosten({ ...baseFormData, zaehlerkosten: zaehlerkosten as any });
+
+      expect(result.success).toBe(true);
+      expect(mockSupabase.insert).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows null on update (clears the map)', async () => {
+      const result = await updateNebenkosten('nb1', { zaehlerkosten: null });
+
+      expect(result.success).toBe(true);
+      expect(mockSupabase.update).toHaveBeenCalledWith({ zaehlerkosten: null });
+    });
+
+    it('allows an update without zaehlerkosten key (unchanged behaviour)', async () => {
+      const result = await updateNebenkosten('nb1', { wasserkosten: 50 });
+
+      expect(result.success).toBe(true);
+      expect(mockSupabase.update).toHaveBeenCalledWith({ wasserkosten: 50 });
+    });
+  });
 });
 
 const nebenkosten = {

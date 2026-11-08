@@ -5,6 +5,16 @@
 import { WATER_METER_TYPES, ZaehlerTyp } from "@/lib/zaehler-types";
 
 /**
+ * Runtime check for a zaehlerkosten/zaehlerverbrauch JSONB object: a plain object (not an array)
+ * whose values are all finite numbers. Negative values are allowed (credits). Strings, NaN,
+ * Infinity, null and nested arrays/objects are rejected.
+ */
+export const isValidZaehlerMap = (value: unknown): value is Record<string, number> => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+    return Object.values(value).every(v => typeof v === 'number' && Number.isFinite(v));
+};
+
+/**
  * Sum values from a zaehlerkosten/zaehlerverbrauch JSONB object
  * @param values - The JSONB object with meter type keys and numeric values
  * @param types - Optional array of meter types to sum (defaults to all water types)
