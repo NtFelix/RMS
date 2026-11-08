@@ -69,7 +69,7 @@ describe("ApplicantImportModal", () => {
     expect(toastMock).not.toHaveBeenCalledWith(expect.objectContaining({ title: "Import erfolgreich" }));
   });
 
-  it("zeigt bei Warnung den Warnungstext und bei vollem Erfolg weiterhin den Erfolgstext", async () => {
+  it("zeigt bei Warnung einen neutralen Hinweis ohne technische Serverdetails", async () => {
     await importiereMitErgebnis({
       success: true, count: 1, queued: 1, hasMore: true, userId: "u-1",
       message: "x", warning: "AI Processing kickoff failed",
@@ -77,8 +77,33 @@ describe("ApplicantImportModal", () => {
     await waitFor(() =>
       expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({
         title: "Import mit Hinweis",
-        description: expect.stringContaining("Hinweis: AI Processing kickoff failed"),
+        description: expect.stringContaining("Die AI-Analyse konnte nicht vollständig gestartet werden"),
       }))
     );
+    expect(toastMock).not.toHaveBeenCalledWith(expect.objectContaining({
+      description: expect.stringContaining("kickoff failed"),
+    }));
+  });
+
+  it("warnt bei Teilerfolg vor Duplikaten statt zum sofortigen erneuten Import aufzufordern", async () => {
+    await importiereMitErgebnis({
+      success: true, count: 3, queued: 3, hasMore: true, userId: "u-1",
+      message: "x", failedCount: 2, error: "Import partially failed: db down",
+    });
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({
+        description: expect.stringContaining("keine Duplikate entstehen"),
+      }))
+    );
+  });
+
+  it("zeigt bei vollem Erfolg weiterhin den Erfolgstext", async () => {
+    await importiereMitErgebnis({
+      success: true, count: 3, queued: 3, hasMore: true, userId: "u-1", message: "x",
+    });
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "Import erfolgreich" }))
+    );
+    expect(toastMock).not.toHaveBeenCalledWith(expect.objectContaining({ title: "Import mit Hinweis" }));
   });
 });

@@ -125,10 +125,12 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
                     // Teilerfolg oder Warnung: Nutzer deutlich darauf hinweisen
                     const parts = [`${result.count} Bewerber wurden angelegt.`];
                     if (failedCount > 0) {
-                        parts.push(`${failedCount} konnten nicht angelegt werden. Bitte die übrigen erneut importieren.`);
+                        parts.push(`${failedCount} konnten nicht angelegt werden. Bitte prüfe die Bewerberliste, bevor du erneut importierst, damit keine Duplikate entstehen.`);
                     }
                     if (result.warning) {
-                        parts.push(`Hinweis: ${result.warning}`);
+                        // Technische Details nur ins Log, dem Nutzer einen neutralen Hinweis zeigen
+                        console.warn("Applicant import warning:", result.warning);
+                        parts.push("Hinweis: Die AI-Analyse konnte nicht vollständig gestartet werden.");
                     }
                     toast({
                         title: failedCount > 0 ? "Import teilweise erfolgreich" : "Import mit Hinweis",
