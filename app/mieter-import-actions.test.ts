@@ -275,6 +275,16 @@ describe('mieter-import-actions', () => {
       expect(result).toEqual({ success: false, error: 'Keine Berechtigung' });
     });
 
+    it('should require the mieter/erstellen permission and not accept read-only access', async () => {
+      (hasPermission as jest.Mock).mockImplementation(async (_resource: string, action: string) => action === 'ansehen');
+
+      const result = await createApplicantsFromMails([{ id: '1', absender: 'test@example.com', dateipfad: '/path/1' }]);
+
+      expect(hasPermission).toHaveBeenCalledWith('mieter', 'erstellen');
+      expect(result).toEqual({ success: false, error: 'Keine Berechtigung' });
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
+    });
+
     it('should successfully create applicants and trigger worker', async () => {
       (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
       process.env.WORKER_AUTH_KEY = 'test-key';
