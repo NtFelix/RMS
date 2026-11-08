@@ -601,6 +601,7 @@ describe('betriebskosten-actions', () => {
 
     it.each([
       ['a string value', { kaltwasser: '12' }],
+      ['one invalid value among valid ones', { kaltwasser: 10, warmwasser: '5' }],
       ['NaN', { kaltwasser: NaN }],
       ['Infinity', { kaltwasser: Infinity }],
       ['-Infinity', { kaltwasser: -Infinity }],
