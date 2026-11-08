@@ -90,20 +90,17 @@ describe('user-billing-actions', () => {
   }
 
   // Loads a fresh module instance, because getStripe() caches the client at module level.
-  function loadFreshModule(): any {
-    let loaded: any;
+  function loadFreshModule(): { actions: any; StripeCtor: any } {
+    let actions: any;
+    let StripeCtor: any;
     jest.isolateModules(() => {
-      loaded = {
-        actions: require('./user-billing-actions'),
-        ensureAuth: require('@/lib/auth-utils').ensureAuth,
-        testUtils: require('@/lib/test-utils'),
-        StripeCtor: require('stripe'),
-      };
+      actions = require('./user-billing-actions');
+      StripeCtor = require('stripe');
+      require('@/lib/auth-utils').ensureAuth.mockResolvedValue({ user: { id: 'test-user-id' }, supabase: mockSupabase });
+      require('@/lib/test-utils').isTestEnv.mockReturnValue(false);
+      require('@/lib/test-utils').isStripeMocked.mockReturnValue(false);
     });
-    loaded.ensureAuth.mockResolvedValue({ user: { id: 'test-user-id' }, supabase: mockSupabase });
-    loaded.testUtils.isTestEnv.mockReturnValue(false);
-    loaded.testUtils.isStripeMocked.mockReturnValue(false);
-    return loaded;
+    return { actions, StripeCtor };
   }
 
   describe('getBillingAddress', () => {
