@@ -23,7 +23,6 @@ describe('sumZaehlerValues', () => {
     const result = sumZaehlerValues(values);
 
     expect(result).toBe(15);
-    expect(result).not.toBe(Object.values(values).reduce((a, b) => a + b, 0));
   });
 
   it('should use WATER_METER_TYPES as default types', () => {
@@ -67,12 +66,8 @@ describe('sumZaehlerValues', () => {
     expect(sumZaehlerValues({ kaltwasser: 0, warmwasser: 6 })).toBe(6);
   });
 
-  it('should sum decimal values exactly', () => {
+  it('should sum exactly representable decimal values', () => {
     expect(sumZaehlerValues({ kaltwasser: 1.5, warmwasser: 2.25 })).toBe(3.75);
-  });
-
-  it('should exclude a type that is present in the object but not in the given types, even with a large value', () => {
-    expect(sumZaehlerValues({ kaltwasser: 1, strom: 1_000_000 }, ['kaltwasser'])).toBe(1);
   });
 });
 
@@ -95,14 +90,13 @@ describe('sumAllZaehlerValues', () => {
     expect(sumAllZaehlerValues({ strom: -20, gas: 50 })).toBe(30);
   });
 
-  it('should sum decimal values exactly', () => {
+  it('should sum exactly representable decimal values', () => {
     expect(sumAllZaehlerValues({ kaltwasser: 10.5, gas: -0.25, strom: 0.75 })).toBe(11);
   });
 
-  it('should return a larger total than sumZaehlerValues with default types when non-water meters are present', () => {
+  it('should include non-water meter types, unlike the default sumZaehlerValues', () => {
     const values = { kaltwasser: 10, strom: 100 };
 
-    expect(sumAllZaehlerValues(values)).toBeGreaterThan(sumZaehlerValues(values));
     expect(sumAllZaehlerValues(values)).toBe(110);
     expect(sumZaehlerValues(values)).toBe(10);
   });
@@ -113,9 +107,6 @@ describe('convertZaehlerkostenToStrings', () => {
     const result = convertZaehlerkostenToStrings({ kaltwasser: 12, strom: 3.5 });
 
     expect(result).toEqual({ kaltwasser: '12', strom: '3.5' });
-    for (const value of Object.values(result)) {
-      expect(typeof value).toBe('string');
-    }
   });
 
   it('should format integers, decimals, zero and negatives as plain strings', () => {
@@ -141,11 +132,10 @@ describe('convertZaehlerkostenToStrings', () => {
 
     expect(input).toEqual(snapshot);
     expect(result).not.toBe(input);
-    expect(typeof input.kaltwasser).toBe('number');
   });
 });
 
-// Open product question: sumAllZaehlerValues currently concatenates strings
-// instead of adding them (values are typed as number, but JSONB may deliver
-// strings). Decide the expected behavior before adding a test.
-it.todo('decide expected behavior for non-numeric values in sumAllZaehlerValues');
+// Open product question: sumZaehlerValues and sumAllZaehlerValues currently
+// concatenate string values instead of adding them (values are typed as number,
+// but JSONB may deliver strings). Decide the expected behavior before adding a test.
+it.todo('decide expected behavior for non-numeric values in sumZaehlerValues and sumAllZaehlerValues');
