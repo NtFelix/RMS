@@ -120,13 +120,30 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
 
             const result = await createApplicantsFromMails(mailsToImport);
             if (result.success) {
-                toast({
-                    title: "Import erfolgreich",
-                    description: (result.queued ?? 0) > 0
-                        ? `${result.count} Bewerber angelegt. AI Analyse gestartet...`
-                        : `${result.count} Bewerber wurden angelegt.`,
-                    variant: "success",
-                });
+                const failedCount = result.failedCount ?? 0;
+                if (failedCount > 0 || result.warning) {
+                    // Teilerfolg oder Warnung: Nutzer deutlich darauf hinweisen
+                    const parts = [`${result.count} Bewerber wurden angelegt.`];
+                    if (failedCount > 0) {
+                        parts.push(`${failedCount} konnten nicht angelegt werden. Bitte die übrigen erneut importieren.`);
+                    }
+                    if (result.warning) {
+                        parts.push(`Hinweis: ${result.warning}`);
+                    }
+                    toast({
+                        title: failedCount > 0 ? "Import teilweise erfolgreich" : "Import mit Hinweis",
+                        description: parts.join(" "),
+                        variant: "destructive",
+                    });
+                } else {
+                    toast({
+                        title: "Import erfolgreich",
+                        description: (result.queued ?? 0) > 0
+                            ? `${result.count} Bewerber angelegt. AI Analyse gestartet...`
+                            : `${result.count} Bewerber wurden angelegt.`,
+                        variant: "success",
+                    });
+                }
 
                 // If items were queued, start client-side polling
                 if (result.hasMore) {
