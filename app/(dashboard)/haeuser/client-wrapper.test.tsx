@@ -223,7 +223,17 @@ describe('HaeuserClientView', () => {
       const editButton = screen.getByTestId('edit-1');
       await user.click(editButton);
 
-      expect(mockOpenHouseModal).toHaveBeenCalledWith(mockHouses[0], expect.any(Function));
+      expect(mockOpenHouseModal).toHaveBeenCalledWith(mockHouses[0], expect.any(Function), true);
+    });
+
+    it('passes canDelete=false to openHouseModal when user lacks delete permission', async () => {
+      const user = userEvent.setup();
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} canDelete={false} />);
+
+      const editButton = screen.getByTestId('edit-1');
+      await user.click(editButton);
+
+      expect(mockOpenHouseModal).toHaveBeenCalledWith(mockHouses[0], expect.any(Function), false);
     });
 
     it('passes correct house data to openHouseModal', async () => {
