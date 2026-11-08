@@ -22,7 +22,7 @@ export const isValidZaehlerMap = (value: unknown): value is Record<string, numbe
  */
 export const sumZaehlerValues = (
     values: Record<string, number> | null | undefined,
-    types: readonly string[] = WATER_METER_TYPES
+    types: readonly ZaehlerTyp[] = WATER_METER_TYPES
 ): number => {
     if (!values) return 0;
     return types.reduce((sum, typ) => sum + (values[typ] || 0), 0);
