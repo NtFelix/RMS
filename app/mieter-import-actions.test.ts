@@ -258,7 +258,11 @@ describe('mieter-import-actions', () => {
 
       expect(result).toEqual(mockData);
       expect(query.gte).toHaveBeenCalledWith('datum_erhalten', startDate.toISOString());
-      expect(query.lte).toHaveBeenCalledWith('datum_erhalten', expect.any(String));
+      expect(query.lte).toHaveBeenCalledTimes(1);
+      const upperBound = new Date(query.lte.mock.calls[0][1]);
+      expect(upperBound.getDate()).toBe(31);
+      expect(upperBound.getHours()).toBe(23);
+      expect(upperBound.getMinutes()).toBe(59);
     });
   });
 
@@ -347,6 +351,9 @@ describe('mieter-import-actions', () => {
       expect(result).toMatchObject({ success: true, count: 250 });
     });
 
+    // Characterizes current behavior, not a requirement: after a failed chunk the function
+    // returns early, so already inserted applicants are never queued for AI processing, and
+    // success stays true with the problem only in `error`. Revisit if this is meant to change.
     it('should report partial success and skip queueing when a later chunk fails', async () => {
       const mails = Array.from({ length: 250 }, (_, i) => ({
         id: `mail-${i}`,
@@ -562,7 +569,7 @@ describe('mieter-import-actions', () => {
     });
 
     it.each(['test', 'production'])(
-      'should not call the worker and should warn when WORKER_AUTH_KEY is missing and NODE_ENV is %s',
+      'should not call the worker and should log an error when WORKER_AUTH_KEY is missing and NODE_ENV is %s',
       async (nodeEnv) => {
         setNodeEnv(nodeEnv);
         (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
@@ -626,6 +633,18 @@ describe('mieter-import-actions', () => {
       const result = await checkWorkerQueueStatus('test-user-id');
       expect(result).toEqual({ hasMore: true, success: true });
       expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('should return the error message when the worker response body cannot be parsed', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockRejectedValue(new Error('invalid json'))
+      });
+      process.env.WORKER_AUTH_KEY = 'test-key';
+
+      const result = await checkWorkerQueueStatus('test-user-id');
+
+      expect(result).toEqual({ hasMore: false, error: 'invalid json' });
     });
 
     it('should return Nicht authentifiziert when ensureAuth throws', async () => {
