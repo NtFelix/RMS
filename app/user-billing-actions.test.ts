@@ -468,6 +468,9 @@ describe('user-billing-actions', () => {
       );
     });
 
+    // Characterizes current behavior: clearing line2/state sends no key, so a value
+    // already stored in Stripe is kept (unlike companyName, which is cleared with null).
+    // Revisit this test if clearing these fields is meant to work.
     it.each([
       ['empty strings', { line2: '', state: '' }],
       ['null values', { line2: null, state: null }],
