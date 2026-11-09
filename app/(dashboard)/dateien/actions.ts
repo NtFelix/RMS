@@ -280,7 +280,8 @@ function deleteFolderErrorMessage(error: unknown): string {
  * NOTE: This operation is separate from the navigation RPC for safety
  *
  * Below a house the apartment and tenant level need `wohnungen:ansehen` / `mieter:ansehen`, the folders `Kautionen` and
- * `Rechnungen` need `kautionen:ansehen` / `finanzen:ansehen` (as in the database; deleting also needs `dokumente:loeschen`). A
+ * `Rechnungen` need `kautionen:ansehen` + `kautionen:bearbeiten` / `finanzen:ansehen` + `finanzen:loeschen` (the database rule for
+ * writing and deleting there; this action additionally keeps requiring `dokumente:loeschen`). A
  * user without them gets the same answer for an existing, a refused and a made-up apartment/tenant folder, and the
  * messages about existing apartments or tenants only reach users who may see them.
  */
@@ -312,11 +313,15 @@ export async function deleteFolder(folderPath: string): Promise<{
         // Apartment and tenant level: without the matching view right the folder is refused without looking at the
         // database, so an existing apartment/tenant cannot be told apart from a made-up id
         const required = requiredViewModules(folderPath)
+        // Kautionen: write = ansehen + bearbeiten; Rechnungen: delete = ansehen + loeschen (same as the storage policies),
+        // so the folder is refused up front instead of failing object by object in the database
         if (
             (required.wohnungen && !(await hasPermission('wohnungen', 'ansehen'))) ||
             (required.mieter && !(await hasPermission('mieter', 'ansehen'))) ||
-            (required.kautionen && !(await hasPermission('kautionen', 'ansehen'))) ||
-            (required.finanzen && !(await hasPermission('finanzen', 'ansehen')))
+            (required.kautionen &&
+                !((await hasPermission('kautionen', 'ansehen')) && (await hasPermission('kautionen', 'bearbeiten')))) ||
+            (required.finanzen &&
+                !((await hasPermission('finanzen', 'ansehen')) && (await hasPermission('finanzen', 'loeschen'))))
         ) {
             return { success: false, error: STORAGE_ACCESS_DENIED_MESSAGE }
         }

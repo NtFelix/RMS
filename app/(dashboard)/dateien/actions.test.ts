@@ -392,13 +392,27 @@ describe('dateien/actions', () => {
         expect(mockQueryBuilder.or).not.toHaveBeenCalled()
       })
 
-      it('the matching module right (plus dokumente:loeschen) lets the Kautionen / Rechnungen folder through to the deletion', async () => {
+      it('viewing alone is not enough: Kautionen also needs kautionen:bearbeiten, Rechnungen also finanzen:loeschen (database rule), refused before any read', async () => {
         user()
-        for (const [right, path] of [
-          ['kautionen:ansehen', `org_${ORG_ID}/shared/${HOUSE_ID}/Kautionen/${TENANT}`],
-          ['finanzen:ansehen', `org_${ORG_ID}/shared/${HOUSE_ID}/Rechnungen/${APARTMENT}`],
+        grant('dokumente:loeschen', 'kautionen:ansehen', 'kautionen:loeschen', 'finanzen:ansehen', 'finanzen:bearbeiten', 'finanzen:erstellen')
+
+        for (const path of [
+          `org_${ORG_ID}/shared/${HOUSE_ID}/Kautionen/${TENANT}`,
+          `org_${ORG_ID}/shared/${HOUSE_ID}/Rechnungen/${APARTMENT}`,
         ]) {
-          grant('dokumente:loeschen', right)
+          expect(await deleteFolder(path)).toEqual({ success: false, error: STORAGE_ACCESS_DENIED_MESSAGE })
+        }
+        expect(mockStorageBuilder.remove).not.toHaveBeenCalled()
+        expect(mockQueryBuilder.or).not.toHaveBeenCalled()
+      })
+
+      it('the matching module rights (plus dokumente:loeschen) let the Kautionen / Rechnungen folder through to the deletion', async () => {
+        user()
+        for (const [rights, path] of [
+          [['kautionen:ansehen', 'kautionen:bearbeiten'], `org_${ORG_ID}/shared/${HOUSE_ID}/Kautionen/${TENANT}`],
+          [['finanzen:ansehen', 'finanzen:loeschen'], `org_${ORG_ID}/shared/${HOUSE_ID}/Rechnungen/${APARTMENT}`],
+        ] as [string[], string][]) {
+          grant('dokumente:loeschen', ...rights)
           mockQueryBuilder.then.mockImplementationOnce((resolve: any) => resolve({ data: [], error: null }))
           mockQueryBuilder.or.mockClear()
 
@@ -410,7 +424,7 @@ describe('dateien/actions', () => {
 
       it('deleting still needs dokumente:loeschen, a module right alone is not enough', async () => {
         user()
-        grant('kautionen:ansehen', 'kautionen:loeschen', 'finanzen:ansehen', 'finanzen:loeschen')
+        grant('kautionen:ansehen', 'kautionen:bearbeiten', 'finanzen:ansehen', 'finanzen:loeschen')
 
         expect(await deleteFolder(`org_${ORG_ID}/shared/${HOUSE_ID}/Kautionen/${TENANT}`)).toEqual({ success: false, error: 'Keine Berechtigung' })
         expect(mockStorageBuilder.remove).not.toHaveBeenCalled()

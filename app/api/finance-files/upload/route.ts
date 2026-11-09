@@ -16,6 +16,8 @@ import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 export async function POST(request: NextRequest) {
     try {
         const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+        // Storage and metadata policies below Rechnungen/ need finanzen:ansehen in addition to the write right
+        await requireApiPermission('finanzen', 'ansehen');
         await requireApiPermission('finanzen', 'erstellen');
 
         const supabase = await createSupabaseServerClient();
@@ -167,9 +169,13 @@ export async function POST(request: NextRequest) {
         if (metadataError || !metadataRecord) {
             logger.error("Metadata insert error", metadataError instanceof Error ? metadataError : new Error(String(metadataError)), { fullPath });
 
-            // Cleanup: remove the uploaded file if metadata insert failed
+            // Cleanup: remove the uploaded file if metadata insert failed. remove() resolves with an error instead of
+            // throwing (for example without finanzen:loeschen, which the delete policy needs), so check the result too
             try {
-                await supabase.storage.from("documents").remove([fullPath]);
+                const { error: removeError } = await supabase.storage.from("documents").remove([fullPath]);
+                if (removeError) {
+                    logger.error("Failed to cleanup orphaned file after metadata insert error", removeError, { fullPath });
+                }
             } catch (cleanupError) {
                 logger.error("Failed to cleanup orphaned file after metadata insert error", cleanupError instanceof Error ? cleanupError : new Error(String(cleanupError)), { fullPath });
             }
