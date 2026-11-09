@@ -339,7 +339,7 @@ export interface ViewModuleRequirement {
 }
 
 /** Requirement of a path outside the house sub-structure: only the documents right */
-export const VIEW_REQUIRES_DOKUMENTE_ONLY: Readonly<ViewModuleRequirement> = Object.freeze({
+const VIEW_REQUIRES_DOKUMENTE_ONLY: Readonly<ViewModuleRequirement> = Object.freeze({
   wohnungen: false,
   mieter: false,
   kautionen: false,

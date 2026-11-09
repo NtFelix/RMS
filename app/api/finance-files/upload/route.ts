@@ -17,8 +17,7 @@ export async function POST(request: NextRequest) {
     try {
         const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
         // Storage and metadata policies below Rechnungen/ need finanzen:ansehen in addition to the write right
-        await requireApiPermission('finanzen', 'ansehen');
-        await requireApiPermission('finanzen', 'erstellen');
+        await Promise.all([requireApiPermission('finanzen', 'ansehen'), requireApiPermission('finanzen', 'erstellen')]);
 
         const supabase = await createSupabaseServerClient();
 

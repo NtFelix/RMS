@@ -68,7 +68,7 @@ async function ermittleBelegOrdner(supabase: SupabaseClient, orgId: string, bewe
 
   const { data: mieter, error: mieterFehler } = await supabase
     .from("Mieter")
-    .select("id, wohnung_id")
+    .select("wohnung_id")
     .eq("id", kaution.mieter_id)
     .maybeSingle();
   if (mieterFehler) throw mieterFehler;
@@ -76,13 +76,13 @@ async function ermittleBelegOrdner(supabase: SupabaseClient, orgId: string, bewe
 
   const { data: wohnung, error: wohnungFehler } = await supabase
     .from("Wohnungen")
-    .select("id, haus_id")
+    .select("haus_id")
     .eq("id", mieter.wohnung_id)
     .maybeSingle();
   if (wohnungFehler) throw wohnungFehler;
   if (!wohnung?.haus_id) return null;
 
-  return baueBelegOrdner({ orgId, hausId: wohnung.haus_id, mieterId: mieter.id });
+  return baueBelegOrdner({ orgId, hausId: wohnung.haus_id, mieterId: kaution.mieter_id });
 }
 
 /** Removes a stored file again (rollback). Errors are logged by code only and never returned to the client. */
