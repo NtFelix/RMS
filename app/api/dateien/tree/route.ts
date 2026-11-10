@@ -56,8 +56,9 @@ function archiveNode(zoneBase: string): TreeNode {
 
 /**
  * Module rights that the database asks for below a house (apartment level: `wohnungen:ansehen`, tenant level:
- * `mieter:ansehen`). The database decides on its own (storage policies), this only keeps the tree free of names and
- * folders the user could not open. Each right is read at most once per request, and only if a path needs it.
+ * `mieter:ansehen`, folder `Kautionen`: `kautionen:ansehen`, folder `Rechnungen`: `finanzen:ansehen`). The database
+ * decides on its own (storage policies), this only keeps the tree free of names and folders the user could not open.
+ * Each right is read at most once per request, and only if a path needs it.
  *
  * If the check itself fails (not "right missing"), the read throws PermissionCheckError and the request is answered
  * with 503 PERMISSION_CHECK_FAILED: an empty list would look like "no right" and could not be retried. Access stays
@@ -66,6 +67,8 @@ function archiveNode(zoneBase: string): TreeNode {
 interface ViewRights {
   wohnungen: () => Promise<boolean>
   mieter: () => Promise<boolean>
+  kautionen: () => Promise<boolean>
+  finanzen: () => Promise<boolean>
 }
 
 function createViewRights(): ViewRights {
@@ -80,13 +83,15 @@ function createViewRights(): ViewRights {
   return {
     wohnungen: once('wohnungen', 'ansehen'),
     mieter: once('mieter', 'ansehen'),
+    kautionen: once('kautionen', 'ansehen'),
+    finanzen: once('finanzen', 'ansehen'),
   }
 }
 
 /**
  * Keeps only the nodes the user may open: whatever the classification of requiredViewModules (the same one that
- * guards the listing of a folder) assigns to the apartment or tenant level needs the matching right. This also covers
- * archive paths (`__archive__/{timestamp}/...`) and every spelling of an id.
+ * guards the listing of a folder) assigns to the apartment or tenant level, to `Kautionen` or to `Rechnungen` needs the
+ * matching right. This also covers archive paths (`__archive__/{timestamp}/...`) and every spelling of an id.
  *
  * A node whose path cannot be parsed (segment over the length limit, control characters, path too long) is not
  * dropped by that alone: an unrelated folder must not vanish because of an invalid name. Such a segment cannot be an
@@ -107,12 +112,20 @@ async function filterByViewRights(nodes: TreeNode[], rights: ViewRights, parentR
     }
   }
   // A right is only read if some node needs it
-  const [mayViewWohnungen, mayViewMieter] = await Promise.all([
+  const [mayViewWohnungen, mayViewMieter, mayViewKautionen, mayViewFinanzen] = await Promise.all([
     classified.some(({ required }) => required.wohnungen) ? rights.wohnungen() : true,
     classified.some(({ required }) => required.mieter) ? rights.mieter() : true,
+    classified.some(({ required }) => required.kautionen) ? rights.kautionen() : true,
+    classified.some(({ required }) => required.finanzen) ? rights.finanzen() : true,
   ])
   return classified
-    .filter(({ required }) => (!required.wohnungen || mayViewWohnungen) && (!required.mieter || mayViewMieter))
+    .filter(
+      ({ required }) =>
+        (!required.wohnungen || mayViewWohnungen) &&
+        (!required.mieter || mayViewMieter) &&
+        (!required.kautionen || mayViewKautionen) &&
+        (!required.finanzen || mayViewFinanzen),
+    )
     .map(({ node }) => node)
 }
 
@@ -196,11 +209,13 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
   const parsed = parseStoragePath(folderPath)
   const { orgId } = ctx
 
-  // Below the apartment / tenant level the folder is only listed for users with the matching right
-  // (the same empty answer as for a folder that does not exist)
+  // Below the apartment / tenant level and in the folders Kautionen / Rechnungen the folder is only listed for users
+  // with the matching right (the same empty answer as for a folder that does not exist). A failing check ends in 503.
   const required = requiredViewModules(folderPath)
   if (required.wohnungen && !(await rights.wohnungen())) return []
   if (required.mieter && !(await rights.mieter())) return []
+  if (required.kautionen && !(await rights.kautionen())) return []
+  if (required.finanzen && !(await rights.finanzen())) return []
 
   if (parsed.zone === 'root') {
     return zoneNodes(ctx)
@@ -236,7 +251,12 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
       folderNode(sharedPath(orgId, houseId, a.id), a.name || a.id, a.name || undefined),
     )
     const known = new Set<string>([HOUSE_DOCUMENTS, ...(apartments ?? []).map((a: { id: string }) => a.id)])
-    const customNodes = await listCustomFolderNodes(supabase, folderPath, known, (segment) => sharedPath(orgId, houseId, segment))
+    // Custom folders include `Kautionen` and `Rechnungen`: they are only listed for users with the matching module right
+    const customNodes = await filterByViewRights(
+      await listCustomFolderNodes(supabase, folderPath, known, (segment) => sharedPath(orgId, houseId, segment)),
+      rights,
+      required,
+    )
     return [
       archiveNode(sharedPath(orgId, houseId)),
       systemNode(sharedPath(orgId, houseId, HOUSE_DOCUMENTS), HOUSE_DOCUMENTS),
@@ -276,7 +296,8 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
   }
 
   // Finance documents: `Rechnungen/{apartmentId}` folders are shown with the name of the apartment (only for
-  // users with wohnungen:ansehen, the others do not get these folders at all, see filterByViewRights)
+  // users who may also see apartments (wohnungen:ansehen), the others see the id). The folder itself needs
+  // finanzen:ansehen (checked above), not the apartment right.
   let lookup: (segment: string) => string | undefined = () => undefined
   if (parsed.zone === 'shared' && parsed.houseId !== undefined && parsed.rest.length === 1 && parsed.rest[0] === FINANCE_SEGMENT && (await rights.wohnungen())) {
     const { data: apartments } = await supabase.from('Wohnungen').select('id, name').eq('haus_id', parsed.houseId)

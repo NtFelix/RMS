@@ -3,6 +3,8 @@
  * (bucket `documents`).
  *
  *   org_{orgId}/shared/{houseId}/...   house-related documents, access via house rights
+ *   org_{orgId}/shared/{houseId}/Kautionen/{tenantId}/...   deposit receipts, access via kautionen:ansehen
+ *   org_{orgId}/shared/{houseId}/Rechnungen/...             finance documents, access via finanzen:ansehen
  *   org_{orgId}/private/{userId}/...   personal storage of one user
  *   user_{userId}/...                  legacy layout, not writable anymore, only recognised
  *                                      by the parser so that callers can show a clear error
@@ -10,11 +12,15 @@
  * Paths are validated strictly: invalid input throws instead of being sanitized silently.
  */
 
+import { UUID_REGEX } from '@/lib/supabase-env';
+
 export const ORG_PREFIX = 'org_';
 export const LEGACY_USER_PREFIX = 'user_';
 export const SHARED_SEGMENT = 'shared';
 export const PRIVATE_SEGMENT = 'private';
 export const ARCHIVE_SEGMENT = '__archive__';
+/** Deposit receipts of a house: `shared/{house}/Kautionen/{tenantId}/{file}` (exact, case-sensitive segment) */
+export const KAUTIONEN_SEGMENT = 'Kautionen';
 
 const MAX_PATH_LENGTH = 1000;
 const MAX_SEGMENT_LENGTH = 255;
@@ -267,7 +273,38 @@ export function assertPathAllowed(path: string, ctx: PathAccessContext, mode: Pa
       if (ctx.accessibleHouseIds !== null && !ctx.accessibleHouseIds.includes(parsed.houseId)) {
         throw new StoragePathError('Zugriff auf dieses Haus verweigert', 'ACCESS_DENIED');
       }
+      assertKautionenLayout(parsed.rest, mode);
       return;
+  }
+}
+
+/**
+ * Part of a house-relative path (`rest`) below the house, without a leading `__archive__/{timestamp}`.
+ * Archived paths keep the live layout behind the archive prefix.
+ */
+function liveRelativeSegments(rest: string[]): string[] {
+  return rest[0] === ARCHIVE_SEGMENT ? rest.slice(2) : rest;
+}
+
+/**
+ * Layout rule of the receipt folder: below `Kautionen` only a tenant folder named after the tenant's UUID is valid
+ * (`Kautionen/{tenantId}/...`, also behind an archive prefix). Anything else is refused, so no junk folder can be
+ * created there and a receipt cannot land beside the tenant folders. In mode 'write' the folder `Kautionen` itself is
+ * not a valid target (it holds no files, only tenant folders). The match is exact: `kautionen`, `Kautionen ` or look-alike
+ * Unicode letters are ordinary folder names and not covered by this rule (the database applies the same exact match).
+ * Access is NOT decided here: the module right `kautionen:ansehen` is checked by the callers (and by the database).
+ */
+function assertKautionenLayout(rest: string[], mode: PathAccessMode): void {
+  const [first, tenantSegment] = liveRelativeSegments(rest);
+  if (first !== KAUTIONEN_SEGMENT) return;
+  if (tenantSegment === undefined) {
+    if (mode === 'write') {
+      throw new StoragePathError('Schreiben direkt im Ordner Kautionen nicht erlaubt', 'ACCESS_DENIED');
+    }
+    return;
+  }
+  if (!UUID_REGEX.test(tenantSegment)) {
+    throw new StoragePathError('Ungültiger Mieterordner im Ordner Kautionen', 'INVALID_PATH');
   }
 }
 
@@ -281,40 +318,67 @@ export const ID_SEGMENT_PATTERN = /^(\{[0-9a-f]{4}(-?[0-9a-f]{4}){7}\}|[0-9a-f]{
 /** Finance documents folder of a house, its sub-folders are named after the apartment id */
 export const FINANCE_SEGMENT = 'Rechnungen';
 
-/** Module rights (action `ansehen`) that the database asks for on top of the house scope below a house */
+/**
+ * Module rights (action `ansehen`) that the database asks for on top of the house scope below a house. A path needs
+ * EITHER the documents right (`dokumente`, the default) OR, for the two module-owned folders, the right of that module:
+ * `Kautionen/...` needs `kautionen:ansehen` and `Rechnungen/...` needs `finanzen:ansehen`, each INSTEAD of
+ * `dokumente:ansehen` and of the apartment/tenant rights (a role that only works with deposits or finances opens
+ * its receipts without the document, apartment or tenant module).
+ */
 export interface ViewModuleRequirement {
-  /** `wohnungen:ansehen`: `shared/{house}/{apartment}/...` and `shared/{house}/Rechnungen/{apartment}/...` */
+  /** `wohnungen:ansehen`: `shared/{house}/{apartment}/...` */
   wohnungen: boolean;
   /** `mieter:ansehen`: `shared/{house}/{apartment}/{tenant}/...` (in addition to `wohnungen:ansehen`) */
   mieter: boolean;
+  /** `kautionen:ansehen`: `shared/{house}/Kautionen/...` (instead of `dokumente`) */
+  kautionen: boolean;
+  /** `finanzen:ansehen`: `shared/{house}/Rechnungen/...` (instead of `dokumente` and `wohnungen`) */
+  finanzen: boolean;
+  /** `dokumente:ansehen`: everything except the paths of the module-owned folders `Kautionen` and `Rechnungen` */
+  dokumente: boolean;
 }
+
+/** Requirement of a path outside the house sub-structure: only the documents right */
+const VIEW_REQUIRES_DOKUMENTE_ONLY: Readonly<ViewModuleRequirement> = Object.freeze({
+  wohnungen: false,
+  mieter: false,
+  kautionen: false,
+  finanzen: false,
+  dokumente: true,
+});
 
 /**
  * Which module rights the database requires to see a path (storage policies, get_folder_contents): the apartment
- * and tenant level of the shared area. The database enforces this, the application uses it only to leave
- * folders, names and entries out of its own listings (folder tree) that the user could not open anyway.
+ * and tenant level of the shared area and the two module-owned folders. The database enforces this, the application
+ * uses it only to leave folders, names and entries out of its own listings (folder tree) that the user could not open
+ * anyway, and to tell a missing object from a refused one.
  *
  * Layouts (position after the house), as in the database rule:
  *   `{apartment}/...`                              apartment, `{apartment}/{tenant}/...` additionally tenant
- *   `Rechnungen/{apartment}/...`                   apartment (no tenant level below Rechnungen)
+ *   `Kautionen/...`                                deposit receipts: `kautionen:ansehen` (no `dokumente`, no apartment/tenant)
+ *   `Rechnungen/...`                               finance documents: `finanzen:ansehen` (no `dokumente`, no apartment)
  *   `__archive__/{timestamp}/{rel...}`             archive: `{rel...}` has one of the layouts above, so the
- *                                                  apartment is on level 6 (7 below Rechnungen), the tenant on 7
- * Paths outside a house, the house level itself and `house_documents` need neither.
+ *                                                  apartment is on level 6, `Kautionen`/`Rechnungen` on level 5, the tenant on 7
+ * `Kautionen` and `Rechnungen` match exactly (case-sensitive, no trimming, no Unicode folding): other spellings are
+ * custom folders. Paths outside a house, the house level itself and `house_documents` need neither.
  * Throws like parseStoragePath for invalid paths.
  */
 export function requiredViewModules(path: string): ViewModuleRequirement {
   const { zone, houseId, rest } = parseStoragePath(path);
   if (zone !== 'shared' || houseId === undefined) {
-    return { wohnungen: false, mieter: false };
+    return { ...VIEW_REQUIRES_DOKUMENTE_ONLY };
   }
-  const [first, second] = rest[0] === ARCHIVE_SEGMENT ? rest.slice(2) : rest;
+  const [first, second] = liveRelativeSegments(rest);
+  if (first === KAUTIONEN_SEGMENT) {
+    return { wohnungen: false, mieter: false, kautionen: true, finanzen: false, dokumente: false };
+  }
+  if (first === FINANCE_SEGMENT) {
+    return { wohnungen: false, mieter: false, kautionen: false, finanzen: true, dokumente: false };
+  }
   if (first !== undefined && ID_SEGMENT_PATTERN.test(first)) {
-    return { wohnungen: true, mieter: second !== undefined && ID_SEGMENT_PATTERN.test(second) };
+    return { ...VIEW_REQUIRES_DOKUMENTE_ONLY, wohnungen: true, mieter: second !== undefined && ID_SEGMENT_PATTERN.test(second) };
   }
-  if (first === FINANCE_SEGMENT && second !== undefined && ID_SEGMENT_PATTERN.test(second)) {
-    return { wohnungen: true, mieter: false };
-  }
-  return { wohnungen: false, mieter: false };
+  return { ...VIEW_REQUIRES_DOKUMENTE_ONLY };
 }
 
 /**

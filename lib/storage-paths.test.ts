@@ -10,6 +10,7 @@ import {
   folderMetadataFilter,
   isArchivePath,
   isPathInFolder,
+  KAUTIONEN_SEGMENT,
   orgIdOfPath,
   orgRootOfPath,
   privateRoot,
@@ -477,18 +478,22 @@ describe('escapeLikePattern / folderMetadataFilter / isPathInFolder', () => {
 describe('requiredViewModules', () => {
   const APARTMENT = '66666666-6666-4666-8666-666666666666';
   const TENANT = '11111111-1111-4111-8111-111111111111';
-  const none = { wohnungen: false, mieter: false };
-  const wohnung = { wohnungen: true, mieter: false };
-  const mieter = { wohnungen: true, mieter: true };
+  const KEINES = { wohnungen: false, mieter: false, kautionen: false, finanzen: false, dokumente: true };
+  const none = KEINES;
+  const wohnung = { ...KEINES, wohnungen: true };
+  const mieter = { ...KEINES, wohnungen: true, mieter: true };
+  const kautionen = { wohnungen: false, mieter: false, kautionen: true, finanzen: false, dokumente: false };
+  const finanzen = { wohnungen: false, mieter: false, kautionen: false, finanzen: true, dokumente: false };
 
-  it('needs nothing outside the apartment level: roots, house, house documents, custom folders, finance folder', () => {
+  it('needs only the documents right outside the apartment level and the module folders: roots, house, house documents, custom folders', () => {
     expect(requiredViewModules(orgRoot(ORG))).toEqual(none);
     expect(requiredViewModules(sharedRoot(ORG))).toEqual(none);
     expect(requiredViewModules(sharedPath(ORG, HOUSE_A))).toEqual(none);
     expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'house_documents', 'x.pdf'))).toEqual(none);
     expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Eigener Ordner', APARTMENT))).toEqual(none);
-    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Rechnungen'))).toEqual(none);
     expect(requiredViewModules(privatePath(ORG, USER, APARTMENT, TENANT))).toEqual(none);
+    expect(requiredViewModules(privatePath(ORG, USER, 'Kautionen', TENANT))).toEqual(none);
+    expect(requiredViewModules(privatePath(ORG, USER, 'Rechnungen', 'Allgemein'))).toEqual(none);
   });
 
   it('needs wohnungen:ansehen at and below the apartment folder, incl. Wohnungsdokumente', () => {
@@ -503,10 +508,48 @@ describe('requiredViewModules', () => {
     expect(requiredViewModules(sharedPath(ORG, HOUSE_A, APARTMENT, TENANT, 'Vertrag.pdf'))).toEqual(mieter);
   });
 
-  it('treats Rechnungen/{apartmentId} like the apartment level', () => {
-    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Rechnungen', APARTMENT))).toEqual(wohnung);
-    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Rechnungen', APARTMENT, 'Beleg.pdf'))).toEqual(wohnung);
-    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Rechnungen', 'Allgemein'))).toEqual(none);
+  it('needs finanzen:ansehen INSTEAD of documents and apartment right at and below Rechnungen', () => {
+    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Rechnungen'))).toEqual(finanzen);
+    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Rechnungen', APARTMENT))).toEqual(finanzen);
+    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Rechnungen', APARTMENT, 'Beleg.pdf'))).toEqual(finanzen);
+    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Rechnungen', 'Allgemein'))).toEqual(finanzen);
+    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Rechnungen', 'Beleg.pdf'))).toEqual(finanzen);
+  });
+
+  it('needs kautionen:ansehen INSTEAD of documents, apartment and tenant right at and below Kautionen/{tenantId}', () => {
+    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Kautionen'))).toEqual(kautionen);
+    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Kautionen', TENANT))).toEqual(kautionen);
+    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Kautionen', TENANT, '1765000000000_Beleg.pdf'))).toEqual(kautionen);
+    // the tenant folder below Kautionen is NOT the tenant level of the apartment layout
+    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Kautionen', TENANT)).mieter).toBe(false);
+    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Kautionen', TENANT)).wohnungen).toBe(false);
+  });
+
+  it('matches the module folders exactly: case, spaces, Unicode look-alikes and other spellings are custom folders', () => {
+    for (const name of ['kautionen', 'KAUTIONEN', 'Kautionen ', ' Kautionen', 'Kautionen\u200b', 'Kаutionen' /* Cyrillic а */, 'Kautionen2', 'Kautionen.', 'Kaution']) {
+      expect(requiredViewModules(sharedPath(ORG, HOUSE_A, name, TENANT))).toEqual(none);
+    }
+    for (const name of ['rechnungen', 'RECHNUNGEN', 'Rechnungen ', ' Rechnungen', 'Rеchnungen' /* Cyrillic е */, 'Rechnungen2']) {
+      expect(requiredViewModules(sharedPath(ORG, HOUSE_A, name, APARTMENT))).toEqual(
+        // an id behind a custom folder is not an apartment either (only the position right after the house counts)
+        none,
+      );
+    }
+  });
+
+  it('classifies only the position right after the house: Kautionen / Rechnungen deeper down are ordinary folders', () => {
+    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'house_documents', 'Kautionen', TENANT))).toEqual(none);
+    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, APARTMENT, 'Kautionen', TENANT))).toEqual(wohnung);
+    expect(requiredViewModules(sharedPath(ORG, HOUSE_A, APARTMENT, 'Rechnungen'))).toEqual(wohnung);
+  });
+
+  it('cannot be tricked by separators or traversal: such paths throw instead of being classified', () => {
+    expect(() => requiredViewModules(`${sharedPath(ORG, HOUSE_A)}/../${HOUSE_B}/Kautionen/${TENANT}`)).toThrow(StoragePathError);
+    expect(() => requiredViewModules(`${sharedPath(ORG, HOUSE_A)}/Kautionen/../${APARTMENT}`)).toThrow(StoragePathError);
+    expect(() => requiredViewModules(`${sharedPath(ORG, HOUSE_A)}//Kautionen/${TENANT}`)).toThrow(StoragePathError);
+    expect(() => requiredViewModules(`${sharedPath(ORG, HOUSE_A)}/Kautionen/./${TENANT}`)).toThrow(StoragePathError);
+    expect(() => requiredViewModules(`${sharedPath(ORG, HOUSE_A)}/Kautionen/${TENANT}/`)).toThrow(StoragePathError);
+    expect(() => requiredViewModules(`${sharedPath(ORG, HOUSE_A)}/Kautionen\u0000/${TENANT}`)).toThrow(StoragePathError);
   });
 
   describe('archive paths: shared/{house}/__archive__/{timestamp}/{rel...}', () => {
@@ -518,8 +561,18 @@ describe('requiredViewModules', () => {
       expect(requiredViewModules(archive())).toEqual(none);
       expect(requiredViewModules(archive('house_documents', 'x.pdf'))).toEqual(none);
       expect(requiredViewModules(archive('Eigener Ordner', APARTMENT))).toEqual(none);
-      expect(requiredViewModules(archive('Rechnungen'))).toEqual(none);
-      expect(requiredViewModules(archive('Rechnungen', 'Allgemein'))).toEqual(none);
+    });
+
+    it('classifies Kautionen and Rechnungen behind the archive prefix like the live path', () => {
+      expect(requiredViewModules(archive('Kautionen'))).toEqual(kautionen);
+      expect(requiredViewModules(archive('Kautionen', TENANT, '1765000000000_Beleg.pdf'))).toEqual(kautionen);
+      expect(requiredViewModules(archive('Rechnungen'))).toEqual(finanzen);
+      expect(requiredViewModules(archive('Rechnungen', 'Allgemein'))).toEqual(finanzen);
+    });
+
+    it('does not read the archive timestamp as Kautionen or Rechnungen', () => {
+      expect(requiredViewModules(sharedPath(ORG, HOUSE_A, '__archive__', 'Kautionen'))).toEqual(none);
+      expect(requiredViewModules(sharedPath(ORG, HOUSE_A, '__archive__', 'Rechnungen', 'Beleg.pdf'))).toEqual(none);
     });
 
     it('classifies the apartment on level 6 like the live path', () => {
@@ -532,9 +585,9 @@ describe('requiredViewModules', () => {
       expect(requiredViewModules(archive(APARTMENT, TENANT, 'Vertrag.pdf'))).toEqual(mieter);
     });
 
-    it('classifies Rechnungen/{apartment} on level 7 as apartment level without tenant level', () => {
-      expect(requiredViewModules(archive('Rechnungen', APARTMENT))).toEqual(wohnung);
-      expect(requiredViewModules(archive('Rechnungen', APARTMENT, 'Beleg.pdf'))).toEqual(wohnung);
+    it('classifies Rechnungen/{apartment} on level 7 as finance (no apartment level)', () => {
+      expect(requiredViewModules(archive('Rechnungen', APARTMENT))).toEqual(finanzen);
+      expect(requiredViewModules(archive('Rechnungen', APARTMENT, 'Beleg.pdf'))).toEqual(finanzen);
     });
 
     it('does not read the timestamp as an apartment, even if it looks like an id', () => {
@@ -556,7 +609,8 @@ describe('requiredViewModules', () => {
       '6666-6666-6666-4666-8666-6666-6666-6666',
     ])('treats %s as apartment id', (id) => {
       expect(requiredViewModules(sharedPath(ORG, HOUSE_A, id))).toEqual(wohnung);
-      expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Rechnungen', id))).toEqual(wohnung);
+      expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Rechnungen', id))).toEqual(finanzen);
+      expect(requiredViewModules(sharedPath(ORG, HOUSE_A, 'Kautionen', id))).toEqual(kautionen);
       expect(requiredViewModules(sharedPath(ORG, HOUSE_A, id, TENANT))).toEqual(mieter);
       expect(requiredViewModules(sharedPath(ORG, HOUSE_A, APARTMENT, id))).toEqual(mieter);
     });
@@ -571,5 +625,110 @@ describe('requiredViewModules', () => {
 
   it('throws for an invalid path like parseStoragePath', () => {
     expect(() => requiredViewModules('keine/org')).toThrow(StoragePathError);
+  });
+});
+
+describe('Kautionen/{tenantId} layout (deposit receipts)', () => {
+  const TENANT = '11111111-1111-4111-8111-111111111111';
+  const APARTMENT = '66666666-6666-4666-8666-666666666666';
+  const TS = '2026-10-29T10-00-00-000Z';
+  const ctx = { orgId: ORG, userId: USER, accessibleHouseIds: [HOUSE_A] };
+  const folder = sharedPath(ORG, HOUSE_A, 'Kautionen', TENANT);
+
+  it('is exported as the literal segment', () => {
+    expect(KAUTIONEN_SEGMENT).toBe('Kautionen');
+  });
+
+  it('parses the path with the house and the receipt folder in rest', () => {
+    expect(parseStoragePath(`${folder}/1765000000000_Beleg.pdf`)).toEqual({
+      zone: 'shared',
+      orgId: ORG,
+      houseId: HOUSE_A,
+      rest: ['Kautionen', TENANT, '1765000000000_Beleg.pdf'],
+    });
+  });
+
+  describe('assertPathAllowed', () => {
+    it('allows reading and writing a tenant folder and its files inside a house of the scope', () => {
+      for (const mode of ['read', 'write'] as const) {
+        expect(() => assertPathAllowed(folder, ctx, mode)).not.toThrow();
+        expect(() => assertPathAllowed(`${folder}/1765000000000_Beleg.pdf`, ctx, mode)).not.toThrow();
+      }
+    });
+
+    it('allows listing the folder Kautionen itself (read), but not writing into it', () => {
+      const root = sharedPath(ORG, HOUSE_A, 'Kautionen');
+      expect(() => assertPathAllowed(root, ctx, 'read')).not.toThrow();
+      expect(() => assertPathAllowed(root, ctx, 'write')).toThrow(expect.objectContaining({ code: 'ACCESS_DENIED' }));
+    });
+
+    it.each(['kein-mieter', 'Beleg.pdf', '11111111-1111-4111-8111-11111111111', '{11111111-1111-4111-8111-111111111111}', '11111111111141118111111111111111'])(
+      'refuses %s as the folder below Kautionen (only the canonical tenant UUID is valid), read and write',
+      (name) => {
+        for (const mode of ['read', 'write'] as const) {
+          expect(() => assertPathAllowed(sharedPath(ORG, HOUSE_A, 'Kautionen', name, 'x.pdf'), ctx, mode)).toThrow(
+            expect.objectContaining({ code: 'INVALID_PATH' }),
+          );
+        }
+      },
+    );
+
+    it('keeps the house scope and the organisation check for Kautionen paths', () => {
+      expect(() => assertPathAllowed(sharedPath(ORG, HOUSE_B, 'Kautionen', TENANT), ctx, 'write')).toThrow(
+        expect.objectContaining({ code: 'ACCESS_DENIED' }),
+      );
+      expect(() => assertPathAllowed(sharedPath('org-2', HOUSE_A, 'Kautionen', TENANT), ctx, 'read')).toThrow(
+        expect.objectContaining({ code: 'ACCESS_DENIED' }),
+      );
+      expect(() => assertPathAllowed(sharedPath(ORG, HOUSE_B, 'Kautionen', TENANT), { ...ctx, accessibleHouseIds: null }, 'write')).not.toThrow();
+    });
+
+    it('applies the rule behind the archive prefix, too', () => {
+      expect(() => assertPathAllowed(sharedPath(ORG, HOUSE_A, '__archive__', TS, 'Kautionen', TENANT, 'x.pdf'), ctx)).not.toThrow();
+      expect(() => assertPathAllowed(sharedPath(ORG, HOUSE_A, '__archive__', TS, 'Kautionen', 'kein-mieter', 'x.pdf'), ctx)).toThrow(
+        expect.objectContaining({ code: 'INVALID_PATH' }),
+      );
+    });
+
+    it('does not apply the tenant rule to look-alike names (they are ordinary folders with the normal rules)', () => {
+      for (const name of ['kautionen', 'Kautionen ', ' Kautionen', 'Kаutionen', 'Kautionen​']) {
+        expect(() => assertPathAllowed(sharedPath(ORG, HOUSE_A, name, 'beliebig', 'x.pdf'), ctx, 'write')).not.toThrow();
+      }
+    });
+
+    it('does not apply the rule outside the position right after the house', () => {
+      expect(() => assertPathAllowed(sharedPath(ORG, HOUSE_A, APARTMENT, 'Kautionen', 'beliebig'), ctx, 'write')).not.toThrow();
+      expect(() => assertPathAllowed(privatePath(ORG, USER, 'Kautionen', 'beliebig'), ctx, 'write')).not.toThrow();
+    });
+
+    it('rejects traversal and separators before any decision', () => {
+      expect(() => assertPathAllowed(`${sharedPath(ORG, HOUSE_A)}/Kautionen/../../${HOUSE_B}/Kautionen/${TENANT}`, ctx, 'write')).toThrow(StoragePathError);
+      expect(() => assertPathAllowed(`${sharedPath(ORG, HOUSE_A)}/Kautionen/${TENANT}/../x`, ctx, 'write')).toThrow(StoragePathError);
+      // a backslash is no separator: `Kautionen\{id}` is ONE ordinary folder name, not the Kautionen folder
+      expect(requiredViewModules(`${sharedPath(ORG, HOUSE_A)}/Kautionen\\${TENANT}`)).toEqual({
+        wohnungen: false,
+        mieter: false,
+        kautionen: false,
+        finanzen: false,
+        dokumente: true,
+      });
+    });
+  });
+
+  describe('archive', () => {
+    it('archives a receipt below the house, keeping Kautionen/{tenantId} behind the timestamp', () => {
+      const archived = archivePathFor(`${folder}/1765000000000_Beleg.pdf`, TS);
+      expect(archived).toBe(sharedPath(ORG, HOUSE_A, '__archive__', TS, 'Kautionen', TENANT, '1765000000000_Beleg.pdf'));
+      expect(requiredViewModules(archived)).toEqual({ wohnungen: false, mieter: false, kautionen: true, finanzen: false, dokumente: false });
+    });
+
+    it('round-trips through parseArchivePath', () => {
+      const file = `${folder}/1765000000000_Beleg.pdf`;
+      expect(parseArchivePath(archivePathFor(file, TS))).toEqual({ originalPath: file, timestamp: TS });
+    });
+
+    it('does not archive an already archived receipt', () => {
+      expect(() => archivePathFor(archivePathFor(`${folder}/x.pdf`, TS), TS)).toThrow(StoragePathError);
+    });
   });
 });

@@ -39,6 +39,7 @@ import {
   sharedRoot,
   type PathAccessContext,
   type PathAccessMode,
+  type ViewModuleRequirement,
 } from '@/lib/storage-paths';
 import { validateFileInfo } from '@/lib/storage-file-rules';
 import { STORAGE_ACCESS_DENIED_MESSAGE } from '@/lib/storage-messages';
@@ -399,7 +400,8 @@ const EXISTENCE_CHECK_CONCURRENCY = 10;
  * seen with the rights of the user (the select policy):
  *   - the object is still visible          -> `denied` (it exists and was not removed)
  *   - it is not visible AND the user may see such objects (`dokumente:ansehen`, `wohnungen:ansehen` / `mieter:ansehen`
- *     where the path needs them, the same rights as the select policy) -> `gone`: it does not exist (any more)
+ *     where the path needs them; `kautionen:ansehen` / `finanzen:ansehen` INSTEAD of `dokumente:ansehen` below
+ *     `Kautionen` / `Rechnungen`; the same rights as the select policy) -> `gone`: it does not exist (any more)
  *   - it is not visible, but the user lacks a view right, or the check fails -> `denied` (fail closed: for them
  *     "not visible" says nothing about existence)
  * `gone` paths were not touched by this call. Callers treat them as already removed, they never report a name or the
@@ -436,13 +438,26 @@ export async function classifyUnremovedObjects(
         return { path, required: null };
       }
     });
-    const [dokumente, wohnungen, mieter] = await Promise.all([
-      hasPermission('dokumente', 'ansehen'),
-      requirements.some(({ required }) => required?.wohnungen) ? hasPermission('wohnungen', 'ansehen') : true,
-      requirements.some(({ required }) => required?.mieter) ? hasPermission('mieter', 'ansehen') : true,
+    // Each right is read only if a path needs it (a path of Kautionen/Rechnungen needs its module right INSTEAD of dokumente)
+    const needs = (pick: (required: ViewModuleRequirement) => boolean) => requirements.some(({ required }) => required && pick(required));
+    const [dokumente, wohnungen, mieter, kautionen, finanzen] = await Promise.all([
+      needs((r) => r.dokumente) ? hasPermission('dokumente', 'ansehen') : true,
+      needs((r) => r.wohnungen) ? hasPermission('wohnungen', 'ansehen') : true,
+      needs((r) => r.mieter) ? hasPermission('mieter', 'ansehen') : true,
+      needs((r) => r.kautionen) ? hasPermission('kautionen', 'ansehen') : true,
+      needs((r) => r.finanzen) ? hasPermission('finanzen', 'ansehen') : true,
     ]);
     for (const { path, required } of requirements) {
-      if (required && dokumente && (!required.wohnungen || wohnungen) && (!required.mieter || mieter)) gone.push(path);
+      if (
+        required &&
+        (!required.dokumente || dokumente) &&
+        (!required.wohnungen || wohnungen) &&
+        (!required.mieter || mieter) &&
+        (!required.kautionen || kautionen) &&
+        (!required.finanzen || finanzen)
+      ) {
+        gone.push(path);
+      }
     }
   }
 

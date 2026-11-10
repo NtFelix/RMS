@@ -1,7 +1,7 @@
 "use server";
 
 import { ensureAuth } from "@/lib/auth-utils";
-import { privatePath, sharedPath } from "@/lib/storage-paths";
+import { FINANCE_SEGMENT, privatePath, sharedPath } from "@/lib/storage-paths";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -61,7 +61,7 @@ export async function getFinanceDocumentPath(
 
         return {
             success: true,
-            path: sharedPath(orgId, wohnung.haus_id, "Rechnungen", wohnung.id)
+            path: sharedPath(orgId, wohnung.haus_id, FINANCE_SEGMENT, wohnung.id)
         };
     } catch (pathError: unknown) {
         console.error("Invalid storage path segment:", pathError);

@@ -1149,8 +1149,11 @@ export async function getKautionBelegUrlAction(input: GetKautionBelegUrlInput): 
       }
       const speicherPfad = baueBelegPfad(beleg.dateipfad, beleg.dateiname);
 
-      // Object scope on the STORED path (read). TRANSITION (GH-27 PR 2 -> PR 3): a legacy `user_` receipt is readable
-      // only by its own uploader; other users get the same answer as for a missing receipt. TODO(GH-27 PR3): remove.
+      // The receipt lies in `shared/{house}/Kautionen/{tenantId}`. `kautionen:ansehen` is checked by `runKautionAction` and
+      // the RPC above (no `dokumente`, apartment or tenant right needed); the call below only validates organisation,
+      // house scope and layout of the STORED path.
+      // TRANSITION (GH-27 PR 2 -> PR 3): a legacy `user_` receipt is readable only by its own uploader; other users get
+      // the same answer as for a missing receipt. TODO(GH-27 PR3): remove.
       const { user } = await ensureAuth();
       const zugriff = await checkStoragePathAccess(supabase, user.id, speicherPfad, { allowLegacyOwnRead: true });
       if (zugriff) return fail(mappedError("KA003"));
