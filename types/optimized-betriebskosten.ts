@@ -105,6 +105,16 @@ export type OptimizedActionResponse<T> = {
 };
 
 /**
+ * Answer of getMeterModalDataAction. Without mieter:ansehen (or if that check failed) `data` is empty and
+ * `tenantAccess: false` says that this is "no access" and not "no tenants"; `permissionCheckFailed: true` is added
+ * only if the check itself failed (see withheldTenantFields in lib/tenant-view-access).
+ */
+export type MeterModalResponse = OptimizedActionResponse<MeterModalData[]> & {
+  tenantAccess?: false;
+  permissionCheckFailed?: true;
+};
+
+/**
  * Parameters for the get_nebenkosten_with_metrics database function
  */
 export type GetNebenkostenWithMetricsParams = {
