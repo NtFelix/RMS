@@ -30,5 +30,8 @@ npx -y skills add posthog/skills --all
 # 7. React Doctor (Million.js performance and health checks)
 npx -y skills add millionco/react-doctor --all
 
+# 8. Jakub Krehel Interface & Design Engineering Skills (better-ui, better-accessibility, etc.)
+npx -y skills add jakubkrehel/skills --all
+
 echo "✅ All skills installed successfully!"
 echo "The skills are managed via skills-lock.json and located in the .agents/skills directory."
