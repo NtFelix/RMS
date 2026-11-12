@@ -120,13 +120,35 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
 
             const result = await createApplicantsFromMails(mailsToImport);
             if (result.success) {
-                toast({
-                    title: "Import erfolgreich",
-                    description: (result.queued ?? 0) > 0
-                        ? `${result.count} Bewerber angelegt. AI Analyse gestartet...`
-                        : `${result.count} Bewerber wurden angelegt.`,
-                    variant: "success",
-                });
+                const failedCount = result.failedCount ?? 0;
+                if (failedCount > 0 || result.warning) {
+                    // Teilerfolg oder Warnung: Nutzer deutlich darauf hinweisen
+                    const parts = [`${result.count} Bewerber wurden angelegt.`];
+                    if (failedCount > 0) {
+                        if (result.error) {
+                            console.warn("Applicant import partial error:", result.error);
+                        }
+                        parts.push(`${failedCount} konnten nicht angelegt werden. Bitte prüfe die Bewerberliste, bevor du erneut importierst, damit keine Duplikate entstehen.`);
+                    }
+                    if (result.warning) {
+                        // Technische Details nur ins Log, dem Nutzer einen neutralen Hinweis zeigen
+                        console.warn("Applicant import warning:", result.warning);
+                        parts.push("Hinweis: Die AI-Analyse konnte nicht vollständig gestartet werden.");
+                    }
+                    toast({
+                        title: failedCount > 0 ? "Import teilweise erfolgreich" : "Import mit Hinweis",
+                        description: parts.join(" "),
+                        variant: "destructive",
+                    });
+                } else {
+                    toast({
+                        title: "Import erfolgreich",
+                        description: result.queued > 0
+                            ? `${result.count} Bewerber angelegt. AI Analyse gestartet...`
+                            : `${result.count} Bewerber wurden angelegt.`,
+                        variant: "success",
+                    });
+                }
 
                 // If items were queued, start client-side polling
                 if (result.hasMore) {
@@ -161,10 +183,10 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
             } else {
                 throw new Error(result.error);
             }
-        } catch (e: any) {
+        } catch (e: unknown) {
             toast({
                 title: "Import fehlgeschlagen",
-                description: e.message || "Ein unbekannter Fehler ist aufgetreten.",
+                description: e instanceof Error && e.message ? e.message : "Ein unbekannter Fehler ist aufgetreten.",
                 variant: "destructive",
             });
         } finally {

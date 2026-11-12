@@ -351,10 +351,9 @@ describe('mieter-import-actions', () => {
       expect(result).toMatchObject({ success: true, count: 250 });
     });
 
-    // Characterizes current behavior, not a requirement: after a failed chunk the function
-    // returns early, so already inserted applicants are never queued for AI processing, and
-    // success stays true with the problem only in `error`. Revisit if this is meant to change.
-    it('should report partial success and skip queueing when a later chunk fails', async () => {
+    it('should queue the inserted mails of the successful chunks when a middle chunk fails', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
+      process.env.WORKER_AUTH_KEY = 'test-key';
       const mails = Array.from({ length: 250 }, (_, i) => ({
         id: `mail-${i}`,
         absender: `sender${i}@example.com`,
@@ -367,12 +366,80 @@ describe('mieter-import-actions', () => {
 
       const result = await createApplicantsFromMails(mails);
 
+      // Only the mails of chunk 1 (0-99) and chunk 3 (200-249) were stored and must be queued
+      const expectedQueuedIds = [
+        ...Array.from({ length: 100 }, (_, i) => `mail-${i}`),
+        ...Array.from({ length: 50 }, (_, i) => `mail-${200 + i}`)
+      ];
+      const queuedIds = mockSupabase.rpc.mock.calls.map((call: unknown[]) => (call[1] as { p_mail_id: string }).p_mail_id);
+      expect(queuedIds).toEqual(expectedQueuedIds);
+      expect(queuedIds).not.toContain('mail-150');
+      expect(global.fetch).toHaveBeenCalledWith('https://backend.mietevo.de/process-queue', expect.objectContaining({ method: 'POST' }));
+
       expect(result).toEqual({
         success: true,
         count: 150,
+        failedCount: 100,
+        queued: 150,
+        hasMore: true,
+        userId: 'test-user-id',
+        message: 'Imported 150 applicants with some warnings. Queued 150 for AI processing.',
         error: 'Import partially failed: chunk 2 failed'
       });
+      expect(result).not.toHaveProperty('warning');
       expect(consoleErrorSpy).toHaveBeenCalledWith('Error inserting applicants chunk:', { message: 'chunk 2 failed' });
+      expect(revalidatePath).toHaveBeenCalledWith('/mieter');
+    });
+
+    it('should not queue or kick off the worker when the stored partial import has no mails with stored content', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
+      process.env.WORKER_AUTH_KEY = 'test-key';
+      const mails = Array.from({ length: 250 }, (_, i) => ({
+        id: `mail-${i}`,
+        absender: `sender${i}@example.com`,
+        // Only the mails of the failing chunk 2 have stored content
+        dateipfad: i >= 100 && i < 200 ? `/path/${i}` : null
+      }));
+      mockSupabase.insert
+        .mockResolvedValueOnce({ error: null })
+        .mockResolvedValueOnce({ error: { message: 'chunk 2 failed' } })
+        .mockResolvedValueOnce({ error: null });
+
+      const result = await createApplicantsFromMails(mails);
+
+      expect(result).toEqual({
+        success: true,
+        count: 150,
+        failedCount: 100,
+        queued: 0,
+        hasMore: false,
+        userId: 'test-user-id',
+        message: 'Imported 150 applicants with some warnings. Queued 0 for AI processing.',
+        error: 'Import partially failed: chunk 2 failed'
+      });
+      expect(mockSupabase.rpc).not.toHaveBeenCalled();
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(posthogLogger.warn).toHaveBeenCalledWith('No mails with stored content to process', { totalMails: 250 });
+    });
+
+    it('should return failure with count 0 and skip queueing when every chunk fails', async () => {
+      mockSupabase.insert.mockResolvedValue({ error: { message: 'db down' } });
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
+      process.env.WORKER_AUTH_KEY = 'test-key';
+      const mails = Array.from({ length: 250 }, (_, i) => ({
+        id: `mail-${i}`,
+        absender: `sender${i}@example.com`,
+        dateipfad: `/path/${i}`
+      }));
+
+      const result = await createApplicantsFromMails(mails);
+
+      expect(mockSupabase.insert).toHaveBeenCalledTimes(3);
+      expect(result).toEqual({
+        success: false,
+        count: 0,
+        error: 'Import partially failed: db down, db down, db down'
+      });
       expect(mockSupabase.rpc).not.toHaveBeenCalled();
       expect(global.fetch).not.toHaveBeenCalled();
       expect(revalidatePath).toHaveBeenCalledWith('/mieter');
@@ -523,7 +590,8 @@ describe('mieter-import-actions', () => {
         queued: 1,
         hasMore: true,
         userId: 'test-user-id',
-        message: 'Imported 1 applicants with some warnings. Queued 1 for AI processing.'
+        message: 'Imported 1 applicants with some warnings. Queued 1 for AI processing.',
+        warning: 'AI Processing kickoff failed: Worker returned 500 Internal Server Error'
       });
       expect(posthogLogger.error).toHaveBeenCalledWith('Queueing AI processing failed', {
         error: 'AI Processing kickoff failed: Worker returned 500 Internal Server Error'
@@ -537,7 +605,12 @@ describe('mieter-import-actions', () => {
 
       const result = await createApplicantsFromMails([{ id: 'm1', absender: 'erika@example.com', dateipfad: '/path/1' }]);
 
-      expect(result).toMatchObject({ success: true, count: 1, message: expect.stringContaining('some warnings') });
+      expect(result).toMatchObject({
+        success: true,
+        count: 1,
+        message: expect.stringContaining('some warnings'),
+        warning: 'AI Processing kickoff failed: net down'
+      });
       expect(posthogLogger.error).toHaveBeenCalledWith('Queueing AI processing failed', {
         error: 'AI Processing kickoff failed: net down'
       });
@@ -549,7 +622,12 @@ describe('mieter-import-actions', () => {
 
       const result = await createApplicantsFromMails([{ id: 'm1', absender: 'erika@example.com', dateipfad: '/path/1' }]);
 
-      expect(result).toMatchObject({ success: true, count: 1, message: expect.stringContaining('some warnings') });
+      expect(result).toMatchObject({
+        success: true,
+        count: 1,
+        message: expect.stringContaining('some warnings'),
+        warning: 'AI Processing kickoff failed: boom'
+      });
       expect(posthogLogger.error).toHaveBeenCalledWith('Queueing AI processing failed', {
         error: 'AI Processing kickoff failed: boom'
       });
@@ -561,10 +639,42 @@ describe('mieter-import-actions', () => {
 
       const result = await createApplicantsFromMails([{ id: 'm1', absender: 'erika@example.com', dateipfad: '/path/1' }]);
 
-      expect(result).toMatchObject({ success: true, count: 1, message: expect.stringContaining('some warnings') });
+      expect(result).toMatchObject({
+        success: true,
+        count: 1,
+        message: expect.stringContaining('some warnings'),
+        warning: 'AI Processing verification failed to start.'
+      });
       expect(global.fetch).not.toHaveBeenCalled();
       expect(posthogLogger.error).toHaveBeenCalledWith('Queueing AI processing failed', {
         error: 'AI Processing verification failed to start.'
+      });
+    });
+
+    it('should return both error and warning when a chunk insert fails and the worker kickoff also fails', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 502, statusText: 'Bad Gateway' });
+      process.env.WORKER_AUTH_KEY = 'test-key';
+      const mails = Array.from({ length: 150 }, (_, i) => ({
+        id: `mail-${i}`,
+        absender: `sender${i}@example.com`,
+        dateipfad: `/path/${i}`
+      }));
+      mockSupabase.insert
+        .mockResolvedValueOnce({ error: null })
+        .mockResolvedValueOnce({ error: { message: 'chunk 2 failed' } });
+
+      const result = await createApplicantsFromMails(mails);
+
+      expect(result).toEqual({
+        success: true,
+        count: 100,
+        failedCount: 50,
+        queued: 100,
+        hasMore: true,
+        userId: 'test-user-id',
+        message: 'Imported 100 applicants with some warnings. Queued 100 for AI processing.',
+        error: 'Import partially failed: chunk 2 failed',
+        warning: 'AI Processing kickoff failed: Worker returned 502 Bad Gateway'
       });
     });
 
@@ -580,7 +690,12 @@ describe('mieter-import-actions', () => {
         expect(posthogLogger.error).toHaveBeenCalledWith('Queueing AI processing failed', {
           error: 'Worker authentication key is not configured.'
         });
-        expect(result).toMatchObject({ success: true, count: 1, message: expect.stringContaining('some warnings') });
+        expect(result).toMatchObject({
+          success: true,
+          count: 1,
+          message: expect.stringContaining('some warnings'),
+          warning: 'Worker authentication key is not configured.'
+        });
       }
     );
 

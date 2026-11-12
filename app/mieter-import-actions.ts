@@ -79,11 +79,25 @@ export async function getMailsBySender(sender: string, startDate?: Date, endDate
     return data;
 }
 
-export async function createApplicantsFromMails(mails: { id: string, absender: string, dateipfad?: string | null }[]) {
+export type CreateApplicantsResult =
+    | { success: false; error: string; count?: number }
+    | {
+        success: true;
+        count: number;
+        queued: number;
+        hasMore: boolean;
+        userId: string;
+        message: string;
+        failedCount?: number;
+        error?: string;
+        warning?: string;
+    };
+
+export async function createApplicantsFromMails(mails: { id: string, absender: string, dateipfad?: string | null }[]): Promise<CreateApplicantsResult> {
     let user, supabase;
     try {
         ({ user, supabase } = await ensureAuth());
-    } catch (authError) {
+    } catch {
         return { success: false, error: "Nicht authentifiziert" };
     }
 
@@ -97,10 +111,13 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
         return { success: false, error: "No mails provided" };
     }
 
-    // Process in chunks to avoid any potential batch size limits on insert
+    // Process in chunks to avoid any potential batch size limits on insert.
+    // Each chunk insert is atomic: either all mails of a chunk are stored or none.
     const CHUNK_SIZE = 100;
     let successCount = 0;
-    const errors: string[] = [];
+    let failedCount = 0;
+    const insertErrors: string[] = [];
+    const insertedMails: { id: string, absender: string, dateipfad?: string | null }[] = [];
 
     for (let i = 0; i < mails.length; i += CHUNK_SIZE) {
         const chunk = mails.slice(i, i + CHUNK_SIZE);
@@ -119,7 +136,7 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
 
             return {
                 name: name,
-                email: mail.absender.match(/<([^>]+)>/)?.[1] ?? mail.absender,
+                email: emailMatch?.[1] ?? mail.absender,
                 status: 'bewerber',
                 bewerbung_mail_id: mail.id,
                 // bewerbung_metadaten left empty for now, to be filled by AI later
@@ -132,24 +149,29 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
 
         if (insertError) {
             console.error("Error inserting applicants chunk:", insertError);
-            errors.push(insertError.message);
+            insertErrors.push(insertError.message);
+            failedCount += chunk.length;
         } else {
             successCount += newApplicants.length;
+            insertedMails.push(...chunk);
         }
     }
 
     revalidatePath('/mieter');
 
-    if (errors.length > 0) {
+    // Nothing was stored: there is nothing to queue (same result as before for a complete failure)
+    if (successCount === 0) {
         return {
-            success: successCount > 0, // Partial success
-            count: successCount,
-            error: `Import partially failed: ${errors.join(', ')}`
+            success: false,
+            count: 0,
+            error: `Import partially failed: ${insertErrors.join(', ')}`
         };
     }
 
-    // Queue Processing & Kickoff - ALWAYS queue mails with dateipfad
-    const mailsWithContent = mails.filter(mail => mail.dateipfad);
+    // Queue Processing & Kickoff - queue every successfully inserted mail with dateipfad,
+    // also when other chunks failed (best effort)
+    const mailsWithContent = insertedMails.filter(mail => mail.dateipfad);
+    let warning: string | undefined;
 
     if (mailsWithContent.length > 0) {
         try {
@@ -222,22 +244,29 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
             const message = queueError instanceof Error ? queueError.message : "AI Processing verification failed to start.";
             posthogLogger.error('Queueing AI processing failed', { error: message });
             await posthogLogger.flush();
-            errors.push(message);
+            warning = message;
         }
-    } else if (mails.length > 0) {
+    } else {
         posthogLogger.warn('No mails with stored content to process', { totalMails: mails.length });
         await posthogLogger.flush();
     }
 
+    const hasWarnings = insertErrors.length > 0 || warning !== undefined;
+
+    // Here at least one chunk was stored (see the early return above), so this is a success, possibly partial
     return {
-        success: successCount > 0 || mailsWithContent.length > 0,
+        success: true,
         count: successCount,
         queued: mailsWithContent.length,
         hasMore: mailsWithContent.length > 0,
         userId: userId,
-        message: errors.length > 0
+        message: hasWarnings
             ? `Imported ${successCount} applicants with some warnings. Queued ${mailsWithContent.length} for AI processing.`
-            : `Import successful. ${mailsWithContent.length} mails queued for AI processing.`
+            : `Import successful. ${mailsWithContent.length} mails queued for AI processing.`,
+        ...(insertErrors.length > 0
+            ? { failedCount, error: `Import partially failed: ${insertErrors.join(', ')}` }
+            : {}),
+        ...(warning ? { warning } : {})
     };
 }
 
@@ -275,7 +304,7 @@ export async function checkWorkerQueueStatus(userId: string) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-worker-auth': workerAuthKey!
+                'x-worker-auth': workerAuthKey
             },
             body: JSON.stringify({ user_id: userId })
         });
