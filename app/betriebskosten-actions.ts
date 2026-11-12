@@ -34,6 +34,7 @@ import { logger } from '@/utils/logger';
 import { findDuplicateNachRechnungName, normalizeBerechnungsart } from '@/utils/betriebskosten';
 import { type Rechenbasis, RECHENBASIS_KALENDERTAGE, RECHENBASIS_360_TAGE, isValid360Period } from '@/utils/rechentage';
 import { BERECHNUNGSART_OPTIONS } from '@/lib/constants';
+import { isValidZaehlerMap } from '@/lib/zaehler-utils';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { posthogLogger } from '@/lib/posthog-logger';
 
@@ -141,6 +142,19 @@ function validateRechenbasis(
   return null;
 }
 
+/**
+ * Validates the optional zaehlerkosten map at runtime (the TypeScript type is not enforced on the
+ * server): `null`/`undefined` are allowed, otherwise it must be a map of finite numbers.
+ * Returns an error message, or null when the data is valid. The message never echoes the input.
+ */
+function validateZaehlerkosten(zaehlerkosten: unknown): string | null {
+  if (zaehlerkosten === undefined || zaehlerkosten === null) return null;
+  if (!isValidZaehlerMap(zaehlerkosten)) {
+    return 'Ungültige Zählerkosten: Werte müssen Zahlen sein.';
+  }
+  return null;
+}
+
 // Implement createNebenkosten function
 // Note: wasserverbrauch is automatically calculated by database trigger
 export async function createNebenkosten(formData: NebenkostenFormData) {
@@ -176,6 +190,12 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
   if (normalized.error !== null) {
     logAction(actionName, 'error', { house_id: formData.haeuser_id, error_message: normalized.error });
     return { success: false, message: normalized.error, data: null };
+  }
+
+  const zaehlerkostenError = validateZaehlerkosten(formData.zaehlerkosten);
+  if (zaehlerkostenError) {
+    logAction(actionName, 'error', { house_id: formData.haeuser_id, error_message: zaehlerkostenError });
+    return { success: false, message: zaehlerkostenError, data: null };
   }
 
   const rechenbasisError = validateRechenbasis(formData.rechenbasis, formData.startdatum, formData.enddatum);
@@ -247,6 +267,12 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
   if (normalized.error !== null) {
     logAction(actionName, 'error', { nebenkosten_id: id, error_message: normalized.error });
     return { success: false, message: normalized.error, data: null };
+  }
+
+  const zaehlerkostenError = validateZaehlerkosten(formData.zaehlerkosten);
+  if (zaehlerkostenError) {
+    logAction(actionName, 'error', { nebenkosten_id: id, error_message: zaehlerkostenError });
+    return { success: false, message: zaehlerkostenError, data: null };
   }
 
   const invalidValueError = validateRechenbasis(formData.rechenbasis, undefined, undefined);
