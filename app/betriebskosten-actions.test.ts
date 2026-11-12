@@ -592,11 +592,25 @@ describe('betriebskosten-actions', () => {
       ['positive numbers', { kaltwasser: 12.5, warmwasser: 3 }],
       ['negative numbers (credits)', { kaltwasser: -40 }],
       ['zero', { kaltwasser: 0, warmwasser: 0 }],
+      ['an empty map', {}],
+      ['a null-prototype object', Object.assign(Object.create(null), { kaltwasser: 10 })],
     ])('accepts a map of finite numbers (%s) and passes it to Supabase on create', async (_name, zaehlerkosten) => {
       const result = await createNebenkosten({ ...baseFormData, zaehlerkosten });
 
       expect(result.success).toBe(true);
       expect(mockSupabase.insert).toHaveBeenCalledWith([expect.objectContaining({ zaehlerkosten })]);
+    });
+
+    it.each([
+      ['positive numbers', { kaltwasser: 12.5, warmwasser: 3 }],
+      ['negative numbers (credits)', { kaltwasser: -40 }],
+      ['zero', { kaltwasser: 0, warmwasser: 0 }],
+      ['an empty map', {}],
+    ])('accepts a map of finite numbers (%s) and passes it to Supabase on update', async (_name, zaehlerkosten) => {
+      const result = await updateNebenkosten('nb1', { zaehlerkosten });
+
+      expect(result.success).toBe(true);
+      expect(mockSupabase.update).toHaveBeenCalledWith({ zaehlerkosten });
     });
 
     it.each([
@@ -606,9 +620,25 @@ describe('betriebskosten-actions', () => {
       ['Infinity', { kaltwasser: Infinity }],
       ['-Infinity', { kaltwasser: -Infinity }],
       ['null as value', { kaltwasser: null }],
+      ['undefined as value', { kaltwasser: undefined }],
+      ['a boolean as value', { kaltwasser: true }],
       ['an array as value', { kaltwasser: [1, 2] }],
+      ['a nested object as value', { kaltwasser: { betrag: 10 } }],
       ['an array instead of an object', [1, 2]],
       ['a string instead of an object', 'kaltwasser'],
+      ['a number instead of an object', 42],
+      ['a boolean instead of an object', true],
+      ['a Date instance', new Date()],
+      ['a Map instance', new Map([['kaltwasser', 10]])],
+      ['a Set instance', new Set([10])],
+      ['a RegExp instance', /kaltwasser/],
+      ['an empty key', { '': 10 }],
+      ['a whitespace-only key', { '   ': 10 }],
+      ['a constructor key', { constructor: 10 }],
+      ['a toString key', { toString: 10 }],
+      ['a prototype key', { prototype: 10 }],
+      ['an own __proto__ key', JSON.parse('{"__proto__": 10}')],
+      ['a Symbol key', { [Symbol('kaltwasser')]: 10 }],
     ])('rejects %s on create without touching Supabase', async (_name, zaehlerkosten) => {
       const result = await createNebenkosten({ ...baseFormData, zaehlerkosten: zaehlerkosten as any });
 
@@ -623,26 +653,33 @@ describe('betriebskosten-actions', () => {
     it.each([
       ['a string value', { kaltwasser: SECRET_LIKE_VALUE as any }],
       ['NaN', { kaltwasser: NaN }],
+      ['Infinity', { kaltwasser: Infinity }],
       ['an array as value', { kaltwasser: [5] }],
+      ['a Date instance', new Date()],
+      ['an empty key', { '': 10 }],
+      ['an own __proto__ key', JSON.parse('{"__proto__": 10}')],
     ])('rejects %s on update without touching Supabase', async (_name, zaehlerkosten) => {
-      const result = await updateNebenkosten('nb1', { zaehlerkosten });
+      const result = await updateNebenkosten('nb1', { enddatum: '2023-12-30', zaehlerkosten: zaehlerkosten as any });
 
       expect(result.success).toBe(false);
       expect(result.message).toBe('Ungültige Zählerkosten: Werte müssen Zahlen sein.');
+      expect(mockSupabase.from).not.toHaveBeenCalled();
       expect(mockSupabase.update).not.toHaveBeenCalled();
     });
 
     it('does not echo the rejected input value in the message or the log', async () => {
-      const result = await createNebenkosten({ ...baseFormData, zaehlerkosten: { kaltwasser: SECRET_LIKE_VALUE as any } });
+      const createResult = await createNebenkosten({ ...baseFormData, zaehlerkosten: { kaltwasser: SECRET_LIKE_VALUE as any } });
+      const updateResult = await updateNebenkosten('nb1', { zaehlerkosten: { kaltwasser: SECRET_LIKE_VALUE as any } });
 
-      expect(result.message).not.toContain(SECRET_LIKE_VALUE);
+      expect(createResult.message).not.toContain(SECRET_LIKE_VALUE);
+      expect(updateResult.message).not.toContain(SECRET_LIKE_VALUE);
       expect(JSON.stringify((logAction as jest.Mock).mock.calls)).not.toContain(SECRET_LIKE_VALUE);
     });
 
     it.each([
-      ['null on create', 'create', null],
-      ['undefined on create', 'create', undefined],
-    ])('allows %s', async (_name, _mode, zaehlerkosten) => {
+      ['null on create', null],
+      ['undefined on create', undefined],
+    ])('allows %s', async (_name, zaehlerkosten) => {
       const result = await createNebenkosten({ ...baseFormData, zaehlerkosten: zaehlerkosten as any });
 
       expect(result.success).toBe(true);
