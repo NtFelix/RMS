@@ -125,6 +125,9 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
                     // Teilerfolg oder Warnung: Nutzer deutlich darauf hinweisen
                     const parts = [`${result.count} Bewerber wurden angelegt.`];
                     if (failedCount > 0) {
+                        if (result.error) {
+                            console.warn("Applicant import partial error:", result.error);
+                        }
                         parts.push(`${failedCount} konnten nicht angelegt werden. Bitte prüfe die Bewerberliste, bevor du erneut importierst, damit keine Duplikate entstehen.`);
                     }
                     if (result.warning) {
@@ -140,7 +143,7 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
                 } else {
                     toast({
                         title: "Import erfolgreich",
-                        description: (result.queued ?? 0) > 0
+                        description: result.queued > 0
                             ? `${result.count} Bewerber angelegt. AI Analyse gestartet...`
                             : `${result.count} Bewerber wurden angelegt.`,
                         variant: "success",
@@ -180,10 +183,10 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
             } else {
                 throw new Error(result.error);
             }
-        } catch (e: any) {
+        } catch (e: unknown) {
             toast({
                 title: "Import fehlgeschlagen",
-                description: e.message || "Ein unbekannter Fehler ist aufgetreten.",
+                description: e instanceof Error && e.message ? e.message : "Ein unbekannter Fehler ist aufgetreten.",
                 variant: "destructive",
             });
         } finally {

@@ -605,7 +605,12 @@ describe('mieter-import-actions', () => {
 
       const result = await createApplicantsFromMails([{ id: 'm1', absender: 'erika@example.com', dateipfad: '/path/1' }]);
 
-      expect(result).toMatchObject({ success: true, count: 1, message: expect.stringContaining('some warnings') });
+      expect(result).toMatchObject({
+        success: true,
+        count: 1,
+        message: expect.stringContaining('some warnings'),
+        warning: 'AI Processing kickoff failed: net down'
+      });
       expect(posthogLogger.error).toHaveBeenCalledWith('Queueing AI processing failed', {
         error: 'AI Processing kickoff failed: net down'
       });
@@ -617,7 +622,12 @@ describe('mieter-import-actions', () => {
 
       const result = await createApplicantsFromMails([{ id: 'm1', absender: 'erika@example.com', dateipfad: '/path/1' }]);
 
-      expect(result).toMatchObject({ success: true, count: 1, message: expect.stringContaining('some warnings') });
+      expect(result).toMatchObject({
+        success: true,
+        count: 1,
+        message: expect.stringContaining('some warnings'),
+        warning: 'AI Processing kickoff failed: boom'
+      });
       expect(posthogLogger.error).toHaveBeenCalledWith('Queueing AI processing failed', {
         error: 'AI Processing kickoff failed: boom'
       });
@@ -629,10 +639,42 @@ describe('mieter-import-actions', () => {
 
       const result = await createApplicantsFromMails([{ id: 'm1', absender: 'erika@example.com', dateipfad: '/path/1' }]);
 
-      expect(result).toMatchObject({ success: true, count: 1, message: expect.stringContaining('some warnings') });
+      expect(result).toMatchObject({
+        success: true,
+        count: 1,
+        message: expect.stringContaining('some warnings'),
+        warning: 'AI Processing verification failed to start.'
+      });
       expect(global.fetch).not.toHaveBeenCalled();
       expect(posthogLogger.error).toHaveBeenCalledWith('Queueing AI processing failed', {
         error: 'AI Processing verification failed to start.'
+      });
+    });
+
+    it('should return both error and warning when a chunk insert fails and the worker kickoff also fails', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 502, statusText: 'Bad Gateway' });
+      process.env.WORKER_AUTH_KEY = 'test-key';
+      const mails = Array.from({ length: 150 }, (_, i) => ({
+        id: `mail-${i}`,
+        absender: `sender${i}@example.com`,
+        dateipfad: `/path/${i}`
+      }));
+      mockSupabase.insert
+        .mockResolvedValueOnce({ error: null })
+        .mockResolvedValueOnce({ error: { message: 'chunk 2 failed' } });
+
+      const result = await createApplicantsFromMails(mails);
+
+      expect(result).toEqual({
+        success: true,
+        count: 100,
+        failedCount: 50,
+        queued: 100,
+        hasMore: true,
+        userId: 'test-user-id',
+        message: 'Imported 100 applicants with some warnings. Queued 100 for AI processing.',
+        error: 'Import partially failed: chunk 2 failed',
+        warning: 'AI Processing kickoff failed: Worker returned 502 Bad Gateway'
       });
     });
 
@@ -648,7 +690,12 @@ describe('mieter-import-actions', () => {
         expect(posthogLogger.error).toHaveBeenCalledWith('Queueing AI processing failed', {
           error: 'Worker authentication key is not configured.'
         });
-        expect(result).toMatchObject({ success: true, count: 1, message: expect.stringContaining('some warnings') });
+        expect(result).toMatchObject({
+          success: true,
+          count: 1,
+          message: expect.stringContaining('some warnings'),
+          warning: 'Worker authentication key is not configured.'
+        });
       }
     );
 

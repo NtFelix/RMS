@@ -79,7 +79,7 @@ export async function getMailsBySender(sender: string, startDate?: Date, endDate
     return data;
 }
 
-type CreateApplicantsResult =
+export type CreateApplicantsResult =
     | { success: false; error: string; count?: number }
     | {
         success: true;
@@ -97,7 +97,7 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
     let user, supabase;
     try {
         ({ user, supabase } = await ensureAuth());
-    } catch (authError) {
+    } catch {
         return { success: false, error: "Nicht authentifiziert" };
     }
 
@@ -136,7 +136,7 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
 
             return {
                 name: name,
-                email: mail.absender.match(/<([^>]+)>/)?.[1] ?? mail.absender,
+                email: emailMatch?.[1] ?? mail.absender,
                 status: 'bewerber',
                 bewerbung_mail_id: mail.id,
                 // bewerbung_metadaten left empty for now, to be filled by AI later
@@ -160,7 +160,7 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
     revalidatePath('/mieter');
 
     // Nothing was stored: there is nothing to queue (same result as before for a complete failure)
-    if (successCount === 0 && insertErrors.length > 0) {
+    if (successCount === 0) {
         return {
             success: false,
             count: 0,
@@ -246,7 +246,7 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
             await posthogLogger.flush();
             warning = message;
         }
-    } else if (mails.length > 0) {
+    } else {
         posthogLogger.warn('No mails with stored content to process', { totalMails: mails.length });
         await posthogLogger.flush();
     }
@@ -304,7 +304,7 @@ export async function checkWorkerQueueStatus(userId: string) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-worker-auth': workerAuthKey!
+                'x-worker-auth': workerAuthKey
             },
             body: JSON.stringify({ user_id: userId })
         });
