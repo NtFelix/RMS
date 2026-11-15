@@ -6,6 +6,7 @@ import { FinanceEntryPayload } from '@/types/finanzen'
 import { getLatestNebenkostenAmount } from '@/utils/tenant-payment-calculations'
 import { PAYMENT_KEYWORDS, PAYMENT_TAGS } from '@/utils/constants'
 import { getTodayISOString, isTenantActive, getCurrentMonthRange } from '@/utils/date-calculations'
+import { mietHistorieQuery } from '@/lib/mietverhaeltnis-historie-query'
 import { API_PERMISSION_CHECK_FAILED_CODE, API_PERMISSION_DENIED_CODE } from '@/lib/permissions-core'
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
@@ -25,7 +26,7 @@ export function useTenantPayments() {
             setError(null)
             setNoAccess(false)
 
-            const response = await fetch('/api/tenants-data')
+            const response = await fetch(`/api/tenants-data${mietHistorieQuery()}`)
             if (response.status === 403 || response.status === 503) {
                 const body = await response.json().catch(() => null)
                 if (response.status === 403 && body?.code === API_PERMISSION_DENIED_CODE) {

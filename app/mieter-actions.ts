@@ -11,6 +11,7 @@ import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
 import { posthogLogger } from '@/lib/posthog-logger';
+import { ermittleWohnungswechselFehler } from '@/lib/mietverhaeltnis-errors';
 
 export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const id = formData.get('id');
@@ -83,7 +84,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     if (id) {
       const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string);
       if (error) {
-        return { success: false, error: { message: error.message } };
+        return { success: false, error: { message: ermittleWohnungswechselFehler(error) ?? error.message } };
       }
     } else {
       const { data: newTenant, error } = await supabase.from('Mieter').insert(payload).select('id').single();
@@ -344,7 +345,7 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
 
     if (error) {
       console.error('Error updating tenant apartment:', error);
-      return { success: false, error: { message: error.message } };
+      return { success: false, error: { message: ermittleWohnungswechselFehler(error) ?? error.message } };
     }
 
     revalidatePath('/mieter');

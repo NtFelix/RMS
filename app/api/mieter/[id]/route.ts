@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { MIETER_SPALTEN_OHNE_KAUTION, pickMieterSchreibbareFelder } from "@/lib/mieter-columns";
+import { ermittleWohnungswechselFehler } from "@/lib/mietverhaeltnis-errors";
 
 // GET specific tenant by ID
 export async function GET(
@@ -83,7 +84,7 @@ export async function PATCH(
 
         if (error) {
             console.error(`PATCH /api/mieter/${id} error:`, error);
-            return NextResponse.json({ error: error.message }, { status: 400, headers: NO_CACHE_HEADERS });
+            return NextResponse.json({ error: ermittleWohnungswechselFehler(error) ?? error.message }, { status: 400, headers: NO_CACHE_HEADERS });
         }
 
         if (!data || data.length === 0) {

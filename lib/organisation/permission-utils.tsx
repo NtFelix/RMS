@@ -52,6 +52,8 @@ export function getTableIcon(tableName: string): LucideIcon {
     case 'Wohnungen':
       return Building;
     case 'Mieter':
+    case 'Mieter_Mietverhaeltnisse':
+    case 'Mieter_Mietverhaeltnisse_Mieten':
       return Users;
     case 'Finanzen':
       return CreditCard;

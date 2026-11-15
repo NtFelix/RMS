@@ -155,3 +155,92 @@ describe('Tenant Payment Calculations', () => {
         });
     });
 });
+
+describe('calculateMissedPayments mit Miethistorie', () => {
+    // Synthetic data. Move-in Jan 2023, rent 1000, no Nebenkosten (isolates the rent logic). Today: 15 March 2023.
+    const tenant = {
+        name: 'Erika Beispiel',
+        wohnung_id: 'w1',
+        einzug: '2023-01-01',
+        Wohnungen: { id: 'w1', miete: 1000 },
+        nebenkosten: [],
+    };
+    const rentPaid = (datum: string, betrag: number, name = 'Miete') => ({
+        wohnung_id: 'w1',
+        betrag,
+        name,
+        datum,
+        notiz: 'Miete von Erika Beispiel',
+    });
+
+    beforeEach(() => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2023-03-15'));
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    it('liefert mit leerer Historie dasselbe Ergebnis wie ohne Parameter', () => {
+        const withNk = {
+            ...tenant,
+            einzug: '2023-01-15',
+            nebenkosten: [{ amount: 200, date: '2023-01-01' }],
+        };
+        const finances = [rentPaid('2023-02-01', 1000)];
+
+        const ohne = calculateMissedPayments(withNk, finances, true);
+        expect(calculateMissedPayments(withNk, finances, true, [])).toEqual(ohne);
+        expect(calculateMissedPayments(withNk, finances, true, null)).toEqual(ohne);
+        expect(calculateMissedPayments(withNk, finances, true, undefined)).toEqual(ohne);
+    });
+
+    it('verwendet vor gueltig_ab die alte und ab gueltig_ab die neue Miete', () => {
+        const historie = [{ gueltig_ab: '2023-02-01', betrag: 1200 }];
+        // Jan: old rent 1000 paid. Feb and Mar: new rent 1200, nothing paid.
+        const finances = [rentPaid('2023-01-03', 1000)];
+
+        const result = calculateMissedPayments(tenant, finances, true, historie);
+
+        expect(result.rentMonths).toBe(2);
+        expect(result.totalAmount).toBe(2400);
+        expect(result.details).toEqual([
+            { date: '2023-02-01', type: 'rent', amount: 1200 },
+            { date: '2023-03-01', type: 'rent', amount: 1200 },
+        ]);
+    });
+
+    it('verwendet fuer Monate vor dem Beginn der Historie die Wohnungsmiete', () => {
+        // History starts in March, after move-in. Jan and Feb keep Wohnungen.miete (1000).
+        const historie = [{ gueltig_ab: '2023-03-01', betrag: 1500 }];
+        const finances = [rentPaid('2023-01-03', 1000), rentPaid('2023-02-01', 1000)];
+
+        const result = calculateMissedPayments(tenant, finances, true, historie);
+
+        expect(result.rentMonths).toBe(1);
+        expect(result.totalAmount).toBe(1500);
+        expect(result.details).toEqual([{ date: '2023-03-01', type: 'rent', amount: 1500 }]);
+    });
+
+    it('rechnet den Einzugsmonat anteilig mit der Miete dieses Monats', () => {
+        // Move-in 15 Jan: 17 of 31 days. History sets 1200 from 1 Jan, so the prorated rent is 1200 * 17 / 31.
+        const einzug = { ...tenant, einzug: '2023-01-15' };
+        const historie = [{ gueltig_ab: '2023-01-01', betrag: 1200 }];
+
+        const result = calculateMissedPayments(einzug, [], true, historie);
+
+        expect(result.details?.[0]).toEqual({ date: '2023-01-15', type: 'rent', amount: 658.06 });
+    });
+
+    it('nimmt im Einzugsmonat die Miete des Einzugstags (Historie beginnt mit dem Einzug, nicht am Monatsersten)', () => {
+        // Move-in 15 Jan, first history entry on the same day (as the backfill creates it): 1200 * 17 / 31, not the apartment rent.
+        const einzug = { ...tenant, einzug: '2023-01-15' };
+        const historie = [{ gueltig_ab: '2023-01-15', betrag: 1200 }];
+
+        const result = calculateMissedPayments(einzug, [], true, historie);
+
+        expect(result.details?.[0]).toEqual({ date: '2023-01-15', type: 'rent', amount: 658.06 });
+        expect(result.details?.[1]).toEqual(expect.objectContaining({ type: 'rent', amount: 1200 }));
+    });
+});
