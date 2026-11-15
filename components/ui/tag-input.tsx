@@ -9,7 +9,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -169,16 +169,14 @@ export function TagInput({
                 sideOffset={8}
             >
                 <div className="p-4 border-b bg-muted/30">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Tag suchen..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9 h-10 bg-background/50 border-muted-foreground/20 focus-visible:ring-primary/30 rounded-full"
-                            autoFocus
-                        />
-                    </div>
+                    <SearchInput
+                        placeholder="Tag suchen..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onClear={() => setSearchQuery("")}
+                        className="h-10 bg-background/50 border-muted-foreground/20 focus-visible:ring-primary/30 rounded-full"
+                        autoFocus
+                    />
                 </div>
 
                 <div
