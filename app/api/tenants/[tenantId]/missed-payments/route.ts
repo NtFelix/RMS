@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations";
+import { ladeMietHistorien, ladeMietverhaeltnisIds } from "@/lib/mietverhaeltnis-mieten-laden";
 import { logger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
@@ -55,6 +56,12 @@ export async function GET(
             return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
         }
 
+        // Rent history of the tenant's tenancy (empty if the tenant has none; then Wohnungen.miete applies)
+        const mietverhaeltnisId = (await ladeMietverhaeltnisIds(supabase, [tenantId])).get(tenantId);
+        const mietHistorie = mietverhaeltnisId
+            ? (await ladeMietHistorien(supabase, [mietverhaeltnisId])).get(mietverhaeltnisId) ?? []
+            : [];
+
         // Fetch finances for this tenant's apartment
         // We fetch all finances since move-in to be safe
         // We fetch all finances since the start of the move-in month to be safe
@@ -79,7 +86,7 @@ export async function GET(
             return NextResponse.json({ error: "Failed to fetch finances." }, { status: 500, headers: NO_CACHE_HEADERS });
         }
 
-        const missedPayments = calculateMissedPayments(tenant, finances || [], true);
+        const missedPayments = calculateMissedPayments(tenant, finances || [], true, mietHistorie);
 
         return NextResponse.json({
             missedPayments,

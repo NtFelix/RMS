@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server"
 import { logger } from "@/utils/logger"
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations"
+import { ladeMietHistorien, ladeMietverhaeltnisIds } from "@/lib/mietverhaeltnis-mieten-laden"
 import { PAYMENT_KEYWORDS } from "@/utils/constants"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 import { getCurrentMonthRange } from "@/utils/date-calculations"
@@ -199,6 +200,16 @@ export async function GET(request: Request) {
       financesData = finances || []
     }
 
+    // Rent history per tenant: one lookup for all tenancy IDs (not per tenant), fail-soft (empty on errors)
+    const mietverhaeltnisIdByMieterId = await ladeMietverhaeltnisIds(
+      supabase,
+      tenantsData.map((tenant) => tenant.id)
+    )
+    const mietHistorienByMietverhaeltnisId = await ladeMietHistorien(
+      supabase,
+      Array.from(new Set(mietverhaeltnisIdByMieterId.values()))
+    )
+
     // Process tenants to add missed payments calculation
     // This logic is moved from the client to server to improve performance
     const processingStartTime = Date.now()
@@ -221,7 +232,10 @@ export async function GET(request: Request) {
       const tenantFinances = tenantId ? (financesByWohnungId.get(tenantId) || []) : [];
 
       // Pass the specific tenant finances to the calculation function
-      const missedPayments = calculateMissedPayments(tenant, tenantFinances)
+      const mietverhaeltnisId = mietverhaeltnisIdByMieterId.get(tenant.id)
+      const mietHistorie = mietverhaeltnisId ? mietHistorienByMietverhaeltnisId.get(mietverhaeltnisId) : undefined
+
+      const missedPayments = calculateMissedPayments(tenant, tenantFinances, false, mietHistorie)
 
       // Calculate current month payments
       const currentMonthFinances = tenantFinances.filter((f: Finance) =>

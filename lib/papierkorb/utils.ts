@@ -49,6 +49,7 @@ const TABLE_REVALIDATION_PATHS: Record<string, readonly RevalidationTarget[]> = 
   Wohnungen: ['/wohnungen', '/mieter'],
   Mieter: ['/mieter', '/wohnungen'],
   Kautionen: ['/mieter'],
+  Mieter_Mietverhaeltnisse: ['/mieter', '/finanzen'],
   Finanzen: ['/finanzen'],
   Aufgaben: ['/todos'],
   Zaehler: ['/wohnungen', '/betriebskosten'],

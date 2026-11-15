@@ -12,7 +12,7 @@ jest.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: jest.fn(),
 }));
 
-type Result = { data: unknown; error: { message: string } | null };
+type Result = { data: unknown; error: { message: string; code?: string } | null };
 
 function createBuilder(result: Result) {
   const builder: Record<string, unknown> = {};
@@ -73,6 +73,18 @@ describe('PATCH /api/mieter/bulk-update', () => {
 
     expect(res.status).toBe(400);
     expect(from).not.toHaveBeenCalled();
+  });
+
+  it('übersetzt den Wohnungswechsel-Fehler (23503, fk_mieter_mietverhaeltnis) in eine verständliche Meldung', async () => {
+    mockClient({
+      data: null,
+      error: { message: 'update violates foreign key constraint "fk_mieter_mietverhaeltnis"', code: '23503' },
+    });
+
+    const res = await PATCH(jsonRequest({ ids: ['m1'], updates: { wohnung_id: 'w2' } }));
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: 'Die Wohnung kann nicht geändert werden, weil der Mieter zu einem Mietverhältnis in der bisherigen Wohnung gehört.' });
   });
 
   it('lehnt fehlende Updates ab (400) statt mit einem Serverfehler zu antworten', async () => {

@@ -75,6 +75,8 @@ const TABLE_NAME_MAP: Record<string, string> = {
   Kautionen_Raten: "Kautionsraten",
   Kautionen_Zinsstaffel: "Kautions-Zinsstaffel",
   Kautionen_Bewegungen: "Kautionsbuchungen",
+  Mieter_Mietverhaeltnisse: "Mietverhältnisse",
+  Mieter_Mietverhaeltnisse_Mieten: "Miethistorie",
 };
 
 const FRIENDLY_COLUMN_MAP: Record<string, string> = {
@@ -153,6 +155,17 @@ const FRIENDLY_COLUMN_MAP: Record<string, string> = {
   urkundennummer: "Urkundennummer",
   einbehalt_grund: "Einbehalt (Grund)",
   einbehalt_seit: "Einbehalt seit",
+  // Mietverhältnis und Miethistorie (GH-17)
+  vertragsbeginn: "Vertragsbeginn",
+  vertragsende: "Vertragsende",
+  befristet_bis: "Befristet bis",
+  kuendigung_eingang_am: "Kündigung eingegangen am",
+  kuendigung_zum: "Kündigung zum",
+  kuendigung_durch: "Kündigung durch",
+  abrechnungsmodus: "Abrechnungsmodus",
+  vertrag_dokument_id: "Vertragsdokument",
+  mietverhaeltnis_id: "Mietverhältnis",
+  aenderungsart: "Änderungsart",
 };
 
 
