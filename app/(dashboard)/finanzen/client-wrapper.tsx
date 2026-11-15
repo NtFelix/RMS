@@ -1,5 +1,6 @@
 "use client";
 
+import { mietHistorieQuery } from "@/lib/mietverhaeltnis-historie-query";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { motion } from "framer-motion";
@@ -188,7 +189,7 @@ export default function FinanzenClientWrapper({
     const fetchTenantPayments = async () => {
       try {
         setIsTenantPaymentsLoading(true);
-        const response = await fetch("/api/tenants-data");
+        const response = await fetch(`/api/tenants-data${mietHistorieQuery()}`);
         if (response.status === 403) {
           const body = await response.json().catch(() => null);
           if (body?.code === API_PERMISSION_DENIED_CODE) {

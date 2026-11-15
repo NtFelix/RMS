@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 import { logger } from "@/utils/logger"
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations"
 import { ladeMietHistorien, ladeMietverhaeltnisIds } from "@/lib/mietverhaeltnis-mieten-laden"
+import { nutztMietHistorie } from "@/lib/mietverhaeltnis-historie-param"
 import { PAYMENT_KEYWORDS } from "@/utils/constants"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 import { getCurrentMonthRange } from "@/utils/date-calculations"
@@ -200,11 +201,14 @@ export async function GET(request: Request) {
       financesData = finances || []
     }
 
-    // Rent history per tenant: one lookup for all tenancy IDs (not per tenant), fail-soft (empty on errors)
-    const mietverhaeltnisIdByMieterId = await ladeMietverhaeltnisIds(
-      supabase,
-      tenantsData.map((tenant) => tenant.id)
-    )
+    // Rent history per tenant: one lookup for all tenancy IDs (not per tenant), fail-soft (empty on errors).
+    // Only when the client asks for it (feature flag on); otherwise the apartment rent applies as before.
+    const mietverhaeltnisIdByMieterId = nutztMietHistorie(request)
+      ? await ladeMietverhaeltnisIds(
+          supabase,
+          tenantsData.map((tenant) => tenant.id)
+        )
+      : new Map<string, string>()
     const mietHistorienByMietverhaeltnisId = await ladeMietHistorien(
       supabase,
       Array.from(new Set(mietverhaeltnisIdByMieterId.values()))
