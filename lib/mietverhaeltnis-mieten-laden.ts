@@ -8,8 +8,8 @@ import type { MietEintragKurz } from "@/types/Mietverhaeltnis"
  * so the payment overview keeps working with Wohnungen.miete. Error logs contain no IDs and no amounts.
  */
 
-/** Maximum number of IDs per `.in(...)` query. */
-const ID_BLOCK_GROESSE = 200
+/** Maximum number of IDs per `.in(...)` query (keeps the request URL well below proxy limits). */
+const ID_BLOCK_GROESSE = 100
 
 interface MietHistorieZeile {
   mietverhaeltnis_id?: unknown

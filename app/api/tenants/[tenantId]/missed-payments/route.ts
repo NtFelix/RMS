@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations";
 import { ladeMietHistorien, ladeMietverhaeltnisIds } from "@/lib/mietverhaeltnis-mieten-laden";
+import { nutztMietHistorie } from "@/lib/mietverhaeltnis-historie-param";
 import { logger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
@@ -56,8 +57,11 @@ export async function GET(
             return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
         }
 
-        // Rent history of the tenant's tenancy (empty if the tenant has none; then Wohnungen.miete applies)
-        const mietverhaeltnisId = (await ladeMietverhaeltnisIds(supabase, [tenantId])).get(tenantId);
+        // Rent history of the tenant's tenancy (empty if the tenant has none; then Wohnungen.miete applies).
+        // Only when the client asks for it (feature flag on); otherwise the apartment rent applies as before.
+        const mietverhaeltnisId = nutztMietHistorie(request)
+            ? (await ladeMietverhaeltnisIds(supabase, [tenantId])).get(tenantId)
+            : undefined;
         const mietHistorie = mietverhaeltnisId
             ? (await ladeMietHistorien(supabase, [mietverhaeltnisId])).get(mietverhaeltnisId) ?? []
             : [];

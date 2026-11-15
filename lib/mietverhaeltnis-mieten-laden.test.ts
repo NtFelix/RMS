@@ -106,17 +106,17 @@ describe('ladeMietHistorien', () => {
     expect(result.size).toBe(0);
   });
 
-  it('dedupliziert IDs und fragt in Blöcken von höchstens 200 ab', async () => {
+  it('dedupliziert IDs und fragt in Blöcken von höchstens 100 ab', async () => {
     const { supabase, calls } = setup(() => ({ data: [], error: null }));
     const eingabe = [...ids(450), 'mv-0', '']; // duplicate and empty entry
 
     await ladeMietHistorien(supabase, eingabe);
 
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(5);
     const abgefragt = calls.flatMap((c) => c.in?.[1] ?? []);
     expect(abgefragt).toHaveLength(450);
     expect(new Set(abgefragt).size).toBe(450);
-    expect(calls.every((c) => (c.in?.[1].length ?? 0) <= 200)).toBe(true);
+    expect(calls.every((c) => (c.in?.[1].length ?? 0) <= 100)).toBe(true);
   });
 
   it('liefert bei einem Fehler eine leere Map und meldet nur den Code ohne Daten', async () => {
@@ -195,13 +195,13 @@ describe('ladeMietverhaeltnisIds', () => {
     expect(result.size).toBe(0);
   });
 
-  it('fragt in Blöcken von höchstens 200 ab', async () => {
+  it('fragt in Blöcken von höchstens 100 ab', async () => {
     const { supabase, calls } = setup(() => ({ data: [], error: null }));
 
     await ladeMietverhaeltnisIds(supabase, ids(401, 'mieter'));
 
-    expect(calls).toHaveLength(3);
-    expect(calls.every((c) => (c.in?.[1].length ?? 0) <= 200)).toBe(true);
+    expect(calls).toHaveLength(5);
+    expect(calls.every((c) => (c.in?.[1].length ?? 0) <= 100)).toBe(true);
   });
 
   it('liefert bei einem Fehler eine leere Map ohne Daten in der Meldung', async () => {

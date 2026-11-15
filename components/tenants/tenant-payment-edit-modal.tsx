@@ -1,5 +1,6 @@
 "use client"
 
+import { mietHistorieQuery } from "@/lib/mietverhaeltnis-historie-query"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,7 +42,7 @@ export default function TenantPaymentEditModal() {
     if (!tenantPaymentEditInitialData) return
 
     try {
-      const response = await fetch(`/api/tenants/${tenantPaymentEditInitialData.id}/missed-payments`)
+      const response = await fetch(`/api/tenants/${tenantPaymentEditInitialData.id}/missed-payments${mietHistorieQuery()}`)
       const data = await response.json()
 
       if (!response.ok) {
