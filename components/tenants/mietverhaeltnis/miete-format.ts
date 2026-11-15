@@ -53,11 +53,6 @@ export function parseBetragEingabe(text: string): number | null {
   return Number.isFinite(betrag) && betrag <= 99999999.99 ? betrag : null;
 }
 
-/** Amount as German input text (`800,00`). */
-export function betragAlsEingabe(betrag: number): string {
-  return betrag.toFixed(2).replace(".", ",");
-}
-
 /** `YYYY-MM-DD` as a real calendar day within the database limits. */
 export function istGueltigesDatum(iso: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
@@ -65,13 +60,6 @@ export function istGueltigesDatum(iso: string): boolean {
   const datum = new Date(Date.UTC(jahr, monat - 1, tag));
   const echterTag = datum.getUTCFullYear() === jahr && datum.getUTCMonth() === monat - 1 && datum.getUTCDate() === tag;
   return echterTag && iso >= MIN_DATUM && iso <= MAX_DATUM;
-}
-
-/** Optional date field: empty is `null`, a valid date is kept, anything else is `undefined` (invalid). */
-export function datumEingabe(text: string): string | null | undefined {
-  const wert = text.trim();
-  if (wert === "") return null;
-  return istGueltigesDatum(wert) ? wert : undefined;
 }
 
 /** Trimmed text, or `null` if empty. */

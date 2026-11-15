@@ -1,96 +1,86 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { format } from "date-fns";
+import { Calendar, CalendarCheck, Euro, Loader2, MessageSquareText, Tag } from "lucide-react";
 import { mieterhoehungErfassenAction } from "@/app/mietverhaeltnis-actions";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { toast } from "@/hooks/use-toast";
-import { FormFeld, fehlerAttribute } from "@/components/tenants/mietverhaeltnis/form-feld";
+import { PropertyHeader } from "@/components/tenants/property-header";
 import {
-  datumEingabe,
   FEHLER_BETRAG,
   FEHLER_DATUM,
   GRUND_MAX_LAENGE,
+  istGueltigesDatum,
   parseBetragEingabe,
   textOderNull,
   zeichenZahl,
 } from "@/components/tenants/mietverhaeltnis/miete-format";
-
-/** Suggestions for the type of change. Only suggestions: free text stays allowed. */
-export const AENDERUNGSART_VORSCHLAEGE = ["Vereinbarung", "Staffelmiete", "Indexmiete", "Vergleichsmiete", "Modernisierung", "Sonstiges"];
-const AENDERUNGSART_MAX_LAENGE = 50;
+import { DATUM, FEHLERTEXT, FELD, ZEILE } from "@/components/tenants/mietverhaeltnis/stile";
 
 interface MieterhoehungFormProps {
   mieterId: string;
-  /** Called after a successful save so the section reloads. */
+  /** Called after the change was saved so the section reloads. */
   onErfasst: () => void;
+  /** Closes the form without saving. */
+  onAbbrechen: () => void;
 }
 
-interface MieterhoehungFehler {
+/** Suggestions only: the type stays free text, the list of types is not legally settled. */
+const ART_VORSCHLAEGE = ["Vereinbarung", "Staffelmiete", "Indexmiete", "Vergleichsmiete", "Modernisierung", "Sonstiges"];
+const ART_MAX_LAENGE = 50;
+
+interface Fehler {
   betrag?: string;
   wirksamAb?: string;
-  aenderungsart?: string;
-  erklaertAm?: string;
+  art?: string;
   grund?: string;
 }
 
+const alsIso = (date: Date | undefined) => (date ? format(date, "yyyy-MM-dd") : "");
+
 /**
- * Records a rent change as one process (new rent, valid from, type of change, optional declaration date and reason).
- * The app checks no deadlines, limits or legal requirements.
+ * Records a rent change as one entry of the rent history: new rent, effective date, type, date of the declaration
+ * and reason. Shown inside the rent history card. No deadlines, limits or legal hints are checked.
  */
-export function MieterhoehungForm({ mieterId, onErfasst }: MieterhoehungFormProps) {
+export function MieterhoehungForm({ mieterId, onErfasst, onAbbrechen }: MieterhoehungFormProps) {
   const id = useId();
-  const feldId = (name: string) => `${id}-${name}`;
-  const artListId = feldId("art-vorschlaege");
-  const [betragText, setBetragText] = useState("");
+  const [betrag, setBetrag] = useState("");
   const [wirksamAb, setWirksamAb] = useState("");
-  const [aenderungsart, setAenderungsart] = useState("");
+  const [art, setArt] = useState("");
   const [erklaertAm, setErklaertAm] = useState("");
   const [grund, setGrund] = useState("");
-  const [fehler, setFehler] = useState<MieterhoehungFehler>({});
+  const [fehler, setFehler] = useState<Fehler>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleErfassen = async () => {
+  const handleSpeichern = async () => {
     if (isSaving) return;
-    const betrag = parseBetragEingabe(betragText);
-    const datum = wirksamAb.trim();
-    const art = aenderungsart.trim();
-    const erklaert = datumEingabe(erklaertAm);
-    const grundText = grund.trim();
-
-    const neuerFehler: MieterhoehungFehler = {};
-    if (betrag === null) neuerFehler.betrag = FEHLER_BETRAG;
-    if (datum === "" || datumEingabe(datum) === undefined) neuerFehler.wirksamAb = FEHLER_DATUM;
-    if (art === "") {
-      neuerFehler.aenderungsart = "Bitte geben Sie die Art der Mietänderung an.";
-    } else if (zeichenZahl(art) > AENDERUNGSART_MAX_LAENGE) {
-      neuerFehler.aenderungsart = `Die Art darf höchstens ${AENDERUNGSART_MAX_LAENGE} Zeichen lang sein.`;
-    }
-    if (erklaert === undefined) neuerFehler.erklaertAm = FEHLER_DATUM;
-    if (zeichenZahl(grundText) > GRUND_MAX_LAENGE) {
-      neuerFehler.grund = `Der Grund darf höchstens ${GRUND_MAX_LAENGE} Zeichen lang sein.`;
-    }
+    const neuerFehler: Fehler = {};
+    const betragZahl = parseBetragEingabe(betrag);
+    if (betragZahl === null) neuerFehler.betrag = FEHLER_BETRAG;
+    if (!istGueltigesDatum(wirksamAb)) neuerFehler.wirksamAb = FEHLER_DATUM;
+    const artText = art.trim();
+    if (artText === "") neuerFehler.art = "Bitte geben Sie die Art der Mietänderung an.";
+    else if (zeichenZahl(artText) > ART_MAX_LAENGE) neuerFehler.art = `Die Art darf höchstens ${ART_MAX_LAENGE} Zeichen lang sein.`;
+    if (zeichenZahl(grund.trim()) > GRUND_MAX_LAENGE) neuerFehler.grund = `Der Grund darf höchstens ${GRUND_MAX_LAENGE} Zeichen lang sein.`;
     setFehler(neuerFehler);
-    if (Object.keys(neuerFehler).length > 0 || betrag === null || erklaert === undefined) return;
+    if (Object.keys(neuerFehler).length > 0 || betragZahl === null) return;
 
     setIsSaving(true);
     try {
       const result = await mieterhoehungErfassenAction({
         mieterId,
-        wirksamAb: datum,
-        betrag,
-        aenderungsart: art,
-        erklaertAm: erklaert,
-        grund: textOderNull(grundText),
+        wirksamAb,
+        betrag: betragZahl,
+        aenderungsart: artText,
+        erklaertAm: erklaertAm || null,
+        grund: textOderNull(grund),
       });
       if (result.success) {
-        toast({ title: "Erfolg", description: "Die Mietänderung wurde erfasst.", variant: "success" });
-        setBetragText("");
-        setWirksamAb("");
-        setAenderungsart("");
-        setErklaertAm("");
-        setGrund("");
+        toast({ title: "Erfolg", description: "Die Mietänderung wurde gespeichert.", variant: "success" });
         onErfasst();
       } else {
         toast({ title: "Fehler", description: result.error.message, variant: "destructive" });
@@ -102,75 +92,100 @@ export function MieterhoehungForm({ mieterId, onErfasst }: MieterhoehungFormProp
     }
   };
 
+  const fehlerAttribute = (feld: keyof Fehler) =>
+    fehler[feld] ? { "aria-invalid": true as const, "aria-describedby": `${id}-${feld}-fehler` } : {};
+  const fehlerText = (feld: keyof Fehler) =>
+    fehler[feld] ? <p id={`${id}-${feld}-fehler`} className={FEHLERTEXT}>{fehler[feld]}</p> : null;
+
   return (
-    <div className="space-y-3">
-      <h4 className="text-sm font-medium">Mietänderung erfassen</h4>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <FormFeld id={feldId("betrag")} label="Neue Miete (EUR)" fehler={fehler.betrag}>
-          <Input
-            id={feldId("betrag")}
-            type="text"
-            inputMode="decimal"
-            placeholder="z. B. 920,00"
-            value={betragText}
-            onChange={(event) => setBetragText(event.target.value)}
-            disabled={isSaving}
-            {...fehlerAttribute(feldId("betrag"), fehler.betrag)}
-          />
-        </FormFeld>
-        <FormFeld id={feldId("wirksam")} label="Wirksam ab" fehler={fehler.wirksamAb}>
-          <Input
-            id={feldId("wirksam")}
-            type="date"
-            value={wirksamAb}
-            onChange={(event) => setWirksamAb(event.target.value)}
-            disabled={isSaving}
-            {...fehlerAttribute(feldId("wirksam"), fehler.wirksamAb)}
-          />
-        </FormFeld>
-        <FormFeld id={feldId("art")} label="Art (Pflicht)" fehler={fehler.aenderungsart}>
-          <Input
-            id={feldId("art")}
-            type="text"
-            list={artListId}
-            autoComplete="off"
-            value={aenderungsart}
-            onChange={(event) => setAenderungsart(event.target.value)}
-            disabled={isSaving}
-            aria-required="true"
-            {...fehlerAttribute(feldId("art"), fehler.aenderungsart)}
-          />
-          <datalist id={artListId}>
-            {AENDERUNGSART_VORSCHLAEGE.map((vorschlag) => (
-              <option key={vorschlag} value={vorschlag} />
-            ))}
-          </datalist>
-        </FormFeld>
-        <FormFeld id={feldId("erklaert")} label="Datum der Erklärung (optional)" fehler={fehler.erklaertAm}>
-          <Input
-            id={feldId("erklaert")}
-            type="date"
+    <div className="space-y-3 animate-in fade-in slide-in-from-top-1">
+      <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
+        <div className={ZEILE}>
+          <PropertyHeader icon={Euro} label="Neue Miete" htmlFor={`${id}-betrag`} infoText="Neue monatliche Miete in Euro." />
+          <div>
+            <NumberInput
+              id={`${id}-betrag`}
+              step="0.01"
+              placeholder="Betrag (€)"
+              value={betrag}
+              onChange={(event) => setBetrag(event.target.value)}
+              disabled={isSaving}
+              className={FELD}
+              {...fehlerAttribute("betrag")}
+            />
+            {fehlerText("betrag")}
+          </div>
+        </div>
+        <div className={ZEILE}>
+          <PropertyHeader icon={Calendar} label="Wirksam ab" htmlFor={`${id}-wirksamAb`} infoText="Datum, ab dem die neue Miete gilt. Ein Eintrag mit demselben Datum wird ersetzt." />
+          <div>
+            <DatePicker
+              id={`${id}-wirksamAb`}
+              value={wirksamAb}
+              onChange={(date) => setWirksamAb(alsIso(date))}
+              placeholder="TT.MM.JJJJ"
+              disabled={isSaving}
+              className={DATUM}
+              {...fehlerAttribute("wirksamAb")}
+            />
+            {fehlerText("wirksamAb")}
+          </div>
+        </div>
+        <div className={ZEILE}>
+          <PropertyHeader icon={Tag} label="Art" htmlFor={`${id}-art`} infoText="Art der Mietänderung. Die Vorschläge sind nur eine Eingabehilfe, Sie können einen eigenen Text eingeben." />
+          <div>
+            <Input
+              id={`${id}-art`}
+              list={`${id}-art-liste`}
+              value={art}
+              onChange={(event) => setArt(event.target.value)}
+              placeholder="z. B. Vereinbarung"
+              autoComplete="off"
+              disabled={isSaving}
+              className={FELD}
+              {...fehlerAttribute("art")}
+            />
+            <datalist id={`${id}-art-liste`}>
+              {ART_VORSCHLAEGE.map((vorschlag) => (
+                <option key={vorschlag} value={vorschlag} />
+              ))}
+            </datalist>
+            {fehlerText("art")}
+          </div>
+        </div>
+        <div className={ZEILE}>
+          <PropertyHeader icon={CalendarCheck} label="Erklärt am" htmlFor={`${id}-erklaertAm`} infoText="Datum der Erklärung der Mietänderung (optional). Die App berechnet keine Fristen." />
+          <DatePicker
+            id={`${id}-erklaertAm`}
             value={erklaertAm}
-            onChange={(event) => setErklaertAm(event.target.value)}
+            onChange={(date) => setErklaertAm(alsIso(date))}
+            placeholder="TT.MM.JJJJ"
             disabled={isSaving}
-            {...fehlerAttribute(feldId("erklaert"), fehler.erklaertAm)}
+            className={DATUM}
           />
-        </FormFeld>
+        </div>
+        <div className={ZEILE}>
+          <PropertyHeader icon={MessageSquareText} label="Grund" htmlFor={`${id}-grund`} infoText="Kurze Begründung oder Bemerkung (optional)." />
+          <div>
+            <Input
+              id={`${id}-grund`}
+              value={grund}
+              onChange={(event) => setGrund(event.target.value)}
+              placeholder="Optional"
+              disabled={isSaving}
+              className={FELD}
+              {...fehlerAttribute("grund")}
+            />
+            {fehlerText("grund")}
+          </div>
+        </div>
       </div>
-      <FormFeld id={feldId("grund")} label="Grund (optional)" fehler={fehler.grund}>
-        <Input
-          id={feldId("grund")}
-          type="text"
-          maxLength={GRUND_MAX_LAENGE}
-          value={grund}
-          onChange={(event) => setGrund(event.target.value)}
-          disabled={isSaving}
-          {...fehlerAttribute(feldId("grund"), fehler.grund)}
-        />
-      </FormFeld>
-      <div>
-        <Button type="button" onClick={() => void handleErfassen()} disabled={isSaving}>
-          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" disabled={isSaving} onClick={onAbbrechen}>
+          Abbrechen
+        </Button>
+        <Button type="button" variant="outline" size="sm" disabled={isSaving} onClick={() => void handleSpeichern()}>
+          {isSaving && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />}
           Mietänderung speichern
         </Button>
       </div>

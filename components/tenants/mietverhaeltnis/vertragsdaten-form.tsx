@@ -1,21 +1,18 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { format } from "date-fns";
+import { CalendarCheck, CalendarClock, CalendarX, Loader2, StickyNote, UserRound } from "lucide-react";
 import { vertragsdatenSpeichernAction } from "@/app/mietverhaeltnis-actions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import type { Mietverhaeltnis } from "@/types/Mietverhaeltnis";
-import { FormFeld, fehlerAttribute } from "@/components/tenants/mietverhaeltnis/form-feld";
-import {
-  datumEingabe,
-  FEHLER_DATUM,
-  NOTIZ_MAX_LAENGE,
-  textOderNull,
-  zeichenZahl,
-} from "@/components/tenants/mietverhaeltnis/miete-format";
+import { PropertyHeader } from "@/components/tenants/property-header";
+import { NOTIZ_MAX_LAENGE, textOderNull, zeichenZahl } from "@/components/tenants/mietverhaeltnis/miete-format";
+import { DATUM, FEHLERTEXT, FELD, ZEILE, ZEILE_OBEN } from "@/components/tenants/mietverhaeltnis/stile";
 
 interface VertragsdatenFormProps {
   mieterId: string;
@@ -26,63 +23,54 @@ interface VertragsdatenFormProps {
 
 type Durch = "" | "mieter" | "vermieter";
 
-interface VertragsdatenFehler {
-  vertragsende?: string;
-  befristetBis?: string;
-  kuendigungEingangAm?: string;
-  kuendigungZum?: string;
-  notiz?: string;
-}
+const DURCH_OPTIONEN: { wert: Durch; label: string }[] = [
+  { wert: "", label: "Keine Angabe" },
+  { wert: "mieter", label: "Mieter" },
+  { wert: "vermieter", label: "Vermieter" },
+];
 
-const selectClassName =
-  "flex h-10 w-full rounded-xl border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+const alsIso = (date: Date | undefined) => (date ? format(date, "yyyy-MM-dd") : "");
 
 /**
- * Contract data of the tenancy: end, fixed term, termination and note. Saved with its own button. The app
- * calculates no deadlines and gives no legal advice; the form only stores what the user enters.
+ * Contract data of the tenancy: end, fixed term, termination and note, as rows like the rest of the tenant dialog.
+ * Saved with its own button, which appears once something changed. The app calculates no deadlines and gives no
+ * legal advice; the form only stores what the user enters.
  */
 export function VertragsdatenForm({ mieterId, mietverhaeltnis, onGespeichert }: VertragsdatenFormProps) {
   const id = useId();
-  const feldId = (name: string) => `${id}-${name}`;
-  const [vertragsende, setVertragsende] = useState(mietverhaeltnis.vertragsende ?? "");
-  const [befristetBis, setBefristetBis] = useState(mietverhaeltnis.befristet_bis ?? "");
-  const [kuendigungEingangAm, setKuendigungEingangAm] = useState(mietverhaeltnis.kuendigung_eingang_am ?? "");
-  const [kuendigungZum, setKuendigungZum] = useState(mietverhaeltnis.kuendigung_zum ?? "");
-  const [kuendigungDurch, setKuendigungDurch] = useState<Durch>(mietverhaeltnis.kuendigung_durch ?? "");
-  const [notiz, setNotiz] = useState(mietverhaeltnis.notiz ?? "");
-  const [fehler, setFehler] = useState<VertragsdatenFehler>({});
+  const start = {
+    vertragsende: mietverhaeltnis.vertragsende ?? "",
+    befristetBis: mietverhaeltnis.befristet_bis ?? "",
+    kuendigungEingangAm: mietverhaeltnis.kuendigung_eingang_am ?? "",
+    kuendigungZum: mietverhaeltnis.kuendigung_zum ?? "",
+    kuendigungDurch: (mietverhaeltnis.kuendigung_durch ?? "") as Durch,
+    notiz: mietverhaeltnis.notiz ?? "",
+  };
+  const [werte, setWerte] = useState(start);
+  const [notizFehler, setNotizFehler] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const setze = <K extends keyof typeof start>(feld: K, wert: (typeof start)[K]) => setWerte((alt) => ({ ...alt, [feld]: wert }));
+  const geaendert = (Object.keys(start) as (keyof typeof start)[]).some((feld) => werte[feld] !== start[feld]);
 
   const handleSpeichern = async () => {
     if (isSaving) return;
-    const ende = datumEingabe(vertragsende);
-    const befristet = datumEingabe(befristetBis);
-    const eingang = datumEingabe(kuendigungEingangAm);
-    const zum = datumEingabe(kuendigungZum);
-
-    const neuerFehler: VertragsdatenFehler = {};
-    if (ende === undefined) neuerFehler.vertragsende = FEHLER_DATUM;
-    if (befristet === undefined) neuerFehler.befristetBis = FEHLER_DATUM;
-    if (eingang === undefined) neuerFehler.kuendigungEingangAm = FEHLER_DATUM;
-    if (zum === undefined) neuerFehler.kuendigungZum = FEHLER_DATUM;
-    if (zeichenZahl(notiz.trim()) > NOTIZ_MAX_LAENGE) {
-      neuerFehler.notiz = `Die Notiz darf höchstens ${NOTIZ_MAX_LAENGE} Zeichen lang sein.`;
-    }
-    setFehler(neuerFehler);
-    if (Object.keys(neuerFehler).length > 0 || ende === undefined || befristet === undefined || eingang === undefined || zum === undefined) {
+    if (zeichenZahl(werte.notiz.trim()) > NOTIZ_MAX_LAENGE) {
+      setNotizFehler(`Die Notiz darf höchstens ${NOTIZ_MAX_LAENGE} Zeichen lang sein.`);
       return;
     }
+    setNotizFehler(null);
 
     setIsSaving(true);
     try {
       const result = await vertragsdatenSpeichernAction({
         mieterId,
-        vertragsende: ende,
-        befristetBis: befristet,
-        kuendigungEingangAm: eingang,
-        kuendigungZum: zum,
-        kuendigungDurch: kuendigungDurch === "" ? null : kuendigungDurch,
-        notiz: textOderNull(notiz),
+        vertragsende: werte.vertragsende || null,
+        befristetBis: werte.befristetBis || null,
+        kuendigungEingangAm: werte.kuendigungEingangAm || null,
+        kuendigungZum: werte.kuendigungZum || null,
+        kuendigungDurch: werte.kuendigungDurch === "" ? null : werte.kuendigungDurch,
+        notiz: textOderNull(werte.notiz),
       });
       if (result.success) {
         toast({ title: "Erfolg", description: "Die Vertragsdaten wurden gespeichert.", variant: "success" });
@@ -97,90 +85,83 @@ export function VertragsdatenForm({ mieterId, mietverhaeltnis, onGespeichert }: 
     }
   };
 
+  const datumZeile = (
+    feld: "vertragsende" | "befristetBis" | "kuendigungEingangAm" | "kuendigungZum",
+    label: string,
+    icon: typeof CalendarX,
+    infoText: string
+  ) => (
+    <div className={ZEILE}>
+      <PropertyHeader icon={icon} label={label} htmlFor={`${id}-${feld}`} infoText={infoText} />
+      <DatePicker
+        id={`${id}-${feld}`}
+        value={werte[feld]}
+        onChange={(date) => setze(feld, alsIso(date))}
+        placeholder="TT.MM.JJJJ"
+        disabled={isSaving}
+        className={DATUM}
+      />
+    </div>
+  );
+
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium">Vertragsdaten</h4>
-        <p className="text-xs text-muted-foreground">Die App berechnet keine Fristen.</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <FormFeld id={feldId("vertragsende")} label="Vertragsende" fehler={fehler.vertragsende}>
-            <Input
-              id={feldId("vertragsende")}
-              type="date"
-              value={vertragsende}
-              onChange={(event) => setVertragsende(event.target.value)}
+    <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
+      {datumZeile("vertragsende", "Vertragsende", CalendarX, "Ende des Mietverhältnisses (optional). Leer lassen, solange das Mietverhältnis läuft.")}
+      {datumZeile("befristetBis", "Befristet bis", CalendarClock, "Ende einer vereinbarten Befristung (optional).")}
+      {datumZeile("kuendigungEingangAm", "Kündigung am", CalendarCheck, "Datum, an dem die Kündigung eingegangen ist (optional). Die App berechnet keine Fristen.")}
+      {datumZeile("kuendigungZum", "Wirksam zum", CalendarX, "Datum, zu dem die Kündigung wirksam wird (optional). Die App berechnet keine Fristen.")}
+
+      <div className={ZEILE}>
+        <PropertyHeader icon={UserRound} label="Gekündigt" htmlFor={`${id}-durch`} infoText="Wer gekündigt hat (optional)." />
+        <div id={`${id}-durch`} role="group" aria-label="Gekündigt durch" className="flex flex-wrap gap-1 -mx-2">
+          {DURCH_OPTIONEN.map((option) => (
+            <Button
+              key={option.wert || "keine"}
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-pressed={werte.kuendigungDurch === option.wert}
               disabled={isSaving}
-              {...fehlerAttribute(feldId("vertragsende"), fehler.vertragsende)}
-            />
-          </FormFeld>
-          <FormFeld id={feldId("befristet")} label="Befristet bis" fehler={fehler.befristetBis}>
-            <Input
-              id={feldId("befristet")}
-              type="date"
-              value={befristetBis}
-              onChange={(event) => setBefristetBis(event.target.value)}
-              disabled={isSaving}
-              {...fehlerAttribute(feldId("befristet"), fehler.befristetBis)}
-            />
-          </FormFeld>
+              onClick={() => setze("kuendigungDurch", option.wert)}
+              className={cn(
+                "h-7 rounded-lg px-2 text-sm font-normal text-muted-foreground hover:bg-muted/10 hover:text-foreground",
+                werte.kuendigungDurch === option.wert && "bg-muted/40 text-foreground font-medium"
+              )}
+            >
+              {option.label}
+            </Button>
+          ))}
         </div>
+      </div>
 
-        <fieldset className="space-y-3 rounded-md border border-border/60 p-3">
-          <legend className="px-1 text-sm font-medium">Kündigung</legend>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <FormFeld id={feldId("eingang")} label="Eingang am" fehler={fehler.kuendigungEingangAm}>
-              <Input
-                id={feldId("eingang")}
-                type="date"
-                value={kuendigungEingangAm}
-                onChange={(event) => setKuendigungEingangAm(event.target.value)}
-                disabled={isSaving}
-                {...fehlerAttribute(feldId("eingang"), fehler.kuendigungEingangAm)}
-              />
-            </FormFeld>
-            <FormFeld id={feldId("wirksam")} label="Wirksam zum" fehler={fehler.kuendigungZum}>
-              <Input
-                id={feldId("wirksam")}
-                type="date"
-                value={kuendigungZum}
-                onChange={(event) => setKuendigungZum(event.target.value)}
-                disabled={isSaving}
-                {...fehlerAttribute(feldId("wirksam"), fehler.kuendigungZum)}
-              />
-            </FormFeld>
-            <FormFeld id={feldId("durch")} label="Durch">
-              <select
-                id={feldId("durch")}
-                className={selectClassName}
-                value={kuendigungDurch}
-                onChange={(event) => setKuendigungDurch(event.target.value as Durch)}
-                disabled={isSaving}
-              >
-                <option value="">keine Angabe</option>
-                <option value="mieter">Mieter</option>
-                <option value="vermieter">Vermieter</option>
-              </select>
-            </FormFeld>
-          </div>
-        </fieldset>
-
-        <FormFeld id={feldId("notiz")} label="Notiz" fehler={fehler.notiz}>
+      <div className={ZEILE_OBEN}>
+        <PropertyHeader icon={StickyNote} label="Vertragsnotiz" htmlFor={`${id}-notiz`} infoText="Interne Notiz zum Mietvertrag, zum Beispiel zu Nachträgen (optional)." />
+        <div>
           <Textarea
-            id={feldId("notiz")}
-            maxLength={NOTIZ_MAX_LAENGE}
-            value={notiz}
-            onChange={(event) => setNotiz(event.target.value)}
+            id={`${id}-notiz`}
+            value={werte.notiz}
+            onChange={(event) => setze("notiz", event.target.value)}
+            placeholder="Notiz zum Vertrag..."
             disabled={isSaving}
-            {...fehlerAttribute(feldId("notiz"), fehler.notiz)}
+            aria-invalid={notizFehler ? true : undefined}
+            aria-describedby={notizFehler ? `${id}-notiz-fehler` : undefined}
+            className={cn(FELD, "resize-none min-h-[60px]")}
           />
-        </FormFeld>
+          {notizFehler && <p id={`${id}-notiz-fehler`} className={FEHLERTEXT}>{notizFehler}</p>}
+        </div>
       </div>
-      <div>
-        <Button type="button" onClick={() => void handleSpeichern()} disabled={isSaving}>
-          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
-          Vertragsdaten speichern
-        </Button>
-      </div>
+
+      {geaendert && (
+        <div className="flex justify-end gap-2 pt-1 animate-in fade-in slide-in-from-top-1">
+          <Button type="button" variant="ghost" size="sm" disabled={isSaving} onClick={() => { setWerte(start); setNotizFehler(null); }}>
+            Verwerfen
+          </Button>
+          <Button type="button" variant="outline" size="sm" disabled={isSaving} onClick={() => void handleSpeichern()}>
+            {isSaving && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />}
+            Vertragsdaten speichern
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

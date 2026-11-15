@@ -1,54 +1,47 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { format } from "date-fns";
+import { Calendar, Euro, Loader2 } from "lucide-react";
 import { mietverhaeltnisAnlegenAction } from "@/app/mietverhaeltnis-actions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
+import { NumberInput } from "@/components/ui/number-input";
 import { toast } from "@/hooks/use-toast";
-import { FormFeld, fehlerAttribute } from "@/components/tenants/mietverhaeltnis/form-feld";
-import { betragAlsEingabe, FEHLER_BETRAG, FEHLER_DATUM, istGueltigesDatum, parseBetragEingabe } from "@/components/tenants/mietverhaeltnis/miete-format";
+import { PropertyHeader } from "@/components/tenants/property-header";
+import { FEHLER_BETRAG, FEHLER_DATUM, istGueltigesDatum, parseBetragEingabe } from "@/components/tenants/mietverhaeltnis/miete-format";
+import { DATUM, FEHLERTEXT, FELD, KARTE, ZEILE } from "@/components/tenants/mietverhaeltnis/stile";
 
 interface MietverhaeltnisAnlegenFormProps {
   mieterId: string;
-  /** Move-in date of the tenant, pre-filled as contract start. */
+  /** Move-in date of the tenant, pre-fills the contract start. */
   mieterEinzug: string | null;
-  /** Apartment rent, pre-filled as first rent (optional). */
+  /** Rent of the apartment, pre-fills the first rent. */
   wohnungsmiete: number | null;
-  /** Called after a successful creation so the section reloads. */
+  /** Called after the tenancy was created so the section reloads. */
   onAngelegt: () => void;
 }
 
-interface AnlegenFehler {
-  vertragsbeginn?: string;
-  miete?: string;
-}
-
-/** Creates the tenancy of a tenant without one. Shown in the tenant dialog only for tenants, not applicants. */
+/** Creates the tenancy of a tenant: contract start and, optionally, the first rent. */
 export function MietverhaeltnisAnlegenForm({ mieterId, mieterEinzug, wohnungsmiete, onAngelegt }: MietverhaeltnisAnlegenFormProps) {
   const id = useId();
-  const beginnId = `${id}-beginn`;
-  const mieteId = `${id}-miete`;
   const [vertragsbeginn, setVertragsbeginn] = useState(mieterEinzug ?? "");
-  const [miete, setMiete] = useState(wohnungsmiete !== null ? betragAlsEingabe(wohnungsmiete) : "");
-  const [fehler, setFehler] = useState<AnlegenFehler>({});
+  const [miete, setMiete] = useState(wohnungsmiete !== null ? String(wohnungsmiete) : "");
+  const [fehler, setFehler] = useState<{ vertragsbeginn?: string; miete?: string }>({});
   const [isSaving, setIsSaving] = useState(false);
 
   const handleAnlegen = async () => {
     if (isSaving) return;
-    const beginn = vertragsbeginn.trim();
-    const betragText = miete.trim();
-    const betrag = betragText === "" ? null : parseBetragEingabe(betragText);
-
-    const neuerFehler: AnlegenFehler = {};
-    if (!istGueltigesDatum(beginn)) neuerFehler.vertragsbeginn = FEHLER_DATUM;
-    if (betragText !== "" && betrag === null) neuerFehler.miete = FEHLER_BETRAG;
+    const neuerFehler: { vertragsbeginn?: string; miete?: string } = {};
+    if (!istGueltigesDatum(vertragsbeginn)) neuerFehler.vertragsbeginn = FEHLER_DATUM;
+    const betrag = miete.trim() === "" ? null : parseBetragEingabe(miete);
+    if (miete.trim() !== "" && betrag === null) neuerFehler.miete = FEHLER_BETRAG;
     setFehler(neuerFehler);
-    if (neuerFehler.vertragsbeginn || neuerFehler.miete) return;
+    if (Object.keys(neuerFehler).length > 0) return;
 
     setIsSaving(true);
     try {
-      const result = await mietverhaeltnisAnlegenAction({ mieterId, vertragsbeginn: beginn, miete: betrag });
+      const result = await mietverhaeltnisAnlegenAction({ mieterId, vertragsbeginn, miete: betrag });
       if (result.success) {
         toast({ title: "Erfolg", description: "Das Mietverhältnis wurde angelegt.", variant: "success" });
         onAngelegt();
@@ -63,35 +56,52 @@ export function MietverhaeltnisAnlegenForm({ mieterId, mieterEinzug, wohnungsmie
   };
 
   return (
-    <div className="space-y-3">
-      <h4 className="text-sm font-medium">Mietverhältnis anlegen</h4>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <FormFeld id={beginnId} label="Vertragsbeginn" fehler={fehler.vertragsbeginn}>
-          <Input
-            id={beginnId}
-            type="date"
-            value={vertragsbeginn}
-            onChange={(event) => setVertragsbeginn(event.target.value)}
-            disabled={isSaving}
-            {...fehlerAttribute(beginnId, fehler.vertragsbeginn)}
-          />
-        </FormFeld>
-        <FormFeld id={mieteId} label="Monatliche Miete (EUR, optional)" fehler={fehler.miete}>
-          <Input
-            id={mieteId}
-            type="text"
-            inputMode="decimal"
-            placeholder="z. B. 850,00"
-            value={miete}
-            onChange={(event) => setMiete(event.target.value)}
-            disabled={isSaving}
-            {...fehlerAttribute(mieteId, fehler.miete)}
-          />
-        </FormFeld>
+    <div className={KARTE}>
+      <div className="p-3 sm:p-4 sm:grid sm:gap-4 space-y-2 sm:space-y-0">
+        <div className={ZEILE}>
+          <PropertyHeader icon={Calendar} label="Beginn" htmlFor={`${id}-beginn`} infoText="Beginn des Mietverhältnisses. Vorbelegt mit dem Einzug des Mieters." />
+          <div>
+            <DatePicker
+              id={`${id}-beginn`}
+              value={vertragsbeginn}
+              onChange={(date) => setVertragsbeginn(date ? format(date, "yyyy-MM-dd") : "")}
+              placeholder="TT.MM.JJJJ"
+              disabled={isSaving}
+              className={DATUM}
+              aria-invalid={fehler.vertragsbeginn ? true : undefined}
+              aria-describedby={fehler.vertragsbeginn ? `${id}-beginn-fehler` : undefined}
+            />
+            {fehler.vertragsbeginn && <p id={`${id}-beginn-fehler`} className={FEHLERTEXT}>{fehler.vertragsbeginn}</p>}
+          </div>
+        </div>
+        <div className={ZEILE}>
+          <PropertyHeader icon={Euro} label="Miete" htmlFor={`${id}-miete`} infoText="Monatliche Miete ab Vertragsbeginn. Vorbelegt mit der Miete der Wohnung. Leer lassen, wenn Sie die Miete später erfassen." />
+          <div>
+            <NumberInput
+              id={`${id}-miete`}
+              step="0.01"
+              placeholder="Betrag (€)"
+              value={miete}
+              onChange={(event) => setMiete(event.target.value)}
+              disabled={isSaving}
+              className={FELD}
+              aria-invalid={fehler.miete ? true : undefined}
+              aria-describedby={fehler.miete ? `${id}-miete-fehler` : undefined}
+            />
+            {fehler.miete && <p id={`${id}-miete-fehler`} className={FEHLERTEXT}>{fehler.miete}</p>}
+          </div>
+        </div>
       </div>
-      <div>
-        <Button type="button" onClick={() => void handleAnlegen()} disabled={isSaving}>
-          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+      <div className="border-t border-border/40 p-3 sm:p-4">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void handleAnlegen()}
+          disabled={isSaving}
+          className="w-full hover:scale-[1.005] active:scale-[0.995]"
+        >
+          {isSaving && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />}
           Mietverhältnis anlegen
         </Button>
       </div>
