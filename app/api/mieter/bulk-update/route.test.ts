@@ -84,7 +84,7 @@ describe('PATCH /api/mieter/bulk-update', () => {
     const res = await PATCH(jsonRequest({ ids: ['m1'], updates: { wohnung_id: 'w2' } }));
 
     expect(res.status).toBe(500);
-    expect(await res.json()).toEqual({ error: 'Die Wohnung kann nicht geändert werden, weil der Mieter zu einem Mietverhältnis in der bisherigen Wohnung gehört.' });
+    expect(await res.json()).toEqual({ error: 'Die Wohnung kann hier nicht geändert werden, weil der Mieter zu einem Mietverhältnis gehört. Nutzen Sie im Abschnitt Mietverhältnis den Punkt „Umzug in eine andere Wohnung“.' });
   });
 
   it('lehnt fehlende Updates ab (400) statt mit einem Serverfehler zu antworten', async () => {
