@@ -1,14 +1,17 @@
 "use server";
 
 /**
- * Server actions of the tenancy and rent history ("Mietverhältnis", GH-17, phase 3B).
+ * Server actions of the tenancy and rent history ("Mietverhältnis", GH-17, phases 3B, 4 and 5).
  *
  * Principles:
  * - Thin actions: sign-in check -> module right (`hasPermission('mieter', ...)`, writes also `ansehen`; fast
  *   failure, the database stays authoritative) -> input validation -> database access -> error mapping
  *   (`lib/mietverhaeltnis-errors.ts`) -> `revalidatePath` for writes -> log.
- * - The rent history is written and removed ONLY through the RPCs `mietverhaeltnis_miete_setzen` and
- *   `mietverhaeltnis_miete_entfernen`. No `.insert()`, `.update()` or `.delete()` on the tenancy tables here.
+ * - Tenancy creation, rent entries and rent increases are written ONLY through RPCs
+ *   (`mietverhaeltnis_anlegen`, `mietverhaeltnis_miete_setzen`, `mietverhaeltnis_miete_entfernen`,
+ *   `mietverhaeltnis_mieterhoehung_erfassen`). No `.insert()` or `.delete()` on the tenancy tables here.
+ * - The ONLY direct write to a tenancy table is `vertragsdatenSpeichernAction`: a `.update()` on
+ *   `"Mieter_Mietverhaeltnisse"` for six contract columns (RLS applies). Rent history is never written that way.
  * - The tenancy ID is never taken from the client: it is read from the tenant row on the server.
  * - Amounts are validated strictly and sent as exact decimal strings (two decimal places, no rounding).
  * - No personal data, amounts or IDs in logs: only the action name, the event and the error code.
@@ -16,7 +19,7 @@
  *   (formal address) and come from `lib/mietverhaeltnis-errors.ts`.
  *
  * Security relevant (permissions, money): not production ready until the maintainer has reviewed it.
- * The database is authoritative: the RPCs check organisation, right and object scope themselves.
+ * The database is authoritative: the RPCs and RLS check organisation, right and object scope themselves.
  *
  * "use server" file: only async functions are exported as values (types are erased).
  */
@@ -57,10 +60,51 @@ export interface MieteEntfernenInput {
   mieteId: string;
 }
 
+export interface MietverhaeltnisAnlegenInput {
+  mieterId: string;
+  /** ISO date. Omitted or `null`: the database uses the move-in date of the tenant (`Mieter.einzug`). */
+  vertragsbeginn?: string | null;
+  /** Monthly rent in euro, the first rent entry from the start date. Omitted or `null`: no rent entry. */
+  miete?: number | null;
+}
+
+/** Contract data of the tenancy. `null` clears a field; every key must be present. */
+export interface VertragsdatenSpeichernInput {
+  mieterId: string;
+  vertragsende: string | null;
+  befristetBis: string | null;
+  kuendigungEingangAm: string | null;
+  kuendigungZum: string | null;
+  kuendigungDurch: "mieter" | "vermieter" | null;
+  notiz: string | null;
+}
+
+export interface MieterhoehungErfassenInput {
+  mieterId: string;
+  /** Valid from `YYYY-MM-DD`. */
+  wirksamAb: string;
+  /** New monthly rent in euro, same rules as `betrag` of `mieteSetzen`. */
+  betrag: number;
+  /** Type of change, required, trimmed, 1 to 50 characters. Free text (suggestions in the UI only). */
+  aenderungsart: string;
+  /** Date of the declaration of the change (`YYYY-MM-DD`), optional. */
+  erklaertAm?: string | null;
+  /** Optional reason, trimmed, at most 500 characters. */
+  grund?: string | null;
+}
+
 /** Module right actions used here. */
-type MieterAktion = "ansehen" | "bearbeiten";
+type MieterAktion = "ansehen" | "bearbeiten" | "erstellen";
 
 type Step<T> = { ok: true; data: T } | { ok: false; error: MietverhaeltnisActionError };
+
+/** Tenant data the actions need: tenancy link, apartment rent and move-in date, applicant flag. */
+interface MieterDaten {
+  mietverhaeltnisId: string | null;
+  wohnungsmiete: number | null;
+  einzug: string | null;
+  istBewerber: boolean;
+}
 
 // ---------------------------------------------------------------------------
 // Constants and helpers (not exported: a "use server" file only exports async actions)
@@ -68,12 +112,14 @@ type Step<T> = { ok: true; data: T } | { ok: false; error: MietverhaeltnisAction
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
-/** Lower and upper limit of the database for `gueltig_ab` (ISO strings compare correctly). */
+/** Lower and upper limit of the database for dates (ISO strings compare correctly). */
 const MIN_DATUM = "1900-01-01";
 const MAX_DATUM = "2100-12-31";
 const BETRAG_MAX = 99999999.99;
 const GRUND_MAX_LAENGE = 500;
-/** Change type of entries entered in the app (the database default). */
+const NOTIZ_MAX_LAENGE = 2000;
+const AENDERUNGSART_MAX_LAENGE = 50;
+/** Change type of entries entered in the rent form (the database default). */
 const AENDERUNGSART = "vereinbarung";
 /** Start of the message `ensureAuth` throws for "not signed in" (`lib/auth-utils.ts`). */
 const NOT_SIGNED_IN_MESSAGE_PREFIX = "Nicht authentifiziert";
@@ -108,6 +154,15 @@ function pruefeIsoDatum(value: unknown): string | null {
 }
 
 /**
+ * Date field of a contract: `null` clears it, a valid ISO date is kept. Anything else (also `undefined`, `""`)
+ * is `undefined` (invalid), so a missing key can never clear a value by accident.
+ */
+function pruefeDatumFeld(value: unknown): string | null | undefined {
+  if (value === null) return null;
+  return pruefeIsoDatum(value) ?? undefined;
+}
+
+/**
  * Monthly rent as exact decimal string (`"1234.50"`), or `null`. Rejects NaN, infinity, negative values, values
  * above the database limit and more than two decimal places (no silent rounding).
  */
@@ -120,14 +175,32 @@ function pruefeBetrag(value: unknown): string | null {
   return `${euro}.${String(cents % 100).padStart(2, "0")}`;
 }
 
-/** Reason: `null` for empty, trimmed text up to 500 characters, `undefined` if invalid. */
-function pruefeGrund(value: unknown): string | null | undefined {
+/**
+ * Free text: `null` for `null`/`undefined`/empty after trimming, trimmed text up to `maxLaenge` characters,
+ * `undefined` if the value is invalid.
+ */
+function pruefeFreitext(value: unknown, maxLaenge: number): string | null | undefined {
   if (value === undefined || value === null) return null;
   if (typeof value !== "string") return undefined;
   const text = value.trim();
   if (text === "") return null;
-  if (Array.from(text).length > GRUND_MAX_LAENGE) return undefined;
+  if (Array.from(text).length > maxLaenge) return undefined;
   return text;
+}
+
+/** Type of change: trimmed, 1 to 50 characters, otherwise `undefined`. */
+function pruefeAenderungsart(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const text = value.trim();
+  const laenge = Array.from(text).length;
+  return laenge >= 1 && laenge <= AENDERUNGSART_MAX_LAENGE ? text : undefined;
+}
+
+/** Type of termination: `null` (no statement) or one of the two values, otherwise `undefined`. */
+function pruefeKuendigungDurch(value: unknown): "mieter" | "vermieter" | null | undefined {
+  if (value === null) return null;
+  if (value === "mieter" || value === "vermieter") return value;
+  return undefined;
 }
 
 /** Rows of `get_mietverhaeltnis_mieten` as typed entries. `null` if the shape is not as expected. */
@@ -146,6 +219,8 @@ function parseMietenRows(data: unknown): MietEintrag[] | null {
       betrag,
       aenderungsart: typeof record.aenderungsart === "string" ? record.aenderungsart : "",
       grund: typeof record.grund === "string" ? record.grund : null,
+      // The RPC does not return the declaration date; `uebersichtLaden` adds it.
+      erklaert_am: null,
       quelle: record.quelle === "migration_bestand" ? "migration_bestand" : "app",
     });
   }
@@ -162,16 +237,14 @@ function parseWohnungsmiete(wohnungen: unknown): number | null {
 }
 
 /**
- * Reads the tenant row (tenancy link and apartment rent) in one query and checks the object scope: a user who is
- * restricted to certain houses only reaches tenants of their apartments (`42501` otherwise, same as the database).
+ * Reads the tenant row (tenancy link, apartment rent, move-in date, applicant flag) in one query and checks the
+ * object scope: a user who is restricted to certain houses only reaches tenants of their apartments (`42501`
+ * otherwise, same as the database).
  */
-async function ladeMieter(
-  supabase: SupabaseClient,
-  mieterId: string
-): Promise<Step<{ mietverhaeltnisId: string | null; wohnungsmiete: number | null }>> {
+async function ladeMieter(supabase: SupabaseClient, mieterId: string): Promise<Step<MieterDaten>> {
   const { data, error } = await supabase
     .from("Mieter")
-    .select("id, mietverhaeltnis_id, wohnung_id, Wohnungen(miete)")
+    .select("id, mietverhaeltnis_id, wohnung_id, einzug, status, Wohnungen(miete)")
     .eq("id", mieterId)
     .maybeSingle();
   if (error) return fail(mapMietverhaeltnisError(error));
@@ -181,8 +254,15 @@ async function ladeMieter(
   if (wohnungIds !== null && (typeof record.wohnung_id !== "string" || !wohnungIds.includes(record.wohnung_id))) {
     return fail(mietverhaeltnisFehler("42501"));
   }
-  const mietverhaeltnisId = typeof record.mietverhaeltnis_id === "string" ? record.mietverhaeltnis_id : null;
-  return { ok: true, data: { mietverhaeltnisId, wohnungsmiete: parseWohnungsmiete(record.Wohnungen) } };
+  return {
+    ok: true,
+    data: {
+      mietverhaeltnisId: typeof record.mietverhaeltnis_id === "string" ? record.mietverhaeltnis_id : null,
+      wohnungsmiete: parseWohnungsmiete(record.Wohnungen),
+      einzug: typeof record.einzug === "string" ? record.einzug : null,
+      istBewerber: record.status === "bewerber",
+    },
+  };
 }
 
 /** Reads the rent history of a tenancy through the RPC (the database checks the right). */
@@ -192,6 +272,37 @@ async function ladeHistorie(supabase: SupabaseClient, mietverhaeltnisId: string)
   const eintraege = parseMietenRows(data);
   if (!eintraege) return fail(mietverhaeltnisFehler("UNBEKANNT"));
   return { ok: true, data: eintraege };
+}
+
+/**
+ * Declaration dates of the rent entries (`erklaert_am`), keyed by entry ID. FAIL-SOFT: any error gives an empty
+ * map, so the entries are still shown (without the date). Only the error code is logged.
+ */
+async function ladeErklaertAm(
+  supabase: SupabaseClient,
+  mietverhaeltnisId: string,
+  actionName: string
+): Promise<Map<string, string | null>> {
+  const erklaert = new Map<string, string | null>();
+  try {
+    const { data, error } = await supabase
+      .from("Mieter_Mietverhaeltnisse_Mieten")
+      .select("id, erklaert_am")
+      .eq("mietverhaeltnis_id", mietverhaeltnisId);
+    if (error || !Array.isArray(data)) {
+      logAction(actionName, "failed", { code: "ERKLAERT_AM_NICHT_GELADEN" });
+      return erklaert;
+    }
+    for (const row of data) {
+      const record = asRecord(row);
+      if (!record || typeof record.id !== "string") continue;
+      erklaert.set(record.id, pruefeIsoDatum(record.erklaert_am));
+    }
+  } catch {
+    logAction(actionName, "failed", { code: "ERKLAERT_AM_NICHT_GELADEN" });
+    return new Map<string, string | null>();
+  }
+  return erklaert;
 }
 
 /**
@@ -257,8 +368,8 @@ async function runMietverhaeltnisAction<T>(options: {
 // ---------------------------------------------------------------------------
 
 /**
- * Tenancy, rent history and apartment rent of a tenant for the tenant dialog. A tenant without tenancy gets
- * `mietverhaeltnis: null` and an empty history (not an error).
+ * Tenancy, rent history (with declaration dates), apartment rent, move-in date and applicant flag of a tenant for
+ * the tenant dialog. A tenant without tenancy gets `mietverhaeltnis: null` and an empty history (not an error).
  */
 export async function getMietverhaeltnisUebersichtAction(
   mieterId: string
@@ -272,9 +383,10 @@ export async function getMietverhaeltnisUebersichtAction(
 
       const mieter = await ladeMieter(supabase, mieterId);
       if (!mieter.ok) return mieter;
-      const { mietverhaeltnisId, wohnungsmiete } = mieter.data;
+      const { mietverhaeltnisId, wohnungsmiete, einzug, istBewerber } = mieter.data;
+      const basis = { wohnungsmiete, mieterEinzug: einzug, istBewerber };
       if (!mietverhaeltnisId) {
-        return { ok: true, data: { mietverhaeltnis: null, mieten: [], wohnungsmiete } };
+        return { ok: true, data: { mietverhaeltnis: null, mieten: [], ...basis } };
       }
 
       const { data: mvData, error: mvError } = await supabase
@@ -289,7 +401,52 @@ export async function getMietverhaeltnisUebersichtAction(
       const historie = await ladeHistorie(supabase, mietverhaeltnisId);
       if (!historie.ok) return historie;
 
-      return { ok: true, data: { mietverhaeltnis, mieten: historie.data, wohnungsmiete } };
+      const erklaert = await ladeErklaertAm(supabase, mietverhaeltnisId, "getMietverhaeltnisUebersicht");
+      const mieten = historie.data.map((eintrag) => ({ ...eintrag, erklaert_am: erklaert.get(eintrag.miete_id) ?? null }));
+
+      return { ok: true, data: { mietverhaeltnis, mieten, ...basis } };
+    },
+  });
+}
+
+/**
+ * Creates the tenancy for a tenant without one (one transaction in the database, the tenant is linked as main
+ * tenant). Applicants are rejected by the database (`MV004`).
+ */
+export async function mietverhaeltnisAnlegenAction(
+  input: MietverhaeltnisAnlegenInput
+): Promise<MietverhaeltnisActionResult<{ mietverhaeltnisId: string }>> {
+  return runMietverhaeltnisAction<{ mietverhaeltnisId: string }>({
+    actionName: "mietverhaeltnisAnlegen",
+    aktionen: ["erstellen", "ansehen"],
+    schreibend: true,
+    run: async (supabase) => {
+      const mieterId = input?.mieterId;
+      if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
+
+      // Only the keys that are set go into p_daten. Omitted and null mean "not set".
+      const daten: { vertragsbeginn?: string; miete?: number } = {};
+      const vertragsbeginn = input?.vertragsbeginn;
+      if (vertragsbeginn !== undefined && vertragsbeginn !== null) {
+        const beginn = pruefeIsoDatum(vertragsbeginn);
+        if (!beginn) return fail(mietverhaeltnisFehler("MV004"));
+        daten.vertragsbeginn = beginn;
+      }
+      const miete = input?.miete;
+      if (miete !== undefined && miete !== null) {
+        const betrag = pruefeBetrag(miete);
+        if (betrag === null) return fail(mietverhaeltnisFehler("MV004"));
+        daten.miete = Number(betrag);
+      }
+
+      // Object scope check (the database checks it again)
+      const mieter = await ladeMieter(supabase, mieterId);
+      if (!mieter.ok) return mieter;
+
+      const { data, error } = await supabase.rpc("mietverhaeltnis_anlegen", { p_mieter_id: mieterId, p_daten: daten });
+      if (error) return fail(mapMietverhaeltnisError(error));
+      if (!istUuid(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
+      return { ok: true, data: { mietverhaeltnisId: data } };
     },
   });
 }
@@ -308,7 +465,7 @@ export async function mieteSetzenAction(input: MieteSetzenInput): Promise<Mietve
       if (!gueltigAb) return fail(mietverhaeltnisFehler("MV004"));
       const betrag = pruefeBetrag(input?.betrag);
       if (betrag === null) return fail(mietverhaeltnisFehler("MV004"));
-      const grund = pruefeGrund(input?.grund);
+      const grund = pruefeFreitext(input?.grund, GRUND_MAX_LAENGE);
       if (grund === undefined) return fail(mietverhaeltnisFehler("MV004"));
 
       // The tenancy ID comes from the tenant row, never from the client.
@@ -358,6 +515,109 @@ export async function mieteEntfernenAction(input: MieteEntfernenInput): Promise<
       const { error } = await supabase.rpc("mietverhaeltnis_miete_entfernen", { p_miete_id: mieteId });
       if (error) return fail(mapMietverhaeltnisError(error));
       return { ok: true, data: undefined };
+    },
+  });
+}
+
+/**
+ * Writes the contract data of the tenancy: end, fixed term, termination (date, effective date, party) and note.
+ * This is the ONLY direct write to a tenancy table (`.update()`, six columns, RLS applies). The tenancy ID is read
+ * from the tenant row. No row back means RLS refused the write (`42501`).
+ */
+export async function vertragsdatenSpeichernAction(input: VertragsdatenSpeichernInput): Promise<MietverhaeltnisActionResult> {
+  return runMietverhaeltnisAction<undefined>({
+    actionName: "vertragsdatenSpeichern",
+    aktionen: ["bearbeiten", "ansehen"],
+    schreibend: true,
+    run: async (supabase) => {
+      const mieterId = input?.mieterId;
+      if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
+
+      // Every date is null or a valid ISO date. `undefined` (missing key) is invalid, it never clears a value.
+      const vertragsende = pruefeDatumFeld(input?.vertragsende);
+      const befristetBis = pruefeDatumFeld(input?.befristetBis);
+      const kuendigungEingangAm = pruefeDatumFeld(input?.kuendigungEingangAm);
+      const kuendigungZum = pruefeDatumFeld(input?.kuendigungZum);
+      if (vertragsende === undefined || befristetBis === undefined || kuendigungEingangAm === undefined || kuendigungZum === undefined) {
+        return fail(mietverhaeltnisFehler("MV004"));
+      }
+      const kuendigungDurch = pruefeKuendigungDurch(input?.kuendigungDurch);
+      if (kuendigungDurch === undefined) return fail(mietverhaeltnisFehler("MV004"));
+      if (input?.notiz === undefined) return fail(mietverhaeltnisFehler("MV004"));
+      const notiz = pruefeFreitext(input.notiz, NOTIZ_MAX_LAENGE);
+      if (notiz === undefined) return fail(mietverhaeltnisFehler("MV004"));
+
+      const mieter = await ladeMieter(supabase, mieterId);
+      if (!mieter.ok) return mieter;
+      const mietverhaeltnisId = mieter.data.mietverhaeltnisId;
+      if (!mietverhaeltnisId) return fail(mietverhaeltnisFehler("MV003"));
+
+      const { data, error } = await supabase
+        .from("Mieter_Mietverhaeltnisse")
+        .update({
+          vertragsende,
+          befristet_bis: befristetBis,
+          kuendigung_eingang_am: kuendigungEingangAm,
+          kuendigung_zum: kuendigungZum,
+          kuendigung_durch: kuendigungDurch,
+          notiz,
+        })
+        .eq("id", mietverhaeltnisId)
+        .select("id");
+      if (error) return fail(mapMietverhaeltnisError(error));
+      // No row back: RLS refused the update (or the tenancy is not visible)
+      if (!Array.isArray(data) || data.length === 0) return fail(mietverhaeltnisFehler("42501"));
+      return { ok: true, data: undefined };
+    },
+  });
+}
+
+/**
+ * Records a rent increase as one process: new rent from a date, type of change, optional declaration date and
+ * reason. Creates exactly one rent entry (through the RPC). The app checks no deadlines or limits.
+ */
+export async function mieterhoehungErfassenAction(
+  input: MieterhoehungErfassenInput
+): Promise<MietverhaeltnisActionResult<{ mieteId: string }>> {
+  return runMietverhaeltnisAction<{ mieteId: string }>({
+    actionName: "mieterhoehungErfassen",
+    aktionen: ["bearbeiten", "ansehen"],
+    schreibend: true,
+    run: async (supabase) => {
+      const mieterId = input?.mieterId;
+      if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
+      const wirksamAb = pruefeIsoDatum(input?.wirksamAb);
+      if (!wirksamAb) return fail(mietverhaeltnisFehler("MV004"));
+      const betrag = pruefeBetrag(input?.betrag);
+      if (betrag === null) return fail(mietverhaeltnisFehler("MV004"));
+      const aenderungsart = pruefeAenderungsart(input?.aenderungsart);
+      if (aenderungsart === undefined) return fail(mietverhaeltnisFehler("MV004"));
+      const erklaertAmEingabe = input?.erklaertAm;
+      let erklaertAm: string | null = null;
+      if (erklaertAmEingabe !== undefined && erklaertAmEingabe !== null) {
+        erklaertAm = pruefeIsoDatum(erklaertAmEingabe);
+        if (erklaertAm === null) return fail(mietverhaeltnisFehler("MV004"));
+      }
+      const grund = pruefeFreitext(input?.grund, GRUND_MAX_LAENGE);
+      if (grund === undefined) return fail(mietverhaeltnisFehler("MV004"));
+
+      // The tenancy ID comes from the tenant row, never from the client.
+      const mieter = await ladeMieter(supabase, mieterId);
+      if (!mieter.ok) return mieter;
+      const mietverhaeltnisId = mieter.data.mietverhaeltnisId;
+      if (!mietverhaeltnisId) return fail(mietverhaeltnisFehler("MV003"));
+
+      const { data, error } = await supabase.rpc("mietverhaeltnis_mieterhoehung_erfassen", {
+        p_mietverhaeltnis_id: mietverhaeltnisId,
+        p_wirksam_ab: wirksamAb,
+        p_betrag: betrag,
+        p_aenderungsart: aenderungsart,
+        p_erklaert_am: erklaertAm,
+        p_grund: grund,
+      });
+      if (error) return fail(mapMietverhaeltnisError(error));
+      if (!istUuid(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
+      return { ok: true, data: { mieteId: data } };
     },
   });
 }

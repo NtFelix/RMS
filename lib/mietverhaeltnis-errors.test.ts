@@ -1,6 +1,7 @@
 /** @jest-environment node */
 
 import {
+  CHECK_VERLETZT_MESSAGE,
   MIETVERHAELTNIS_FEHLER_FALLBACK_MESSAGE,
   ermittleWohnungswechselFehler,
   mapMietverhaeltnisError,
@@ -20,8 +21,18 @@ describe("mapMietverhaeltnisError", () => {
     ["MV010", "Der Eintrag ist mit einem Dokument verknüpft und kann nicht entfernt werden."],
     ["42501", "Für diese Aktion fehlt die Berechtigung (Modul Mieter)."],
     ["23503", "Der Datensatz ist verknüpft und kann nicht geändert werden."],
+    ["MV011", "Das Dokument wurde nicht gefunden oder Sie haben keinen Zugriff darauf."],
+    ["MV012", "Der Mieter gehört bereits zu einem Mietverhältnis."],
   ])("maps %s to a fixed German message with the same code", (code, message) => {
     expect(mapMietverhaeltnisError({ code, message: "MV004: interner Text mit Wert 1234" })).toEqual({ code, message });
+  });
+
+  it("maps a violated CHECK constraint (23514) to MV004 with the check message", () => {
+    expect(mapMietverhaeltnisError({ code: "23514", message: 'new row violates check constraint "chk_vertragsende"' })).toEqual({
+      code: "MV004",
+      message: CHECK_VERLETZT_MESSAGE,
+    });
+    expect(CHECK_VERLETZT_MESSAGE).toBe("Die Angaben sind nicht zulässig. Bitte prüfen Sie die Daten.");
   });
 
   it("maps invalid and expired JWT errors to MV001", () => {

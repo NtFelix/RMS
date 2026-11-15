@@ -15,6 +15,8 @@ export interface MietEintrag {
   betrag: number;
   aenderungsart: string;
   grund: string | null;
+  /** Date of the declaration of the change (`erklaert_am`), `null` if not recorded. Not returned by the RPC; the actions add it. */
+  erklaert_am: string | null;
   quelle: "app" | "migration_bestand";
 }
 
@@ -43,6 +45,10 @@ export interface MietverhaeltnisUebersicht {
   mieten: MietEintrag[];
   /** `Wohnungen.miete` of the tenant's apartment; used when the history has no entry for a date. */
   wohnungsmiete: number | null;
+  /** `Mieter.einzug` (ISO date) of the tenant, used to pre-fill the contract start. */
+  mieterEinzug: string | null;
+  /** `Mieter.status` is `bewerber`: no tenancy is created for applicants. */
+  istBewerber: boolean;
 }
 
 /** Stable error codes of the tenancy functions (SQLSTATE of the database, `42501` for missing permission or scope). */
@@ -56,6 +62,8 @@ export type MietverhaeltnisFehlerCode =
   | "MV008"
   | "MV009"
   | "MV010"
+  | "MV011"
+  | "MV012"
   | "42501"
   | "23503"
   | "UNBEKANNT";
