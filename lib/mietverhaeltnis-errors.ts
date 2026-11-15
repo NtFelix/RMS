@@ -20,6 +20,10 @@ interface MietverhaeltnisRpcError {
 export const MIETVERHAELTNIS_FEHLER_FALLBACK_MESSAGE =
   "Die Aktion konnte nicht ausgeführt werden. Bitte versuchen Sie es erneut.";
 
+/** SQLSTATE of a violated CHECK constraint (e.g. end date before start date). Mapped to `MV004` with its own text. */
+const CHECK_VERLETZT_CODE = "23514";
+export const CHECK_VERLETZT_MESSAGE = "Die Angaben sind nicht zulässig. Bitte prüfen Sie die Daten.";
+
 /** PostgREST codes for an invalid (`PGRST301`) or expired (`PGRST303`) JWT: the user has to sign in again. */
 const JWT_FEHLER_CODES: ReadonlySet<string> = new Set(["PGRST301", "PGRST303"]);
 
@@ -34,6 +38,8 @@ const MESSAGES = new Map<MietverhaeltnisFehlerCode, string>([
   ["MV008", "Die Verknüpfung ist ungültig."],
   ["MV009", "Die Herkunft dieses Eintrags kann nicht geändert werden."],
   ["MV010", "Der Eintrag ist mit einem Dokument verknüpft und kann nicht entfernt werden."],
+  ["MV011", "Das Dokument wurde nicht gefunden oder Sie haben keinen Zugriff darauf."],
+  ["MV012", "Der Mieter gehört bereits zu einem Mietverhältnis."],
   ["42501", "Für diese Aktion fehlt die Berechtigung (Modul Mieter)."],
   ["23503", "Der Datensatz ist verknüpft und kann nicht geändert werden."],
   ["UNBEKANNT", MIETVERHAELTNIS_FEHLER_FALLBACK_MESSAGE],
@@ -55,6 +61,7 @@ export function mapMietverhaeltnisError(error: unknown): MietverhaeltnisActionEr
 
   const rawCode = (error as MietverhaeltnisRpcError).code;
   if (typeof rawCode !== "string") return mietverhaeltnisFehler("UNBEKANNT");
+  if (rawCode === CHECK_VERLETZT_CODE) return { code: "MV004", message: CHECK_VERLETZT_MESSAGE };
 
   const code = JWT_FEHLER_CODES.has(rawCode) ? "MV001" : rawCode;
   if (KNOWN_CODES.has(code)) return mietverhaeltnisFehler(code as MietverhaeltnisFehlerCode);

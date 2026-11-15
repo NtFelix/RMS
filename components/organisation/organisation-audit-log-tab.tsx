@@ -98,6 +98,7 @@ const FRIENDLY_COLUMN_MAP: Record<string, string> = {
   status: "Status",
   erstellt_am: "Erstellt am",
   geaendert_am: "Geändert am",
+  erklaert_am: "Erklärt am",
   einstellungen: "Einstellungen",
   einheiten: "Einheiten",
   zaehlernummer: "Zählernummer",
