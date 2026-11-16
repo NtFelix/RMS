@@ -64,6 +64,8 @@ export function TenantMieteSection({ mieterId, wohnungen = [], onUmzug }: Tenant
   const [erfassenOffen, setErfassenOffen] = useState(false);
   /** The move form is shown in its own card after a click. */
   const [umzugOffen, setUmzugOffen] = useState(false);
+  /** After a move a note points to the deposit; it stays until the dialog closes. Nothing is moved automatically. */
+  const [umzugHinweis, setUmzugHinweis] = useState(false);
 
   const [zuEntfernen, setZuEntfernen] = useState<MietEintrag | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
@@ -122,6 +124,7 @@ export function TenantMieteSection({ mieterId, wohnungen = [], onUmzug }: Tenant
   /** After a move: the form closes, the section reloads in the background, the parent gets the new apartment. */
   const handleUmgezogen = (wohnungId: string) => {
     setUmzugOffen(false);
+    setUmzugHinweis(true);
     void laden(true);
     onUmzug?.(wohnungId);
   };
@@ -229,6 +232,13 @@ export function TenantMieteSection({ mieterId, wohnungen = [], onUmzug }: Tenant
           {umzugOptionen.length > 0 && (
             <div className="space-y-3">
               <h4 className={UEBERSCHRIFT}>Wohnungswechsel</h4>
+              {umzugHinweis && (
+                <div role="status" className={`${KARTE} p-3 sm:p-4 text-sm text-muted-foreground`}>
+                  Der Umzug ist gespeichert. Eine hinterlegte Kaution bleibt unverändert bei dieser Person, es wird nichts
+                  automatisch übertragen oder abgerechnet. Ob sie weitergeführt oder abgerechnet wird, entscheiden Sie im
+                  Bereich Kaution.
+                </div>
+              )}
               {umzugOffen ? (
                 <div className={`${KARTE} p-3 sm:p-4`}>
                   <UmzugForm

@@ -298,6 +298,7 @@ describe("TenantMieteSection move to another apartment", () => {
     await waitFor(() => expect(screen.queryByRole("button", { name: "Umzug speichern" })).not.toBeInTheDocument());
     expect(await screen.findByRole("button", { name: "Umzug in eine andere Wohnung" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Umzug speichern" })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Kaution bleibt unverändert bei dieser Person");
     expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ description: "Der Umzug wurde gespeichert." }));
     await waitFor(() => expect(mockUebersicht).toHaveBeenCalledTimes(2));
   });
