@@ -5,7 +5,7 @@ import {
   getMietverhaeltnisUebersichtAction,
   mieteEntfernenAction,
   mietverhaeltnisAnlegenAction,
-  mieterhoehungErfassenAction,
+  mieteSetzenAction,
   vertragsdatenSpeichernAction,
 } from "@/app/mietverhaeltnis-actions";
 
@@ -14,7 +14,7 @@ jest.mock("@/app/mietverhaeltnis-actions", () => ({
   mieteEntfernenAction: jest.fn(),
   mietverhaeltnisAnlegenAction: jest.fn(),
   vertragsdatenSpeichernAction: jest.fn(),
-  mieterhoehungErfassenAction: jest.fn(),
+  mieteSetzenAction: jest.fn(),
 }));
 
 jest.mock("@/hooks/use-toast", () => ({
@@ -34,7 +34,7 @@ const mockUebersicht = getMietverhaeltnisUebersichtAction as jest.Mock;
 const mockEntfernen = mieteEntfernenAction as jest.Mock;
 const mockAnlegen = mietverhaeltnisAnlegenAction as jest.Mock;
 const mockVertragsdaten = vertragsdatenSpeichernAction as jest.Mock;
-const mockErhoehung = mieterhoehungErfassenAction as jest.Mock;
+const mockSetzen = mieteSetzenAction as jest.Mock;
 
 const mietverhaeltnis = {
   id: MV_ID,
@@ -72,7 +72,7 @@ beforeEach(() => {
   mockUebersicht.mockResolvedValue({ success: true, data: ohneMietverhaeltnis });
   mockAnlegen.mockResolvedValue({ success: true, data: { mietverhaeltnisId: MV_ID } });
   mockVertragsdaten.mockResolvedValue({ success: true, data: undefined });
-  mockErhoehung.mockResolvedValue({ success: true, data: { mieteId: MIETE_NEU } });
+  mockSetzen.mockResolvedValue({ success: true, data: { mieteId: MIETE_NEU } });
   mockEntfernen.mockResolvedValue({ success: true, data: undefined });
 });
 
@@ -196,11 +196,11 @@ describe("TenantMieteSection with tenancy", () => {
     expect(feld(container, "miete")).toHaveTextContent("800,00 € (Miete der Wohnung)");
   });
 
-  it("shows the type of change and the declaration date in the history", async () => {
+  it("shows the reason and the declaration date in the history, but not the default type", async () => {
     await mitVertrag();
 
     const eintraege = within(screen.getByRole("list")).getAllByRole("listitem");
-    expect(eintraege[0]).toHaveTextContent("Vereinbarung · erklärt am 15.05.2024 · Indexierung");
+    expect(eintraege[0]).toHaveTextContent("erklärt am 15.05.2024 · Indexierung");
     expect(eintraege[1]).not.toHaveTextContent(/erklärt am/);
   });
 
@@ -275,88 +275,63 @@ describe("TenantMieteSection with tenancy", () => {
     expect(screen.getByRole("button", { name: "Mietänderung erfassen" })).toBeInTheDocument();
   });
 
-  it("requires the type of change at the field and does not call the action", async () => {
-    const { container } = await mitOffenerMietaenderung();
-
-    setze(feld(container, "betrag"), "920,50");
-    setze(feld(container, "wirksamAb"), "01.04.2026");
-    fireEvent.click(screen.getByRole("button", { name: "Mietänderung speichern" }));
-
-    expect(await screen.findByText("Bitte geben Sie die Art der Mietänderung an.")).toBeInTheDocument();
-    expect(feld(container, "art")).toHaveAttribute("aria-invalid", "true");
-    expect(feld(container, "art")).toHaveAttribute("aria-describedby", expect.stringContaining("-fehler"));
-    expect(mockErhoehung).not.toHaveBeenCalled();
-  });
-
   it("requires amount and effective date, without an action call", async () => {
-    const { container } = await mitOffenerMietaenderung();
+    await mitOffenerMietaenderung();
 
-    setze(feld(container, "art"), "Vereinbarung");
     fireEvent.click(screen.getByRole("button", { name: "Mietänderung speichern" }));
 
     expect(await screen.findByText(/höchstens zwei Nachkommastellen/)).toBeInTheDocument();
     expect(screen.getByText("Bitte geben Sie ein gültiges Datum an.")).toBeInTheDocument();
-    expect(mockErhoehung).not.toHaveBeenCalled();
+    expect(mockSetzen).not.toHaveBeenCalled();
   });
 
-  it("records a rent change with the entered values, closes the form and reloads", async () => {
+  it("has only price, date and an optional reason (no type of change, no declaration date)", async () => {
+    const { container } = await mitOffenerMietaenderung();
+
+    expect(feld(container, "betrag")).toBeInTheDocument();
+    expect(feld(container, "wirksamAb")).toBeInTheDocument();
+    expect(feld(container, "grund")).toBeInTheDocument();
+    expect(container.querySelector('[id$="-art"]')).toBeNull();
+    expect(container.querySelector('[id$="-erklaertAm"]')).toBeNull();
+  });
+
+  it("records the new rent with the entered reason, closes the form and reloads", async () => {
     const { container } = await mitOffenerMietaenderung();
 
     setze(feld(container, "betrag"), "920,50");
     setze(feld(container, "wirksamAb"), "01.04.2026");
-    setze(feld(container, "art"), "  Staffelmiete ");
-    setze(feld(container, "erklaertAm"), "10.03.2026");
     setze(feld(container, "grund"), "  Vereinbart am Vertrag ");
     fireEvent.click(screen.getByRole("button", { name: "Mietänderung speichern" }));
 
     await waitFor(() =>
-      expect(mockErhoehung).toHaveBeenCalledWith({
-        mieterId: MIETER_ID,
-        wirksamAb: "2026-04-01",
-        betrag: 920.5,
-        aenderungsart: "Staffelmiete",
-        erklaertAm: "2026-03-10",
-        grund: "Vereinbart am Vertrag",
-      })
+      expect(mockSetzen).toHaveBeenCalledWith({ mieterId: MIETER_ID, gueltigAb: "2026-04-01", betrag: 920.5, grund: "Vereinbart am Vertrag" })
     );
     expect(await screen.findByRole("button", { name: "Mietänderung erfassen" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mietänderung speichern" })).not.toBeInTheDocument();
     await waitFor(() => expect(mockUebersicht).toHaveBeenCalledTimes(2));
-    expect(await screen.findByRole("list")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Mietänderung speichern" })).not.toBeInTheDocument();
   });
 
-  it("sends null for the empty optional fields of a rent change", async () => {
+  it("sends null when the optional reason is empty", async () => {
     const { container } = await mitOffenerMietaenderung();
 
     setze(feld(container, "betrag"), "900");
     setze(feld(container, "wirksamAb"), "01.05.2026");
-    setze(feld(container, "art"), "Vereinbarung");
     fireEvent.click(screen.getByRole("button", { name: "Mietänderung speichern" }));
 
-    await waitFor(() =>
-      expect(mockErhoehung).toHaveBeenCalledWith({
-        mieterId: MIETER_ID,
-        wirksamAb: "2026-05-01",
-        betrag: 900,
-        aenderungsart: "Vereinbarung",
-        erklaertAm: null,
-        grund: null,
-      })
-    );
+    await waitFor(() => expect(mockSetzen).toHaveBeenCalledWith({ mieterId: MIETER_ID, gueltigAb: "2026-05-01", betrag: 900, grund: null }));
   });
 
-  it("offers the suggestions for the type of change in a datalist and keeps free text", async () => {
+  it("rejects a reason that is too long at the field, without an action call", async () => {
     const { container } = await mitOffenerMietaenderung();
 
-    const art = feld(container, "art");
-    const listId = art.getAttribute("list");
-    expect(listId).toBeTruthy();
-    const optionen = Array.from(container.querySelectorAll(`[id="${listId}"] option`)).map((option) => option.getAttribute("value"));
-    expect(optionen).toEqual(["Vereinbarung", "Staffelmiete", "Indexmiete", "Vergleichsmiete", "Modernisierung", "Sonstiges"]);
+    setze(feld(container, "betrag"), "900");
+    setze(feld(container, "wirksamAb"), "01.05.2026");
+    setze(feld(container, "grund"), "x".repeat(501));
+    fireEvent.click(screen.getByRole("button", { name: "Mietänderung speichern" }));
 
-    setze(art, "Eigene Art");
-    expect(art).toHaveValue("Eigene Art");
+    expect(await screen.findByText(/Die Begründung darf höchstens 500 Zeichen/)).toBeInTheDocument();
+    expect(feld(container, "grund")).toHaveAttribute("aria-invalid", "true");
+    expect(mockSetzen).not.toHaveBeenCalled();
   });
 
   it("shows an error state with retry when loading fails", async () => {
