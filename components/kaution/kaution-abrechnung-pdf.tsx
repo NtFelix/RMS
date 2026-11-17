@@ -20,6 +20,8 @@ import type { KautionAbrechnungArt } from "@/types/Kaution";
 
 interface KautionAbrechnungPdfProps {
   tenantId: string;
+  /** The deposit shown in the dialog: the PDF is always the settlement of this deposit. */
+  kautionId: string;
   /** Settlement date of the current calculation, `null` if nothing was calculated for the shown data. */
   stichtag: string | null;
   /** Right `ansehen`: without it the buttons are disabled and explain why. */
@@ -28,7 +30,7 @@ interface KautionAbrechnungPdfProps {
   dokumenteAktiv: boolean;
 }
 
-export function KautionAbrechnungPdf({ tenantId, stichtag, darfAnsehen, dokumenteAktiv }: KautionAbrechnungPdfProps) {
+export function KautionAbrechnungPdf({ tenantId, kautionId, stichtag, darfAnsehen, dokumenteAktiv }: KautionAbrechnungPdfProps) {
   const basisId = useId();
   const [laeuft, setLaeuft] = useState<KautionAbrechnungArt | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export function KautionAbrechnungPdf({ tenantId, stichtag, darfAnsehen, dokument
     setLaeuft(art);
     setFehler(null);
     try {
-      const ergebnis = await ladeKautionAbrechnungPdf({ tenantId, art, stichtag });
+      const ergebnis = await ladeKautionAbrechnungPdf({ tenantId, kautionId, art, stichtag });
       if (!ergebnis.ok) setFehler(ergebnis.message);
     } finally {
       laeuftRef.current = false;

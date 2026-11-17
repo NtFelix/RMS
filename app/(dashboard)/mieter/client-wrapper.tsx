@@ -10,6 +10,7 @@ import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
 import { useModalStore } from "@/hooks/use-modal-store";
+import { useKautionOeffnen } from "@/hooks/use-kaution-oeffnen";
 import { PlusCircle, Users, BadgeCheck, Euro, Search, Building2, BarChart3 } from "lucide-react";
 import { StatCard } from "@/components/common/stat-card";
 import { TenantTable } from "@/components/tables/tenant-table";
@@ -131,7 +132,9 @@ export default function MieterClientView({
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const { openTenantModal, openKautionModal } = useModalStore();
+  const { openTenantModal } = useModalStore();
+  // Mehrere Kautionen eines Mieters: zuerst die Auswahl (hooks/use-kaution-oeffnen.ts).
+  const oeffneKaution = useKautionOeffnen();
   const [depositSearch, setDepositSearch] = useState<string>("");
   const [depositFilter, setDepositFilter] = useState<"all" | "Erhalten" | "Zurückgezahlt" | "Ausstehend">("all");
   const [applicantSearch, setApplicantSearch] = useState<string>("");
@@ -1172,13 +1175,13 @@ export default function MieterClientView({
                                   role="button"
                                   tabIndex={0}
                                   aria-label={`Kaution von ${t.name} öffnen`}
-                                  onClick={() => openKautionModal(t)}
+                                  onClick={() => void oeffneKaution(t)}
                                   onKeyDown={(event) => {
                                     // Nur Tastendrücke der Zeile selbst (nicht von Elementen darin); Leertaste ohne Seitenscroll.
                                     if (event.target !== event.currentTarget) return;
                                     if (event.key === 'Enter' || event.key === ' ') {
                                       event.preventDefault();
-                                      openKautionModal(t);
+                                      void oeffneKaution(t);
                                     }
                                   }}
                                   className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-[border-color,box-shadow] duration-200 cursor-pointer select-none focus-visible:outline-hidden focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"

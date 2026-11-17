@@ -27,13 +27,17 @@ jest.mock('@/hooks/use-modal-store', () => ({
   useModalStore: jest.fn(),
 }));
 
+// Der Kautionseintrag öffnet über den Hook (Auswahl bei mehreren Kautionen); hier wird nur der Aufruf geprüft.
+const mockOeffneKaution = jest.fn();
+jest.mock('@/hooks/use-kaution-oeffnen', () => ({
+  useKautionOeffnen: () => mockOeffneKaution,
+}));
+
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 
 // Kautionsmanagement (GH-6): Der Menüeintrag "Kaution" hängt am Modulrecht `kautionen: ansehen` und übergibt dem
 // Dialog nur noch den Mieter (der Dialog lädt seine Daten selbst).
 describe('TenantContextMenu - Kaution (GH-6)', () => {
-  const mockOpenKautionModal = jest.fn();
-
   const tenant: Tenant = {
     id: 'tenant-1',
     name: 'Test Mieter',
@@ -51,7 +55,6 @@ describe('TenantContextMenu - Kaution (GH-6)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseModalStore.mockReturnValue({
-      openKautionModal: mockOpenKautionModal,
       openTenantMailTemplatesModal: jest.fn(),
       openApplicantScoreModal: jest.fn(),
     } as any);
@@ -90,9 +93,9 @@ describe('TenantContextMenu - Kaution (GH-6)', () => {
 
     fireEvent.click(screen.getByText('Kaution'));
 
-    await waitFor(() => expect(mockOpenKautionModal).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockOeffneKaution).toHaveBeenCalledTimes(1));
     // exakt ein Argument: kein zweiter Parameter mit Kautionsdaten
-    expect(mockOpenKautionModal).toHaveBeenCalledWith({ id: 'tenant-1', name: 'Test Mieter', wohnung_id: 'wohnung-1' });
+    expect(mockOeffneKaution).toHaveBeenCalledWith({ id: 'tenant-1', name: 'Test Mieter', wohnung_id: 'wohnung-1' });
   });
 });
 
