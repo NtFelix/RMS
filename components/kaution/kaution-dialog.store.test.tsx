@@ -158,7 +158,7 @@ describe("KautionDialog mit dem echten Store", () => {
 
     expect(await screen.findByRole("tab", { name: "Kontoauszug", selected: true })).toBeInTheDocument();
     expect(getDetailsMock).toHaveBeenCalledTimes(1);
-    expect(getDetailsMock).toHaveBeenCalledWith(TENANT_A);
+    expect(getDetailsMock).toHaveBeenCalledWith(TENANT_A, undefined);
   });
 
   it("fragt vor dem Schließen nach, wenn ein Formular ungespeicherte Eingaben hat, und verwirft sie nach Bestätigung", async () => {
@@ -217,7 +217,7 @@ describe("KautionDialog mit dem echten Store", () => {
     oeffne(TENANT_B);
 
     expect(await screen.findByText("Für diesen Mieter ist noch keine Kaution angelegt.")).toBeInTheDocument();
-    expect(getDetailsMock).toHaveBeenLastCalledWith(TENANT_B);
+    expect(getDetailsMock).toHaveBeenLastCalledWith(TENANT_B, undefined);
     expect(screen.queryByTestId("kaution-buchung-form")).not.toBeInTheDocument();
     expect(echterStore.getState().isKautionModalDirty).toBe(false);
   });

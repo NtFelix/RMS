@@ -6,7 +6,7 @@ import { Template } from '@/types/template';
 import { ConfirmationDialogVariant } from '@/components/ui/confirmation-dialog';
 import { TenantBentoItem } from '@/types/tenant-payment';
 import { AIDocumentationContext } from '@/types/ai';
-import type { KautionLoeschauswirkung } from '@/types/Kaution';
+import type { KautionListenEintrag, KautionLoeschauswirkung } from '@/types/Kaution';
 
 interface ConfirmationModalConfig {
   title: string;
@@ -103,6 +103,14 @@ interface KautionModalData {
     wohnung_id?: string | null;
   };
   initialTab?: 'uebersicht' | 'raten' | 'kontoauszug' | 'dokumente';
+  /** Welche Kaution des Mieters geöffnet wird (mehrere Kautionen je Mieter); ohne Angabe: Standardfall. */
+  kautionId?: string;
+}
+
+/** Mieter der Kautionsauswahl (mehrere Kautionen je Mieter): nur die drei benötigten Felder. */
+interface KautionAuswahlData {
+  tenant: KautionModalData['tenant'];
+  eintraege: KautionListenEintrag[];
 }
 
 interface ApplicantScoreModalData {
@@ -232,11 +240,15 @@ export interface ModalState {
   kautionInitialData?: KautionModalData;
   isKautionModalDirty: boolean;
   openKautionModal: (
-    tenant: Pick<Tenant, 'id' | 'name' | 'wohnung_id'>,
-    options?: { tab?: KautionModalData['initialTab'] }
+    tenant: KautionModalData['tenant'],
+    options?: { tab?: KautionModalData['initialTab']; kautionId?: string }
   ) => void;
   closeKautionModal: (options?: CloseModalOptions) => void;
   setKautionModalDirty: (isDirty: boolean) => void;
+  // Auswahl bei mehreren Kautionen eines Mieters (nur Anzeige; die Liste kommt vom Server, siehe hooks/use-kaution-oeffnen.ts)
+  kautionAuswahl: KautionAuswahlData | null;
+  openKautionAuswahl: (tenant: KautionModalData['tenant'], eintraege: KautionListenEintrag[]) => void;
+  closeKautionAuswahl: () => void;
   // Modulrecht `kautionen: ansehen` des Nutzers. Nur UX (Menüeintrag "Kaution" im global gemounteten
   // Mieter-Bearbeiten-Dialog, der keinen Prop-Pfad von der Seite hat); der Kautionsdialog selbst bekommt
   // seine Rechte autoritativ vom Server und die Datenbank prüft erneut.
@@ -484,6 +496,10 @@ const initialKautionModalState = {
   isKautionModalDirty: false,
 };
 
+const initialKautionAuswahlState = {
+  kautionAuswahl: null as KautionAuswahlData | null,
+};
+
 const initialLoeschUebersichtState = {
   isLoeschUebersichtOpen: false,
   loeschUebersichtConfig: null as LoeschUebersichtConfig | null,
@@ -600,6 +616,7 @@ const createInitialModalState = () => ({
   ...initialBetriebskostenModalState,
   ...initialWasserzaehlerModalState,
   ...initialKautionModalState,
+  ...initialKautionAuswahlState,
   canViewKautionen: false, // bewusst nicht in initialKautionModalState: bleibt beim Schließen des Dialogs erhalten
   ...initialLoeschUebersichtState,
   ...initialTenantPaymentOverviewModalState,
@@ -797,11 +814,19 @@ export const useModalStore = create<ModalState>((set, get) => {
         // Nur die drei benötigten Felder übernehmen (kein ganzes Tenant-Objekt samt Kompat-Kaution im Store).
         tenant: { id: tenant.id, name: tenant.name, wohnung_id: tenant.wohnung_id },
         initialTab: options?.tab,
+        kautionId: options?.kautionId,
       },
       isKautionModalDirty: false
     }),
     closeKautionModal: createCloseHandler('isKautionModalDirty', initialKautionModalState),
     setKautionModalDirty: (isDirty) => set({ isKautionModalDirty: isDirty }),
+    openKautionAuswahl: (tenant, eintraege) => set({
+      kautionAuswahl: {
+        tenant: { id: tenant.id, name: tenant.name, wohnung_id: tenant.wohnung_id },
+        eintraege,
+      },
+    }),
+    closeKautionAuswahl: () => set(initialKautionAuswahlState),
     setCanViewKautionen: (canView) => set({ canViewKautionen: canView }),
 
     // Löschen mit Kautionsübersicht: Der Aufrufer wartet auf `onEntscheidung`; ein zweites Öffnen verwirft die erste Anfrage (= abgebrochen).

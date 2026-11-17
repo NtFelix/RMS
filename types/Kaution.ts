@@ -206,6 +206,21 @@ export interface KautionDetails {
   einbehalt?: KautionEinbehalt | null;
 }
 
+/**
+ * One deposit of a tenant as `get_kautionen_liste` returns it (jsonb array, current first). `istAktuell` is `true` for the
+ * deposit of the tenant's current tenancy. Amounts are for display only.
+ */
+export interface KautionListenEintrag {
+  kautionId: string;
+  mietverhaeltnisId: string | null;
+  kautionsart: KautionArt;
+  sollBetrag: number;
+  kontostand: number;
+  istAktuell: boolean;
+  vertragsbeginn: string | null;
+  vertragsende: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Settlement ("Abrechnung", phase 4): result of `get_kaution_abrechnung`, input of the PDF and the view
 // ---------------------------------------------------------------------------

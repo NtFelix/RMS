@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ActionMenu } from "@/components/ui/action-menu"
 
 import { useModalStore } from "@/hooks/use-modal-store"
+import { useKautionOeffnen } from "@/hooks/use-kaution-oeffnen"
 import { deleteTenantAction } from "@/app/mieter-actions"
 import { toast } from "@/hooks/use-toast"
 
@@ -600,9 +601,11 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   }, [tenants, filter, searchQuery, sortKey, sortDirection, wohnungsMap, mode])
 
   // Der Kautionsdialog lädt seine Daten selbst (getKautionDetailsAction); der Store bekommt nur den Mieter.
+  // Mehrere Kautionen eines Mieters: zuerst die Auswahl (hooks/use-kaution-oeffnen.ts).
+  const oeffneKaution = useKautionOeffnen()
   const handleOpenKaution = useCallback((tenant: Tenant) => {
-    useModalStore.getState().openKautionModal({ id: tenant.id, name: tenant.name, wohnung_id: tenant.wohnung_id })
-  }, [])
+    void oeffneKaution({ id: tenant.id, name: tenant.name, wohnung_id: tenant.wohnung_id })
+  }, [oeffneKaution])
 
   const visibleTenantIds = useMemo(() => sortedAndFilteredData.map((tenant) => tenant.id), [sortedAndFilteredData])
 
