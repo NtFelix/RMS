@@ -24,6 +24,7 @@ import type { MietEintrag, MietverhaeltnisActionError, MietverhaeltnisUebersicht
 import { MietverhaeltnisAnlegenForm } from "@/components/tenants/mietverhaeltnis/mietverhaeltnis-anlegen-form";
 import { MieterhoehungForm } from "@/components/tenants/mietverhaeltnis/mieterhoehung-form";
 import { VertragsdatenForm } from "@/components/tenants/mietverhaeltnis/vertragsdaten-form";
+import { VertragsdokumentSection } from "@/components/tenants/mietverhaeltnis/vertragsdokument-section";
 import {
   aktuelleMiete,
   formatDatum,
@@ -207,6 +208,12 @@ export function TenantMieteSection({ mieterId }: TenantMieteSectionProps) {
             mieterId={mieterId}
             mietverhaeltnis={mietverhaeltnis}
             onGespeichert={() => void laden(true)}
+          />
+
+          <VertragsdokumentSection
+            mieterId={mieterId}
+            vertragDokumentId={mietverhaeltnis.vertrag_dokument_id}
+            onGeaendert={() => void laden(true)}
           />
 
           <div className="space-y-3">
