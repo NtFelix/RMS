@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { Nebenkosten, MeterReadingFormData, Mieter, Zaehler, ZaehlerAblesung, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchMeterReadingsByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new meter types
 import { roundToNearest5 } from "@/lib/utils";
 import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
+import { wendeAbrechnungsmodusAn } from "@/lib/abrechnung-mietverhaeltnis-laden";
 import { logAction } from '@/lib/logging-middleware';
 import { withTiming } from '@/lib/posthog-metrics';
 import { type SupabaseClient } from "@supabase/supabase-js";
@@ -2080,7 +2081,33 @@ async function resolveActualPaymentsData(
  * @see {@link docs/database-functions.md#get_abrechnung_modal_data} Database function documentation
  * @see {@link components/abrechnung-modal.tsx} Modal component that consumes this data
  */
+/**
+ * Modal data of an Abrechnung. Tenancies in settlement mode `gemeinsam` (GH-17, phase 6) are merged into one tenant,
+ * so every consumer (modal, PDF, server calculation) settles them once; mode `je_mieter` (default) changes nothing.
+ */
 async function getAbrechnungModalDataActionImpl(
+  nebenkostenId: string
+): Promise<OptimizedActionResponse<AbrechnungModalData>> {
+  const result = await ladeAbrechnungModalData(nebenkostenId);
+  if (!result.success || !result.data) return result;
+  try {
+    const { supabase } = await ensureAuth();
+    const angepasst = await wendeAbrechnungsmodusAn(
+      supabase,
+      { tenants: result.data.tenants as any[], rechnungen: result.data.rechnungen as any[] },
+      code => logger.warn('Abrechnungsmodus nicht angewendet (je Mieter abgerechnet)', { code, nebenkostenId })
+    );
+    return {
+      ...result,
+      data: { ...result.data, tenants: angepasst.tenants as any[], rechnungen: angepasst.rechnungen as any[] }
+    };
+  } catch {
+    logger.warn('Abrechnungsmodus nicht angewendet (je Mieter abgerechnet)', { code: 'AUTH', nebenkostenId });
+    return result;
+  }
+}
+
+async function ladeAbrechnungModalData(
   nebenkostenId: string
 ): Promise<OptimizedActionResponse<AbrechnungModalData>> {
   if (!nebenkostenId || nebenkostenId.trim() === '') {
