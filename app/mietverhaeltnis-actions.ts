@@ -78,6 +78,17 @@ export interface VertragsdatenSpeichernInput {
   notiz: string | null;
 }
 
+/** Move of a tenant with a tenancy into another apartment. The database ends the old tenancy the day before. */
+export interface MieterUmzugInput {
+  mieterId: string;
+  /** Target apartment; must differ from the current one and lie inside the object scope. */
+  wohnungId: string;
+  /** Move date (`YYYY-MM-DD`). The old tenancy ends the day before; it must start before this date. */
+  datum: string;
+  /** Monthly rent of the new tenancy from the move date, same rules as `betrag` of `mieteSetzen`. Omitted or `null`: no entry, the apartment rent applies. */
+  miete?: number | null;
+}
+
 /** Module right actions used here. */
 type MieterAktion = "ansehen" | "bearbeiten" | "erstellen";
 
@@ -290,9 +301,11 @@ async function runMietverhaeltnisAction<T>(options: {
   aktionen: readonly MieterAktion[];
   /** Writes revalidate the tenant list and the finance page. */
   schreibend: boolean;
+  /** Further pages to revalidate after a successful write (only for writes). */
+  zusaetzlichePfade?: readonly string[];
   run: (supabase: SupabaseClient) => Promise<Step<T>>;
 }): Promise<MietverhaeltnisActionResult<T>> {
-  const { actionName, aktionen, schreibend, run } = options;
+  const { actionName, aktionen, schreibend, zusaetzlichePfade = [], run } = options;
 
   const failure = (error: MietverhaeltnisActionError): MietverhaeltnisActionResult<T> => {
     const unexpected = error.code === "UNBEKANNT";
@@ -328,6 +341,7 @@ async function runMietverhaeltnisAction<T>(options: {
     if (schreibend) {
       revalidatePath("/mieter");
       revalidatePath("/finanzen");
+      for (const pfad of zusaetzlichePfade) revalidatePath(pfad);
     }
     logAction(actionName, "success", {});
     return { success: true, data: step.data };
@@ -544,6 +558,54 @@ export async function vertragsdatenSpeichernAction(input: VertragsdatenSpeichern
       // No row back: RLS refused the update (or the tenancy is not visible)
       if (!Array.isArray(data) || data.length === 0) return fail(mietverhaeltnisFehler("42501"));
       return { ok: true, data: undefined };
+    },
+  });
+}
+
+/**
+ * Moves a tenant with a tenancy into another apartment (GH-17, Wohnungswechsel). The database ends the current
+ * tenancy the day before the move, opens a new one in the new apartment and moves the tenant, in one transaction.
+ * The new apartment must lie inside the object scope too; the database checks rights and both houses again.
+ */
+export async function mieterUmzugAction(
+  input: MieterUmzugInput
+): Promise<MietverhaeltnisActionResult<{ mietverhaeltnisId: string }>> {
+  return runMietverhaeltnisAction<{ mietverhaeltnisId: string }>({
+    actionName: "mieterUmzug",
+    aktionen: ["ansehen", "bearbeiten", "erstellen"],
+    schreibend: true,
+    zusaetzlichePfade: ["/wohnungen"],
+    run: async (supabase) => {
+      // Validation first, before any database call.
+      const mieterId = input?.mieterId;
+      if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
+      const wohnungId = input?.wohnungId;
+      if (!istUuid(wohnungId)) return fail(mietverhaeltnisFehler("MV004"));
+      const datum = pruefeIsoDatum(input?.datum);
+      if (!datum) return fail(mietverhaeltnisFehler("MV004"));
+      const miete = input?.miete;
+      let betrag: number | null = null;
+      if (miete !== undefined && miete !== null) {
+        const geprueft = pruefeBetrag(miete);
+        if (geprueft === null) return fail(mietverhaeltnisFehler("MV004"));
+        betrag = Number(geprueft);
+      }
+
+      // Object scope: the current apartment (in ladeMieter) and the new apartment (here).
+      const mieter = await ladeMieter(supabase, mieterId);
+      if (!mieter.ok) return mieter;
+      const wohnungIds = await getAccessibleWohnungIds();
+      if (wohnungIds !== null && !wohnungIds.includes(wohnungId)) return fail(mietverhaeltnisFehler("42501"));
+
+      const { data, error } = await supabase.rpc("mietverhaeltnis_umzug", {
+        p_mieter_id: mieterId,
+        p_wohnung_id: wohnungId,
+        p_datum: datum,
+        p_miete: betrag,
+      });
+      if (error) return fail(mapMietverhaeltnisError(error));
+      if (!istUuid(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
+      return { ok: true, data: { mietverhaeltnisId: data } };
     },
   });
 }

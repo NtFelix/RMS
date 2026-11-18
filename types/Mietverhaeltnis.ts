@@ -64,6 +64,7 @@ export type MietverhaeltnisFehlerCode =
   | "MV010"
   | "MV011"
   | "MV012"
+  | "MV013"
   | "42501"
   | "23503"
   | "UNBEKANNT";

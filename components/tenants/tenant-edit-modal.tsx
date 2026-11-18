@@ -1094,7 +1094,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
             />
             {tenantInitialData?.id && !isApplicant && mietverhaeltnisSichtbar && (
               <div className="max-w-[90%] mx-auto pb-6 px-4 sm:px-8">
-                <TenantMieteSection mieterId={tenantInitialData.id} />
+                <TenantMieteSection
+                  mieterId={tenantInitialData.id}
+                  wohnungen={apartmentOptions}
+                  // After a move the tenant lives in the new apartment: the dialog must not save the old one back.
+                  onUmzug={(wohnungId) => setFormData(prev => ({ ...prev, wohnung_id: wohnungId }))}
+                />
               </div>
             )}
           </ScrollArea>

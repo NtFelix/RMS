@@ -40,6 +40,7 @@ const MESSAGES = new Map<MietverhaeltnisFehlerCode, string>([
   ["MV010", "Der Eintrag ist mit einem Dokument verknüpft und kann nicht entfernt werden."],
   ["MV011", "Das Dokument wurde nicht gefunden oder Sie haben keinen Zugriff darauf."],
   ["MV012", "Der Mieter gehört bereits zu einem Mietverhältnis."],
+  ["MV013", "Das Mietverhältnis hat weitere Mieter. Ein Umzug ist dafür noch nicht möglich."],
   ["42501", "Für diese Aktion fehlt die Berechtigung (Modul Mieter)."],
   ["23503", "Der Datensatz ist verknüpft und kann nicht geändert werden."],
   ["UNBEKANNT", MIETVERHAELTNIS_FEHLER_FALLBACK_MESSAGE],
@@ -73,7 +74,7 @@ export function mapMietverhaeltnisError(error: unknown): MietverhaeltnisActionEr
 const WOHNUNGSWECHSEL_CONSTRAINT = "fk_mieter_mietverhaeltnis";
 
 export const WOHNUNGSWECHSEL_MIETVERHAELTNIS_MESSAGE =
-  "Die Wohnung kann nicht geändert werden, weil der Mieter zu einem Mietverhältnis in der bisherigen Wohnung gehört.";
+  "Die Wohnung kann hier nicht geändert werden, weil der Mieter zu einem Mietverhältnis gehört. Nutzen Sie im Abschnitt Mietverhältnis den Punkt „Umzug in eine andere Wohnung“.";
 
 /**
  * Message for a blocked apartment change of a tenant with a tenancy (`23503`, constraint
