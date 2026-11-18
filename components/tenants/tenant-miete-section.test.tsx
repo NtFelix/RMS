@@ -18,6 +18,11 @@ jest.mock("@/app/mietverhaeltnis-actions", () => ({
   vertragsdatenSpeichernAction: jest.fn(),
   mieterhoehungErfassenAction: jest.fn(),
   mieterUmzugAction: jest.fn(),
+  // Phase 6: no other tenants in these tests, the section stays hidden
+  getMitmieterUebersichtAction: jest.fn().mockResolvedValue({ success: true, data: { mitmieter: [], kandidaten: [] } }),
+  mieterZusammenfuehrenAction: jest.fn(),
+  mieterTrennenAction: jest.fn(),
+  abrechnungsmodusSetzenAction: jest.fn(),
 }));
 
 jest.mock("@/hooks/use-toast", () => ({
@@ -49,7 +54,7 @@ const WOHNUNG_AKTUELL = "66666666-6666-4666-8666-666666666666";
 const WOHNUNG_NEU = "77777777-7777-4777-8777-777777777777";
 const WOHNUNG_DRITTE = "99999999-9999-4999-8999-999999999999";
 const NEU_MV_ID_UMZUG = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const MV013_MELDUNG = "Das Mietverhältnis hat weitere Mieter. Ein Umzug ist dafür noch nicht möglich.";
+const MV013_MELDUNG = "Das Mietverhältnis hat weitere Mieter. Bitte trennen Sie zuerst den Mieter vom gemeinsamen Mietverhältnis.";
 
 /** Apartment options as the tenant dialog passes them; the current apartment of the tenancy is among them. */
 const WOHNUNGEN = [

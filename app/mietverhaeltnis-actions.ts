@@ -38,6 +38,7 @@ import type {
   MietverhaeltnisActionError,
   MietverhaeltnisActionResult,
   MietverhaeltnisUebersicht,
+  MitmieterUebersicht,
 } from "@/types/Mietverhaeltnis";
 
 // ---------------------------------------------------------------------------
@@ -104,6 +105,31 @@ export interface MieterUmzugInput {
   miete?: number | null;
 }
 
+/** A tenant joins an existing tenancy of the same apartment (several tenants in one contract). */
+export interface MieterZusammenfuehrenInput {
+  mieterId: string;
+  /** Target tenancy; must belong to the same apartment as the tenant. */
+  zielMietverhaeltnisId: string;
+  /** Date from which the tenant belongs to the target tenancy (`YYYY-MM-DD`). The old tenancy of the tenant ends the day before. */
+  datum: string;
+  /** Optional role (info field only). Omitted or `null`: unchanged. */
+  rolle?: "hauptmieter" | "mitmieter" | null;
+}
+
+/** A tenant leaves a shared tenancy and gets an own tenancy in the same apartment. */
+export interface MieterTrennenInput {
+  mieterId: string;
+  /** Start of the own tenancy (`YYYY-MM-DD`). */
+  datum: string;
+  /** Monthly rent of the own tenancy from the start date, same rules as `betrag` of `mieteSetzen`. Omitted or `null`: no entry. */
+  miete?: number | null;
+}
+
+export interface AbrechnungsmodusSetzenInput {
+  mieterId: string;
+  modus: "je_mieter" | "gemeinsam";
+}
+
 /** Module right actions used here. */
 type MieterAktion = "ansehen" | "bearbeiten" | "erstellen";
 
@@ -112,6 +138,7 @@ type Step<T> = { ok: true; data: T } | { ok: false; error: MietverhaeltnisAction
 /** Tenant data the actions need: tenancy link, apartment rent and move-in date, applicant flag. */
 interface MieterDaten {
   mietverhaeltnisId: string | null;
+  wohnungId: string | null;
   wohnungsmiete: number | null;
   einzug: string | null;
   istBewerber: boolean;
@@ -269,6 +296,7 @@ async function ladeMieter(supabase: SupabaseClient, mieterId: string): Promise<S
     ok: true,
     data: {
       mietverhaeltnisId: typeof record.mietverhaeltnis_id === "string" ? record.mietverhaeltnis_id : null,
+      wohnungId: typeof record.wohnung_id === "string" ? record.wohnung_id : null,
       wohnungsmiete: parseWohnungsmiete(record.Wohnungen),
       einzug: typeof record.einzug === "string" ? record.einzug : null,
       istBewerber: record.status === "bewerber",
@@ -680,6 +708,168 @@ export async function mieterUmzugAction(
       if (error) return fail(mapMietverhaeltnisError(error));
       if (!istUuid(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
       return { ok: true, data: { mietverhaeltnisId: data } };
+    },
+  });
+}
+
+/**
+ * Other tenants of the same apartment, for the tenancy section: who shares the tenancy of this tenant (`mitmieter`) and
+ * which other tenancies of the apartment the tenant could join (`kandidaten`, one entry per tenancy). Read-only.
+ */
+export async function getMitmieterUebersichtAction(mieterId: string): Promise<MietverhaeltnisActionResult<MitmieterUebersicht>> {
+  return runMietverhaeltnisAction<MitmieterUebersicht>({
+    actionName: "getMitmieterUebersicht",
+    aktionen: ["ansehen"],
+    schreibend: false,
+    run: async (supabase) => {
+      if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
+      const mieter = await ladeMieter(supabase, mieterId);
+      if (!mieter.ok) return mieter;
+      const { wohnungId, mietverhaeltnisId } = mieter.data;
+      const leer: MitmieterUebersicht = { mitmieter: [], kandidaten: [] };
+      // Without apartment or tenancy there is nothing to share or join.
+      if (!wohnungId || !mietverhaeltnisId) return { ok: true, data: leer };
+
+      const { data, error } = await supabase
+        .from("Mieter")
+        .select("id, name, status, rolle, mietverhaeltnis_id, geloescht_am")
+        .eq("wohnung_id", wohnungId);
+      if (error) return fail(mapMietverhaeltnisError(error));
+      if (!Array.isArray(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
+
+      const kandidaten = new Map<string, string[]>();
+      const ergebnis: MitmieterUebersicht = { mitmieter: [], kandidaten: [] };
+      for (const row of data) {
+        const record = asRecord(row);
+        if (!record || !istUuid(record.id) || record.id === mieterId) continue;
+        if (record.geloescht_am !== null && record.geloescht_am !== undefined) continue;
+        if (record.status === "bewerber") continue;
+        const name = typeof record.name === "string" ? record.name : "";
+        const mvId = typeof record.mietverhaeltnis_id === "string" ? record.mietverhaeltnis_id : null;
+        if (mvId === mietverhaeltnisId) {
+          ergebnis.mitmieter.push({
+            mieterId: record.id,
+            name,
+            rolle: record.rolle === "hauptmieter" || record.rolle === "mitmieter" ? record.rolle : null,
+          });
+        } else if (mvId) {
+          kandidaten.set(mvId, [...(kandidaten.get(mvId) ?? []), name]);
+        }
+      }
+      ergebnis.kandidaten = Array.from(kandidaten, ([id, namen]) => ({ mietverhaeltnisId: id, mieterNamen: namen }));
+      return { ok: true, data: ergebnis };
+    },
+  });
+}
+
+/**
+ * A tenant joins an existing tenancy of the same apartment (GH-17, phase 6). The database ends the old tenancy of the
+ * tenant the day before and keeps it as history; deposits stay where they were agreed. No legal rule is checked here.
+ */
+export async function mieterZusammenfuehrenAction(
+  input: MieterZusammenfuehrenInput
+): Promise<MietverhaeltnisActionResult<{ mietverhaeltnisId: string }>> {
+  return runMietverhaeltnisAction<{ mietverhaeltnisId: string }>({
+    actionName: "mieterZusammenfuehren",
+    aktionen: ["ansehen", "bearbeiten"],
+    schreibend: true,
+    zusaetzlichePfade: ["/wohnungen"],
+    run: async (supabase) => {
+      // Validation first, before any database call.
+      const mieterId = input?.mieterId;
+      if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
+      const ziel = input?.zielMietverhaeltnisId;
+      if (!istUuid(ziel)) return fail(mietverhaeltnisFehler("MV004"));
+      const datum = pruefeIsoDatum(input?.datum);
+      if (!datum) return fail(mietverhaeltnisFehler("MV004"));
+      const rolle = input?.rolle ?? null;
+      if (rolle !== null && rolle !== "hauptmieter" && rolle !== "mitmieter") return fail(mietverhaeltnisFehler("MV004"));
+
+      // Object scope (apartment of the tenant); the database checks rights and the house again.
+      const mieter = await ladeMieter(supabase, mieterId);
+      if (!mieter.ok) return mieter;
+
+      const { data, error } = await supabase.rpc("mietverhaeltnis_mieter_zusammenfuehren", {
+        p_mieter_id: mieterId,
+        p_ziel_mietverhaeltnis_id: ziel,
+        p_datum: datum,
+        p_rolle: rolle,
+      });
+      if (error) return fail(mapMietverhaeltnisError(error));
+      if (!istUuid(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
+      return { ok: true, data: { mietverhaeltnisId: data } };
+    },
+  });
+}
+
+/**
+ * A tenant leaves a shared tenancy and gets an own tenancy in the same apartment (GH-17, phase 6). The shared
+ * tenancy continues for the other tenants; deposits stay at the shared tenancy.
+ */
+export async function mieterTrennenAction(
+  input: MieterTrennenInput
+): Promise<MietverhaeltnisActionResult<{ mietverhaeltnisId: string }>> {
+  return runMietverhaeltnisAction<{ mietverhaeltnisId: string }>({
+    actionName: "mieterTrennen",
+    aktionen: ["ansehen", "bearbeiten", "erstellen"],
+    schreibend: true,
+    run: async (supabase) => {
+      const mieterId = input?.mieterId;
+      if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
+      const datum = pruefeIsoDatum(input?.datum);
+      if (!datum) return fail(mietverhaeltnisFehler("MV004"));
+      const miete = input?.miete;
+      let betrag: number | null = null;
+      if (miete !== undefined && miete !== null) {
+        const geprueft = pruefeBetrag(miete);
+        if (geprueft === null) return fail(mietverhaeltnisFehler("MV004"));
+        betrag = Number(geprueft);
+      }
+
+      const mieter = await ladeMieter(supabase, mieterId);
+      if (!mieter.ok) return mieter;
+
+      const { data, error } = await supabase.rpc("mietverhaeltnis_mieter_trennen", {
+        p_mieter_id: mieterId,
+        p_datum: datum,
+        p_miete: betrag,
+      });
+      if (error) return fail(mapMietverhaeltnisError(error));
+      if (!istUuid(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
+      return { ok: true, data: { mietverhaeltnisId: data } };
+    },
+  });
+}
+
+/**
+ * Sets the settlement mode of the tenancy of a tenant: `je_mieter` (default, one settlement per tenant row, as before)
+ * or `gemeinsam` (one settlement per tenancy). Written through RLS like the contract data. Who the addressee of a
+ * shared settlement is and whether that is allowed for a given contract: legal question, not checked here.
+ */
+export async function abrechnungsmodusSetzenAction(input: AbrechnungsmodusSetzenInput): Promise<MietverhaeltnisActionResult> {
+  return runMietverhaeltnisAction<undefined>({
+    actionName: "abrechnungsmodusSetzen",
+    aktionen: ["ansehen", "bearbeiten"],
+    schreibend: true,
+    run: async (supabase) => {
+      const mieterId = input?.mieterId;
+      if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
+      const modus = input?.modus;
+      if (modus !== "je_mieter" && modus !== "gemeinsam") return fail(mietverhaeltnisFehler("MV004"));
+
+      const mieter = await ladeMieter(supabase, mieterId);
+      if (!mieter.ok) return mieter;
+      if (!mieter.data.mietverhaeltnisId) return fail(mietverhaeltnisFehler("MV003"));
+
+      const { data, error } = await supabase
+        .from("Mieter_Mietverhaeltnisse")
+        .update({ abrechnungsmodus: modus })
+        .eq("id", mieter.data.mietverhaeltnisId)
+        .select("id");
+      if (error) return fail(mapMietverhaeltnisError(error));
+      // No row back: RLS refused the update (or the tenancy is not visible)
+      if (!Array.isArray(data) || data.length === 0) return fail(mietverhaeltnisFehler("42501"));
+      return { ok: true, data: undefined };
     },
   });
 }

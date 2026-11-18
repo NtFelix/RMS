@@ -51,6 +51,14 @@ export interface MietverhaeltnisUebersicht {
   istBewerber: boolean;
 }
 
+/** Other tenants of the apartment of a tenant (phase 6, several tenants per tenancy). */
+export interface MitmieterUebersicht {
+  /** Other active tenants of the same tenancy. */
+  mitmieter: { mieterId: string; name: string; rolle: "hauptmieter" | "mitmieter" | null }[];
+  /** Other tenancies of the same apartment with their active tenants; the tenant could join one of them. */
+  kandidaten: { mietverhaeltnisId: string; mieterNamen: string[] }[];
+}
+
 /** Stable error codes of the tenancy functions (SQLSTATE of the database, `42501` for missing permission or scope). */
 export type MietverhaeltnisFehlerCode =
   | "MV001"

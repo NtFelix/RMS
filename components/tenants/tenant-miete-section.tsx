@@ -26,6 +26,7 @@ import { MietverhaeltnisAnlegenForm } from "@/components/tenants/mietverhaeltnis
 import { MieterhoehungForm } from "@/components/tenants/mietverhaeltnis/mieterhoehung-form";
 import { VertragsdatenForm } from "@/components/tenants/mietverhaeltnis/vertragsdaten-form";
 import { UmzugForm } from "@/components/tenants/mietverhaeltnis/umzug-form";
+import { MitmieterSection } from "@/components/tenants/mietverhaeltnis/mitmieter-section";
 import {
   aktuelleMiete,
   formatDatum,
@@ -228,6 +229,8 @@ export function TenantMieteSection({ mieterId, wohnungen = [], onUmzug }: Tenant
             mietverhaeltnis={mietverhaeltnis}
             onGespeichert={() => void laden(true)}
           />
+
+          <MitmieterSection mieterId={mieterId} mietverhaeltnis={mietverhaeltnis} onGeaendert={() => void laden(true)} />
 
           {umzugOptionen.length > 0 && (
             <div className="space-y-3">

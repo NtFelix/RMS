@@ -23,7 +23,7 @@ describe("mapMietverhaeltnisError", () => {
     ["23503", "Der Datensatz ist verknüpft und kann nicht geändert werden."],
     ["MV011", "Das Dokument wurde nicht gefunden oder Sie haben keinen Zugriff darauf."],
     ["MV012", "Der Mieter gehört bereits zu einem Mietverhältnis."],
-    ["MV013", "Das Mietverhältnis hat weitere Mieter. Ein Umzug ist dafür noch nicht möglich."],
+    ["MV013", "Das Mietverhältnis hat weitere Mieter. Bitte trennen Sie zuerst den Mieter vom gemeinsamen Mietverhältnis."],
   ])("maps %s to a fixed German message with the same code", (code, message) => {
     expect(mapMietverhaeltnisError({ code, message: "MV004: interner Text mit Wert 1234" })).toEqual({ code, message });
   });

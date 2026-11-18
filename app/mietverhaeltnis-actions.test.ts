@@ -863,7 +863,7 @@ describe("mieterUmzugAction", () => {
   });
 
   it.each([
-    ["MV013", "Das Mietverhältnis hat weitere Mieter. Ein Umzug ist dafür noch nicht möglich."],
+    ["MV013", "Das Mietverhältnis hat weitere Mieter. Bitte trennen Sie zuerst den Mieter vom gemeinsamen Mietverhältnis."],
     ["MV004", "Die Eingabe ist ungültig."],
     ["MV007", "Die Wohnung fehlt oder befindet sich im Papierkorb."],
     ["42501", "Für diese Aktion fehlt die Berechtigung (Modul Mieter)."],
