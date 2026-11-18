@@ -11,8 +11,10 @@
  * - IDs of tenancy and document come from the server: the tenancy is read from the tenant row, the document is
  *   read under RLS and its path must lie in the document folder of the house of the tenant's apartment (not in
  *   the archive and not in the deposit receipts, whose access runs through the module `kautionen`).
- * - The database checks again: the foreign key `(vertrag_dokument_id, organisation_id)` and the trigger `MV011`
- *   (the signed-in user must be able to see the document).
+ * - The database only checks organisation and visibility: the foreign key `(vertrag_dokument_id, organisation_id)` and the
+ *   trigger `MV011` (the signed-in user must be able to see the document). The house-folder rule above is therefore a
+ *   restriction of the app, not of the database: whoever may write `"Mieter_Mietverhaeltnisse"` through RLS can link any
+ *   document he can see. A rule in the database (trigger) would have to be added in mietevo-db.
  * - Opening goes through `createSignedUrls`, which validates the path against organisation and house scope. The
  *   link lives only a few minutes.
  * - No file names, paths or IDs in logs: only the action name, the event and the error code.
@@ -31,7 +33,7 @@ import { getAccessibleWohnungIds } from "@/lib/object-scope";
 import { logAction } from "@/lib/logging-middleware";
 import { mapMietverhaeltnisError, mietverhaeltnisFehler, MIETVERHAELTNIS_FEHLER_FALLBACK_MESSAGE } from "@/lib/mietverhaeltnis-errors";
 import { createSignedUrls } from "@/lib/storage-operations";
-import { ARCHIVE_SEGMENT, KAUTIONEN_SEGMENT, folderMetadataFilter, isPathInFolder, sharedPath } from "@/lib/storage-paths";
+import { ARCHIVE_SEGMENT, KAUTIONEN_SEGMENT, escapeLikePattern, folderMetadataFilter, isPathInFolder, sharedPath } from "@/lib/storage-paths";
 import type { MietverhaeltnisActionError, MietverhaeltnisActionResult } from "@/types/Mietverhaeltnis";
 
 /** A document that can be linked as contract document. */
@@ -43,6 +45,12 @@ export interface VertragsdokumentInfo {
   ordner: string;
 }
 
+/** Documents that can be linked; `abgeschnitten` is true when more than the limit exist (use the search). */
+export interface VertragsdokumentKandidaten {
+  dokumente: VertragsdokumentInfo[];
+  abgeschnitten: boolean;
+}
+
 export interface VertragsdokumentSetzenInput {
   mieterId: string;
   /** Document to link; `null` removes the link. */
@@ -51,8 +59,9 @@ export interface VertragsdokumentSetzenInput {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NOT_SIGNED_IN_MESSAGE_PREFIX = "Nicht authentifiziert";
-/** Number of documents offered for linking (newest names first is not needed: sorted by name). */
+/** Number of documents offered for linking at most (sorted by name); more are reachable through the search. */
 const KANDIDATEN_LIMIT = 200;
+const SUCHE_MAX_LAENGE = 100;
 /** Lifetime of the link to open the document, seconds. */
 const OEFFNEN_GUELTIG_SEKUNDEN = 120;
 
@@ -60,8 +69,8 @@ type Step<T> = { ok: true; data: T } | { ok: false; error: MietverhaeltnisAction
 
 interface Kontext {
   mietverhaeltnisId: string;
-  /** `org_{org}/shared/{house}`, the document folder of the house. */
-  hausOrdner: string;
+  /** `org_{org}/shared/{house}`, the document folder of the house; `null` for an apartment without a house. */
+  hausOrdner: string | null;
   vertragDokumentId: string | null;
 }
 
@@ -114,7 +123,6 @@ async function ladeKontext(supabase: SupabaseClient, mieterId: string): Promise<
   }
   if (!istUuid(record.mietverhaeltnis_id)) return fail(mietverhaeltnisFehler("MV003"));
   const hausId = hausIdVon(record.Wohnungen);
-  if (!hausId) return fail(mietverhaeltnisFehler("MV007"));
 
   const { data: orgId, error: orgError } = await supabase.rpc("current_organisation_id");
   if (orgError || !istUuid(orgId)) return fail(mietverhaeltnisFehler("42501"));
@@ -132,7 +140,7 @@ async function ladeKontext(supabase: SupabaseClient, mieterId: string): Promise<
     ok: true,
     data: {
       mietverhaeltnisId: record.mietverhaeltnis_id,
-      hausOrdner: sharedPath(orgId, hausId),
+      hausOrdner: hausId ? sharedPath(orgId, hausId) : null,
       vertragDokumentId: istUuid(mv.vertrag_dokument_id) ? mv.vertrag_dokument_id : null,
     },
   };
@@ -170,10 +178,7 @@ async function runDokumentAction<T>(options: {
     const step = await run(supabase);
     if (!step.ok) return failure(step.error);
 
-    if (schreibend) {
-      revalidatePath("/mieter");
-      revalidatePath("/finanzen");
-    }
+    if (schreibend) revalidatePath("/mieter");
     logAction(actionName, "success", {});
     return { success: true, data: step.data };
   } catch (error) {
@@ -187,8 +192,10 @@ async function runDokumentAction<T>(options: {
 async function ladeDokument(
   supabase: SupabaseClient,
   dokumentId: string,
-  hausOrdner: string
+  hausOrdner: string | null
 ): Promise<Step<{ info: VertragsdokumentInfo; pfad: string } | null>> {
+  // An apartment without a house has no document folder: nothing can be linked from it
+  if (hausOrdner === null) return { ok: true, data: null };
   const { data, error } = await supabase
     .from("Dokumente_Metadaten")
     .select("id, dateiname, dateipfad")
@@ -221,32 +228,47 @@ export async function getVertragsdokumentAction(mieterId: string): Promise<Mietv
   });
 }
 
-/** Documents of the house folder that can be linked (not archived, no deposit receipts), sorted by name. */
-export async function listeVertragsdokumentKandidatenAction(mieterId: string): Promise<MietverhaeltnisActionResult<VertragsdokumentInfo[]>> {
-  return runDokumentAction<VertragsdokumentInfo[]>({
+/**
+ * Documents of the house folder that can be linked (not archived, no deposit receipts, no placeholders), sorted by
+ * name. `suche` filters by a part of the file name; without it at most 200 documents come back (`abgeschnitten`).
+ */
+export async function listeVertragsdokumentKandidatenAction(
+  mieterId: string,
+  suche?: string
+): Promise<MietverhaeltnisActionResult<VertragsdokumentKandidaten>> {
+  return runDokumentAction<VertragsdokumentKandidaten>({
     actionName: "listeVertragsdokumentKandidaten",
     aktionen: ["ansehen"],
     schreibend: false,
     run: async (supabase) => {
       if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
+      if (suche !== undefined && typeof suche !== "string") return fail(mietverhaeltnisFehler("MV004"));
+      const begriff = (suche ?? "").trim().slice(0, SUCHE_MAX_LAENGE);
       const kontext = await ladeKontext(supabase, mieterId);
       if (!kontext.ok) return kontext;
-      const { data, error } = await supabase
+      const hausOrdner = kontext.data.hausOrdner;
+      if (hausOrdner === null) return { ok: true, data: { dokumente: [], abgeschnitten: false } };
+
+      // Placeholders, deposit receipts and archived files are excluded in the query, so they never fill the limit
+      let abfrage = supabase
         .from("Dokumente_Metadaten")
         .select("id, dateiname, dateipfad")
-        .or(folderMetadataFilter(kontext.data.hausOrdner))
-        .order("dateiname", { ascending: true })
-        .limit(KANDIDATEN_LIMIT);
+        .or(folderMetadataFilter(hausOrdner))
+        .neq("dateiname", ".keep")
+        .not("dateipfad", "eq", `${hausOrdner}/${KAUTIONEN_SEGMENT}`)
+        .not("dateipfad", "like", `${escapeLikePattern(hausOrdner)}/${KAUTIONEN_SEGMENT}/%`);
+      if (begriff !== "") abfrage = abfrage.ilike("dateiname", `%${escapeLikePattern(begriff)}%`);
+      const { data, error } = await abfrage.order("dateiname", { ascending: true }).limit(KANDIDATEN_LIMIT + 1);
       if (error) return fail(mapMietverhaeltnisError(error));
       if (!Array.isArray(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
-      const liste: VertragsdokumentInfo[] = [];
-      for (const zeile of data) {
+      const dokumente: VertragsdokumentInfo[] = [];
+      for (const zeile of data.slice(0, KANDIDATEN_LIMIT)) {
         const record = asRecord(zeile);
-        const info = record ? dokumentInfo(record, kontext.data.hausOrdner) : null;
-        // The folder filter is not exact for names with `*`: the path is checked again in dokumentInfo
-        if (info) liste.push(info);
+        // The query filter is not exact for names with `*`: the path is checked again in dokumentInfo
+        const info = record ? dokumentInfo(record, hausOrdner) : null;
+        if (info) dokumente.push(info);
       }
-      return { ok: true, data: liste };
+      return { ok: true, data: { dokumente, abgeschnitten: data.length > KANDIDATEN_LIMIT } };
     },
   });
 }

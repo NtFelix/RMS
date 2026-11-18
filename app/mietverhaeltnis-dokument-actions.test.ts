@@ -47,6 +47,10 @@ let orgAntwort: Antwort;
 const mockUpdate = jest.fn();
 const mockUpdateFilter = jest.fn();
 const mockOr = jest.fn();
+const mockNeq = jest.fn();
+const mockNot = jest.fn();
+const mockIlike = jest.fn();
+const mockLimit = jest.fn();
 const mockFrom = jest.fn();
 
 beforeEach(() => {
@@ -69,7 +73,14 @@ beforeEach(() => {
       }),
       or: (filter: string) => {
         mockOr(filter);
-        return { order: () => ({ limit: async () => dokumentListe }) };
+        const kette: Record<string, unknown> = {
+          neq: (...args: unknown[]) => (mockNeq(...args), kette),
+          not: (...args: unknown[]) => (mockNot(...args), kette),
+          ilike: (...args: unknown[]) => (mockIlike(...args), kette),
+          order: () => kette,
+          limit: async (anzahl: number) => (mockLimit(anzahl), dokumentListe),
+        };
+        return kette;
       },
     }),
     update: (werte: unknown) => {
@@ -109,6 +120,11 @@ describe("getVertragsdokumentAction", () => {
     expect(await getVertragsdokumentAction(MIETER_ID)).toEqual({ success: true, data: null });
   });
 
+  it("returns null for an apartment without a house (no error)", async () => {
+    mieterZeile = { data: { ...(mieterZeile.data as object), Wohnungen: { haus_id: null } }, error: null };
+    expect(await getVertragsdokumentAction(MIETER_ID)).toEqual({ success: true, data: null });
+  });
+
   it("rejects an invalid ID with MV004", async () => {
     expect(await getVertragsdokumentAction("x")).toMatchObject({ success: false, error: { code: "MV004" } });
   });
@@ -130,6 +146,7 @@ describe("listeVertragsdokumentKandidatenAction", () => {
       data: [
         { id: DOK_ID, dateiname: "vertrag.pdf", dateipfad: HAUS_ORDNER },
         { id: "44444444-4444-4444-8444-444444444444", dateiname: "scan.pdf", dateipfad: `${HAUS_ORDNER}/Mieter/Test` },
+        // not excluded by the query mock, so the path check must catch them
         { id: "55555555-5555-4555-8555-555555555555", dateiname: "beleg.pdf", dateipfad: `${HAUS_ORDNER}/Kautionen/abc` },
         { id: "55555555-5555-4555-8555-555555555556", dateiname: "alt.pdf", dateipfad: `${HAUS_ORDNER}/__archive__/2026` },
         { id: "55555555-5555-4555-8555-555555555557", dateiname: ".keep", dateipfad: HAUS_ORDNER },
@@ -140,16 +157,67 @@ describe("listeVertragsdokumentKandidatenAction", () => {
     const result = await listeVertragsdokumentKandidatenAction(MIETER_ID);
     expect(result).toEqual({
       success: true,
-      data: [
-        { id: DOK_ID, name: "vertrag.pdf", ordner: "" },
-        { id: "44444444-4444-4444-8444-444444444444", name: "scan.pdf", ordner: "Mieter/Test" },
-      ],
+      data: {
+        dokumente: [
+          { id: DOK_ID, name: "vertrag.pdf", ordner: "" },
+          { id: "44444444-4444-4444-8444-444444444444", name: "scan.pdf", ordner: "Mieter/Test" },
+        ],
+        abgeschnitten: false,
+      },
     });
     expect(mockOr).toHaveBeenCalledWith(expect.stringContaining(HAUS_ORDNER));
   });
 
+  it("excludes placeholders and deposit receipts in the query, so they never fill the limit", async () => {
+    await listeVertragsdokumentKandidatenAction(MIETER_ID);
+    expect(mockNeq).toHaveBeenCalledWith("dateiname", ".keep");
+    expect(mockNot).toHaveBeenCalledWith("dateipfad", "eq", `${HAUS_ORDNER}/Kautionen`);
+    expect(mockNot).toHaveBeenCalledWith("dateipfad", "like", expect.stringContaining("/Kautionen/%"));
+    expect(mockIlike).not.toHaveBeenCalled();
+  });
+
+  it("asks for one more than the limit and reports that the list was cut off", async () => {
+    dokumentListe = {
+      data: Array.from({ length: 201 }, (_, i) => ({
+        id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
+        dateiname: `datei-${i}.pdf`,
+        dateipfad: HAUS_ORDNER,
+      })),
+      error: null,
+    };
+    const result = await listeVertragsdokumentKandidatenAction(MIETER_ID);
+    expect(mockLimit).toHaveBeenCalledWith(201);
+    expect(result).toMatchObject({ success: true, data: { abgeschnitten: true } });
+    expect(result.success && result.data.dokumente).toHaveLength(200);
+  });
+
+  it("filters by a part of the file name with escaped wildcards and a bounded length", async () => {
+    await listeVertragsdokumentKandidatenAction(MIETER_ID, "  100%_vertrag  ");
+    expect(mockIlike).toHaveBeenCalledWith("dateiname", "%100\\%\\_vertrag%");
+    await listeVertragsdokumentKandidatenAction(MIETER_ID, "x".repeat(500));
+    expect(mockIlike).toHaveBeenLastCalledWith("dateiname", `%${"x".repeat(100)}%`);
+  });
+
+  it("rejects a search term that is not a string", async () => {
+    const result = await listeVertragsdokumentKandidatenAction(MIETER_ID, 5 as never);
+    expect(result).toMatchObject({ success: false, error: { code: "MV004" } });
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty list for an apartment without a house (no query)", async () => {
+    mieterZeile = { data: { ...(mieterZeile.data as object), Wohnungen: { haus_id: null } }, error: null };
+    const result = await listeVertragsdokumentKandidatenAction(MIETER_ID);
+    expect(result).toEqual({ success: true, data: { dokumente: [], abgeschnitten: false } });
+    expect(mockOr).not.toHaveBeenCalled();
+  });
+
   it("maps a database error", async () => {
     dokumentListe = { data: null, error: { code: "42501", message: "x" } };
+    expect(await listeVertragsdokumentKandidatenAction(MIETER_ID)).toMatchObject({ success: false, error: { code: "42501" } });
+  });
+
+  it("reports 42501 when the organisation cannot be determined", async () => {
+    orgAntwort = { data: null, error: { message: "x" } };
     expect(await listeVertragsdokumentKandidatenAction(MIETER_ID)).toMatchObject({ success: false, error: { code: "42501" } });
   });
 
@@ -209,6 +277,18 @@ describe("vertragsdokumentSetzenAction", () => {
     expect(await vertragsdokumentSetzenAction({ mieterId: MIETER_ID, dokumentId: DOK_ID })).toMatchObject({ success: false, error: { code: "42501" } });
     updateErgebnis = { data: null, error: { code: "MV011", message: "x" } };
     expect(await vertragsdokumentSetzenAction({ mieterId: MIETER_ID, dokumentId: DOK_ID })).toMatchObject({ success: false, error: { code: "MV011" } });
+  });
+
+  it("revalidates only the tenant page", async () => {
+    await vertragsdokumentSetzenAction({ mieterId: MIETER_ID, dokumentId: DOK_ID });
+    expect(mockRevalidatePath).toHaveBeenCalledTimes(1);
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/mieter");
+  });
+
+  it("rejects linking for an apartment without a house with MV011", async () => {
+    mieterZeile = { data: { ...(mieterZeile.data as object), Wohnungen: { haus_id: null } }, error: null };
+    expect(await vertragsdokumentSetzenAction({ mieterId: MIETER_ID, dokumentId: DOK_ID })).toMatchObject({ success: false, error: { code: "MV011" } });
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it("does not revalidate after a failure", async () => {

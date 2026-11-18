@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { VertragsdokumentSection } from "@/components/tenants/mietverhaeltnis/vertragsdokument-section";
 import {
   getVertragsdokumentAction,
@@ -42,7 +42,7 @@ const rendere = (vertragDokumentId: string | null = null) =>
 beforeEach(() => {
   jest.clearAllMocks();
   mockGet.mockResolvedValue({ success: true, data: null });
-  mockListe.mockResolvedValue({ success: true, data: [{ id: DOK_ANDERS, name: "mietvertrag.pdf", ordner: "Vertraege" }] });
+  mockListe.mockResolvedValue({ success: true, data: { dokumente: [{ id: DOK_ANDERS, name: "mietvertrag.pdf", ordner: "Vertraege" }], abgeschnitten: false } });
   mockSetzen.mockResolvedValue({ success: true, data: undefined });
   mockOeffnen.mockResolvedValue({ success: true, data: { url: "https://example.test/signed" } });
 });
@@ -66,7 +66,7 @@ describe("VertragsdokumentSection", () => {
   });
 
   it("points to the upload area when the house has no document", async () => {
-    mockListe.mockResolvedValue({ success: true, data: [] });
+    mockListe.mockResolvedValue({ success: true, data: { dokumente: [], abgeschnitten: false } });
     rendere();
     fireEvent.click(await screen.findByRole("button", { name: "Dokument auswählen" }));
     expect(await screen.findByText(/Laden Sie die Datei zuerst im Bereich Dateien hoch/)).toBeTruthy();
@@ -81,19 +81,59 @@ describe("VertragsdokumentSection", () => {
     expect(screen.queryByRole("button", { name: "Verknüpfen" })).toBeNull();
   });
 
-  it("shows the linked document, opens it in a new window and unlinks it", async () => {
+  it("shows the linked document, opens it in a window opened during the click, and unlinks it", async () => {
     mockGet.mockResolvedValue({ success: true, data: { id: DOK_ID, name: "vertrag.pdf", ordner: "" } });
-    const oeffnen = jest.spyOn(window, "open").mockImplementation(() => null);
+    const fenster = { opener: "x", location: { href: "" }, close: jest.fn() };
+    const oeffnen = jest.spyOn(window, "open").mockImplementation(() => fenster as unknown as Window);
     rendere(DOK_ID);
     expect(await screen.findByText("vertrag.pdf")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Öffnen" }));
-    await waitFor(() => expect(oeffnen).toHaveBeenCalledWith("https://example.test/signed", "_blank", "noopener,noreferrer"));
+    // the window is opened synchronously in the click, before the action has answered
+    expect(oeffnen).toHaveBeenCalledWith("about:blank", "_blank");
+    await waitFor(() => expect(fenster.location.href).toBe("https://example.test/signed"));
+    expect(fenster.opener).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Verknüpfung lösen" }));
     await waitFor(() => expect(mockSetzen).toHaveBeenCalledWith({ mieterId: MIETER_ID, dokumentId: null }));
     await waitFor(() => expect(onGeaendert).toHaveBeenCalledTimes(1));
     oeffnen.mockRestore();
+  });
+
+  it("closes the prepared window and shows the error when opening fails", async () => {
+    mockGet.mockResolvedValue({ success: true, data: { id: DOK_ID, name: "vertrag.pdf", ordner: "" } });
+    mockOeffnen.mockResolvedValue({ success: false, error: { code: "MV011", message: "Kein Zugriff" } });
+    const fenster = { opener: "x", location: { href: "" }, close: jest.fn() };
+    const oeffnen = jest.spyOn(window, "open").mockImplementation(() => fenster as unknown as Window);
+    rendere(DOK_ID);
+    fireEvent.click(await screen.findByRole("button", { name: "Öffnen" }));
+    await waitFor(() => expect(fenster.close).toHaveBeenCalled());
+    expect(fenster.location.href).toBe("");
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ description: "Kein Zugriff", variant: "destructive" }));
+    oeffnen.mockRestore();
+  });
+
+  it("tells the user when the browser blocks the window", async () => {
+    mockGet.mockResolvedValue({ success: true, data: { id: DOK_ID, name: "vertrag.pdf", ordner: "" } });
+    const oeffnen = jest.spyOn(window, "open").mockImplementation(() => null);
+    rendere(DOK_ID);
+    fireEvent.click(await screen.findByRole("button", { name: "Öffnen" }));
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ description: expect.stringContaining("Pop-ups"), variant: "destructive" }));
+    expect(mockOeffnen).not.toHaveBeenCalled();
+    oeffnen.mockRestore();
+  });
+
+  it("reloads once per change of the link, not after every action", async () => {
+    mockGet.mockResolvedValue({ success: true, data: { id: DOK_ID, name: "vertrag.pdf", ordner: "" } });
+    const { rerender } = rendere(DOK_ID);
+    await screen.findByText("vertrag.pdf");
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Verknüpfung lösen" }));
+    await waitFor(() => expect(onGeaendert).toHaveBeenCalled());
+    expect(mockGet).toHaveBeenCalledTimes(1); // the parent reloads and passes the new ID: that triggers the next load
+    mockGet.mockResolvedValue({ success: true, data: null });
+    rerender(<VertragsdokumentSection mieterId={MIETER_ID} vertragDokumentId={null} onGeaendert={onGeaendert} />);
+    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(2));
   });
 
   it("shows a link whose document is not available instead of hiding it, and allows to unlink it", async () => {
@@ -107,5 +147,25 @@ describe("VertragsdokumentSection", () => {
     mockGet.mockResolvedValue({ success: false, error: { code: "42501", message: "x" } });
     rendere();
     expect(await screen.findByText("Das Vertragsdokument konnte nicht geladen werden.")).toBeTruthy();
+  });
+
+  it("searches on the server after a short pause and warns when the list is cut off", async () => {
+    jest.useFakeTimers();
+    try {
+      mockListe.mockResolvedValue({ success: true, data: { dokumente: [{ id: DOK_ANDERS, name: "a.pdf", ordner: "" }], abgeschnitten: true } });
+      rendere();
+      await act(async () => { await jest.advanceTimersByTimeAsync(0); });
+      fireEvent.click(screen.getByRole("button", { name: "Dokument auswählen" }));
+      await act(async () => { await jest.advanceTimersByTimeAsync(0); });
+      expect(screen.getByText(/nur die ersten 200 Dokumente/)).toBeTruthy();
+      expect(mockListe).toHaveBeenLastCalledWith(MIETER_ID, "");
+
+      fireEvent.change(screen.getByLabelText("Dokument suchen"), { target: { value: "miet" } });
+      expect(mockListe).toHaveBeenCalledTimes(1); // not yet: the term is sent after the pause
+      await act(async () => { await jest.advanceTimersByTimeAsync(300); });
+      expect(mockListe).toHaveBeenLastCalledWith(MIETER_ID, "miet");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
