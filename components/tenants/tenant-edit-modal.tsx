@@ -921,7 +921,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         })
       }
     } catch (error) {
-      console.error(`Unerwarteter Fehler beim Löschen ${isApplicant ? "des Bewerbers" : "des Mieters"}:`, error)
+      console.error('Unerwarteter Fehler beim Löschen %s:', isApplicant ? "des Bewerbers" : "des Mieters", error)
       toast({
         title: "Systemfehler",
         description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",

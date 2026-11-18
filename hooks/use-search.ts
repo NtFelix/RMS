@@ -629,7 +629,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       updateCache(cacheKey, searchResults, data.totalCount, data.executionTime);
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Converted ${searchResults.length} search results:`, searchResults.map(r => ({
+        console.log('Converted %d search results:', searchResults.length, searchResults.map(r => ({
           type: r.type,
           title: r.title,
           metadata: r.metadata

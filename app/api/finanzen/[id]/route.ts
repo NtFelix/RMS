@@ -24,7 +24,7 @@ export async function GET(
       .single();
       
     if (error) {
-      console.error(`GET /api/finanzen/${id} error:`, error);
+      console.error('GET /api/finanzen/%s error:', id, error);
       return NextResponse.json({ error: error.message }, { status: 500, headers: NO_CACHE_HEADERS });
     }
     
@@ -84,7 +84,7 @@ export async function PATCH(
         .select();
       
       if (error) {
-        console.error(`PATCH /api/finanzen/${id} error:`, error);
+        console.error('PATCH /api/finanzen/%s error:', id, error);
         return NextResponse.json({ error: error.message }, { status: 400, headers: NO_CACHE_HEADERS });
       }
       
@@ -101,7 +101,7 @@ export async function PATCH(
         .select();
       
       if (error) {
-        console.error(`PATCH /api/finanzen/${id} error:`, error);
+        console.error('PATCH /api/finanzen/%s error:', id, error);
         return NextResponse.json({ error: error.message }, { status: 400, headers: NO_CACHE_HEADERS });
       }
       
@@ -154,7 +154,7 @@ export async function PUT(
       .select();
     
     if (error) {
-      console.error(`PUT /api/finanzen/${id} error:`, error);
+      console.error('PUT /api/finanzen/%s error:', id, error);
       return NextResponse.json({ error: error.message }, { status: 400, headers: NO_CACHE_HEADERS });
     }
     
@@ -199,7 +199,7 @@ export async function DELETE(
     });
     
     if (error) {
-      console.error(`DELETE /api/finanzen/${id} error:`, error);
+      console.error('DELETE /api/finanzen/%s error:', id, error);
       return NextResponse.json({ error: error.message }, { status: 500, headers: NO_CACHE_HEADERS });
     }
     

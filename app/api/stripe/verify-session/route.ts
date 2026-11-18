@@ -2,10 +2,20 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!); // Moved inside POST
 
 export async function POST(req: Request) {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, {
+      status: 401,
+      headers: NO_CACHE_HEADERS,
+    });
+  }
+
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
   try {
     const { sessionId } = await req.json();
@@ -31,6 +41,22 @@ export async function POST(req: Request) {
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, {
         status: 404,
+        headers: NO_CACHE_HEADERS,
+      });
+    }
+
+    const sessionUserId = session.metadata?.userId;
+    const expandedCustomerEmail =
+      typeof session.customer === 'object' && session.customer && !session.customer.deleted
+        ? session.customer.email
+        : null;
+    const sessionEmail = session.customer_details?.email || session.customer_email || expandedCustomerEmail;
+    const isOwner =
+      sessionUserId === user.id ||
+      (!sessionUserId && Boolean(sessionEmail && user.email && sessionEmail.toLowerCase() === user.email.toLowerCase()));
+    if (!isOwner) {
+      return NextResponse.json({ error: 'Forbidden' }, {
+        status: 403,
         headers: NO_CACHE_HEADERS,
       });
     }

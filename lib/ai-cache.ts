@@ -168,9 +168,9 @@ export class AICacheManager {
    */
   invalidateResponses(pattern?: string): void {
     if (pattern) {
-      const regex = new RegExp(pattern, 'i');
+      const lowerPattern = pattern.toLowerCase();
       for (const [key, entry] of this.responseCache.entries()) {
-        if (regex.test(key) || regex.test(entry.data)) {
+        if (key.toLowerCase().includes(lowerPattern) || entry.data.toLowerCase().includes(lowerPattern)) {
           this.responseCache.delete(key);
         }
       }

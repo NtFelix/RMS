@@ -336,7 +336,7 @@ export function NavigationInterceptor({
       } catch (error) {
         retryCount++
         if (retryCount > maxRetries) {
-          console.error(`Navigation failed after ${maxRetries} retries:`, error)
+          console.error('Navigation failed after %d retries:', maxRetries, error)
           
           if (fallbackToSSR) {
             performSSRNavigation(folderPath, options.replace)

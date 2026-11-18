@@ -190,7 +190,7 @@ export async function loadConversationsBundle(): Promise<void> {
           return
         }
       } catch (err) {
-        console.warn(`[Support] Failed loading conversations bundle from ${src}:`, err)
+        console.warn('[Support] Failed loading conversations bundle from %s:', src, err)
       }
     }
     throw new Error('Could not load conversations bundle from any source')

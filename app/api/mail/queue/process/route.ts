@@ -17,7 +17,7 @@ export async function POST() {
     }
 
     // Manually trigger queue processing
-    const { data, error } = await supabase.rpc('process_pending_queue_items')
+    const { data, error } = await supabase.rpc('process_pending_queue_items', { p_user_id: user.id })
 
     if (error) {
       console.error("Error triggering queue processor:", error)

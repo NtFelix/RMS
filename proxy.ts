@@ -162,7 +162,7 @@ export async function proxy(request: NextRequest) {
             return redirectResponse
           }
         } catch (e) {
-          console.error(`[Proxy] Exception checking permission for ${modul} (org: ${currentOrgId ?? 'private'}):`, e)
+          console.error('[Proxy] Exception checking permission for %s (org: %s):', modul, currentOrgId ?? 'private', e)
           const redirectUrl = request.nextUrl.clone()
           redirectUrl.pathname = '/unauthorized'
           const redirectResponse = NextResponse.redirect(redirectUrl)

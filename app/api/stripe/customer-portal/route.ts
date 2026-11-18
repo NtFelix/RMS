@@ -31,12 +31,22 @@ export async function POST(request: Request) {
     }
 
     // Get return URL from request body or use default
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const origin = request.headers.get('origin') || 'http://localhost:3000';
-    const returnUrl = body.return_url || `${origin}/dashboard`;
+    let returnUrl = `${origin}/dashboard`;
+    if (typeof body?.return_url === 'string') {
+      try {
+        const parsed = new URL(body.return_url, origin);
+        if (parsed.origin === new URL(origin).origin) {
+          returnUrl = parsed.toString();
+        }
+      } catch {
+        // keep default returnUrl
+      }
+    }
     
     if (process.env.NODE_ENV === 'development') {
-      console.log('Creating Stripe portal session with return_url:', returnUrl);
+      console.log('Creating Stripe portal session for user %s', user.id);
     }
     
     const portalSession = await stripe.billingPortal.sessions.create({

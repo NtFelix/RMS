@@ -95,7 +95,7 @@ export class CacheWarmingManager {
             const contents = await fetchFn(path)
             cache.set(path, contents)
           } catch (error) {
-            console.warn(`Cache warming failed for ${path}:`, error)
+            console.warn('Cache warming failed for %s:', path, error)
           }
         })
 

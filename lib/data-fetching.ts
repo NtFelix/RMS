@@ -762,7 +762,7 @@ export async function fetchWithRpcFallback<T>(
     try {
       return await fallbackFn();
     } catch (fallbackError) {
-      console.error(`[ERROR] Both RPC and Fallback failed for ${contextName}:`, fallbackError);
+      console.error('[ERROR] Both RPC and Fallback failed for %s:', contextName, fallbackError);
       return null;
     }
   }
