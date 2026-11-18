@@ -7,9 +7,8 @@
  * - Thin actions: sign-in check -> module right (`hasPermission('mieter', ...)`, writes also `ansehen`; fast
  *   failure, the database stays authoritative) -> input validation -> database access -> error mapping
  *   (`lib/mietverhaeltnis-errors.ts`) -> `revalidatePath` for writes -> log.
- * - Tenancy creation, rent entries and rent increases are written ONLY through RPCs
- *   (`mietverhaeltnis_anlegen`, `mietverhaeltnis_miete_setzen`, `mietverhaeltnis_miete_entfernen`,
- *   `mietverhaeltnis_mieterhoehung_erfassen`). No `.insert()` or `.delete()` on the tenancy tables here.
+ * - Tenancy creation and rent entries (including changes of the rent) are written ONLY through RPCs
+ *   (`mietverhaeltnis_anlegen`, `mietverhaeltnis_miete_setzen`, `mietverhaeltnis_miete_entfernen`). No `.insert()` or `.delete()` on the tenancy tables here.
  * - The ONLY direct write to a tenancy table is `vertragsdatenSpeichernAction`: a `.update()` on
  *   `"Mieter_Mietverhaeltnisse"` for six contract columns (RLS applies). Rent history is never written that way.
  * - The tenancy ID is never taken from the client: it is read from the tenant row on the server.
@@ -79,20 +78,6 @@ export interface VertragsdatenSpeichernInput {
   notiz: string | null;
 }
 
-export interface MieterhoehungErfassenInput {
-  mieterId: string;
-  /** Valid from `YYYY-MM-DD`. */
-  wirksamAb: string;
-  /** New monthly rent in euro, same rules as `betrag` of `mieteSetzen`. */
-  betrag: number;
-  /** Type of change, required, trimmed, 1 to 50 characters. Free text (suggestions in the UI only). */
-  aenderungsart: string;
-  /** Date of the declaration of the change (`YYYY-MM-DD`), optional. */
-  erklaertAm?: string | null;
-  /** Optional reason, trimmed, at most 500 characters. */
-  grund?: string | null;
-}
-
 /** Move of a tenant with a tenancy into another apartment. The database ends the old tenancy the day before. */
 export interface MieterUmzugInput {
   mieterId: string;
@@ -129,7 +114,6 @@ const MAX_DATUM = "2100-12-31";
 const BETRAG_MAX = 99999999.99;
 const GRUND_MAX_LAENGE = 500;
 const NOTIZ_MAX_LAENGE = 2000;
-const AENDERUNGSART_MAX_LAENGE = 50;
 /** Change type of entries entered in the rent form (the database default). */
 const AENDERUNGSART = "vereinbarung";
 /** Start of the message `ensureAuth` throws for "not signed in" (`lib/auth-utils.ts`). */
@@ -197,14 +181,6 @@ function pruefeFreitext(value: unknown, maxLaenge: number): string | null | unde
   if (text === "") return null;
   if (Array.from(text).length > maxLaenge) return undefined;
   return text;
-}
-
-/** Type of change: trimmed, 1 to 50 characters, otherwise `undefined`. */
-function pruefeAenderungsart(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const text = value.trim();
-  const laenge = Array.from(text).length;
-  return laenge >= 1 && laenge <= AENDERUNGSART_MAX_LAENGE ? text : undefined;
 }
 
 /** Type of termination: `null` (no statement) or one of the two values, otherwise `undefined`. */
@@ -582,56 +558,6 @@ export async function vertragsdatenSpeichernAction(input: VertragsdatenSpeichern
       // No row back: RLS refused the update (or the tenancy is not visible)
       if (!Array.isArray(data) || data.length === 0) return fail(mietverhaeltnisFehler("42501"));
       return { ok: true, data: undefined };
-    },
-  });
-}
-
-/**
- * Records a rent increase as one process: new rent from a date, type of change, optional declaration date and
- * reason. Creates exactly one rent entry (through the RPC). The app checks no deadlines or limits.
- */
-export async function mieterhoehungErfassenAction(
-  input: MieterhoehungErfassenInput
-): Promise<MietverhaeltnisActionResult<{ mieteId: string }>> {
-  return runMietverhaeltnisAction<{ mieteId: string }>({
-    actionName: "mieterhoehungErfassen",
-    aktionen: ["bearbeiten", "ansehen"],
-    schreibend: true,
-    run: async (supabase) => {
-      const mieterId = input?.mieterId;
-      if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
-      const wirksamAb = pruefeIsoDatum(input?.wirksamAb);
-      if (!wirksamAb) return fail(mietverhaeltnisFehler("MV004"));
-      const betrag = pruefeBetrag(input?.betrag);
-      if (betrag === null) return fail(mietverhaeltnisFehler("MV004"));
-      const aenderungsart = pruefeAenderungsart(input?.aenderungsart);
-      if (aenderungsart === undefined) return fail(mietverhaeltnisFehler("MV004"));
-      const erklaertAmEingabe = input?.erklaertAm;
-      let erklaertAm: string | null = null;
-      if (erklaertAmEingabe !== undefined && erklaertAmEingabe !== null) {
-        erklaertAm = pruefeIsoDatum(erklaertAmEingabe);
-        if (erklaertAm === null) return fail(mietverhaeltnisFehler("MV004"));
-      }
-      const grund = pruefeFreitext(input?.grund, GRUND_MAX_LAENGE);
-      if (grund === undefined) return fail(mietverhaeltnisFehler("MV004"));
-
-      // The tenancy ID comes from the tenant row, never from the client.
-      const mieter = await ladeMieter(supabase, mieterId);
-      if (!mieter.ok) return mieter;
-      const mietverhaeltnisId = mieter.data.mietverhaeltnisId;
-      if (!mietverhaeltnisId) return fail(mietverhaeltnisFehler("MV003"));
-
-      const { data, error } = await supabase.rpc("mietverhaeltnis_mieterhoehung_erfassen", {
-        p_mietverhaeltnis_id: mietverhaeltnisId,
-        p_wirksam_ab: wirksamAb,
-        p_betrag: betrag,
-        p_aenderungsart: aenderungsart,
-        p_erklaert_am: erklaertAm,
-        p_grund: grund,
-      });
-      if (error) return fail(mapMietverhaeltnisError(error));
-      if (!istUuid(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
-      return { ok: true, data: { mieteId: data } };
     },
   });
 }
