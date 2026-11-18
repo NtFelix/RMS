@@ -43,10 +43,16 @@ export async function POST(request: NextRequest) {
   
   try {
     await requireApiPermission('aufgaben', 'erstellen');
-    const body = await request.json()
+    const body = await request.json().catch(() => null)
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json(
+        { error: "Ungültiger JSON-Body" },
+        { status: 400, headers: NO_CACHE_HEADERS }
+      )
+    }
     const { name, beschreibung, ist_erledigt } = body
     
-    if (!name || !beschreibung) {
+    if (typeof name !== 'string' || name.trim() === '' || typeof beschreibung !== 'string' || beschreibung.trim() === '') {
       return NextResponse.json(
         { error: "Name und Beschreibung sind erforderlich" },
         { status: 400, headers: NO_CACHE_HEADERS }
@@ -89,12 +95,25 @@ export async function PATCH(request: NextRequest) {
   
   try {
     await requireApiPermission('aufgaben', 'bearbeiten');
-    const body = await request.json()
+    const body = await request.json().catch(() => null)
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json(
+        { error: "Ungültiger JSON-Body" },
+        { status: 400, headers: NO_CACHE_HEADERS }
+      )
+    }
     const { id, ist_erledigt } = body
     
-    if (!id) {
+    if (typeof id !== 'string' || id.trim() === '') {
       return NextResponse.json(
         { error: "ID ist erforderlich" },
+        { status: 400, headers: NO_CACHE_HEADERS }
+      )
+    }
+
+    if (typeof ist_erledigt !== 'boolean') {
+      return NextResponse.json(
+        { error: "ist_erledigt muss ein Boolean sein" },
         { status: 400, headers: NO_CACHE_HEADERS }
       )
     }

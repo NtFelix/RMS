@@ -16,9 +16,14 @@ export async function POST(req: Request) {
     });
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500, headers: NO_CACHE_HEADERS });
+  }
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
   try {
-    const { sessionId } = await req.json();
+    const body = await req.json().catch(() => null);
+    const sessionId = body && typeof body === 'object' ? (body as { sessionId?: unknown }).sessionId : undefined;
 
     if (!sessionId) {
       return NextResponse.json({ error: 'Session ID is required' }, {
@@ -27,7 +32,7 @@ export async function POST(req: Request) {
       });
     }
 
-    if (typeof sessionId !== 'string') {
+    if (typeof sessionId !== 'string' || !/^cs_[a-zA-Z0-9_]+$/.test(sessionId)) {
       return NextResponse.json({ error: 'Invalid Session ID format' }, {
         status: 400,
         headers: NO_CACHE_HEADERS,
@@ -74,19 +79,19 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('Error verifying Stripe session:', error);
     if (error instanceof Stripe.errors.StripeError) {
-      // Handle Stripe-specific errors
-      return NextResponse.json({ error: error.message }, {
-        status: error.statusCode || 500,
-        headers: NO_CACHE_HEADERS,
-      });
-    } else if (error instanceof Error) {
-      // Handle generic errors
-      return NextResponse.json({ error: error.message }, {
-        status: 500,
+      if (error.statusCode === 404 || error.code === 'resource_missing') {
+        return NextResponse.json({ error: 'Session not found' }, {
+          status: 404,
+          headers: NO_CACHE_HEADERS,
+        });
+      }
+      const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 500 ? error.statusCode : 500;
+      return NextResponse.json({ error: 'Failed to verify Stripe session' }, {
+        status,
         headers: NO_CACHE_HEADERS,
       });
     }
-    return NextResponse.json({ error: 'An unknown error occurred' }, {
+    return NextResponse.json({ error: 'Failed to verify Stripe session' }, {
       status: 500,
       headers: NO_CACHE_HEADERS,
     });

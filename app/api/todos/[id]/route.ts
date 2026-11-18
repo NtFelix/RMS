@@ -25,7 +25,12 @@ export async function GET(
       .eq("id", id)
       .single()
     
-    if (error) throw error
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({ error: "Aufgabe nicht gefunden" }, { status: 404, headers: NO_CACHE_HEADERS });
+      }
+      throw error;
+    }
     
     return NextResponse.json(data, { headers: NO_CACHE_HEADERS })
   } catch (error) {
@@ -53,12 +58,25 @@ export async function PUT(
   try {
     await requireApiPermission('aufgaben', 'bearbeiten');
     const { id } = await params
-    const body = await request.json()
+    const body = await request.json().catch(() => null)
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json(
+        { error: "Ungültiger JSON-Body" },
+        { status: 400, headers: NO_CACHE_HEADERS }
+      )
+    }
     const { name, beschreibung, ist_erledigt } = body
     
-    if (!name || !beschreibung) {
+    if (typeof name !== 'string' || name.trim() === '' || typeof beschreibung !== 'string' || beschreibung.trim() === '') {
       return NextResponse.json(
         { error: "Name und Beschreibung sind erforderlich" },
+        { status: 400, headers: NO_CACHE_HEADERS }
+      )
+    }
+
+    if (typeof ist_erledigt !== 'boolean') {
+      return NextResponse.json(
+        { error: "ist_erledigt muss ein Boolean sein" },
         { status: 400, headers: NO_CACHE_HEADERS }
       )
     }
@@ -75,6 +93,13 @@ export async function PUT(
       .select()
     
     if (error) throw error
+
+    if (!data || data.length === 0) {
+      return NextResponse.json(
+        { error: "Aufgabe nicht gefunden" },
+        { status: 404, headers: NO_CACHE_HEADERS }
+      )
+    }
     
     return NextResponse.json(data[0], { headers: NO_CACHE_HEADERS })
   } catch (error) {
@@ -102,10 +127,16 @@ export async function PATCH(
   try {
     await requireApiPermission('aufgaben', 'bearbeiten');
     const { id } = await params
-    const body = await request.json()
+    const body = await request.json().catch(() => null)
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json(
+        { error: "Ungültiger JSON-Body" },
+        { status: 400, headers: NO_CACHE_HEADERS }
+      )
+    }
     const { name, beschreibung, ist_erledigt } = body
 
-    const updates: Record<string, any> = {
+    const updates: Record<string, string | boolean> = {
       aenderungsdatum: new Date().toISOString()
     }
     if (typeof name === 'string' && name.trim() !== '') {
