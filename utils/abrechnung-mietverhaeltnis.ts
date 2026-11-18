@@ -12,8 +12,8 @@
  * not legal; who the addressee of a shared settlement is, and whether it is allowed, is a legal question):
  *
  *  - `id`: the ID of the first row (earliest move-in, then smallest ID). Invoices (`Rechnung.mieter_id`) of the
- *    other rows are re-assigned to it. If several rows have an invoice for the same cost item the calculation
- *    takes the first one: not covered, check before use.
+ *    other rows are re-assigned to it. Invoices of the merged tenant with the same cost item (same settlement,
+ *    same name) are added up into one, because the calculation takes only one invoice per tenant and cost item.
  *  - `name`: the names of the rows, joined with ", ".
  *  - `einzug`: the earliest move-in of the rows that have one. `auszug`: empty while any row with a move-in
  *    date is still living there, otherwise the latest move-out. Gaps between the rows are not detected, the
@@ -117,6 +117,32 @@ function fasseZusammen(rows: Mieter[]): Mieter {
 }
 
 /**
+ * Re-assigns the invoices of merged rows to the merged tenant. Several invoices of the merged tenant for the same
+ * cost item (same `nebenkosten_id` and `name`) become ONE invoice with the summed amount, so nothing is dropped.
+ */
+function haengeRechnungenUm(rechnungen: Rechnung[], ersetzung: ReadonlyMap<string, string>): Rechnung[] {
+  const ergebnis: Rechnung[] = [];
+  const summiert = new Map<string, number>(); // key -> index in `ergebnis`
+  for (const rechnung of rechnungen) {
+    const neueId = rechnung.mieter_id ? ersetzung.get(rechnung.mieter_id) : undefined;
+    if (!neueId) {
+      ergebnis.push(rechnung);
+      continue;
+    }
+    const schluessel = `${neueId}|${rechnung.nebenkosten_id}|${rechnung.name}`;
+    const vorhanden = summiert.get(schluessel);
+    if (vorhanden === undefined) {
+      summiert.set(schluessel, ergebnis.length);
+      ergebnis.push({ ...rechnung, mieter_id: neueId });
+    } else {
+      const bisher = ergebnis[vorhanden];
+      ergebnis[vorhanden] = { ...bisher, betrag: roundCents((Number(bisher.betrag) || 0) + (Number(rechnung.betrag) || 0)) };
+    }
+  }
+  return ergebnis;
+}
+
+/**
  * Applies the settlement mode: tenancies with mode `gemeinsam` and at least two rows in the same apartment are
  * merged, everything else is returned unchanged (same objects, same order position of the first row).
  * `modi` maps a tenancy ID to its mode; a missing entry means `je_mieter`.
@@ -154,8 +180,5 @@ export function fasseGemeinsameMietverhaeltnisseZusammen(
     for (const row of rows) ersetzung.set(row.id, merged.id);
     ergebnis.push(merged);
   }
-  const neueRechnungen = rechnungen.map(rechnung =>
-    rechnung.mieter_id && ersetzung.has(rechnung.mieter_id) ? { ...rechnung, mieter_id: ersetzung.get(rechnung.mieter_id) as string } : rechnung
-  );
-  return { tenants: ergebnis, rechnungen: neueRechnungen, zusammengefasst };
+  return { tenants: ergebnis, rechnungen: haengeRechnungenUm(rechnungen, ersetzung), zusammengefasst };
 }

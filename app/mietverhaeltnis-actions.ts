@@ -732,11 +732,12 @@ export async function getMitmieterUebersichtAction(mieterId: string): Promise<Mi
 
       const { data, error } = await supabase
         .from("Mieter")
-        .select("id, name, status, rolle, mietverhaeltnis_id, geloescht_am")
+        .select("id, name, status, rolle, mietverhaeltnis_id, geloescht_am, auszug")
         .eq("wohnung_id", wohnungId);
       if (error) return fail(mapMietverhaeltnisError(error));
       if (!Array.isArray(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
 
+      const heute = new Date().toISOString().slice(0, 10);
       const kandidaten = new Map<string, string[]>();
       const ergebnis: MitmieterUebersicht = { mitmieter: [], kandidaten: [] };
       for (const row of data) {
@@ -744,6 +745,8 @@ export async function getMitmieterUebersichtAction(mieterId: string): Promise<Mi
         if (!record || !istUuid(record.id) || record.id === mieterId) continue;
         if (record.geloescht_am !== null && record.geloescht_am !== undefined) continue;
         if (record.status === "bewerber") continue;
+        // A tenant who has already moved out is neither a fellow tenant nor the tenant of a tenancy to join
+        if (typeof record.auszug === "string" && record.auszug < heute) continue;
         const name = typeof record.name === "string" ? record.name : "";
         const mvId = typeof record.mietverhaeltnis_id === "string" ? record.mietverhaeltnis_id : null;
         if (mvId === mietverhaeltnisId) {
@@ -755,6 +758,21 @@ export async function getMitmieterUebersichtAction(mieterId: string): Promise<Mi
         } else if (mvId) {
           kandidaten.set(mvId, [...(kandidaten.get(mvId) ?? []), name]);
         }
+      }
+      // Tenancies that have already ended cannot be joined (the database rejects the date): leave them out
+      if (kandidaten.size > 0) {
+        const { data: mvData, error: mvError } = await supabase
+          .from("Mieter_Mietverhaeltnisse")
+          .select("id, vertragsende")
+          .in("id", Array.from(kandidaten.keys()));
+        if (mvError) return fail(mapMietverhaeltnisError(mvError));
+        if (!Array.isArray(mvData)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
+        const beendet = new Set<string>();
+        for (const row of mvData) {
+          const mv = asRecord(row);
+          if (mv && typeof mv.id === "string" && typeof mv.vertragsende === "string" && mv.vertragsende < heute) beendet.add(mv.id);
+        }
+        for (const id of beendet) kandidaten.delete(id);
       }
       ergebnis.kandidaten = Array.from(kandidaten, ([id, namen]) => ({ mietverhaeltnisId: id, mieterNamen: namen }));
       return { ok: true, data: ergebnis };

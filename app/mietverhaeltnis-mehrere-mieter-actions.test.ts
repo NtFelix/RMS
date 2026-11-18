@@ -39,6 +39,7 @@ type Antwort = { data: unknown; error: unknown };
 
 let mieterZeile: Antwort;
 let mieterListe: Antwort;
+let mvListe: Antwort;
 let rpcErgebnis: Antwort;
 let updateErgebnis: Antwort;
 
@@ -54,12 +55,14 @@ beforeEach(() => {
     error: null,
   };
   mieterListe = { data: [], error: null };
+  mvListe = { data: [], error: null };
   rpcErgebnis = { data: NEU_MV_ID, error: null };
   updateErgebnis = { data: [{ id: MV_ID }], error: null };
 
   mockRpc.mockImplementation(async () => rpcErgebnis);
   mockFrom.mockImplementation((table: string) => ({
     select: () => ({
+      in: async () => (table === "Mieter_Mietverhaeltnisse" ? mvListe : { data: [], error: null }),
       eq: () =>
         Object.assign(Promise.resolve(table === "Mieter" ? mieterListe : { data: [], error: null }), {
           maybeSingle: async () => (table === "Mieter" ? mieterZeile : { data: null, error: null }),
@@ -90,6 +93,7 @@ describe("getMitmieterUebersichtAction", () => {
       ],
       error: null,
     };
+    mvListe = { data: [{ id: ZIEL_MV_ID, vertragsende: null }], error: null };
     const result = await getMitmieterUebersichtAction(MIETER_ID);
     expect(result).toEqual({
       success: true,
@@ -98,6 +102,32 @@ describe("getMitmieterUebersichtAction", () => {
         kandidaten: [{ mietverhaeltnisId: ZIEL_MV_ID, mieterNamen: ["Test Drei"] }],
       },
     });
+  });
+
+  it("leaves out tenants who have moved out and tenancies that have already ended", async () => {
+    mieterListe = {
+      data: [
+        { id: MITMIETER_ID, name: "Ausgezogen", status: "ehemalig", rolle: null, mietverhaeltnis_id: MV_ID, geloescht_am: null, auszug: "2020-01-31" },
+        { id: ANDERER_ID, name: "Test Drei", status: "mieter", rolle: null, mietverhaeltnis_id: ZIEL_MV_ID, geloescht_am: null, auszug: null },
+        { id: "99999999-9999-4999-8999-999999999999", name: "Test Vier", status: "mieter", rolle: null, mietverhaeltnis_id: NEU_MV_ID, geloescht_am: null, auszug: null },
+      ],
+      error: null,
+    };
+    mvListe = { data: [{ id: ZIEL_MV_ID, vertragsende: null }, { id: NEU_MV_ID, vertragsende: "2020-12-31" }], error: null };
+    const result = await getMitmieterUebersichtAction(MIETER_ID);
+    expect(result).toEqual({
+      success: true,
+      data: { mitmieter: [], kandidaten: [{ mietverhaeltnisId: ZIEL_MV_ID, mieterNamen: ["Test Drei"] }] },
+    });
+  });
+
+  it("maps a database error of the tenancy query", async () => {
+    mieterListe = {
+      data: [{ id: ANDERER_ID, name: "Test Drei", status: "mieter", rolle: null, mietverhaeltnis_id: ZIEL_MV_ID, geloescht_am: null, auszug: null }],
+      error: null,
+    };
+    mvListe = { data: null, error: { code: "42501", message: "x" } };
+    expect(await getMitmieterUebersichtAction(MIETER_ID)).toMatchObject({ success: false, error: { code: "42501" } });
   });
 
   it("ignores deleted tenants, applicants and tenants without a tenancy", async () => {

@@ -182,6 +182,29 @@ describe("MitmieterSection", () => {
     await waitFor(() => expect(onGeaendert).toHaveBeenCalledTimes(1));
   });
 
+  it("keeps the saved mode on the switch even if the parent does not reload", async () => {
+    mockUebersicht.mockResolvedValue({
+      success: true,
+      data: { mitmieter: [{ mieterId: MITMIETER_ID, name: "Test Zwei", rolle: null }], kandidaten: [] },
+    });
+    rendere();
+    const schalter = await screen.findByRole("switch");
+    fireEvent.click(schalter);
+    await waitFor(() => expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("true"));
+  });
+
+  it("does not switch when saving fails", async () => {
+    mockModus.mockResolvedValue({ success: false, error: { code: "42501", message: "Keine Berechtigung" } });
+    mockUebersicht.mockResolvedValue({
+      success: true,
+      data: { mitmieter: [{ mieterId: MITMIETER_ID, name: "Test Zwei", rolle: null }], kandidaten: [] },
+    });
+    rendere();
+    fireEvent.click(await screen.findByRole("switch"));
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: "destructive" })));
+    expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false");
+  });
+
   it("shows the shared mode as switched on", async () => {
     mockUebersicht.mockResolvedValue({
       success: true,

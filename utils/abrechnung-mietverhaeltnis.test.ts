@@ -264,6 +264,23 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
       expect(rechnungen[0].mieter_id).toBe('a2');
     });
 
+    it('adds up invoices of the same cost item of merged rows instead of dropping one', () => {
+      const zeilen = [zeileA('a1', 'mv-a', '2023-01-01', null, []), zeileA('a2', 'mv-a', '2023-01-01', null, []), mieterB()];
+      const rechnungen = [
+        buildRechnung('r1', 'nk', 'a1', 'Sonderposten', 90),
+        buildRechnung('r2', 'nk', 'a2', 'Sonderposten', 40.5),
+        buildRechnung('r3', 'nk', 'a2', 'Schornsteinfeger', 20),
+        buildRechnung('r4', 'nk', 'b1', 'Sonderposten', 15),
+      ];
+      const ergebnis = fasseGemeinsameMietverhaeltnisseZusammen(zeilen, gemeinsam('mv-a'), rechnungen);
+      expect(ergebnis.rechnungen.map(r => [r.mieter_id, r.name, r.betrag])).toEqual([
+        ['a1', 'Sonderposten', 130.5],
+        ['a1', 'Schornsteinfeger', 20],
+        ['b1', 'Sonderposten', 15],
+      ]);
+      expect(rechnungen.map(r => r.betrag)).toEqual([90, 40.5, 20, 15]);
+    });
+
     it('does not merge rows without apartment or without tenancy, and keeps the order of the list', () => {
       const ohneWohnung = { ...zeileA('x1', 'mv-a', '2023-01-01', null, []), wohnung_id: null };
       const ohneMv = { ...zeileA('x2', 'mv-a', '2023-01-01', null, []), mietverhaeltnis_id: null };

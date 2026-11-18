@@ -50,6 +50,11 @@ export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: Mit
   const [daten, setDaten] = useState<MitmieterUebersicht | null>(null);
   const [formular, setFormular] = useState<Formular>("keins");
   const [isSaving, setIsSaving] = useState(false);
+  /** Settlement mode as last saved here; follows the tenancy when the parent reloads. */
+  const [gemeinsam, setGemeinsam] = useState(mietverhaeltnis.abrechnungsmodus === "gemeinsam");
+  useEffect(() => {
+    setGemeinsam(mietverhaeltnis.abrechnungsmodus === "gemeinsam");
+  }, [mietverhaeltnis.abrechnungsmodus]);
 
   const [ziel, setZiel] = useState("");
   const [rolle, setRolle] = useState("");
@@ -133,12 +138,14 @@ export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: Mit
     }
   };
 
-  const handleModus = async (gemeinsam: boolean) => {
+  const handleModus = async (gemeinsam_: boolean) => {
     if (isSaving) return;
     setIsSaving(true);
     try {
-      const result = await abrechnungsmodusSetzenAction({ mieterId, modus: gemeinsam ? "gemeinsam" : "je_mieter" });
+      const result = await abrechnungsmodusSetzenAction({ mieterId, modus: gemeinsam_ ? "gemeinsam" : "je_mieter" });
       if (result.success) {
+        // Set locally: the switch must not jump back if the reload of the parent fails
+        setGemeinsam(gemeinsam_);
         toast({ title: "Erfolg", description: "Die Abrechnungsart wurde gespeichert.", variant: "success" });
         onGeaendert();
       } else {
@@ -157,8 +164,6 @@ export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: Mit
     value: kandidat.mietverhaeltnisId,
     label: kandidat.mieterNamen.length > 0 ? kandidat.mieterNamen.join(", ") : "Mietverhältnis ohne Namen",
   }));
-  const gemeinsam = mietverhaeltnis.abrechnungsmodus === "gemeinsam";
-
   const fehlerAttribute = (feld: "ziel" | "datum" | "miete") =>
     fehler[feld] ? { "aria-invalid": true as const, "aria-describedby": `${id}-${feld}-fehler` } : {};
   const fehlerText = (feld: "ziel" | "datum" | "miete") =>
@@ -191,6 +196,7 @@ export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: Mit
               </label>
               <p className="text-xs text-muted-foreground">
                 Aus: eine Abrechnung je Mieter (wie bisher). An: die Mieter dieses Mietverhältnisses werden gemeinsam abgerechnet.
+                Die Einstellung gilt für alle Abrechnungen dieses Mietverhältnisses, auch für frühere, die neu geöffnet werden.
                 Wer der Adressat ist und ob das zulässig ist, ist rechtlich zu klären.
               </p>
             </div>

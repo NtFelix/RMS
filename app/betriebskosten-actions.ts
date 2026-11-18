@@ -2091,7 +2091,8 @@ async function getAbrechnungModalDataActionImpl(
   const result = await ladeAbrechnungModalData(nebenkostenId);
   if (!result.success || !result.data) return result;
   try {
-    const { supabase } = await ensureAuth();
+    // The user was checked by ladeAbrechnungModalData; a plain server client (cookies, RLS of the user) avoids a second auth round trip.
+    const supabase = await createSupabaseServerClient();
     const angepasst = await wendeAbrechnungsmodusAn(
       supabase,
       { tenants: result.data.tenants as any[], rechnungen: result.data.rechnungen as any[] },
@@ -2102,7 +2103,7 @@ async function getAbrechnungModalDataActionImpl(
       data: { ...result.data, tenants: angepasst.tenants as any[], rechnungen: angepasst.rechnungen as any[] }
     };
   } catch {
-    logger.warn('Abrechnungsmodus nicht angewendet (je Mieter abgerechnet)', { code: 'AUTH', nebenkostenId });
+    logger.warn('Abrechnungsmodus nicht angewendet (je Mieter abgerechnet)', { code: 'CLIENT', nebenkostenId });
     return result;
   }
 }
