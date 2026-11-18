@@ -101,7 +101,7 @@ describe('/api/mieter/[id]', () => {
       const res = await PATCH(jsonRequest('PATCH', { wohnung_id: 'w2' }), { params });
 
       expect(res.status).toBe(400);
-      expect(await res.json()).toEqual({ error: 'Die Wohnung kann nicht geändert werden, weil der Mieter zu einem Mietverhältnis in der bisherigen Wohnung gehört.' });
+      expect(await res.json()).toEqual({ error: 'Die Wohnung kann hier nicht geändert werden, weil der Mieter zu einem Mietverhältnis gehört. Nutzen Sie im Abschnitt Mietverhältnis den Punkt „Umzug in eine andere Wohnung“.' });
     });
   });
 });
