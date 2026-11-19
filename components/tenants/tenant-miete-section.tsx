@@ -277,7 +277,8 @@ export function TenantMieteSection({ mieterId, wohnungen = [], onUmzug }: Tenant
                 <ul className={uebersicht.mieten.length > 3 ? "max-h-56 overflow-y-auto" : undefined}>
                   {uebersicht.mieten.map((eintrag) => {
                     const details = [
-                      eintrag.aenderungsart ? artAnzeige(eintrag.aenderungsart) : null,
+                      // The default type says nothing; only a type that was entered on purpose is shown.
+                      eintrag.aenderungsart && eintrag.aenderungsart !== "vereinbarung" ? artAnzeige(eintrag.aenderungsart) : null,
                       eintrag.erklaert_am ? `erklärt am ${formatDatum(eintrag.erklaert_am)}` : null,
                       eintrag.grund,
                       eintrag.quelle === "migration_bestand" ? "aus Bestand übernommen" : null,

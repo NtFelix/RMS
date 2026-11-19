@@ -2,8 +2,8 @@
 
 import { useId, useState } from "react";
 import { format } from "date-fns";
-import { Calendar, CalendarCheck, Euro, Loader2, MessageSquareText, Tag } from "lucide-react";
-import { mieterhoehungErfassenAction } from "@/app/mietverhaeltnis-actions";
+import { Calendar, Euro, Loader2, MessageSquareText } from "lucide-react";
+import { mieteSetzenAction } from "@/app/mietverhaeltnis-actions";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
@@ -29,29 +29,23 @@ interface MieterhoehungFormProps {
   onAbbrechen: () => void;
 }
 
-/** Suggestions only: the type stays free text, the list of types is not legally settled. */
-const ART_VORSCHLAEGE = ["Vereinbarung", "Staffelmiete", "Indexmiete", "Vergleichsmiete", "Modernisierung", "Sonstiges"];
-const ART_MAX_LAENGE = 50;
-
 interface Fehler {
   betrag?: string;
   wirksamAb?: string;
-  art?: string;
   grund?: string;
 }
 
 const alsIso = (date: Date | undefined) => (date ? format(date, "yyyy-MM-dd") : "");
 
 /**
- * Records a rent change as one entry of the rent history: new rent, effective date, type, date of the declaration
- * and reason. Shown inside the rent history card. No deadlines, limits or legal hints are checked.
+ * Records a rent change as one entry of the rent history: the new rent, the date it applies from and an optional
+ * reason. Deliberately simple: no type of change, no deadlines, limits or legal hints. Shown inside the rent
+ * history card.
  */
 export function MieterhoehungForm({ mieterId, onErfasst, onAbbrechen }: MieterhoehungFormProps) {
   const id = useId();
   const [betrag, setBetrag] = useState("");
   const [wirksamAb, setWirksamAb] = useState("");
-  const [art, setArt] = useState("");
-  const [erklaertAm, setErklaertAm] = useState("");
   const [grund, setGrund] = useState("");
   const [fehler, setFehler] = useState<Fehler>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -62,23 +56,13 @@ export function MieterhoehungForm({ mieterId, onErfasst, onAbbrechen }: Mieterho
     const betragZahl = parseBetragEingabe(betrag);
     if (betragZahl === null) neuerFehler.betrag = FEHLER_BETRAG;
     if (!istGueltigesDatum(wirksamAb)) neuerFehler.wirksamAb = FEHLER_DATUM;
-    const artText = art.trim();
-    if (artText === "") neuerFehler.art = "Bitte geben Sie die Art der Mietänderung an.";
-    else if (zeichenZahl(artText) > ART_MAX_LAENGE) neuerFehler.art = `Die Art darf höchstens ${ART_MAX_LAENGE} Zeichen lang sein.`;
-    if (zeichenZahl(grund.trim()) > GRUND_MAX_LAENGE) neuerFehler.grund = `Der Grund darf höchstens ${GRUND_MAX_LAENGE} Zeichen lang sein.`;
+    if (zeichenZahl(grund.trim()) > GRUND_MAX_LAENGE) neuerFehler.grund = `Die Begründung darf höchstens ${GRUND_MAX_LAENGE} Zeichen lang sein.`;
     setFehler(neuerFehler);
     if (Object.keys(neuerFehler).length > 0 || betragZahl === null) return;
 
     setIsSaving(true);
     try {
-      const result = await mieterhoehungErfassenAction({
-        mieterId,
-        wirksamAb,
-        betrag: betragZahl,
-        aenderungsart: artText,
-        erklaertAm: erklaertAm || null,
-        grund: textOderNull(grund),
-      });
+      const result = await mieteSetzenAction({ mieterId, gueltigAb: wirksamAb, betrag: betragZahl, grund: textOderNull(grund) });
       if (result.success) {
         toast({ title: "Erfolg", description: "Die Mietänderung wurde gespeichert.", variant: "success" });
         onErfasst();
@@ -132,40 +116,7 @@ export function MieterhoehungForm({ mieterId, onErfasst, onAbbrechen }: Mieterho
           </div>
         </div>
         <div className={ZEILE}>
-          <PropertyHeader icon={Tag} label="Art" htmlFor={`${id}-art`} infoText="Art der Mietänderung. Die Vorschläge sind nur eine Eingabehilfe, Sie können einen eigenen Text eingeben." />
-          <div>
-            <Input
-              id={`${id}-art`}
-              list={`${id}-art-liste`}
-              value={art}
-              onChange={(event) => setArt(event.target.value)}
-              placeholder="z. B. Vereinbarung"
-              autoComplete="off"
-              disabled={isSaving}
-              className={FELD}
-              {...fehlerAttribute("art")}
-            />
-            <datalist id={`${id}-art-liste`}>
-              {ART_VORSCHLAEGE.map((vorschlag) => (
-                <option key={vorschlag} value={vorschlag} />
-              ))}
-            </datalist>
-            {fehlerText("art")}
-          </div>
-        </div>
-        <div className={ZEILE}>
-          <PropertyHeader icon={CalendarCheck} label="Erklärt am" htmlFor={`${id}-erklaertAm`} infoText="Datum der Erklärung der Mietänderung (optional). Die App berechnet keine Fristen." />
-          <DatePicker
-            id={`${id}-erklaertAm`}
-            value={erklaertAm}
-            onChange={(date) => setErklaertAm(alsIso(date))}
-            placeholder="TT.MM.JJJJ"
-            disabled={isSaving}
-            className={DATUM}
-          />
-        </div>
-        <div className={ZEILE}>
-          <PropertyHeader icon={MessageSquareText} label="Grund" htmlFor={`${id}-grund`} infoText="Kurze Begründung oder Bemerkung (optional)." />
+          <PropertyHeader icon={MessageSquareText} label="Begründung" htmlFor={`${id}-grund`} infoText="Kurze Begründung der Mietänderung (optional)." />
           <div>
             <Input
               id={`${id}-grund`}

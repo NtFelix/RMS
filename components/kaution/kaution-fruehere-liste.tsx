@@ -6,7 +6,7 @@
  * `kautionUebernehmenAction`; nothing happens automatically. Afterwards the dialog reloads its data (`onUebernommen`).
  *
  * - Renders nothing without entries.
- * - `disabled` (missing right `erstellen`, the dialog decides): the buttons stay visible but disabled, with the tooltip
+ * - `disabled` (missing right `bearbeiten`: the database requires `ansehen` and `bearbeiten` for the takeover; the dialog decides): the buttons stay visible but disabled, with the tooltip
  *   "Keine Berechtigung" (disabled instead of hidden). While a takeover runs, all buttons are disabled.
  * - Errors: `onFehler` decides like in the other deposit forms (toast, reload, close); if it returns `false`, the
  *   message is shown here.
@@ -32,7 +32,7 @@ interface KautionFruehereListeProps {
   onUebernommen: () => void | Promise<void>;
   /** Error handling of the dialog: `true` if handled there (toast, reload, close), `false` shows the message here. */
   onFehler: (error: KautionActionError) => boolean;
-  /** Missing right (`erstellen`): buttons disabled with the tooltip. */
+  /** Missing right (`bearbeiten`): buttons disabled with the tooltip. */
   disabled?: boolean;
 }
 

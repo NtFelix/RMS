@@ -933,8 +933,9 @@ export async function updateKautionVereinbarungAction(input: UpdateKautionVerein
 }
 
 /**
- * Takes over an EARLIER deposit of the tenant to the tenant's current tenancy (`kaution_uebernehmen`). The database checks
- * that the deposit belongs to the tenant and the rights; the errors are mapped like the other deposit RPCs.
+ * Takes over an EARLIER deposit of the tenant to the tenant's current tenancy (`kaution_uebernehmen`). `tenantId` is only used for the
+ * app's scope check; the RPC takes the deposit ID alone and checks rights, organisation and object access for the tenant the deposit
+ * itself belongs to (it never moves a deposit to another person). The errors are mapped like the other deposit RPCs.
  */
 export async function kautionUebernehmenAction(tenantId: string, kautionId: string): Promise<KautionActionResult<{ kautionId: string }>> {
   return runKautionAction({
