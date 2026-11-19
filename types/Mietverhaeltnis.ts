@@ -33,7 +33,6 @@ export interface Mietverhaeltnis {
   kuendigung_eingang_am: string | null;
   kuendigung_zum: string | null;
   kuendigung_durch: "mieter" | "vermieter" | null;
-  abrechnungsmodus: "je_mieter" | "gemeinsam";
   vertrag_dokument_id: string | null;
   notiz: string | null;
   quelle: "app" | "migration_bestand";
@@ -49,6 +48,14 @@ export interface MietverhaeltnisUebersicht {
   mieterEinzug: string | null;
   /** `Mieter.status` is `bewerber`: no tenancy is created for applicants. */
   istBewerber: boolean;
+}
+
+/** Other tenants of the apartment of a tenant (phase 6, several tenants per tenancy). */
+export interface MitmieterUebersicht {
+  /** Other active tenants of the same tenancy. */
+  mitmieter: { mieterId: string; name: string; rolle: "hauptmieter" | "mitmieter" | null }[];
+  /** Other tenancies of the same apartment with their active tenants; the tenant could join one of them. */
+  kandidaten: { mietverhaeltnisId: string; mieterNamen: string[] }[];
 }
 
 /** Stable error codes of the tenancy functions (SQLSTATE of the database, `42501` for missing permission or scope). */

@@ -41,6 +41,8 @@ export type Mieter = {
     notiz: string | null;
     nebenkosten: NebenkostenEntry[] | null;
     erstellt_von: string;
+    /** Tenancy of the tenant (GH-17). Set only where the Abrechnung needs it (see `utils/abrechnung-mietverhaeltnis.ts`). */
+    mietverhaeltnis_id?: string | null;
     Wohnungen?: {
         name: string;
         groesse: number;
