@@ -33,6 +33,12 @@ export interface Mietverhaeltnis {
   kuendigung_eingang_am: string | null;
   kuendigung_zum: string | null;
   kuendigung_durch: "mieter" | "vermieter" | null;
+  /**
+   * Contract area in m² INCLUDING the share of common areas (kitchen, bath, hall) the user agreed on; optional, for flat
+   * shares with single contracts. The Abrechnung then splits the apartment by area (area / apartment size, at most 100 %,
+   * the rest is vacancy for the landlord). `null`: the apartment share is split equally among the tenants present.
+   */
+  flaeche: number | null;
   vertrag_dokument_id: string | null;
   notiz: string | null;
   quelle: "app" | "migration_bestand";
@@ -84,3 +90,11 @@ export interface MietverhaeltnisActionError {
 export type MietverhaeltnisActionResult<T = undefined> =
   | { success: true; data: T }
   | { success: false; error: MietverhaeltnisActionError };
+
+/** The contract areas of the running tenancies of an apartment add up to more than the apartment (shown as a warning after saving). */
+export interface FlaechenWarnung {
+  /** Sum of the contract areas of the tenancies of the apartment that have not ended, m². */
+  summe: number;
+  /** `Wohnungen.groesse`, m². */
+  wohnungsgroesse: number;
+}
