@@ -15,6 +15,7 @@ import {
 import type { KautionAbrechnung } from "@/types/Kaution";
 
 const TENANT_ID = "11111111-1111-4111-8111-111111111111";
+const KAUTION_ID = "22222222-2222-4222-8222-222222222222";
 
 /** Synthetic settlement as the database returns it (`get_kaution_abrechnung`). */
 const ABRECHNUNG: KautionAbrechnung = {
@@ -48,12 +49,35 @@ describe("parseAbrechnungAnfrage", () => {
   it("accepts the three fields and returns them checked", () => {
     expect(parseAbrechnungAnfrage({ tenantId: TENANT_ID, art: "zwischen", stichtag: "2026-03-15" })).toEqual({
       ok: true,
-      value: { tenantId: TENANT_ID, art: "zwischen", stichtag: "2026-03-15" },
+      value: { tenantId: TENANT_ID, art: "zwischen", stichtag: "2026-03-15", kautionId: null },
     });
     expect(parseAbrechnungAnfrage({ tenantId: TENANT_ID, art: "end" })).toEqual({
       ok: true,
-      value: { tenantId: TENANT_ID, art: "end", stichtag: null },
+      value: { tenantId: TENANT_ID, art: "end", stichtag: null, kautionId: null },
     });
+  });
+
+  it("accepts an optional deposit ID (UUID) and passes it on checked", () => {
+    expect(parseAbrechnungAnfrage({ tenantId: TENANT_ID, art: "end", kautionId: KAUTION_ID })).toEqual({
+      ok: true,
+      value: { tenantId: TENANT_ID, art: "end", stichtag: null, kautionId: KAUTION_ID },
+    });
+  });
+
+  it("treats an empty, null or missing deposit ID as not given", () => {
+    for (const kautionId of [undefined, null, ""]) {
+      expect(parseAbrechnungAnfrage({ tenantId: TENANT_ID, art: "end", kautionId })).toEqual({
+        ok: true,
+        value: { tenantId: TENANT_ID, art: "end", stichtag: null, kautionId: null },
+      });
+    }
+  });
+
+  it("rejects a malformed deposit ID without repeating the value", () => {
+    const result = parseAbrechnungAnfrage({ tenantId: TENANT_ID, art: "end", kautionId: "Muster-Eingabe-Wert" });
+
+    expect(result).toEqual({ ok: false, message: "Ungültige Kautions-ID." });
+    expect(JSON.stringify(result)).not.toContain("Muster-Eingabe-Wert");
   });
 
   it("drops every other field of the body (figures, file name, user ID must never be taken over)", () => {
@@ -65,7 +89,7 @@ describe("parseAbrechnungAnfrage", () => {
       user_id: "77777777-7777-4777-8777-777777777777",
       interneNotiz: "Muster-Notiz",
     });
-    expect(result).toEqual({ ok: true, value: { tenantId: TENANT_ID, art: "end", stichtag: null } });
+    expect(result).toEqual({ ok: true, value: { tenantId: TENANT_ID, art: "end", stichtag: null, kautionId: null } });
   });
 
   it.each([
@@ -92,7 +116,7 @@ describe("parseAbrechnungAnfrage", () => {
     expect(parseAbrechnungAnfrage({ tenantId: TENANT_ID, art: "end", stichtag: "15.03.2026" }).ok).toBe(false);
     expect(parseAbrechnungAnfrage({ tenantId: TENANT_ID, art: "end", stichtag: null })).toEqual({
       ok: true,
-      value: { tenantId: TENANT_ID, art: "end", stichtag: null },
+      value: { tenantId: TENANT_ID, art: "end", stichtag: null, kautionId: null },
     });
   });
 });

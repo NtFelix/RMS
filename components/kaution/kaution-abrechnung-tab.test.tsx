@@ -283,7 +283,7 @@ describe("KautionAbrechnungTab: Berechnung", () => {
 
     const ergebnis = await berechneHeute(user);
 
-    expect(abrechnungMock).toHaveBeenCalledWith({ tenantId: TENANT_ID, stichtag: getTodayISOString() });
+    expect(abrechnungMock).toHaveBeenCalledWith({ tenantId: TENANT_ID, kautionId: KAUTION_ID, stichtag: getTodayISOString() });
     expect(within(ergebnis).getByTestId("kaution-abrechnung-kontostand")).toHaveTextContent("900,00 €");
     expect(within(ergebnis).getByTestId("kaution-abrechnung-abzuege")).toHaveTextContent("Nebenkosten (1 Buchung)");
     expect(within(ergebnis).getByTestId("kaution-abrechnung-abzuege")).toHaveTextContent("100,00 €");
@@ -506,7 +506,7 @@ describe("KautionAbrechnungTab: PDF", () => {
     expect(adresse).toBe("/api/kautionen/abrechnung");
     expect(anfrage.method).toBe("POST");
     expect(anfrage.headers).toEqual({ "Content-Type": "application/json" });
-    expect(JSON.parse(anfrage.body as string)).toEqual({ tenantId: TENANT_ID, art: "zwischen", stichtag: getTodayISOString() });
+    expect(JSON.parse(anfrage.body as string)).toEqual({ tenantId: TENANT_ID, kautionId: KAUTION_ID, art: "zwischen", stichtag: getTodayISOString() });
 
     expect(klickSpy).toHaveBeenCalledTimes(1);
     expect(heruntergeladen).toEqual([`Kautionsabrechnung-Zwischen-${getTodayISOString()}.pdf`]);

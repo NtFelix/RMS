@@ -40,6 +40,8 @@ export interface AbrechnungAnfrage {
   art: KautionAbrechnungArt;
   /** Settlement date `YYYY-MM-DD`, `null` = the database default (today). */
   stichtag: string | null;
+  /** A specific deposit (UUID), `null` = the deposit of the current tenancy. */
+  kautionId: string | null;
 }
 
 /** Payload for the worker (`POST /` of the worker, template `kaution-abrechnung`). Only database figures and the kind. */
@@ -51,7 +53,7 @@ export interface KautionAbrechnungWorkerNutzlast {
 }
 
 /**
- * Checks the body of the request (`{ tenantId, art, stichtag? }`). Anything else in the body is ignored and never
+ * Checks the body of the request (`{ tenantId, art, stichtag?, kautionId? }`). Anything else in the body is ignored and never
  * forwarded. Messages are German and never repeat the rejected value.
  */
 export function parseAbrechnungAnfrage(body: unknown): ValidationResult<AbrechnungAnfrage> {
@@ -69,7 +71,15 @@ export function parseAbrechnungAnfrage(body: unknown): ValidationResult<Abrechnu
   const stichtag = validateKautionStichtag(feld.stichtag);
   if (!stichtag.ok) return { ok: false, message: stichtag.message };
 
-  return { ok: true, value: { tenantId: tenant.value, art, stichtag: stichtag.value } };
+  // Optional deposit: undefined, null and an empty string mean "not given".
+  let kautionId: string | null = null;
+  if (feld.kautionId !== undefined && feld.kautionId !== null && feld.kautionId !== "") {
+    const kaution = validateUuid(feld.kautionId, "Kautions-ID");
+    if (!kaution.ok) return { ok: false, message: kaution.message };
+    kautionId = kaution.value;
+  }
+
+  return { ok: true, value: { tenantId: tenant.value, art, stichtag: stichtag.value, kautionId } };
 }
 
 /**

@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { KautionAnlegenForm } from "@/components/kaution/kaution-anlegen-form";
+import { KautionFruehereListe } from "@/components/kaution/kaution-fruehere-liste";
 import { formatBetrag } from "@/components/kaution/kaution-format";
 import { KautionFristBadge } from "@/components/kaution/kaution-frist-badge";
 import { KautionKontoauszugTab } from "@/components/kaution/kaution-kontoauszug-tab";
@@ -29,7 +30,7 @@ import {
   type KautionFehlerVerhalten,
 } from "@/lib/kautionen-errors";
 import { KAUTION_ART_LABELS, kautionHatKonto } from "@/lib/kautionen-constants";
-import type { KautionDetails, KautionRate, KautionRechte, KautionVorschlag } from "@/types/Kaution";
+import type { KautionDetails, KautionListenEintrag, KautionRate, KautionRechte, KautionVorschlag } from "@/types/Kaution";
 
 /**
  * Deposit dialog ("Kautionsmanagement", GH-6), mounted once in `app/(dashboard)/layout-inner.tsx`.
@@ -75,7 +76,14 @@ type ZahlungsVorgabe = KautionBuchungVorgabe & { nonce: number };
 type Ansicht =
   | { phase: "laden" }
   | { phase: "fehler"; fehler: KautionActionError }
-  | { phase: "bereit"; details: KautionDetails | null; rechte: KautionRechte; vorschlag: KautionVorschlag | null };
+  | {
+      phase: "bereit";
+      details: KautionDetails | null;
+      rechte: KautionRechte;
+      vorschlag: KautionVorschlag | null;
+      /** Earlier deposits of the tenant (only without a deposit at the current tenancy, otherwise empty). */
+      fruehere: KautionListenEintrag[];
+    };
 
 const FEHLER_TITEL: Record<KautionFehlerVerhalten, string> = {
   anmelden: "Anmeldung erforderlich",
@@ -140,6 +148,7 @@ export function KautionDialog() {
   } = useModalStore();
 
   const tenantId = kautionInitialData?.tenant.id;
+  const kautionId = kautionInitialData?.kautionId;
   const initialTab = kautionInitialData?.initialTab;
 
   const [ansicht, setAnsicht] = useState<Ansicht>({ phase: "laden" });
@@ -220,10 +229,16 @@ export function KautionDialog() {
 
       let neueAnsicht: Ansicht;
       try {
-        const result = await getKautionDetailsAction(id);
+        const result = await getKautionDetailsAction(id, kautionId);
         neueAnsicht =
           result.success && result.data
-            ? { phase: "bereit", details: result.data.details, rechte: result.data.rechte, vorschlag: result.data.vorschlag }
+            ? {
+                phase: "bereit",
+                details: result.data.details,
+                rechte: result.data.rechte,
+                vorschlag: result.data.vorschlag,
+                fruehere: result.data.fruehere ?? [],
+              }
             : { phase: "fehler", fehler: result.error ?? { message: KAUTION_FEHLER_FALLBACK_MESSAGE } };
       } catch {
         neueAnsicht = { phase: "fehler", fehler: { message: KAUTION_FEHLER_FALLBACK_MESSAGE } };
@@ -246,7 +261,7 @@ export function KautionDialog() {
         toast({ title: "Aktualisierung fehlgeschlagen", description: neueAnsicht.fehler.message, variant: "destructive" });
       }
     },
-    [beendeMitHinweis, setzeAnsicht]
+    [beendeMitHinweis, setzeAnsicht, kautionId]
   );
 
   const reload = useCallback(async () => {
@@ -437,15 +452,24 @@ function KautionInhalt({
       {ansicht.phase === "fehler" ? <LadeFehler fehler={ansicht.fehler} onLaden={onLaden} /> : null}
 
       {ansicht.phase === "bereit" && details === null ? (
-        <KautionAnlegenForm
-          tenantId={tenantId}
-          vorschlag={ansicht.vorschlag}
-          darfErstellen={ansicht.rechte.erstellen}
-          onErstellt={onGeaendert}
-          onFehler={onFehler}
-          onAbbrechen={onAbbrechen}
-          onDirtyChange={onAnlegenDirtyChange}
-        />
+        <div className="space-y-6">
+          <KautionFruehereListe
+            tenantId={tenantId}
+            eintraege={ansicht.fruehere}
+            onUebernommen={onGeaendert}
+            onFehler={onFehler}
+            disabled={!ansicht.rechte.bearbeiten}   // die Datenbank verlangt ansehen und bearbeiten
+          />
+          <KautionAnlegenForm
+            tenantId={tenantId}
+            vorschlag={ansicht.vorschlag}
+            darfErstellen={ansicht.rechte.erstellen}
+            onErstellt={onGeaendert}
+            onFehler={onFehler}
+            onAbbrechen={onAbbrechen}
+            onDirtyChange={onAnlegenDirtyChange}
+          />
+        </div>
       ) : null}
 
       {ansicht.phase === "bereit" && details !== null ? (

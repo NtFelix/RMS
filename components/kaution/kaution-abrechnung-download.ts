@@ -3,7 +3,7 @@
 /**
  * Downloads the settlement PDF of a deposit ("Kautionsabrechnung", GH-6, phase 4) from `POST /api/kautionen/abrechnung`.
  *
- * The browser sends only the request (`{ tenantId, art, stichtag }`), never figures: the route takes the data from the
+ * The browser sends only the request (`{ tenantId, kautionId, art, stichtag }`), never figures: the route takes the data from the
  * settlement read action. The answer is read as a Blob and handed to the browser as a download. The PDF is not stored here.
  *
  * Errors: the status is mapped to a fixed German text. The text of the server is never shown (the route answers with
@@ -47,6 +47,8 @@ export function dateinameAusContentDisposition(header: string | null): string | 
  */
 export async function ladeKautionAbrechnungPdf(input: {
   tenantId: string;
+  /** The deposit whose settlement is requested (the one shown in the dialog). */
+  kautionId: string;
   art: KautionAbrechnungArt;
   stichtag: string;
 }): Promise<KautionAbrechnungPdfErgebnis> {
@@ -55,7 +57,7 @@ export async function ladeKautionAbrechnungPdf(input: {
     antwort = await fetch(KAUTION_ABRECHNUNG_PDF_ROUTE, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tenantId: input.tenantId, art: input.art, stichtag: input.stichtag }),
+      body: JSON.stringify({ tenantId: input.tenantId, kautionId: input.kautionId, art: input.art, stichtag: input.stichtag }),
     });
   } catch {
     return { ok: false, message: KAUTION_FEHLER_FALLBACK_MESSAGE };
