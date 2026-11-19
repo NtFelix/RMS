@@ -21,10 +21,14 @@ updates:
     # Group patch updates, plus group related ecosystem packages together for minor updates
     # Unmatched minor updates will receive individual PRs
     groups:
-      posthog-ecosystem:
+      posthog-client:
         patterns:
-          - "posthog*"
-          - "@posthog/*"
+          - "posthog-js"
+          - "@posthog/react"
+      posthog-server:
+        patterns:
+          - "posthog-node"
+          - "@posthog/nextjs-config"
       nextjs-ecosystem:
         patterns:
           - "next"

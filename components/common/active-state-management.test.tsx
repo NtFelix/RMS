@@ -37,15 +37,15 @@ describe('Active State Management', () => {
     it('should update active directory with breadcrumbs', () => {
       const { result } = renderHook(() => useActiveStateManager())
       const mockBreadcrumbs = [
-        { name: 'Cloud Storage', path: 'user_123', type: 'root' as const },
-        { name: 'House 1', path: 'user_123/house1', type: 'house' as const }
+        { name: 'Cloud Storage', path: 'org_org-1', type: 'root' as const },
+        { name: 'House 1', path: 'org_org-1/house1', type: 'house' as const }
       ]
       
       act(() => {
-        result.current.updateActiveDirectory('user_123/house1', mockBreadcrumbs)
+        result.current.updateActiveDirectory('org_org-1/house1', mockBreadcrumbs)
       })
       
-      expect(result.current.activeState.activeDirectoryPath).toBe('user_123/house1')
+      expect(result.current.activeState.activeDirectoryPath).toBe('org_org-1/house1')
       expect(result.current.activeState.breadcrumbs).toEqual(mockBreadcrumbs)
     })
 
@@ -56,19 +56,19 @@ describe('Active State Management', () => {
       expect(result.current.isRouteActive('/dateien')).toBe(true)
       expect(result.current.isRouteActive('/dateien/house1')).toBe(true)
       expect(result.current.isRouteActive('/dateien/house1/apartment1')).toBe(true)
-      expect(result.current.isRouteActive('/haeuser')).toBe(false)
+      expect(result.current.isRouteActive('/shared')).toBe(false)
     })
 
     it('should detect active directories correctly', () => {
       const { result } = renderHook(() => useActiveStateManager())
       
       act(() => {
-        result.current.updateActiveDirectory('user_123/house1/apartment1')
+        result.current.updateActiveDirectory('org_org-1/house1/apartment1')
       })
       
-      expect(result.current.isDirectoryActive('user_123/house1/apartment1')).toBe(true)
-      expect(result.current.isDirectoryActive('user_123/house1')).toBe(false)
-      expect(result.current.isDirectoryActive('user_123')).toBe(false)
+      expect(result.current.isDirectoryActive('org_org-1/house1/apartment1')).toBe(true)
+      expect(result.current.isDirectoryActive('org_org-1/house1')).toBe(false)
+      expect(result.current.isDirectoryActive('org_org-1')).toBe(false)
     })
 
     it('should provide correct active state classes', () => {
@@ -79,33 +79,33 @@ describe('Active State Management', () => {
       })
       
       expect(result.current.getActiveStateClasses('/dateien')).toContain('bg-accent')
-      expect(result.current.getActiveStateClasses('/haeuser')).toContain('text-muted-foreground')
+      expect(result.current.getActiveStateClasses('/shared')).toContain('text-muted-foreground')
     })
 
     it('should provide correct directory active classes', () => {
       const { result } = renderHook(() => useActiveStateManager())
       
       act(() => {
-        result.current.updateActiveDirectory('user_123/house1')
+        result.current.updateActiveDirectory('org_org-1/house1')
       })
       
-      expect(result.current.getDirectoryActiveClasses('user_123/house1')).toContain('bg-accent/20')
-      expect(result.current.getDirectoryActiveClasses('user_123/house2')).toContain('hover:bg-accent/10')
+      expect(result.current.getDirectoryActiveClasses('org_org-1/house1')).toContain('bg-accent/20')
+      expect(result.current.getDirectoryActiveClasses('org_org-1/house2')).toContain('hover:bg-accent/10')
     })
 
     it('should sync with navigation correctly', () => {
       const { result } = renderHook(() => useActiveStateManager())
       const mockBreadcrumbs = [
-        { name: 'Cloud Storage', path: 'user_123', type: 'root' as const },
-        { name: 'House 1', path: 'user_123/house1', type: 'house' as const }
+        { name: 'Cloud Storage', path: 'org_org-1', type: 'root' as const },
+        { name: 'House 1', path: 'org_org-1/house1', type: 'house' as const }
       ]
       
       act(() => {
-        result.current.syncWithNavigation('user_123/house1', mockBreadcrumbs)
+        result.current.syncWithNavigation('org_org-1/house1', mockBreadcrumbs)
       })
       
-      expect(result.current.activeState.currentDirectory).toBe('user_123/house1')
-      expect(result.current.activeState.activeDirectoryPath).toBe('user_123/house1')
+      expect(result.current.activeState.currentDirectory).toBe('org_org-1/house1')
+      expect(result.current.activeState.activeDirectoryPath).toBe('org_org-1/house1')
       expect(result.current.activeState.breadcrumbs).toEqual(mockBreadcrumbs)
     })
 
@@ -116,7 +116,7 @@ describe('Active State Management', () => {
       
       // Set some directory state
       act(() => {
-        result.current.updateActiveDirectory('user_123/house1')
+        result.current.updateActiveDirectory('org_org-1/house1')
       })
       
       // Reset
@@ -138,33 +138,33 @@ describe('Active State Management', () => {
       
       // Simulate navigation sequence for directory state
       act(() => {
-        result.current.updateActiveDirectory('user_123')
+        result.current.updateActiveDirectory('org_org-1')
       })
       
       act(() => {
-        result.current.updateActiveDirectory('user_123/house1')
+        result.current.updateActiveDirectory('org_org-1/house1')
       })
       
       act(() => {
-        result.current.updateActiveDirectory('user_123/house1/apartment1')
+        result.current.updateActiveDirectory('org_org-1/house1/apartment1')
       })
       
       expect(result.current.activeState.currentRoute).toBe('/dateien/house1/apartment1')
-      expect(result.current.activeState.activeDirectoryPath).toBe('user_123/house1/apartment1')
+      expect(result.current.activeState.activeDirectoryPath).toBe('org_org-1/house1/apartment1')
       expect(result.current.isRouteActive('/dateien')).toBe(true)
-      expect(result.current.isDirectoryActive('user_123/house1/apartment1')).toBe(true)
+      expect(result.current.isDirectoryActive('org_org-1/house1/apartment1')).toBe(true)
     })
 
     it('should handle breadcrumb updates correctly', () => {
       const { result } = renderHook(() => useActiveStateManager())
       
       const initialBreadcrumbs = [
-        { name: 'Cloud Storage', path: 'user_123', type: 'root' as const }
+        { name: 'Cloud Storage', path: 'org_org-1', type: 'root' as const }
       ]
       
       const updatedBreadcrumbs = [
-        { name: 'Cloud Storage', path: 'user_123', type: 'root' as const },
-        { name: 'House 1', path: 'user_123/house1', type: 'house' as const }
+        { name: 'Cloud Storage', path: 'org_org-1', type: 'root' as const },
+        { name: 'House 1', path: 'org_org-1/house1', type: 'house' as const }
       ]
       
       act(() => {
@@ -194,7 +194,7 @@ describe('Active State Management', () => {
       ]
       
       const nonCloudStorageRoutes = [
-        '/haeuser',
+        '/shared',
         '/wohnungen',
         '/mieter',
         '/finanzen',

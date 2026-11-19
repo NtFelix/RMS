@@ -3,10 +3,13 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { createClient } from '@/utils/supabase/client'
+import { buildFallbackBreadcrumbs } from '@/lib/storage-navigation'
 
 // Types for cloud storage state
 export interface StorageObject {
   name: string
+  /** Full storage path, set for archive listings */
+  path?: string
   id: string
   updated_at: string
   created_at: string
@@ -121,7 +124,8 @@ interface CloudStorageState {
 
   // Archive actions
   archiveFile: (file: StorageObject) => Promise<void>
-  loadArchivedFiles: (userId: string) => Promise<void>
+  loadArchivedFiles: () => Promise<void>
+
   restoreFile: (archivedFile: StorageObject, targetPath?: string) => Promise<void>
   permanentlyDeleteFile: (archivedFile: StorageObject) => Promise<void>
   bulkArchiveFiles: (files: StorageObject[]) => Promise<void>
@@ -173,44 +177,17 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       })
 
       try {
-        // Extract user ID from path
-        const userIdMatch = path.match(/^user_([^\/]+)/)
-        if (!userIdMatch) {
-          throw new Error('Invalid path format')
-        }
-        const userId = userIdMatch[1]
-
-        // Use server action to load files for the new path
+        // Use server action to load files for the new path (the user is the one of the session)
         const { loadFilesForPath } = await import('@/app/(dashboard)/dateien/actions')
-        const { files, folders, error } = await loadFilesForPath(userId, path)
+        const { files, folders, breadcrumbs: rpcBreadcrumbs, error } = await loadFilesForPath(path)
 
         if (error) {
           throw new Error(error)
         }
 
-        // Generate simple breadcrumbs (Simple Logic to avoid infinite loops)
-        const pathSegments = path.split('/').filter(Boolean)
-        const breadcrumbs: BreadcrumbItem[] = []
-
-        // Always add root breadcrumb
-        breadcrumbs.push({
-          name: 'Cloud Storage',
-          path: `user_${userId}`,
-          type: 'root'
-        })
-
-        // Add path segments as breadcrumbs
-        let currentPath = `user_${userId}`
-        for (let i = 1; i < pathSegments.length; i++) {
-          const segment = pathSegments[i]
-          currentPath = `${currentPath}/${segment}`
-
-          breadcrumbs.push({
-            name: segment,
-            path: currentPath,
-            type: i === 1 ? 'house' : i === 2 ? 'apartment' : i === 3 ? 'tenant' : 'category'
-          })
-        }
+        // The RPC knows the names of houses, apartments and tenants: the path-derived fallback only
+        // applies if it delivered no breadcrumbs
+        const breadcrumbs = rpcBreadcrumbs?.length ? rpcBreadcrumbs : buildFallbackBreadcrumbs(path)
 
         set((state) => {
           state.files = files
@@ -515,16 +492,9 @@ export const useCloudStorageStore = create<CloudStorageState>()(
 
     deleteFolder: async (folder: VirtualFolder) => {
       try {
-        // Extract user ID from folder path
-        const userIdMatch = folder.path.match(/^user_([^\/]+)/)
-        if (!userIdMatch) {
-          throw new Error('Invalid folder path format')
-        }
-        const userId = userIdMatch[1]
-
-        // Use server action to delete folder
+        // Use server action to delete folder (the user is the one of the session)
         const { deleteFolder } = await import('@/app/(dashboard)/dateien/actions')
-        const { success, error } = await deleteFolder(userId, folder.path)
+        const { success, error } = await deleteFolder(folder.path)
 
         if (!success) {
           throw new Error(error || 'Fehler beim Löschen des Ordners')
@@ -553,7 +523,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
     },
 
     // Archive actions
-    loadArchivedFiles: async (userId: string) => {
+    loadArchivedFiles: async () => {
       set((state) => {
         state.isArchiveLoading = true
         state.archiveError = null
@@ -561,7 +531,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
 
       try {
         const { listArchivedFiles } = await import('@/lib/storage-service')
-        const archivedFiles = await listArchivedFiles(userId)
+        const archivedFiles = await listArchivedFiles()
 
         set((state) => {
           state.archivedFiles = archivedFiles
@@ -585,7 +555,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
 
       try {
         const { restoreFile } = await import('@/lib/storage-service')
-        await restoreFile(archivedFile.name, targetPath)
+        await restoreFile(archivedFile.path ?? archivedFile.name, targetPath)
 
         // Remove from archived files list
         set((state) => {
@@ -611,7 +581,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
 
       try {
         const { permanentlyDeleteFile } = await import('@/lib/storage-service')
-        await permanentlyDeleteFile(archivedFile.name)
+        await permanentlyDeleteFile(archivedFile.path ?? archivedFile.name)
 
         // Remove from archived files list
         set((state) => {
@@ -853,16 +823,9 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       })
 
       try {
-        // Extract user ID from current path
-        const userIdMatch = currentPath.match(/^user_([^\/]+)/)
-        if (!userIdMatch) {
-          throw new Error('Invalid path format')
-        }
-        const userId = userIdMatch[1]
-
-        // Use server action to load files for the current path
+        // Use server action to load files for the current path (the user is the one of the session)
         const { loadFilesForPath } = await import('@/app/(dashboard)/dateien/actions')
-        const { files, folders, error } = await loadFilesForPath(userId, currentPath)
+        const { files, folders, error } = await loadFilesForPath(currentPath)
 
         if (error) {
           throw new Error(error)

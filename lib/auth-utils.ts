@@ -2,6 +2,7 @@ import { type User, type SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { unstable_rethrow } from 'next/navigation';
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { AuthLookupError, isTransientAuthError, NOT_AUTHENTICATED_MESSAGE } from "@/lib/auth-errors";
 
 export type AuthResult = {
   user: User;
@@ -10,14 +11,18 @@ export type AuthResult = {
 
 /**
  * Ensures the user is authenticated in a server action.
- * Throws an error if not authenticated.
+ * Throws an error if not authenticated. The message is the same if the lookup itself failed technically, but then the
+ * error is an AuthLookupError (see lib/auth-errors.ts), so a caller can tell "no session" from "could not check".
  */
 export async function ensureAuth(): Promise<AuthResult> {
   const supabase = await createSupabaseServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   
+  if (error && isTransientAuthError(error)) {
+    throw new AuthLookupError({ cause: error });
+  }
   if (error || !user) {
-    throw new Error("Nicht authentifiziert. Bitte melden Sie sich an.");
+    throw new Error(NOT_AUTHENTICATED_MESSAGE);
   }
   
   return { user, supabase };

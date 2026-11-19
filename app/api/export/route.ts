@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { unstable_rethrow } from 'next/navigation';
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
+import { apiPermissionErrorResponse } from '@/lib/api-permission-response';
 
 // Define the tables and columns to export based on the LATEST provided schema.
 // Exclude ALL ID columns (primary and foreign keys) as requested.
@@ -24,6 +25,11 @@ export async function GET() {
     if (authError || !user) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401, headers: NO_CACHE_HEADERS });
     }
+
+    // Whole-table export: only for owners/admins of the organisation (not by module rights). Must stay before any
+    // data access; a failed role lookup denies as well (503, no export).
+    const { requireApiOrgAdmin } = await import('@/lib/api-permissions');
+    await requireApiOrgAdmin();
 
     const { getAccessibleHaeuserIds, getAccessibleWohnungIds } = await import('@/lib/object-scope');
     const accessibleHaeuserIds = await getAccessibleHaeuserIds();
@@ -140,6 +146,9 @@ export async function GET() {
     });
   } catch (error) {
     unstable_rethrow(error);
+    // 403 PERMISSION_DENIED (no owner/admin) or 503 PERMISSION_CHECK_FAILED (the role lookup itself failed)
+    const permissionResponse = apiPermissionErrorResponse(error);
+    if (permissionResponse) return permissionResponse;
     console.error('Error during data export process:', error);
     return NextResponse.json({ 
         error: 'Fehler beim Exportieren der Daten.', 

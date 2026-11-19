@@ -1,5 +1,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { useCloudStorageNavigationStore, useNavigationState } from './use-cloud-storage-navigation'
+import { loadFilesForPath } from '@/app/(dashboard)/dateien/actions'
 
 // Mock the server action
 jest.mock('@/app/(dashboard)/dateien/actions', () => ({
@@ -32,10 +33,10 @@ describe('useCloudStorageNavigation', () => {
     const { result } = renderHook(() => useNavigationState())
     
     await act(async () => {
-      await result.current.navigateToPath('user_123/house_456')
+      await result.current.navigateToPath('org_org-1/house_456')
     })
     
-    expect(result.current.currentPath).toBe('user_123/house_456')
+    expect(result.current.currentPath).toBe('org_org-1/house_456')
     expect(result.current.isNavigating).toBe(false)
   })
 
@@ -44,12 +45,12 @@ describe('useCloudStorageNavigation', () => {
     
     // Navigate to first path
     await act(async () => {
-      await result.current.navigateToPath('user_123/house_456')
+      await result.current.navigateToPath('org_org-1/house_456')
     })
     
     // Navigate to second path
     await act(async () => {
-      await result.current.navigateToPath('user_123/house_456/apartment_789')
+      await result.current.navigateToPath('org_org-1/house_456/apartment_789')
     })
     
     expect(result.current.canGoBack).toBe(true)
@@ -60,14 +61,14 @@ describe('useCloudStorageNavigation', () => {
       await result.current.goBack()
     })
     
-    expect(result.current.currentPath).toBe('user_123/house_456')
+    expect(result.current.currentPath).toBe('org_org-1/house_456')
     expect(result.current.canGoForward).toBe(true)
   })
 
   it('should cache directory contents', async () => {
     const { result } = renderHook(() => useCloudStorageNavigationStore())
     
-    const testPath = 'user_123/house_456'
+    const testPath = 'org_org-1/house_456'
     const testContents = {
       files: [],
       folders: [],
@@ -86,7 +87,7 @@ describe('useCloudStorageNavigation', () => {
   it('should manage view preferences', () => {
     const { result } = renderHook(() => useCloudStorageNavigationStore())
     
-    const testPath = 'user_123/house_456'
+    const testPath = 'org_org-1/house_456'
     const preferences = {
       viewMode: 'list' as const,
       sortBy: 'date',
@@ -110,7 +111,7 @@ describe('useCloudStorageNavigation', () => {
   it('should manage scroll positions', () => {
     const { result } = renderHook(() => useCloudStorageNavigationStore())
     
-    const testPath = 'user_123/house_456'
+    const testPath = 'org_org-1/house_456'
     const scrollPosition = 500
     
     act(() => {
@@ -132,5 +133,39 @@ describe('useCloudStorageNavigation', () => {
     expect(stats).toHaveProperty('viewPreferencesCount')
     expect(stats).toHaveProperty('scrollPositionsCount')
     expect(stats).toHaveProperty('cacheHitRate')
+  })
+
+  it('loads a directory with the path only, no owner user id involved', async () => {
+    const { result } = renderHook(() => useCloudStorageNavigationStore())
+
+    await act(async () => {
+      await result.current.navigateToPath('org_org-1/shared/house-1', { force: true })
+    })
+
+    expect(loadFilesForPath).toHaveBeenCalledWith('org_org-1/shared/house-1')
+    expect(result.current.currentPath).toBe('org_org-1/shared/house-1')
+  })
+
+  it('keeps the breadcrumbs of the RPC for the directory and uses the fallback only without them', async () => {
+    const { result } = renderHook(() => useCloudStorageNavigationStore())
+    const rpcBreadcrumbs = [
+      { name: 'Cloud Storage', path: 'org_org-1', type: 'root' },
+      { name: 'Haus Eins', path: 'org_org-1/shared/house-1', type: 'house' },
+    ]
+    ;(loadFilesForPath as jest.Mock).mockResolvedValueOnce({
+      files: [], folders: [], breadcrumbs: rpcBreadcrumbs, totalSize: 0, error: null,
+    })
+
+    await act(async () => {
+      await result.current.navigateToPath('org_org-1/shared/house-1', { force: true })
+    })
+    expect(result.current.getCachedDirectory('org_org-1/shared/house-1')?.breadcrumbs).toEqual(rpcBreadcrumbs)
+
+    // The default mock has no breadcrumbs: derived from the path
+    await act(async () => {
+      await result.current.navigateToPath('org_org-1/shared/house-2/house_documents', { force: true })
+    })
+    const fallback = result.current.getCachedDirectory('org_org-1/shared/house-2/house_documents')?.breadcrumbs
+    expect(fallback?.map((crumb) => crumb.type)).toEqual(['root', 'category', 'house', 'category'])
   })
 })

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { createClient } from "@/utils/supabase/client"
+import { createSignedUrl } from "@/lib/storage-service"
 import { useToast } from "@/hooks/use-toast"
 import {
   File,
@@ -105,11 +105,9 @@ export function CloudStorageItemCard({
   const { toast } = useToast()
   const { openMarkdownEditorModal, openFileRenameModal } = useModalStore()
   const { currentPath, renameFile } = useCloudStorageStore()
-  const supabase = createClient()
 
-  // Constants for configuration
-  const STORAGE_BUCKET = 'documents'
-  const URL_EXPIRY_SECONDS = 3600 // 1 hour
+  // The URL is opened right away: it does not need to live long
+  const URL_EXPIRY_SECONDS = 300
 
   // Helper function to join path segments and normalize the result
   const getFullPath = (path: string, name: string): string => {
@@ -167,14 +165,10 @@ export function CloudStorageItemCard({
 
       // Get signed URL for the file
       const filePath = getFullPath(currentPath, file.name)
-      const { data, error } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .createSignedUrl(filePath, URL_EXPIRY_SECONDS)
-
-      if (error) throw error
+      const signedUrl = await createSignedUrl(filePath, URL_EXPIRY_SECONDS)
 
       // Open the file in a new tab
-      window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+      window.open(signedUrl, '_blank', 'noopener,noreferrer')
     } catch (error) {
       console.error('Error opening file:', error)
       toast({

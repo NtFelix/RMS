@@ -1,5 +1,6 @@
 "use client";
 
+import { mietHistorieQuery } from "@/lib/mietverhaeltnis-historie-query";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { motion } from "framer-motion";
@@ -44,6 +45,7 @@ import { GERMAN_MONTHS } from "@/lib/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
+import { API_PERMISSION_DENIED_CODE } from "@/lib/permissions-core";
 
 interface Finanz {
   id: string;
@@ -137,12 +139,15 @@ export default function FinanzenClientWrapper({
   const [hoveredPieIndex, setHoveredPieIndex] = useState<number | null>(null);
   const [tenantPaymentsData, setTenantPaymentsData] = useState<TenantPaymentRecord[]>([]);
   const [isTenantPaymentsLoading, setIsTenantPaymentsLoading] = useState<boolean>(false);
+  // /api/tenants-data answered 403 PERMISSION_DENIED (needs mieter:ansehen and finanzen:ansehen): the rent collection
+  // box shows "no access" instead of loading forever
+  const [tenantPaymentsNoAccess, setTenantPaymentsNoAccess] = useState<boolean>(false);
   const [financeTimeframe, setFinanceTimeframe] = useState<"1" | "2" | "5">("1");
   const [chartFinances, setChartFinances] = useState<Finanz[]>([]);
   const [isChartLoading, setIsChartLoading] = useState<boolean>(false);
 
   const effectiveIsChartLoading = isChartLoading || (currentTab === "overview" && chartFinances.length === 0);
-  const effectiveIsTenantPaymentsLoading = isTenantPaymentsLoading || (currentTab === "overview" && tenantPaymentsData.length === 0);
+  const effectiveIsTenantPaymentsLoading = !tenantPaymentsNoAccess && (isTenantPaymentsLoading || (currentTab === "overview" && tenantPaymentsData.length === 0));
 
   // ... (useEffect for chartFinances remains same)
   useEffect(() => {
@@ -181,12 +186,19 @@ export default function FinanzenClientWrapper({
 
   // Fetch tenant payment data using the exact same dashboard RPC backend logic
   useEffect(() => {
-    if (currentTab !== "overview" || tenantPaymentsData.length > 0) return;
+    if (currentTab !== "overview" || tenantPaymentsData.length > 0 || tenantPaymentsNoAccess) return;
 
     const fetchTenantPayments = async () => {
       try {
         setIsTenantPaymentsLoading(true);
-        const response = await fetch("/api/tenants-data");
+        const response = await fetch(`/api/tenants-data${mietHistorieQuery()}`);
+        if (response.status === 403) {
+          const body = await response.json().catch(() => null);
+          if (body?.code === API_PERMISSION_DENIED_CODE) {
+            setTenantPaymentsNoAccess(true);
+            return;
+          }
+        }
         if (!response.ok) throw new Error("Failed to fetch tenant payments");
         const data = await response.json();
         setTenantPaymentsData(data.tenants || []);
@@ -198,7 +210,7 @@ export default function FinanzenClientWrapper({
     };
 
     fetchTenantPayments();
-  }, [currentTab, tenantPaymentsData.length]);
+  }, [currentTab, tenantPaymentsData.length, tenantPaymentsNoAccess]);
 
   const monthlyChartSource = chartFinances.length > 0 ? chartFinances : finData;
 
@@ -1320,6 +1332,13 @@ export default function FinanzenClientWrapper({
                   </CardDescription>
                 </div>
               </CardHeader>
+              {tenantPaymentsNoAccess ? (
+              <CardContent className="px-0 pb-0 mt-4 flex-1 flex items-center justify-center text-center">
+                <p className="text-sm text-muted-foreground">
+                  Für den Mieteingang fehlt Ihnen die Berechtigung (Mieter und Finanzen ansehen).
+                </p>
+              </CardContent>
+              ) : (
               <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col min-h-0 justify-between gap-6">
                 <div className="flex-1 flex flex-col justify-between gap-5">
                   {/* Centered Donut Chart */}
@@ -1434,6 +1453,7 @@ export default function FinanzenClientWrapper({
 
 
               </CardContent>
+              )}
             </Card>
           </div>
         </div>

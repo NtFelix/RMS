@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 import { logger } from "@/utils/logger"
 import { FinanceEntryPayload } from "@/types/finanzen"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
+import { apiPermissionErrorResponse } from "@/lib/api-permission-response"
 
 export async function POST(request: Request) {
   const requestStartTime = Date.now()
@@ -180,6 +181,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
+    // Delivers Finanzen, so it needs finanzen:ansehen: 403 PERMISSION_DENIED if the right is missing, 503
+    // PERMISSION_CHECK_FAILED if the check itself failed (see the catch). Checked before anything is read.
+    const { requireApiPermission } = await import("@/lib/api-permissions");
+    await requireApiPermission('finanzen', 'ansehen');
+
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     const wohnungIds = await getAccessibleWohnungIds();
 
@@ -228,6 +234,9 @@ export async function GET(request: Request) {
     }, { headers: NO_CACHE_HEADERS })
 
   } catch (error) {
+    // 403 PERMISSION_DENIED (right missing) or 503 PERMISSION_CHECK_FAILED (the check itself failed)
+    const permissionResponse = apiPermissionErrorResponse(error)
+    if (permissionResponse) return permissionResponse
     const totalDuration = Date.now() - requestStartTime
     logger.error("Error in finance-entries GET API", error as Error, {
       path: request.url,

@@ -24,12 +24,15 @@ interface SettingsLayoutClientProps {
   children: React.ReactNode
   apiZugriffAktiviert?: boolean
   canManageOrg?: boolean
+  /** Data export is owner/admin only (enforced by GET /api/export; the tab is only a convenience) */
+  canExportData?: boolean
 }
 
 export function SettingsLayoutClient({
   children,
   apiZugriffAktiviert = false,
   canManageOrg = false,
+  canExportData = false,
 }: SettingsLayoutClientProps) {
   const mailsEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MAILS_TAB)
   const aiAgentEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MIETEVO_AI_AGENT)
@@ -41,7 +44,7 @@ export function SettingsLayoutClient({
       { value: "abo", label: "Abo", icon: CreditCard, group: "Konto" },
       ...(mailsEnabled ? [{ value: "mail", label: "E-Mail", icon: Mail, group: "Konto" }] : []),
       { value: "darstellung", label: "Darstellung", icon: Monitor, group: "Konto" },
-      { value: "datenexport", label: "Datenexport", icon: DownloadCloud, group: "Konto" },
+      ...(canExportData ? [{ value: "datenexport", label: "Datenexport", icon: DownloadCloud, group: "Konto" }] : []),
       { value: "vorschau", label: "Vorschau", icon: FlaskConical, group: "Konto" },
       ...(aiAgentEnabled ? [{ value: "ki", label: "KI", icon: Brain, group: "Konto" }] : []),
       { value: "mietevo", label: "Mietevo", icon: Info, group: "Konto" },
@@ -50,7 +53,7 @@ export function SettingsLayoutClient({
       ...(apiZugriffAktiviert ? [{ value: "api-keys", label: "API-Keys", icon: Key, group: "Organisation" }] : []),
       ...(canManageOrg ? [{ value: "mcp", label: "MCP-Server", icon: Bot, group: "Organisation" }] : []),
     ],
-    [mailsEnabled, aiAgentEnabled, apiZugriffAktiviert, canManageOrg],
+    [mailsEnabled, aiAgentEnabled, apiZugriffAktiviert, canManageOrg, canExportData],
   )
 
   return (

@@ -24,6 +24,7 @@ import {
   AlertCircle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { TENANT_NO_ACCESS_LABEL } from "@/lib/tenant-access"
 import { Badge } from "@/components/ui/badge"
 
 interface SearchResultItemProps {
@@ -165,6 +166,12 @@ const renderMetadata = (result: SearchResult) => {
             <div className="flex items-center gap-1.5 min-w-0 col-span-2 text-primary/80">
               <Users className="h-3! w-3!" />
               <span className="truncate font-medium">{metadata.current_tenant.name}</span>
+            </div>
+          )}
+          {!metadata?.current_tenant && metadata?.tenant_access === false && metadata?.status === 'rented' && (
+            <div className="flex items-center gap-1.5 min-w-0 col-span-2 text-muted-foreground">
+              <Users className="h-3! w-3!" />
+              <span className="truncate">{TENANT_NO_ACCESS_LABEL}</span>
             </div>
           )}
         </>

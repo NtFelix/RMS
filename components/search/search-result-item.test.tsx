@@ -249,6 +249,50 @@ describe('SearchResultItem', () => {
     });
   });
 
+  describe('Apartment results without mieter:ansehen', () => {
+    const base: SearchResult = {
+      id: '3',
+      type: 'apartment',
+      title: 'Apartment 1',
+      subtitle: 'House 1',
+      metadata: { house_name: 'House 1', size: 75, rent: 800, status: 'rented', tenant_access: false },
+      actions: []
+    };
+
+    it('shows "Kein Zugriff" instead of a tenant name for a rented apartment (status stays visible)', () => {
+      render(<SearchResultItem result={base} onSelect={mockOnSelect} onAction={mockOnAction} />);
+
+      expect(screen.getByText('Kein Zugriff')).toBeInTheDocument();
+      expect(screen.getByText('Vermietet')).toBeInTheDocument();
+    });
+
+    it('shows no "Kein Zugriff" for a free apartment', () => {
+      render(
+        <SearchResultItem
+          result={{ ...base, metadata: { ...base.metadata, status: 'free' } }}
+          onSelect={mockOnSelect}
+          onAction={mockOnAction}
+        />
+      );
+
+      expect(screen.queryByText('Kein Zugriff')).not.toBeInTheDocument();
+      expect(screen.getByText('Frei')).toBeInTheDocument();
+    });
+
+    it('shows no "Kein Zugriff" when the user may see tenants', () => {
+      render(
+        <SearchResultItem
+          result={{ ...base, metadata: { house_name: 'House 1', status: 'rented', current_tenant: { name: 'John Doe', move_in_date: '2023-01-01' } } }}
+          onSelect={mockOnSelect}
+          onAction={mockOnAction}
+        />
+      );
+
+      expect(screen.queryByText('Kein Zugriff')).not.toBeInTheDocument();
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+    });
+  });
+
   describe('Finance results', () => {
     const financeResult: SearchResult = {
       id: '4',

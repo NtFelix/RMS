@@ -446,6 +446,83 @@ export function MitgliedPermissionDetail({
     </div>
   );
 
+  const dangerZone = (hasVerwaltenPermission && !isOwner && !isCurrentUser) ? (
+    <Card className="rounded-[2rem] border border-red-200/50 dark:border-red-900/30 shadow-xs bg-red-500/[0.01] dark:bg-red-500/[0.02]">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg text-red-600 dark:text-red-400">Gefahrenbereich</CardTitle>
+        <CardDescription className="text-xs">
+          Verwalten Sie die Rolle, den Status oder entfernen Sie das Mitglied dauerhaft aus der Organisation.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-0 pt-0 pb-3">
+        {/* Role Setting Row */}
+        {onRoleChange && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-zinc-200/50 dark:border-zinc-800/30">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Mitgliedsrolle</span>
+              <span className="text-xs text-muted-foreground">Bestimmt die Berechtigungsstufe des Mitarbeiters.</span>
+            </div>
+            <Select
+              value={rolle}
+              onValueChange={(val) => onRoleChange(mitgliedId, memberName, val)}
+              disabled={isPending}
+            >
+              <SelectTrigger className="w-[140px] h-9 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="admin">Administrator</SelectItem>
+                <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Status Setting Row */}
+        {onStatusChange && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-zinc-200/50 dark:border-zinc-800/30">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Kontostatus</span>
+              <span className="text-xs text-muted-foreground">Aktivieren oder deaktivieren Sie den Zugriff des Mitarbeiters.</span>
+            </div>
+            <Select
+              value={status}
+              onValueChange={(val) => onStatusChange(mitgliedId, memberName, val)}
+              disabled={isPending}
+            >
+              <SelectTrigger className="w-[140px] h-9 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="aktiv">Aktiv</SelectItem>
+                <SelectItem value="deaktiviert">Deaktiviert</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Remove Member Row */}
+        {onRemove && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Mitglied entfernen</span>
+              <span className="text-xs text-muted-foreground">Entzieht dauerhaft alle Berechtigungen und den Zugriff.</span>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => onRemove(mitgliedId, memberName)}
+              disabled={isPending}
+              className="rounded-xl font-semibold h-9 px-4 shrink-0"
+            >
+              Mitglied löschen
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  ) : null;
+
   if (isLocked) {
     return (
       <div className="flex flex-col gap-6">
@@ -457,10 +534,13 @@ export function MitgliedPermissionDetail({
           <div className="space-y-1.5">
             <h3 className="font-bold text-lg text-zinc-800 dark:text-zinc-200">Rollenbasierter Vollzugriff</h3>
             <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
-              Inhaber und Administratoren haben stets vollen Zugriff und können nicht eingeschränkt werden.
+              {isOwner
+                ? "Inhaber haben stets vollen Zugriff und können nicht eingeschränkt werden."
+                : "Berechtigungen können nicht eingeschränkt werden. Um den Zugriff zu entziehen, stufe die Rolle herab oder deaktiviere das Mitglied."}
             </p>
           </div>
         </div>
+        {dangerZone}
       </div>
     );
   }
@@ -633,82 +713,7 @@ export function MitgliedPermissionDetail({
         )}
 
         {/* Section 2.5: Danger Zone (only if manageable) */}
-        {hasVerwaltenPermission && !isOwner && !isCurrentUser && (
-          <Card className="rounded-[2rem] border border-red-200/50 dark:border-red-900/30 shadow-xs bg-red-500/[0.01] dark:bg-red-500/[0.02]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg text-red-600 dark:text-red-400">Gefahrenbereich</CardTitle>
-              <CardDescription className="text-xs">
-                Verwalten Sie die Rolle, den Status oder entfernen Sie das Mitglied dauerhaft aus der Organisation.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-0 pt-0 pb-3">
-              {/* Role Setting Row */}
-              {onRoleChange && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-zinc-200/50 dark:border-zinc-800/30">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Mitgliedsrolle</span>
-                    <span className="text-xs text-muted-foreground">Bestimmt die Berechtigungsstufe des Mitarbeiters.</span>
-                  </div>
-                  <Select
-                    value={rolle}
-                    onValueChange={(val) => onRoleChange(mitgliedId, memberName, val)}
-                    disabled={isPending}
-                  >
-                    <SelectTrigger className="w-[140px] h-9 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      <SelectItem value="admin">Administrator</SelectItem>
-                      <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Status Setting Row */}
-              {onStatusChange && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-zinc-200/50 dark:border-zinc-800/30">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Kontostatus</span>
-                    <span className="text-xs text-muted-foreground">Aktivieren oder deaktivieren Sie den Zugriff des Mitarbeiters.</span>
-                  </div>
-                  <Select
-                    value={status}
-                    onValueChange={(val) => onStatusChange(mitgliedId, memberName, val)}
-                    disabled={isPending}
-                  >
-                    <SelectTrigger className="w-[140px] h-9 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      <SelectItem value="aktiv">Aktiv</SelectItem>
-                      <SelectItem value="deaktiviert">Deaktiviert</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Remove Member Row */}
-              {onRemove && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Mitglied entfernen</span>
-                    <span className="text-xs text-muted-foreground">Entzieht dauerhaft alle Berechtigungen und den Zugriff.</span>
-                  </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => onRemove(mitgliedId, memberName)}
-                    disabled={isPending}
-                    className="rounded-xl font-semibold h-9 px-4 shrink-0"
-                  >
-                    Mitglied löschen
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        {dangerZone}
     </div>
   );
 }

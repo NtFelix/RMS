@@ -9,6 +9,7 @@ import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { MAX_FILE_SIZE_LABEL } from "@/lib/finance-file-constants";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE, mapKautionError } from "@/lib/kautionen-errors";
 import { validateUuid } from "@/lib/kautionen-validation";
+import { checkStoragePathAccess, getActiveOrgId } from "@/lib/storage-access";
 import {
   BELEG_STORAGE_BUCKET,
   baueBelegOrdner,
@@ -26,9 +27,14 @@ import {
  *
  * Request: `multipart/form-data` with `bewegungId` (UUID of the booking) and `file`.
  * Flow: sign-in -> module right (`kautionen: bearbeiten` and `ansehen`, like the database) -> input check -> folder
- * from the DATABASE (booking -> deposit -> tenant -> apartment, read with the user's own client, so RLS applies;
+ * from the DATABASE (booking -> deposit -> tenant -> apartment -> house, read with the user's own client, so RLS applies;
  * the client never sends a folder) -> upload to the storage -> metadata row -> RPC `kaution_beleg_zuordnen`.
  * If the RPC fails, the metadata row and the storage object are removed again.
+ *
+ * Folder: `org_{org}/shared/{house}/Kautionen/{tenantId}`. That folder needs the module right `kautionen` and the house
+ * scope only (no `dokumente`, no apartment or tenant right), so the role of a deposit clerk can upload without them.
+ * Rollout: the database rule for `Kautionen/` must be live BEFORE this route is (see the PR text), otherwise the old
+ * storage policy treats `Kautionen/` as an ordinary house folder (needs `dokumente`) and refuses a deposit-only role.
  *
  * Privacy: neither the file name nor amounts or names are logged; the log has the action name and the error code only.
  * Security relevant: not production ready until the maintainer has reviewed it. The database checks the object scope
@@ -39,8 +45,11 @@ import {
 
 const LOG_NAME = "kautionBelegHochladen";
 
-/** Folder of the booking, read from the database. `null` if the booking is not visible (or incomplete). */
-async function ermittleBelegOrdner(supabase: SupabaseClient, userId: string, bewegungId: string): Promise<string | null> {
+/**
+ * Folder of the booking (`.../{house}/Kautionen/{tenantId}`), read from the database. `null` if the booking is not visible (or incomplete).
+ * The organisation comes from the server (`getActiveOrgId`), never from the client.
+ */
+async function ermittleBelegOrdner(supabase: SupabaseClient, orgId: string, bewegungId: string): Promise<string | null> {
   const { data: bewegung, error: bewegungFehler } = await supabase
     .from("Kautionen_Bewegungen")
     .select("kaution_id")
@@ -59,7 +68,7 @@ async function ermittleBelegOrdner(supabase: SupabaseClient, userId: string, bew
 
   const { data: mieter, error: mieterFehler } = await supabase
     .from("Mieter")
-    .select("id, wohnung_id")
+    .select("wohnung_id")
     .eq("id", kaution.mieter_id)
     .maybeSingle();
   if (mieterFehler) throw mieterFehler;
@@ -67,13 +76,13 @@ async function ermittleBelegOrdner(supabase: SupabaseClient, userId: string, bew
 
   const { data: wohnung, error: wohnungFehler } = await supabase
     .from("Wohnungen")
-    .select("id, haus_id")
+    .select("haus_id")
     .eq("id", mieter.wohnung_id)
     .maybeSingle();
   if (wohnungFehler) throw wohnungFehler;
   if (!wohnung?.haus_id) return null;
 
-  return baueBelegOrdner({ userId, hausId: wohnung.haus_id, wohnungId: wohnung.id, mieterId: mieter.id });
+  return baueBelegOrdner({ orgId, hausId: wohnung.haus_id, mieterId: kaution.mieter_id });
 }
 
 /** Removes a stored file again (rollback). Errors are logged by code only and never returned to the client. */
@@ -172,9 +181,15 @@ export async function POST(request: NextRequest) {
     const pruefung = pruefeBelegDatei({ size: datei.size, type: datei.type });
     if (!pruefung.ok) return ablehnen(pruefung.status, pruefung.message);
 
-    // 4. Folder from the database (never from the client)
-    const dateipfad = await ermittleBelegOrdner(supabase, user.id, bewegungId.value);
+    // 4. Folder from the database (never from the client): org from the server, house-scoped path
+    const orgId = await getActiveOrgId(supabase);
+    if (!orgId) return ablehnen(403, "Keine aktive Organisation gefunden.", "42501");
+    const dateipfad = await ermittleBelegOrdner(supabase, orgId, bewegungId.value);
     if (!dateipfad) return ablehnen(404, "Die Buchung wurde nicht gefunden.", "KA003");
+
+    // Object scope: the folder must lie in a house the user may access. Writing has NO legacy exception.
+    const zugriff = await checkStoragePathAccess(supabase, user.id, dateipfad, { mode: "write" });
+    if (zugriff) return ablehnen(403, "Zugriff verweigert.", "42501");
 
     // 5. Upload under a unique, sanitized name
     const dateiname = erzeugeBelegDateiname(datei.name, Date.now());

@@ -1,5 +1,7 @@
 import { PAYMENT_KEYWORDS } from "@/utils/constants"
 import { getCurrentMonthRange, getMonthDateRange } from "@/utils/date-calculations"
+import { mieteImMonat, mieteZumDatum } from "@/utils/miete-zum-datum"
+import type { MietEintragKurz } from "@/types/Mietverhaeltnis"
 
 export const getLatestNebenkostenAmount = (entries?: any[] | null): number => {
     if (!Array.isArray(entries)) return 0
@@ -27,7 +29,16 @@ export const getLatestNebenkostenAmount = (entries?: any[] | null): number => {
     return parsedEntries[0]?.amount ?? 0
 }
 
-export const calculateMissedPayments = (tenant: any, finances: any[], includeDetails: boolean = false) => {
+/**
+ * @param mietHistorie Rent history of the tenancy. Without history (undefined, null, []) the apartment rent
+ *   `Wohnungen.miete` applies to every month, as before. With history, each month uses the rent of its first day.
+ */
+export const calculateMissedPayments = (
+    tenant: any,
+    finances: any[],
+    includeDetails: boolean = false,
+    mietHistorie?: MietEintragKurz[] | null
+) => {
     const mieteRaw = Number(tenant.Wohnungen?.miete) || 0
     const nebenkostenRaw = getLatestNebenkostenAmount(tenant.nebenkosten)
 
@@ -80,11 +91,16 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
             const { startIso: monthStart, endIso: monthEnd, daysInMonth } = getMonthDateRange(year, month + 1)
 
             // Calculate expected amounts (pro-rated for move-in month)
-            let expectedRent = mieteRaw
+            const isMoveInMonth = year === moveInDate.getFullYear() && month === moveInDate.getMonth()
+
+            // Rent of this month (history-aware; equals mieteRaw without history). The move-in month uses the rent
+            // of the move-in day, because the first history entry usually starts on that day, not on the 1st.
+            const mieteMonat = isMoveInMonth
+                ? mieteZumDatum(mietHistorie, moveInDate, mieteRaw)
+                : mieteImMonat(mietHistorie, year, month, mieteRaw)
+            let expectedRent = mieteMonat
             let expectedNebenkosten = nebenkostenRaw
             let paymentDate = monthStart
-
-            const isMoveInMonth = year === moveInDate.getFullYear() && month === moveInDate.getMonth()
 
             if (isMoveInMonth) {
                 const moveInDay = moveInDate.getDate()
@@ -93,7 +109,7 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
                     const occupiedDays = daysInMonth - moveInDay + 1
                     const factor = occupiedDays / daysInMonth
 
-                    expectedRent = Math.round(mieteRaw * factor * 100) / 100
+                    expectedRent = Math.round(mieteMonat * factor * 100) / 100
                     expectedNebenkosten = Math.round(nebenkostenRaw * factor * 100) / 100
 
                     // Set payment date to move-in date for the first month

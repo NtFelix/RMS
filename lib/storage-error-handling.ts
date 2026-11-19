@@ -558,20 +558,12 @@ export async function checkStorageHealth(): Promise<{
   const startTime = Date.now();
   
   try {
-    // Simple health check - try to list files in user's root directory
-    const { createClient } = await import('@/utils/supabase/client');
-    const supabase = createClient();
-    
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('Authentication failed');
+    // The bucket is only reachable through the server (it carries the organisation cookie)
+    const { checkStorageReachable } = await import('@/app/(dashboard)/dateien/storage-actions');
+    const result = await checkStorageReachable();
+    if (!result.success) {
+      throw new Error(result.error);
     }
-    
-    // Try a simple storage operation
-    await supabase.storage
-      .from('documents')
-      .list(`user_${user.id}`, { limit: 1 });
     
     const latency = Date.now() - startTime;
     

@@ -546,7 +546,8 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
             size: apartment.size,
             rent: apartment.rent,
             status: apartment.status,
-            current_tenant: apartment.current_tenant
+            current_tenant: apartment.current_tenant,
+            tenant_access: apartment.tenant_access
           },
           actions
         });

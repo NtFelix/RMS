@@ -1,6 +1,7 @@
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from '@/lib/object-scope';
-import { hasPermission } from '@/lib/permissions';
+import { checkOrgAdminOrOwner, checkPermission } from '@/lib/permissions';
 import type { Modul, Aktion } from '@/lib/permissions';
+import { PermissionCheckError } from '@/lib/permissions-core';
 
 /**
  * Applies the house_id scope filter to a query if access is restricted.
@@ -50,11 +51,46 @@ export async function verifyWohnungInScope(wohnungId: string): Promise<boolean> 
 
 /**
  * Requires the user to have the given module/action permission.
- * Throws an error if not allowed.
+ * Throws an error if not allowed: `Error('Permission denied')` for a missing right, PermissionCheckError (same message)
+ * if the check itself failed. Access is denied in both cases; the class only lets a route answer 503 instead of 403
+ * (see apiPermissionErrorResponse in lib/api-permission-response.ts).
  */
 export async function requireApiPermission(modul: Modul, aktion: Aktion): Promise<void> {
-  const allowed = await hasPermission(modul, aktion);
-  if (!allowed) {
+  const result = await checkPermission(modul, aktion);
+  if (result === 'error') {
+    throw new PermissionCheckError();
+  }
+  if (result !== 'allowed') {
     throw new Error('Permission denied');
   }
+}
+
+/**
+ * Requires the user to be owner or admin of the active organisation (role check, independent of module rights).
+ * Throws like requireApiPermission: `Error('Permission denied')` if the user is no owner/admin, PermissionCheckError
+ * (same message) if the role lookup itself failed. Access is denied in both cases (fail-closed); a route answers 403 or
+ * 503 with apiPermissionErrorResponse.
+ */
+export async function requireApiOrgAdmin(): Promise<void> {
+  const result = await checkOrgAdminOrOwner();
+  if (result === 'error') {
+    throw new PermissionCheckError();
+  }
+  if (result !== 'allowed') {
+    throw new Error('Permission denied');
+  }
+}
+
+/**
+ * Like requireApiPermission, but for a right that only decides WHAT a route delivers (e.g. tenant data inside an
+ * apartment answer), not WHETHER it answers: `true` = granted, `false` = the right is missing. If the check itself
+ * failed it throws PermissionCheckError (answer 503, see apiPermissionErrorResponse) instead of returning `false`,
+ * so a failed lookup is never shown as "no access".
+ */
+export async function hasApiPermission(modul: Modul, aktion: Aktion): Promise<boolean> {
+  const result = await checkPermission(modul, aktion);
+  if (result === 'error') {
+    throw new PermissionCheckError();
+  }
+  return result === 'allowed';
 }

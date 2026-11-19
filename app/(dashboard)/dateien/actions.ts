@@ -1,7 +1,18 @@
 'use server'
 
 import { ensureAuth } from '@/lib/auth-utils'
-import { redirect, unstable_rethrow } from 'next/navigation'
+import { checkStoragePathAccess, getActiveOrgId } from '@/lib/storage-access'
+import { STORAGE_ROOT_LABEL } from '@/lib/storage-navigation'
+import {
+    FOLDER_NOT_AVAILABLE_MESSAGE,
+    isPermissionDeniedError,
+    mapFolderRpcError,
+    FOLDER_PARTIALLY_DELETED_MESSAGE,
+    STORAGE_ACCESS_DENIED_MESSAGE,
+} from '@/lib/storage-messages'
+import { classifyUnremovedObjects } from '@/lib/storage-operations'
+import { folderMetadataFilter, isPathInFolder, orgRoot, parseStoragePath, requiredViewModules } from '@/lib/storage-paths'
+import { unstable_rethrow } from 'next/navigation'
 
 /**
  * Unified Document Navigation Actions
@@ -103,20 +114,45 @@ export interface FolderContentsResult {
  * Unified function to get all folder contents via the database RPC.
  * This is the ONLY function needed to load files, folders, and breadcrumbs.
  * 
- * @param userId - The user's UUID
- * @param path - The current storage path (e.g., "user_uuid/house_uuid/apartment_uuid")
+ * The user is always the one of the session (ensureAuth), it is never passed in by the caller.
+ *
+ * @param path - The current storage path (e.g., "org_{orgId}/shared/{houseId}/{apartmentId}"), default: the organisation root
  * @returns Complete folder contents including files, folders, breadcrumbs, and total storage size
  */
-export async function getFolderContents(userId: string, path?: string): Promise<FolderContentsResult> {
-    const targetPath = path || `user_${userId}`
+export async function getFolderContents(path?: string): Promise<FolderContentsResult> {
     const startTime = performance.now()
 
     try {
         const { user, supabase } = await ensureAuth()
 
-        if (user.id !== userId) {
-            redirect('/auth/login')
+        // Validate that the path belongs to the active organisation and an accessible house (the single
+        // access check of all folder loads, loadFilesForPath goes through here). Without a path the
+        // organisation root is loaded, which is derived from the active organisation below.
+        if (path) {
+            const accessError = await checkStoragePathAccess(supabase, user.id, path, { allowLegacyOwnRead: true })
+            if (accessError) {
+                return {
+                    files: [],
+                    folders: [],
+                    breadcrumbs: [],
+                    totalSize: 0,
+                    error: FOLDER_NOT_AVAILABLE_MESSAGE
+                }
+            }
         }
+
+        const orgId = await getActiveOrgId(supabase)
+        if (!orgId) {
+            return {
+                files: [],
+                folders: [],
+                breadcrumbs: [],
+                totalSize: 0,
+                error: 'Keine aktive Organisation'
+            }
+        }
+        const rootPath = orgRoot(orgId)
+        const targetPath = path || rootPath
 
         // Call the unified RPC function
         const { data, error } = await supabase.rpc('get_folder_contents', {
@@ -131,9 +167,12 @@ export async function getFolderContents(userId: string, path?: string): Promise<
             return {
                 files: [],
                 folders: [],
-                breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+                breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                 totalSize: 0,
-                error: `Fehler beim Laden der Ordnerinhalte: ${error.message}`
+                // A refusal by the database (RLS / missing privilege) gets the same text as a refused path
+                error: isPermissionDeniedError(error)
+                    ? FOLDER_NOT_AVAILABLE_MESSAGE
+                    : `Fehler beim Laden der Ordnerinhalte: ${error.message}`
             }
         }
 
@@ -153,9 +192,10 @@ export async function getFolderContents(userId: string, path?: string): Promise<
             return {
                 files: [],
                 folders: [],
-                breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+                breadcrumbs: [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
                 totalSize: 0,
-                error: result.error
+                // `Invalid path: house not accessible` and the like come from the database in English
+                error: mapFolderRpcError(result.error)
             }
         }
 
@@ -169,21 +209,21 @@ export async function getFolderContents(userId: string, path?: string): Promise<
         return {
             files: result.files || [],
             folders: result.folders || [],
-            breadcrumbs: result.breadcrumbs || [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+            breadcrumbs: result.breadcrumbs || [{ name: STORAGE_ROOT_LABEL, path: rootPath, type: 'root' }],
             totalSize: result.totalSize || 0
         }
 
     } catch (error) {
         unstable_rethrow(error)
 
-        await logRpcCall('get_folder_contents', targetPath, startTime, false, {
+        await logRpcCall('get_folder_contents', path ?? '', startTime, false, {
             error: error instanceof Error ? error.message : 'Unknown error'
         })
         console.error('Unexpected error in getFolderContents:', error)
         return {
             files: [],
             folders: [],
-            breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+            breadcrumbs: [],
             totalSize: 0,
             error: error instanceof Error ? error.message : 'Unerwarteter Fehler beim Laden der Ordnerinhalte'
         }
@@ -194,36 +234,26 @@ export async function getFolderContents(userId: string, path?: string): Promise<
  * Backward compatible alias for getFolderContents
  * Used by: dateien pages, cloud-storage.tsx
  */
-export async function getPathContents(userId: string, path?: string): Promise<FolderContentsResult> {
-    return getFolderContents(userId, path)
+export async function getPathContents(path?: string): Promise<FolderContentsResult> {
+    return getFolderContents(path)
 }
 
 /**
  * Backward compatible alias for getFolderContents
  * Used by: use-cloud-storage-store.tsx, use-cloud-storage-navigation.tsx
  */
-export async function loadFilesForPath(userId: string, path: string): Promise<FolderContentsResult> {
-    // Validate that the path belongs to the user
-    if (!path.startsWith(`user_${userId}`)) {
-        return {
-            files: [],
-            folders: [],
-            breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
-            totalSize: 0,
-            error: 'Ungültiger Pfad'
-        }
-    }
-
-    return getFolderContents(userId, path)
+export async function loadFilesForPath(path: string): Promise<FolderContentsResult> {
+    // The path check (organisation and house scope) is part of getFolderContents
+    return getFolderContents(path)
 }
 
 /**
  * Get total storage usage for a user
  * This is included in the unified RPC response, but exposed separately for backward compatibility
  */
-export async function getTotalStorageUsage(userId: string): Promise<number> {
+export async function getTotalStorageUsage(): Promise<number> {
     try {
-        const result = await getFolderContents(userId)
+        const result = await getFolderContents()
         return result.totalSize
     } catch (error) {
         console.error('Error getting storage usage:', error)
@@ -231,23 +261,36 @@ export async function getTotalStorageUsage(userId: string): Promise<number> {
     }
 }
 
+/** Technical failure while deleting a folder: no database text, no names */
+const DELETE_FOLDER_FAILED_MESSAGE = 'Der Ordner konnte nicht gelöscht werden.'
+
+/**
+ * Error text of deleteFolder for the client. A refusal by the database gets the same text as a refused or missing
+ * folder (no raw Postgres text, no hint at apartments or tenants), the sign-in message stays as it is, everything
+ * else is a technical failure with a fixed text (the details are logged on the server).
+ */
+function deleteFolderErrorMessage(error: unknown): string {
+    if (isPermissionDeniedError(error)) return STORAGE_ACCESS_DENIED_MESSAGE
+    if (error instanceof Error && error.message.startsWith('Nicht authentifiziert')) return error.message
+    return DELETE_FOLDER_FAILED_MESSAGE
+}
+
 /**
  * Delete a folder and all its contents
  * NOTE: This operation is separate from the navigation RPC for safety
+ *
+ * Below a house the apartment and tenant level need `wohnungen:ansehen` / `mieter:ansehen`, the folders `Kautionen` and
+ * `Rechnungen` need `kautionen:ansehen` + `kautionen:bearbeiten` / `finanzen:ansehen` + `finanzen:loeschen` (the database rule for
+ * writing and deleting there; this action additionally keeps requiring `dokumente:loeschen`). A
+ * user without them gets the same answer for an existing, a refused and a made-up apartment/tenant folder, and the
+ * messages about existing apartments or tenants only reach users who may see them.
  */
-export async function deleteFolder(userId: string, folderPath: string): Promise<{
+export async function deleteFolder(folderPath: string): Promise<{
     success: boolean
     error?: string
 }> {
     try {
         const { user, supabase } = await ensureAuth()
-
-        if (user.id !== userId) {
-            return {
-                success: false,
-                error: 'Nicht authentifiziert'
-            }
-        }
 
         const { hasPermission } = await import('@/lib/permissions')
         if (!(await hasPermission('dokumente', 'loeschen'))) {
@@ -257,69 +300,52 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             }
         }
 
-        // Validate that the path belongs to the user
-        if (!folderPath.startsWith(`user_${userId}`)) {
+        // Validate that the path belongs to the active organisation and an accessible house
+        // (the texts of the check are generic: the same one for a refused and a missing path)
+        const accessError = await checkStoragePathAccess(supabase, user.id, folderPath, { mode: 'write' })
+        if (accessError) {
             return {
                 success: false,
-                error: 'Ungültiger Pfad'
+                error: accessError
             }
         }
 
-        const pathSegments = folderPath.split('/')
-        const depth = pathSegments.length
-
-        // Protect system folders at their specific path depths
-        // Path format: user_uuid/[segment1]/[segment2]/[segment3]
-        // depth 1: user_uuid
-        // depth 2: user_uuid/house_uuid OR user_uuid/Miscellaneous
-        // depth 3: user_uuid/house_uuid/apartment_uuid OR user_uuid/house_uuid/house_documents
-        // depth 4: user_uuid/house_uuid/apartment_uuid/tenant_uuid OR .../apartment_documents
-
-        if (depth === 2 && pathSegments[1] === 'Miscellaneous') {
-            return {
-                success: false,
-                error: 'Der Ordner "Sonstiges" ist ein Systemordner und kann nicht gelöscht werden.'
-            }
-        }
-        if (depth === 3 && pathSegments[2] === 'house_documents') {
-            return {
-                success: false,
-                error: 'Der Ordner "Hausdokumente" ist ein Systemordner und kann nicht gelöscht werden.'
-            }
-        }
-        if (depth === 4 && pathSegments[3] === 'apartment_documents') {
-            return {
-                success: false,
-                error: 'Der Ordner "Wohnungsdokumente" ist ein Systemordner und kann nicht gelöscht werden.'
-            }
+        // Apartment and tenant level: without the matching view right the folder is refused without looking at the
+        // database, so an existing apartment/tenant cannot be told apart from a made-up id
+        const required = requiredViewModules(folderPath)
+        // Kautionen: write = ansehen + bearbeiten; Rechnungen: delete = ansehen + loeschen (same as the storage policies),
+        // so the folder is refused up front instead of failing object by object in the database
+        if (
+            (required.wohnungen && !(await hasPermission('wohnungen', 'ansehen'))) ||
+            (required.mieter && !(await hasPermission('mieter', 'ansehen'))) ||
+            (required.kautionen &&
+                !((await hasPermission('kautionen', 'ansehen')) && (await hasPermission('kautionen', 'bearbeiten')))) ||
+            (required.finanzen &&
+                !((await hasPermission('finanzen', 'ansehen')) && (await hasPermission('finanzen', 'loeschen'))))
+        ) {
+            return { success: false, error: STORAGE_ACCESS_DENIED_MESSAGE }
         }
 
-        // Check for virtual folders (house/apartment/tenant) based on their expected depth
-        if (depth === 2) {
-            // Potential house folder at user_uuid/house_uuid
-            const houseId = pathSegments[1]
-            const { data: house } = await supabase
-                .from('Haeuser')
-                .select('id')
-                .eq('id', houseId)
-                .maybeSingle()
+        // Protect zone roots, house folders and system folders at their structural position
+        const parsed = parseStoragePath(folderPath)
+        const rest = parsed.rest
+        if (parsed.zone === 'root' || rest.length === 0) {
+            return { success: false, error: 'Dieser Ordner ist ein Systemordner und kann nicht gelöscht werden.' }
+        }
+        if (parsed.zone === 'private' && rest[0] === 'Miscellaneous' && rest.length === 1) {
+            return { success: false, error: 'Der Ordner "Sonstiges" ist ein Systemordner und kann nicht gelöscht werden.' }
+        }
+        if (parsed.zone === 'shared' && rest.length === 1 && rest[0] === 'house_documents') {
+            return { success: false, error: 'Der Ordner "Hausdokumente" ist ein Systemordner und kann nicht gelöscht werden.' }
+        }
+        if (parsed.zone === 'shared' && rest.length === 2 && rest[1] === 'apartment_documents') {
+            return { success: false, error: 'Der Ordner "Wohnungsdokumente" ist ein Systemordner und kann nicht gelöscht werden.' }
+        }
 
-            if (house) {
-                const { verifyEntityInScope } = await import('@/lib/api-permissions')
-                if (!(await verifyEntityInScope(houseId))) {
-                    return {
-                        success: false,
-                        error: 'Zugriff verweigert (Haus nicht im Scope)'
-                    }
-                }
-                return {
-                    success: false,
-                    error: 'Hausordner können nicht gelöscht werden, solange das Haus existiert.'
-                }
-            }
-        } else if (depth === 3) {
-            // Potential apartment folder at user_uuid/house_uuid/apartment_uuid
-            const apartmentId = pathSegments[2]
+        // Check for virtual folders (apartment/tenant) based on their position below the house
+        if (parsed.zone === 'shared' && rest.length === 1) {
+            // Potential apartment folder at org/shared/house/apartment
+            const apartmentId = rest[0]
             const { data: apartment } = await supabase
                 .from('Wohnungen')
                 .select('id, haus_id')
@@ -329,19 +355,16 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             if (apartment) {
                 const { verifyWohnungInScope } = await import('@/lib/api-permissions')
                 if (!(await verifyWohnungInScope(apartmentId))) {
-                    return {
-                        success: false,
-                        error: 'Zugriff verweigert (Wohnung nicht im Scope)'
-                    }
+                    return { success: false, error: STORAGE_ACCESS_DENIED_MESSAGE }
                 }
                 return {
                     success: false,
                     error: 'Wohnungsordner können nicht gelöscht werden, solange die Wohnung existiert.'
                 }
             }
-        } else if (depth === 4) {
-            // Potential tenant folder at user_uuid/house_uuid/apartment_uuid/tenant_uuid
-            const tenantId = pathSegments[3]
+        } else if (parsed.zone === 'shared' && rest.length === 2) {
+            // Potential tenant folder at org/shared/house/apartment/tenant
+            const tenantId = rest[1]
             const { data: tenant } = await supabase
                 .from('Mieter')
                 .select('id, wohnung_id')
@@ -351,10 +374,7 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             if (tenant) {
                 const { verifyWohnungInScope } = await import('@/lib/api-permissions')
                 if (tenant.wohnung_id && !(await verifyWohnungInScope(tenant.wohnung_id))) {
-                    return {
-                        success: false,
-                        error: 'Zugriff verweigert (Mieter nicht im Scope)'
-                    }
+                    return { success: false, error: STORAGE_ACCESS_DENIED_MESSAGE }
                 }
                 return {
                     success: false,
@@ -363,31 +383,47 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             }
         }
 
-        // Get all files to delete from the database
-        const { data: filesToDelete, error: listError } = await supabase
+        // Get all files to delete from the database: exactly this folder and its sub-folders, never a
+        // sibling with the same prefix (Rechnungen vs. Rechnungen2) and no LIKE wildcards from the name
+        const { data: folderRows, error: listError } = await supabase
             .from('Dokumente_Metadaten')
             .select('dateipfad, dateiname')
-            .like('dateipfad', `${folderPath}%`)
+            .or(folderMetadataFilter(folderPath))
 
         if (listError) {
-            return {
-                success: false,
-                error: `Fehler beim Auflisten der Dateien: ${listError.message}`
-            }
+            console.error('Error listing the files of a folder to delete:', listError)
+            return { success: false, error: deleteFolderErrorMessage(listError) }
         }
+        // PostgREST turns a literal `*` of a LIKE value into a wildcard: the exact check is repeated on the rows
+        const filesToDelete = (folderRows ?? []).filter(file => isPathInFolder(file.dateipfad, folderPath))
 
         // Delete files from storage
-        if (filesToDelete && filesToDelete.length > 0) {
+        if (filesToDelete.length > 0) {
             const storagePaths = filesToDelete.map(file => `${file.dateipfad}/${file.dateiname}`)
 
-            const { error: deleteError } = await supabase.storage
+            const { data: removed, error: deleteError } = await supabase.storage
                 .from('documents')
                 .remove(storagePaths)
 
             if (deleteError) {
-                return {
-                    success: false,
-                    error: `Fehler beim Löschen der Dateien: ${deleteError.message}`
+                console.error('Error deleting the files of a folder:', deleteError)
+                return { success: false, error: deleteFolderErrorMessage(deleteError) }
+            }
+
+            // A refusal by the delete policy is no error: the object is just missing from `data`, exactly like an
+            // object that does not exist (orphaned metadata row, deleted in parallel). Only objects that still
+            // exist for the user count as refused, the missing ones are already gone and must not block the folder.
+            // The listing of the metadata only knows the organisation, so this is where a refused folder shows up.
+            const removedPaths = new Set<string>((Array.isArray(removed) ? removed : []).map((object: { name: string }) => object.name))
+            const notRemoved = storagePaths.filter((path) => !removedPaths.has(path))
+            if (notRemoved.length > 0) {
+                const { denied } = await classifyUnremovedObjects(supabase, notRemoved)
+                if (denied.length > 0) {
+                    // Some files are gone, the rest stays: the folder is not empty, so its .keep stays as well
+                    return {
+                        success: false,
+                        error: removedPaths.size > 0 ? FOLDER_PARTIALLY_DELETED_MESSAGE : STORAGE_ACCESS_DENIED_MESSAGE,
+                    }
                 }
             }
         }
@@ -402,10 +438,8 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
         return { success: true }
 
     } catch (error) {
+        unstable_rethrow(error)
         console.error('Error in deleteFolder:', error)
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unerwarteter Fehler beim Löschen des Ordners'
-        }
+        return { success: false, error: deleteFolderErrorMessage(error) }
     }
 }

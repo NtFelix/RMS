@@ -25,6 +25,8 @@ import { cn } from "@/lib/utils"
 import { Tenant, NebenkostenEntry, TenantStatus } from "@/types/Tenant"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useKautionenSichtbar } from "@/hooks/use-kaution-flag"
+import { useMietverhaeltnisSichtbar } from "@/hooks/use-mietverhaeltnis-flag"
+import { TenantMieteSection } from "@/components/tenants/tenant-miete-section"
 import { tenantActions, getVisibleActions } from "@/components/tenants/tenant-menu-actions"
 import {
   Users,
@@ -846,6 +848,9 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const templatesEnabled = useFeatureFlagEnabled('template-modal-enabled')
   // Kaution (GH-6): Modulrecht UND Feature Flag `advanced-kautionsmanagment` (siehe lib/kautionen-flag.ts).
   const canViewKautionen = useKautionenSichtbar(kautionsrecht)
+  // Mietverhältnis (GH-17): der Modal-Store führt kein Modulrecht `mieter`. Deshalb nur das Flag; die Rechte prüft
+  // jede Aktion in app/mietverhaeltnis-actions.ts (mieter:ansehen bzw. bearbeiten) serverseitig.
+  const mietverhaeltnisSichtbar = useMietverhaeltnisSichtbar(true)
 
   const attemptClose = () => {
     closeTenantModal()
@@ -1059,6 +1064,16 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               textareaRef={textareaRef}
               initResize={initResize}
             />
+            {tenantInitialData?.id && !isApplicant && mietverhaeltnisSichtbar && (
+              <div className="max-w-[90%] mx-auto pb-6 px-4 sm:px-8">
+                <TenantMieteSection
+                  mieterId={tenantInitialData.id}
+                  wohnungen={apartmentOptions}
+                  // After a move the tenant lives in the new apartment: the dialog must not save the old one back.
+                  onUmzug={(wohnungId) => setFormData(prev => ({ ...prev, wohnung_id: wohnungId }))}
+                />
+              </div>
+            )}
           </ScrollArea>
 
           <FormActions

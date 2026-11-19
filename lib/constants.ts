@@ -66,6 +66,8 @@ export const POSTHOG_FEATURE_FLAGS = {
   MIETEVO_AI_AGENT: 'mietevo-ai-agent',
   // Kautionsmanagement (GH-6): boolesches Flag mit JSON-Payload, siehe lib/kautionen-flag.ts
   ADVANCED_KAUTIONSMANAGEMENT: 'advanced-kautionsmanagment',
+  // Mietverhältnis und Miethistorie (GH-17): nur UX, Rechte bleiben in der Datenbank, siehe hooks/use-mietverhaeltnis-flag.ts
+  MIETVERHAELTNIS_MIETHISTORIE: 'mietverhaeltnis-miethistorie',
   // Sidebar features
   SUPPORT_BUTTON: 'support-button',
   NOTIFICATION_CENTER: 'notification-center',

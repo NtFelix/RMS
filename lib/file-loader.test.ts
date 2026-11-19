@@ -5,7 +5,7 @@
 const mockFetchResult = {
     files: [{ id: '1', name: 'test.pdf' }],
     folders: [],
-    breadcrumbs: [{ name: 'Root', path: 'user_123', type: 'root' as const }],
+    breadcrumbs: [{ name: 'Root', path: 'org_org-1', type: 'root' as const }],
     totalSize: 0,
 }
 
@@ -29,9 +29,9 @@ describe('loadFiles', () => {
 
         // Make multiple concurrent requests
         const requests = [
-            loadFiles('123', 'user_123/folder1'),
-            loadFiles('123', 'user_123/folder1'),
-            loadFiles('123', 'user_123/folder1'),
+            loadFiles('org_org-1/folder1'),
+            loadFiles('org_org-1/folder1'),
+            loadFiles('org_org-1/folder1'),
         ]
 
         const results = await Promise.all(requests)
@@ -69,7 +69,7 @@ describe('loadFiles', () => {
         const abortController = new AbortController()
 
         // Start the request
-        const promise = loadFiles('123', 'user_123/folder1', abortController.signal)
+        const promise = loadFiles('org_org-1/folder1', abortController.signal)
 
         // Abort immediately
         abortController.abort()
@@ -86,37 +86,82 @@ describe('loadFiles', () => {
         invalidateBreadcrumbCache()
 
         // Should be null initially
-        expect(getCachedBreadcrumbs('user_123/folder1')).toBeNull()
+        expect(getCachedBreadcrumbs('org_org-1/folder1')).toBeNull()
 
         // Add to cache
         const breadcrumbs = [
-            { name: 'Root', path: 'user_123', type: 'root' as const },
-            { name: 'Folder 1', path: 'user_123/folder1', type: 'category' as const },
+            { name: 'Root', path: 'org_org-1', type: 'root' as const },
+            { name: 'Folder 1', path: 'org_org-1/folder1', type: 'category' as const },
         ]
-        setCachedBreadcrumbs('user_123/folder1', breadcrumbs as any)
+        setCachedBreadcrumbs('org_org-1/folder1', breadcrumbs as any)
 
         // Should return cached value
-        expect(getCachedBreadcrumbs('user_123/folder1')).toEqual(breadcrumbs)
+        expect(getCachedBreadcrumbs('org_org-1/folder1')).toEqual(breadcrumbs)
+    })
+})
+
+describe('cancel', () => {
+    it('cancelAllPendingLoads aborts every pending request without a user id', async () => {
+        const signals: AbortSignal[] = []
+        global.fetch = jest.fn().mockImplementation((_url: string, init?: { signal?: AbortSignal }) => {
+            signals.push(init!.signal!)
+            return new Promise((_resolve, reject) => {
+                init!.signal!.addEventListener('abort', () => {
+                    const err = new Error('The operation was aborted')
+                    err.name = 'AbortError'
+                    reject(err)
+                })
+            })
+        })
+        const { loadFiles, cancelAllPendingLoads } = await import('@/lib/file-loader')
+
+        const first = loadFiles('org_org-1/folder1')
+        const second = loadFiles('org_org-1/folder2')
+        await new Promise(resolve => setTimeout(resolve, 0))
+        cancelAllPendingLoads()
+
+        expect((await first).error).toContain('cancelled')
+        expect((await second).error).toContain('cancelled')
+        expect(signals.every(signal => signal.aborted)).toBe(true)
     })
 })
 
 describe('getPreloadPaths', () => {
+    it('only returns parents that the read check allows for a user with house scope', async () => {
+        const { getPreloadPaths } = await import('@/lib/file-loader')
+        const { assertPathAllowed } = await import('@/lib/storage-paths')
+        const ctx = { orgId: 'org-1', userId: '123', accessibleHouseIds: ['house1'] }
+
+        const candidates = [
+            ...getPreloadPaths('123', 'org_org-1/shared/house1'),
+            ...getPreloadPaths('123', 'org_org-1/private/123'),
+            ...getPreloadPaths('123', 'org_org-1/shared/house1/apartment1'),
+            ...getPreloadPaths('123', 'org_org-1'),
+        ]
+
+        expect(candidates).toEqual(expect.arrayContaining(['org_org-1/shared', 'org_org-1/private']))
+        for (const path of candidates) {
+            expect(() => assertPathAllowed(path, ctx, 'read')).not.toThrow()
+        }
+    })
+
+
     it('should include parent path for nested directories', async () => {
         const { getPreloadPaths } = await import('@/lib/file-loader')
 
-        const paths = getPreloadPaths('123', 'user_123/house1/apartment1')
+        const paths = getPreloadPaths('123', 'org_org-1/shared/house1/apartment1')
 
         // Should include parent
-        expect(paths).toContain('user_123/house1')
+        expect(paths).toContain('org_org-1/shared/house1')
     })
 
     it('should include common system folders for root path', async () => {
         const { getPreloadPaths } = await import('@/lib/file-loader')
 
-        const paths = getPreloadPaths('123', 'user_123')
+        const paths = getPreloadPaths('123', 'org_org-1')
 
         // Should include system folders
-        expect(paths).toContain('user_123/Miscellaneous')
-        expect(paths).toContain('user_123/house_documents')
+        expect(paths).toContain('org_org-1/shared')
+        expect(paths).toContain('org_org-1/private/123')
     })
 })

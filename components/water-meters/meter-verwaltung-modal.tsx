@@ -15,12 +15,13 @@ import {
   Building2,
   Droplet,
   Home,
-  Gauge
+  Lock,
 } from "lucide-react"
 import { WaterDropletLoader } from "@/components/ui/water-droplet-loader"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useModalStore } from "@/hooks/use-modal-store"
+import { API_PERMISSION_DENIED_CODE } from "@/lib/permissions-core"
 
 interface Wohnung {
   id: string
@@ -45,6 +46,8 @@ export function MeterVerwaltungModal({
   const { openWasserZaehlerModal } = useModalStore()
   const [wohnungen, setWohnungen] = React.useState<Wohnung[]>([])
   const [isLoading, setIsLoading] = React.useState(false)
+  // GET /api/wohnungen answers 403 + PERMISSION_DENIED without wohnungen:ansehen: no list, but also no error
+  const [noWohnungenAccess, setNoWohnungenAccess] = React.useState(false)
 
   // Load apartments when modal opens
   React.useEffect(() => {
@@ -55,8 +58,18 @@ export function MeterVerwaltungModal({
 
   const loadWohnungen = async () => {
     setIsLoading(true)
+    setNoWohnungenAccess(false)
     try {
       const response = await fetch(`/api/wohnungen`)
+      // Only a 403 with the permission code means "no right"; a 403 without it (e.g. from a proxy) stays an error
+      if (response.status === 403) {
+        const body = await response.json().catch(() => null)
+        if (body?.code === API_PERMISSION_DENIED_CODE) {
+          setWohnungen([])
+          setNoWohnungenAccess(true)
+          return
+        }
+      }
       if (response.ok) {
         const data = await response.json()
         const filteredWohnungen = data.filter((w: any) => w.haus_id === hausId)
@@ -98,6 +111,16 @@ export function MeterVerwaltungModal({
                 Lade Wohnungen...
               </p>
             </div>
+          ) : noWohnungenAccess ? (
+            <Card className="bg-gray-50 dark:bg-[#22272e] border border-dashed border-gray-300 dark:border-gray-600 rounded-3xl">
+              <CardContent className="flex flex-col items-center justify-center p-8 text-center">
+                <Lock className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                <p className="text-sm font-medium">Kein Zugriff auf Wohnungen</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Dafür wird das Recht „Wohnungen ansehen“ benötigt.
+                </p>
+              </CardContent>
+            </Card>
           ) : wohnungen.length === 0 ? (
             <Card className="bg-gray-50 dark:bg-[#22272e] border border-dashed border-gray-300 dark:border-gray-600 rounded-3xl">
               <CardContent className="flex flex-col items-center justify-center p-8 text-center">

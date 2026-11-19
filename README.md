@@ -47,7 +47,6 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 # Stripe
 STRIPE_SECRET_KEY=your_stripe_secret_key
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
-STRIPE_WEBHOOK_SIGNING_SECRET=your_stripe_webhook_signing_secret
 
 # PostHog (Analytics, Logs & Tracing)
 NEXT_PUBLIC_POSTHOG_KEY=phc_your_public_project_key

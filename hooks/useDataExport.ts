@@ -17,6 +17,12 @@ export const useDataExport = () => {
       });
 
       if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error("Der Datenexport ist nur für Inhaber und Administratoren der Organisation verfügbar.");
+        }
+        if (response.status === 503) {
+          throw new Error("Die Berechtigung konnte nicht geprüft werden. Bitte versuchen Sie es erneut.");
+        }
         const errorData = await response.json();
         throw new Error(errorData.error || "Datenexport fehlgeschlagen.");
       }

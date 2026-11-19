@@ -1,11 +1,14 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
+import { checkTenantViewAccess } from "@/lib/tenant-view-access";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
 import { isTestEnv } from '@/lib/test-utils';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 import { normalizeApartmentLimit } from '@/lib/utils/subscription';
 import { getTodayISOString, isTenantActive } from '@/utils/date-calculations';
+import { pickCurrentTenantPerApartment } from '@/lib/tenant-access';
 
 
 export async function POST(request: Request) {
@@ -162,78 +165,121 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const supabase = await createSupabaseServerClient();
-  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
-  const accessibleIds = await getAccessibleHaeuserIds();
+  try {
+    // Apartment names and tenant data only for users who may see apartments (as the Wohnungen page does)
+    const { requireApiPermission } = await import("@/lib/api-permissions");
+    // The tenant right starts at once and is awaited only before the tenant query, so it runs in parallel with the
+    // apartment query (no extra round-trip); a failed check is repeated once inside (see checkTenantViewAccess). The
+    // no-op catch only prevents an unhandled rejection when the wohnungen check below throws first; a real rejection
+    // still surfaces at the `await` further down.
+    const tenantAccessPromise = checkTenantViewAccess();
+    tenantAccessPromise.catch(() => {});
+    await requireApiPermission('wohnungen', 'ansehen');
 
-  // Join Haeuser to get house name
-  let q = supabase
-    .from('Wohnungen')
-    .select('id, name, groesse, miete, haus_id, Haeuser(name)');
+    const supabase = await createSupabaseServerClient();
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    const accessibleIds = await getAccessibleHaeuserIds();
 
-  if (accessibleIds !== null) {
-    q = q.in('haus_id', accessibleIds);
-  }
+    // Join Haeuser to get house name
+    let q = supabase
+      .from('Wohnungen')
+      .select('id, name, groesse, miete, haus_id, Haeuser(name)');
 
-  const { data: apartments, error } = await q;
-
-  if (error) {
-    console.error("Supabase Select Error (Wohnungen):", error);
-    return NextResponse.json({ error: error.message }, { 
-      status: 500,
-      headers: NO_CACHE_HEADERS
-    });
-  }
-
-  // Get tenants to determine occupation status
-  let tenantsQuery = supabase
-    .from('Mieter')
-    .select('id, wohnung_id, auszug, einzug, name');
-
-  if (accessibleIds !== null && apartments) {
-    const accessibleWohnungIds = apartments.map(a => a.id);
-    tenantsQuery = tenantsQuery.in('wohnung_id', accessibleWohnungIds);
-  }
-
-  const { data: tenants, error: tenantsError } = await tenantsQuery;
-
-  if (tenantsError) {
-    console.error("Supabase Select Error (Mieter):", tenantsError);
-    return NextResponse.json({ error: tenantsError.message }, { 
-      status: 500,
-      headers: NO_CACHE_HEADERS
-    });
-  }
-
-  // Add status and tenant information
-  const todayStr = getTodayISOString();
-
-  const enrichedApartments = (apartments || []).map(apt => {
-    // Find tenant for this apartment
-    const tenant = (tenants || []).find(t => t.wohnung_id === apt.id);
-
-    // Determine if apartment is free or rented
-    let status = 'frei';
-    if (tenant && isTenantActive(tenant.auszug, todayStr)) {
-      status = 'vermietet';
+    if (accessibleIds !== null) {
+      q = q.in('haus_id', accessibleIds);
     }
 
-    return {
-      ...apt,
-      status: status,
-      tenant: tenant ? {
-        id: tenant.id,
-        name: tenant.name,
-        einzug: tenant.einzug,
-        auszug: tenant.auszug
-      } : null
-    };
-  });
+    const { data: apartments, error } = await q;
 
-  return NextResponse.json(enrichedApartments, { 
-    status: 200,
-    headers: NO_CACHE_HEADERS
-  });
+    if (error) {
+      console.error("Supabase Select Error (Wohnungen):", error);
+      return NextResponse.json({ error: error.message }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS
+      });
+    }
+
+    // Without mieter:ansehen only the dates for the occupation status are read: no name and no id of a tenant is even
+    // loaded, so none can leave through this route. This holds the same when the check failed twice: the apartments
+    // are still answered (they depend on wohnungen:ansehen only) and the tenants stay withheld (fail-closed).
+    const tenantAccess = await tenantAccessPromise;
+    const canViewTenants = tenantAccess.canViewTenants;
+
+    // Get tenants to determine occupation status
+    // (two literal selects: the typed client cannot parse a column list that is chosen at runtime)
+    let tenantsQuery = canViewTenants
+      ? supabase.from('Mieter').select('id, wohnung_id, auszug, einzug, name')
+      : supabase.from('Mieter').select('wohnung_id, auszug, einzug');
+
+    if (accessibleIds !== null && apartments) {
+      const accessibleWohnungIds = apartments.map(a => a.id);
+      tenantsQuery = tenantsQuery.in('wohnung_id', accessibleWohnungIds);
+    }
+
+    const { data: tenantRows, error: tenantsError } = await tenantsQuery;
+    // Widened: `id` and `name` are only there with mieter:ansehen (see the two selects above)
+    const tenants = tenantRows as Array<{
+      wohnung_id: string | null;
+      auszug: string | null;
+      einzug: string | null;
+      id?: string;
+      name?: string;
+    }> | null;
+
+    if (tenantsError) {
+      console.error("Supabase Select Error (Mieter):", tenantsError);
+      return NextResponse.json({ error: tenantsError.message }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS
+      });
+    }
+
+    // Add status and tenant information
+    const todayStr = getTodayISOString();
+
+    const tenantByApartment = pickCurrentTenantPerApartment(tenants ?? [], todayStr);
+    const enrichedApartments = (apartments || []).map(apt => {
+      // The current tenant of this apartment (not just the first row: moved-out tenants may come first)
+      const tenant = tenantByApartment.get(apt.id);
+
+      // Determine if apartment is free or rented
+      let status = 'frei';
+      if (tenant && isTenantActive(tenant.auszug, todayStr)) {
+        status = 'vermietet';
+      }
+
+      // Without mieter:ansehen: the status stays, `tenant` is absent and `tenantAccess: false` tells the client that
+      // this is "no access" and not "no tenant"
+      if (!canViewTenants) {
+        return { ...apt, status, tenantAccess: false };
+      }
+
+      return {
+        ...apt,
+        status: status,
+        tenant: tenant ? {
+          id: tenant.id,
+          name: tenant.name,
+          einzug: tenant.einzug,
+          auszug: tenant.auszug
+        } : null
+      };
+    });
+
+    return NextResponse.json(enrichedApartments, { 
+      status: 200,
+      headers: NO_CACHE_HEADERS
+    });
+  } catch (e) {
+    console.error("GET /api/wohnungen error:", e);
+    // 403 PERMISSION_DENIED (right missing) or 503 PERMISSION_CHECK_FAILED (the check itself failed)
+    const permissionResponse = apiPermissionErrorResponse(e);
+    if (permissionResponse) return permissionResponse;
+    return NextResponse.json({ error: "Serverfehler bei Wohnungs-Abfrage." }, {
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    });
+  }
 }
 
 export async function DELETE(request: Request) {

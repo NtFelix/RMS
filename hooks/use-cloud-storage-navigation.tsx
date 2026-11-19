@@ -8,6 +8,8 @@ import type { StorageObject, VirtualFolder, BreadcrumbItem } from './use-cloud-s
 import { getDirectoryCache, type DirectoryContents as CacheDirectoryContents, type DirectoryCacheManager } from '@/lib/directory-cache'
 import { getCacheWarmingManager, type CacheWarmingManager } from '@/lib/cache-warming'
 import { useActiveStateStore } from './use-active-state-manager'
+import { buildFallbackBreadcrumbs, storagePathFromUrl, storageUrlFor } from '@/lib/storage-navigation'
+import { orgRootOfPath } from '@/lib/storage-paths'
 
 // Enable Map and Set support in Immer
 enableMapSet()
@@ -481,21 +483,7 @@ export const useCloudStorageNavigationStore = create<CloudStorageNavigationState
     
     getCurrentUrl: (path: string) => {
       // Convert storage path to URL path
-      const userIdMatch = path.match(/^user_([^/]+)/)
-      if (!userIdMatch) {
-        return '/dateien'
-      }
-      
-      const userId = userIdMatch[1]
-      const basePath = `user_${userId}`
-      
-      if (path === basePath) {
-        return '/dateien'
-      }
-      
-      // Remove user prefix and construct URL
-      const relativePath = path.replace(`${basePath}/`, '')
-      return `/dateien/${relativePath}`
+      return storageUrlFor(path)
     },
     
     // Utility methods
@@ -543,42 +531,17 @@ async function loadDirectoryContentsForCache(path: string): Promise<CacheDirecto
 // Helper function to load directory contents
 async function loadDirectoryContents(path: string): Promise<DirectoryContents> {
   try {
-    // Extract user ID from path
-    const userIdMatch = path.match(/^user_([^\/]+)/)
-    if (!userIdMatch) {
-      throw new Error('Invalid path format')
-    }
-    const userId = userIdMatch[1]
-    
-    // Use server action to load files for the path
+    // Use server action to load files for the path (the user is the one of the session)
     const { loadFilesForPath } = await import('@/app/(dashboard)/dateien/actions')
-    const { files, folders, error } = await loadFilesForPath(userId, path)
+    const { files, folders, breadcrumbs: rpcBreadcrumbs, error } = await loadFilesForPath(path)
     
     if (error) {
       throw new Error(error)
     }
     
-    // Generate breadcrumbs (simplified version - full implementation would be in the main store)
-    const breadcrumbs: BreadcrumbItem[] = []
-    const pathSegments = path.split('/').filter(Boolean)
-    
-    breadcrumbs.push({
-      name: 'Cloud Storage',
-      path: `user_${userId}`,
-      type: 'root'
-    })
-    
-    let currentPath = `user_${userId}`
-    for (let i = 1; i < pathSegments.length; i++) {
-      const segment = pathSegments[i]
-      currentPath = `${currentPath}/${segment}`
-      
-      breadcrumbs.push({
-        name: segment,
-        path: currentPath,
-        type: i === 1 ? 'house' : i === 2 ? 'apartment' : 'category'
-      })
-    }
+    // The RPC knows the names of houses, apartments and tenants: the path-derived fallback only
+    // applies if it delivered no breadcrumbs
+    const breadcrumbs = rpcBreadcrumbs?.length ? rpcBreadcrumbs : buildFallbackBreadcrumbs(path)
     
     return {
       files,
@@ -648,10 +611,10 @@ export function useCloudStorageNavigation() {
         if (pathMatch) {
           // Construct storage path from URL
           const urlPath = pathMatch[1] || ''
-          const userId = store.currentPath?.match(/^user_([^/]+)/)?.[1]
+          const root = orgRootOfPath(store.currentPath || '')
           
-          if (userId) {
-            const storagePath = urlPath ? `user_${userId}/${urlPath}` : `user_${userId}`
+          if (root) {
+            const storagePath = storagePathFromUrl(root, urlPath)
             
             // Only handle if it's different from current path
             if (storagePath !== store.currentPath) {
@@ -674,10 +637,10 @@ export function useCloudStorageNavigation() {
       
       if (pathMatch && store.currentPath) {
         const urlPath = pathMatch[1] || ''
-        const userId = store.currentPath.match(/^user_([^/]+)/)?.[1]
+        const root = orgRootOfPath(store.currentPath)
         
-        if (userId) {
-          const expectedStoragePath = urlPath ? `user_${userId}/${urlPath}` : `user_${userId}`
+        if (root) {
+          const expectedStoragePath = storagePathFromUrl(root, urlPath)
           
           // Ensure URL matches current path
           if (expectedStoragePath !== store.currentPath) {

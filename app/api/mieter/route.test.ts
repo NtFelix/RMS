@@ -4,6 +4,7 @@
 import { GET, POST, PUT } from './route';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { MIETER_SPALTEN_OHNE_KAUTION } from '@/lib/mieter-columns';
+import { checkPermission } from '@/lib/permissions';
 
 /**
  * Leak-Schließung Altfeld "Mieter.kaution" (GH-6): Die Route liefert nur explizite Spalten ohne "kaution"
@@ -40,6 +41,7 @@ describe('/api/mieter', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (checkPermission as jest.Mock).mockResolvedValue('allowed');
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -57,6 +59,35 @@ describe('/api/mieter', () => {
       expect(res.status).toBe(200);
       expect(builder.select).toHaveBeenCalledWith(MIETER_SPALTEN_OHNE_KAUTION);
       expect(builder.select.mock.calls[0][0]).not.toMatch(/\*|kaution/i);
+    });
+  });
+
+  describe('GET ohne mieter:ansehen', () => {
+    it('antwortet 403 und fragt die Datenbank nicht ab', async () => {
+      (checkPermission as jest.Mock).mockImplementation(async (modul: string, aktion: string) => (modul === 'mieter' && aktion === 'ansehen' ? 'denied' : 'allowed'));
+      const from = jest.fn();
+      (createSupabaseServerClient as jest.Mock).mockResolvedValue({ from });
+
+      const res = await GET();
+
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({ error: 'Permission denied', code: 'PERMISSION_DENIED' });
+      expect(checkPermission).toHaveBeenCalledWith('mieter', 'ansehen');
+      expect(from).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('GET wenn die Rechtepruefung selbst fehlschlaegt', () => {
+    it('antwortet 503 PERMISSION_CHECK_FAILED statt 403 und fragt die Datenbank nicht ab', async () => {
+      (checkPermission as jest.Mock).mockResolvedValue('error');
+      const from = jest.fn();
+      (createSupabaseServerClient as jest.Mock).mockResolvedValue({ from });
+
+      const res = await GET();
+
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({ error: 'Permission check failed', code: 'PERMISSION_CHECK_FAILED' });
+      expect(from).not.toHaveBeenCalled();
     });
   });
 

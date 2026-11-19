@@ -24,6 +24,7 @@ export async function SettingsLayoutGate({ children }: { children: React.ReactNo
     <SettingsLayoutClient
       apiZugriffAktiviert={apiZugriffAktiviert}
       canManageOrg={canManageOrg}
+      canExportData={isAdminOrOwner}
     >
       {children}
     </SettingsLayoutClient>

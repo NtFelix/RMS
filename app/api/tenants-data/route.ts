@@ -3,10 +3,13 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server"
 import { logger } from "@/utils/logger"
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations"
+import { ladeMietHistorien, ladeMietverhaeltnisIds } from "@/lib/mietverhaeltnis-mieten-laden"
+import { nutztMietHistorie } from "@/lib/mietverhaeltnis-historie-param"
 import { PAYMENT_KEYWORDS } from "@/utils/constants"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 import { getCurrentMonthRange } from "@/utils/date-calculations"
 import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns"
+import { apiPermissionErrorResponse } from "@/lib/api-permission-response"
 
 interface Tenant {
   id: string
@@ -60,6 +63,15 @@ export async function GET(request: Request) {
       })
       return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_CACHE_HEADERS })
     }
+
+    // This route delivers tenants together with their payments (Finanzen), so it needs mieter:ansehen AND
+    // finanzen:ansehen: 403 PERMISSION_DENIED if one is missing, 503 PERMISSION_CHECK_FAILED if a check itself failed
+    // (see the catch). Checked before anything is read.
+    const { requireApiPermission } = await import("@/lib/api-permissions");
+    await Promise.all([
+      requireApiPermission('mieter', 'ansehen'),
+      requireApiPermission('finanzen', 'ansehen'),
+    ]);
 
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     const wohnungIds = await getAccessibleWohnungIds();
@@ -189,6 +201,19 @@ export async function GET(request: Request) {
       financesData = finances || []
     }
 
+    // Rent history per tenant: one lookup for all tenancy IDs (not per tenant), fail-soft (empty on errors).
+    // Only when the client asks for it (feature flag on); otherwise the apartment rent applies as before.
+    const mietverhaeltnisIdByMieterId = nutztMietHistorie(request)
+      ? await ladeMietverhaeltnisIds(
+          supabase,
+          tenantsData.map((tenant) => tenant.id)
+        )
+      : new Map<string, string>()
+    const mietHistorienByMietverhaeltnisId = await ladeMietHistorien(
+      supabase,
+      Array.from(new Set(mietverhaeltnisIdByMieterId.values()))
+    )
+
     // Process tenants to add missed payments calculation
     // This logic is moved from the client to server to improve performance
     const processingStartTime = Date.now()
@@ -211,7 +236,10 @@ export async function GET(request: Request) {
       const tenantFinances = tenantId ? (financesByWohnungId.get(tenantId) || []) : [];
 
       // Pass the specific tenant finances to the calculation function
-      const missedPayments = calculateMissedPayments(tenant, tenantFinances)
+      const mietverhaeltnisId = mietverhaeltnisIdByMieterId.get(tenant.id)
+      const mietHistorie = mietverhaeltnisId ? mietHistorienByMietverhaeltnisId.get(mietverhaeltnisId) : undefined
+
+      const missedPayments = calculateMissedPayments(tenant, tenantFinances, false, mietHistorie)
 
       // Calculate current month payments
       const currentMonthFinances = tenantFinances.filter((f: Finance) =>
@@ -256,6 +284,9 @@ export async function GET(request: Request) {
       // finances: financesData // Removed to reduce payload size
     }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
+    // 403 PERMISSION_DENIED (right missing) or 503 PERMISSION_CHECK_FAILED (the check itself failed)
+    const permissionResponse = apiPermissionErrorResponse(error)
+    if (permissionResponse) return permissionResponse
     const totalDuration = Date.now() - requestStartTime
     logger.error("❌ [Tenant Data API] Unexpected error", error as Error, {
       path: request.url,

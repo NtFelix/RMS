@@ -37,7 +37,7 @@ describe('FileUploadZone', () => {
   })
 
   it('renders upload zone with correct content', () => {
-    render(<FileUploadZone targetPath="user_123/test" />)
+    render(<FileUploadZone targetPath="org_org-1/test" />)
 
     expect(screen.getByText('Dateien hochladen')).toBeInTheDocument()
     expect(screen.getByText('Ziehen Sie Dateien hierher oder klicken Sie, um Dateien auszuwählen')).toBeInTheDocument()
@@ -47,7 +47,7 @@ describe('FileUploadZone', () => {
 
   it('opens file picker when clicking the upload zone', async () => {
     const user = userEvent.setup()
-    render(<FileUploadZone targetPath="user_123/test" />)
+    render(<FileUploadZone targetPath="org_org-1/test" />)
 
     const uploadZone = screen.getByText('Dateien hochladen').closest('div')
     expect(uploadZone).toBeInTheDocument()
@@ -64,7 +64,7 @@ describe('FileUploadZone', () => {
 
   it('opens file picker when clicking the select files button', async () => {
     const user = userEvent.setup()
-    render(<FileUploadZone targetPath="user_123/test" />)
+    render(<FileUploadZone targetPath="org_org-1/test" />)
 
     const selectButton = screen.getByRole('button', { name: /dateien auswählen/i })
 
@@ -80,7 +80,7 @@ describe('FileUploadZone', () => {
 
   it('handles file selection and validates files', async () => {
     const user = userEvent.setup()
-    render(<FileUploadZone targetPath="user_123/test" />)
+    render(<FileUploadZone targetPath="org_org-1/test" />)
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
     const testFile = new File(['test content'], 'test.pdf', { type: 'application/pdf' })
@@ -88,7 +88,7 @@ describe('FileUploadZone', () => {
     await user.upload(fileInput, testFile)
 
     expect(mockValidateFile).toHaveBeenCalledWith(testFile)
-    expect(mockAddToUploadQueue).toHaveBeenCalledWith([testFile], 'user_123/test')
+    expect(mockAddToUploadQueue).toHaveBeenCalledWith([testFile], 'org_org-1/test')
 
     // Should trigger upload processing
     await waitFor(() => {
@@ -97,7 +97,7 @@ describe('FileUploadZone', () => {
   })
 
   it('handles drag and drop functionality', () => {
-    render(<FileUploadZone targetPath="user_123/test" />)
+    render(<FileUploadZone targetPath="org_org-1/test" />)
 
     const uploadZone = screen.getByText('Dateien hochladen').closest('div')!
     const testFile = new File(['test content'], 'test.pdf', { type: 'application/pdf' })
@@ -120,7 +120,7 @@ describe('FileUploadZone', () => {
     })
 
     expect(mockValidateFile).toHaveBeenCalledWith(testFile)
-    expect(mockAddToUploadQueue).toHaveBeenCalledWith([testFile], 'user_123/test')
+    expect(mockAddToUploadQueue).toHaveBeenCalledWith([testFile], 'org_org-1/test')
   })
 
   it('displays upload queue when files are added', () => {
@@ -128,7 +128,7 @@ describe('FileUploadZone', () => {
       {
         id: '1',
         file: new File(['test'], 'test.pdf', { type: 'application/pdf' }),
-        targetPath: 'user_123/test',
+        targetPath: 'org_org-1/test',
         progress: 0,
         status: 'pending' as const
       }
@@ -139,7 +139,7 @@ describe('FileUploadZone', () => {
       uploadQueue
     })
 
-    render(<FileUploadZone targetPath="user_123/test" />)
+    render(<FileUploadZone targetPath="org_org-1/test" />)
 
     expect(screen.getByText('Upload-Warteschlange (1)')).toBeInTheDocument()
     expect(screen.getByText('test.pdf')).toBeInTheDocument()
@@ -150,7 +150,7 @@ describe('FileUploadZone', () => {
       {
         id: '1',
         file: new File(['test'], 'test.pdf', { type: 'application/pdf' }),
-        targetPath: 'user_123/test',
+        targetPath: 'org_org-1/test',
         progress: 50,
         status: 'uploading' as const
       }
@@ -162,7 +162,7 @@ describe('FileUploadZone', () => {
       isUploading: true
     })
 
-    render(<FileUploadZone targetPath="user_123/test" />)
+    render(<FileUploadZone targetPath="org_org-1/test" />)
 
     expect(screen.getByText('50%')).toBeInTheDocument()
     expect(screen.getByText('Wird hochgeladen...')).toBeInTheDocument()
@@ -173,7 +173,7 @@ describe('FileUploadZone', () => {
       {
         id: '1',
         file: new File(['test'], 'test.pdf', { type: 'application/pdf' }),
-        targetPath: 'user_123/test',
+        targetPath: 'org_org-1/test',
         progress: 0,
         status: 'error' as const,
         error: 'Upload failed: Network error'
@@ -185,7 +185,7 @@ describe('FileUploadZone', () => {
       uploadQueue
     })
 
-    render(<FileUploadZone targetPath="user_123/test" />)
+    render(<FileUploadZone targetPath="org_org-1/test" />)
 
     expect(screen.getByText('Upload failed: Network error')).toBeInTheDocument()
   })
@@ -196,7 +196,7 @@ describe('FileUploadZone', () => {
       {
         id: '1',
         file: new File(['test'], 'test.pdf', { type: 'application/pdf' }),
-        targetPath: 'user_123/test',
+        targetPath: 'org_org-1/test',
         progress: 0,
         status: 'pending' as const
       }
@@ -207,7 +207,7 @@ describe('FileUploadZone', () => {
       uploadQueue
     })
 
-    render(<FileUploadZone targetPath="user_123/test" />)
+    render(<FileUploadZone targetPath="org_org-1/test" />)
 
     const removeButton = screen.getByRole('button', { name: '' }) // X button
     await user.click(removeButton)
@@ -221,7 +221,7 @@ describe('FileUploadZone', () => {
       {
         id: '1',
         file: new File(['test'], 'test.pdf', { type: 'application/pdf' }),
-        targetPath: 'user_123/test',
+        targetPath: 'org_org-1/test',
         progress: 0,
         status: 'pending' as const
       }
@@ -232,7 +232,7 @@ describe('FileUploadZone', () => {
       uploadQueue
     })
 
-    render(<FileUploadZone targetPath="user_123/test" />)
+    render(<FileUploadZone targetPath="org_org-1/test" />)
 
     const clearButton = screen.getByRole('button', { name: 'Alle entfernen' })
     await user.click(clearButton)
@@ -245,7 +245,7 @@ describe('FileUploadZone', () => {
       {
         id: '1',
         file: new File(['test'], 'test.pdf', { type: 'application/pdf' }),
-        targetPath: 'user_123/test',
+        targetPath: 'org_org-1/test',
         progress: 100,
         status: 'completed' as const
       }
@@ -257,7 +257,7 @@ describe('FileUploadZone', () => {
       isUploading: false
     })
 
-    render(<FileUploadZone targetPath="user_123/test" onUploadComplete={mockOnUploadComplete} />)
+    render(<FileUploadZone targetPath="org_org-1/test" onUploadComplete={mockOnUploadComplete} />)
 
     await waitFor(() => {
       expect(mockOnUploadComplete).toHaveBeenCalled()
@@ -274,7 +274,7 @@ describe('FileUploadZone', () => {
     // Mock console.error to avoid test output noise
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
 
-    render(<FileUploadZone targetPath="user_123/test" />)
+    render(<FileUploadZone targetPath="org_org-1/test" />)
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
     const testFile = new File(['test content'], 'large-file.pdf', { type: 'application/pdf' })
@@ -289,7 +289,7 @@ describe('FileUploadZone', () => {
   })
 
   it('disables functionality when disabled prop is true', () => {
-    render(<FileUploadZone targetPath="user_123/test" disabled={true} />)
+    render(<FileUploadZone targetPath="org_org-1/test" disabled={true} />)
 
     // Check that the card has disabled styling
     const card = screen.getByTestId('upload-card')
@@ -304,7 +304,7 @@ describe('FileUploadZone', () => {
       {
         id: '1',
         file: new File(['x'.repeat(1024)], 'test.pdf', { type: 'application/pdf' }),
-        targetPath: 'user_123/test',
+        targetPath: 'org_org-1/test',
         progress: 0,
         status: 'pending' as const
       }
@@ -315,7 +315,7 @@ describe('FileUploadZone', () => {
       uploadQueue
     })
 
-    render(<FileUploadZone targetPath="user_123/test" />)
+    render(<FileUploadZone targetPath="org_org-1/test" />)
 
     expect(screen.getByText('1 KB')).toBeInTheDocument()
   })

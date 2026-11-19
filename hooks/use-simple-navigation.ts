@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
+import { storageUrlFor } from '@/lib/storage-navigation'
 
 interface NavigationState {
   currentPath: string
@@ -25,7 +26,7 @@ interface NavigationOptions {
  * - Browser history management
  * - No circular dependencies with cloud storage store
  */
-export function useSimpleNavigation(userId: string) {
+export function useSimpleNavigation(orgId: string) {
   const router = useRouter()
   const { toast } = useToast()
   
@@ -39,21 +40,6 @@ export function useSimpleNavigation(userId: string) {
   // Prevent concurrent navigation attempts
   const navigationInProgress = useRef<boolean>(false)
   const lastNavigationTime = useRef<number>(0)
-  
-  /**
-   * Convert storage path to URL path
-   */
-  const pathToUrl = useCallback((path: string): string => {
-    const base = `user_${userId}`
-    if (!path || path === base) return "/dateien"
-    
-    const prefix = `${base}/`
-    if (path.startsWith(prefix)) {
-      const rest = path.slice(prefix.length)
-      return `/dateien/${rest}`
-    }
-    return "/dateien"
-  }, [userId])
   
   /**
    * Perform efficient navigation with proper error handling
@@ -89,7 +75,7 @@ export function useSimpleNavigation(userId: string) {
     }))
     
     try {
-      const url = pathToUrl(path)
+      const url = storageUrlFor(path)
       
       // Use client-side navigation by default for efficiency
       if (options.clientOnly !== false) {
@@ -144,7 +130,7 @@ export function useSimpleNavigation(userId: string) {
       if (options.clientOnly !== false) {
         console.log('Client-side navigation failed, falling back to server-side')
         try {
-          const url = pathToUrl(path)
+          const url = storageUrlFor(path)
           router.push(url)
         } catch (fallbackError) {
           toast({
@@ -163,7 +149,7 @@ export function useSimpleNavigation(userId: string) {
     } finally {
       navigationInProgress.current = false
     }
-  }, [state.currentPath, pathToUrl, router, toast])
+  }, [state.currentPath, router, toast])
   
   /**
    * Set current path (for initialization)
@@ -229,7 +215,7 @@ export function useSimpleNavigation(userId: string) {
     clearError,
     
     // Utilities
-    pathToUrl,
+    pathToUrl: storageUrlFor,
     isNavigationInProgress: () => navigationInProgress.current
   }
 }

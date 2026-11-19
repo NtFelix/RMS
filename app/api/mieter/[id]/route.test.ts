@@ -91,5 +91,17 @@ describe('/api/mieter/[id]', () => {
       expect(res.status).toBe(400);
       expect(from).not.toHaveBeenCalled();
     });
+
+    it('übersetzt den Wohnungswechsel-Fehler (23503, fk_mieter_mietverhaeltnis) in eine verständliche Meldung', async () => {
+      mockClient({
+        data: null,
+        error: { code: '23503', message: 'update violates foreign key constraint "fk_mieter_mietverhaeltnis"' },
+      });
+
+      const res = await PATCH(jsonRequest('PATCH', { wohnung_id: 'w2' }), { params });
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Die Wohnung kann hier nicht geändert werden, weil der Mieter zu einem Mietverhältnis gehört. Nutzen Sie im Abschnitt Mietverhältnis den Punkt „Umzug in eine andere Wohnung“.' });
+    });
   });
 });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 import { pickMieterSchreibbareFelder } from "@/lib/mieter-columns"
+import { ermittleWohnungswechselFehler } from "@/lib/mietverhaeltnis-errors"
 
 
 type BulkUpdateRequest = {
@@ -69,7 +70,7 @@ export async function PATCH(request: Request) {
     if (error) {
       console.error("Supabase Bulk Update Error:", error)
       return NextResponse.json(
-        { error: error.message },
+        { error: ermittleWohnungswechselFehler(error) ?? error.message },
         { status: 500, headers: NO_CACHE_HEADERS }
       )
     }

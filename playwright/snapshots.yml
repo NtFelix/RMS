@@ -17,9 +17,9 @@ snapshots:
     chromium-dashboard-dashboard-light:
         hash: v1.k04ffa068.369d679a3fd9d94cdaa61d03f9a831283c2fb0ea5471a6b72656d227be2298f8.2o2IZSsZyI2InDaKMqlleiFY-m24pVcM_Y2EMPVpNrg
     chromium-dashboard-dateien-dark:
-        hash: v1.k04ffa068.53deed1f9aa9195d6b74516f6b6b1e9b673b09229cca331b88ff27080aaa40f0.vYG2ExmgnbiPVYESMOug5B_zSSRl_U2FoZy6jKNX1vc
+        hash: v1.k04ffa068.af7565c1b7ad40460f4ec582d3b293bfd84abff379ec476d1edcf0f8cbf60610.e7XGTV0qKTv7HKME80IQmSggZpV_XleJ1qg8cCe9aQE
     chromium-dashboard-dateien-light:
-        hash: v1.k04ffa068.da843a186c574e85240d2479b7bf3a1010770e3c33271459177f690347fe9ffa.BNT-bDLeIzy8_lXDXQ8rRCF_eGrbWpq--6Fv-6uKbnw
+        hash: v1.k04ffa068.ae97107a2f1db27abc72e2eb785fb2d71bbb1bab5a91acb3b4e0c17b40fddf17.UkK6zlZgyWJ6QxsiS1qRZgRVF6jsZoBbXthSykyV2qo
     chromium-dashboard-finanzen-dark:
         hash: v1.k04ffa068.fd9f088d0b158ad34ecca3baa5f7eee081ac050d57516fb137e6611250b20b68.U9HIsUySkfwQBsj-7XvkAEWlMNSgaU_BssZmvECiVco
     chromium-dashboard-finanzen-light:
@@ -37,9 +37,9 @@ snapshots:
     chromium-dashboard-mieter-light:
         hash: v1.k04ffa068.4a28a98446b0e5cd60e3b3931c752ef99e059a697ba2f9a58cb03b32dbcfb7a9.m7Qh-sLEHBZZiiC3BUgufSQf-10heXA0icBwQdUQYMk
     chromium-dashboard-todos-dark:
-        hash: v1.k04ffa068.8409fcaab6086459766a9dd6c04f893f6128b721e14f50aad5b5286c3b4892cb.jjmIU8fEyeIoGq0XdFvLCOSUz3CLQGvkLGXWYB-pXUE
+        hash: v1.k04ffa068.33b93df5548d6b64f1f73e2be3d0908ef9c14c79230fc1f940f1c72f4ef28d21.YZiP6a0RJ0kSO4XhQkp90RcytLnfQYjwBx1Romfmz-o
     chromium-dashboard-todos-light:
-        hash: v1.k04ffa068.2b7bb925e4224096bc029d952bfdcad5937fdd3dbd8f042887083dce769aee56.F8DEvmM3Im_SM65plKLNKsu9HSyAQnragoaaB3js9xg
+        hash: v1.k04ffa068.bfe747f3c94e7c560b59b0b22b7a44ed4e59261d79f5d8f2c4f6b1b0c42d1c83.ft_SnjnjAZ1AtdQnvG36bYGrJB1J4EpwpT8vEKmMFws
     chromium-dashboard-wohnungen-dark:
         hash: v1.k04ffa068.b0f9940e0ac7d9fbeddb63e1632e321dcf21728e6cd5700cff82d34d7a39be0e.WHCo7YrL9YOad3rfmxjYgIbhZIxUG1HdaxentMcneCo
     chromium-dashboard-wohnungen-light:

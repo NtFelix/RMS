@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { API_PERMISSION_CHECK_FAILED_CODE, API_PERMISSION_DENIED_CODE } from "@/lib/permissions-core"
 
 export interface House {
   id: string
@@ -27,12 +28,49 @@ export interface Tenant {
   telefonnummer?: string
 }
 
+/** Thrown by fetchOptionalList if the permission check of the server failed (retry helps), see there */
+class PermissionCheckFailedError extends Error {
+  constructor() {
+    super('Permission check failed')
+    this.name = 'PermissionCheckFailedError'
+  }
+}
+
+/**
+ * What kind of failure `error` stands for: `permission-check` = the permission check of the server itself failed (not
+ * "right missing", a retry helps), `load` = any other failure. `null` without an error.
+ */
+export type PropertyHierarchyErrorKind = 'permission-check' | 'load'
+
 interface PropertyHierarchyState {
   houses: House[]
   apartments: Apartment[]
   tenants: Tenant[]
   isLoading: boolean
   error: string | null
+  errorKind: PropertyHierarchyErrorKind | null
+}
+
+/**
+ * List endpoint that answers 403 with `code: PERMISSION_DENIED` for a user without the view right: an empty list
+ * then. Every other failure is an error, also a 403 without that code (it does not come from the permission check
+ * of the route, e.g. from a proxy) and 5xx. A 503 with `code: PERMISSION_CHECK_FAILED` (the permission lookup itself
+ * failed, so there is no decision) is an error with its own message, not "no right": the list is not silently empty
+ * and the user can retry.
+ */
+async function fetchOptionalList<T>(url: string, label: string): Promise<T[]> {
+  const response = await fetch(url)
+  if (response.status === 403 || response.status === 503) {
+    const body = await response.json().catch(() => null)
+    if (response.status === 403 && body?.code === API_PERMISSION_DENIED_CODE) return []
+    if (response.status === 503 && body?.code === API_PERMISSION_CHECK_FAILED_CODE) {
+      throw new PermissionCheckFailedError()
+    }
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${label}`)
+  }
+  return (await response.json()) || []
 }
 
 export function usePropertyHierarchy() {
@@ -41,13 +79,18 @@ export function usePropertyHierarchy() {
     apartments: [],
     tenants: [],
     isLoading: true,
-    error: null
+    error: null,
+    errorKind: null
   })
 
+  // Bumped by refetch(): runs the effect again (retry after an error)
+  const [reloadKey, setReloadKey] = useState(0)
+
   useEffect(() => {
+    let cancelled = false
     const fetchData = async () => {
       try {
-        setState(prev => ({ ...prev, isLoading: true, error: null }))
+        setState(prev => ({ ...prev, isLoading: true, error: null, errorKind: null }))
 
         // Fetch houses
         const housesResponse = await fetch('/api/haeuser')
@@ -56,44 +99,42 @@ export function usePropertyHierarchy() {
         }
         const houses = await housesResponse.json()
 
-        // Fetch apartments
-        const apartmentsResponse = await fetch('/api/wohnungen')
-        if (!apartmentsResponse.ok) {
-          throw new Error('Failed to fetch apartments')
-        }
-        const apartments = await apartmentsResponse.json()
+        // Apartments and tenants need wohnungen:ansehen / mieter:ansehen (403 otherwise): without the right they
+        // are simply not part of the hierarchy, so the file tree shows neither their names nor their folders
+        const [apartments, tenants] = await Promise.all([
+          fetchOptionalList<Apartment>('/api/wohnungen', 'apartments'),
+          fetchOptionalList<Tenant>('/api/mieter', 'tenants'),
+        ])
 
-        // Fetch tenants
-        const tenantsResponse = await fetch('/api/mieter')
-        if (!tenantsResponse.ok) {
-          throw new Error('Failed to fetch tenants')
-        }
-        const tenants = await tenantsResponse.json()
-
+        if (cancelled) return
         setState({
           houses: houses || [],
-          apartments: apartments || [],
-          tenants: tenants || [],
+          apartments,
+          tenants,
           isLoading: false,
-          error: null
+          error: null,
+          errorKind: null
         })
       } catch (error) {
         console.error('Error fetching property hierarchy:', error)
+        if (cancelled) return
         setState(prev => ({
           ...prev,
           isLoading: false,
-          error: error instanceof Error ? error.message : 'Failed to load data'
+          error: error instanceof Error ? error.message : 'Failed to load data',
+          errorKind: error instanceof PermissionCheckFailedError ? 'permission-check' : 'load'
         }))
       }
     }
 
     fetchData()
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [reloadKey])
 
   const refetch = () => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }))
-    // Re-trigger the effect by updating a dependency
-    // In a real implementation, you might want to use a more sophisticated approach
+    setReloadKey(key => key + 1)
   }
 
   return {

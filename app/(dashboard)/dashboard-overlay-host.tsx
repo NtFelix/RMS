@@ -47,18 +47,6 @@ const WasserzaehlerModal = dynamic(
   () => import("@/components/water-meters/wasserzaehler-modal").then((mod) => mod.WasserzaehlerModal),
   { ssr: false },
 )
-const HausOverviewModal = dynamic(
-  () => import("@/components/houses/haus-overview-modal").then((mod) => mod.HausOverviewModal),
-  { ssr: false },
-)
-const WohnungOverviewModal = dynamic(
-  () => import("@/components/apartments/wohnung-overview-modal").then((mod) => mod.WohnungOverviewModal),
-  { ssr: false },
-)
-const ApartmentTenantDetailsModal = dynamic(
-  () => import("@/components/apartments/apartment-tenant-details-modal").then((mod) => mod.ApartmentTenantDetailsModal),
-  { ssr: false },
-)
 const FileUploadModal = dynamic(
   () => import("@/components/cloud-storage/file-upload-modal").then((mod) => mod.FileUploadModal),
   { ssr: false },
@@ -169,9 +157,6 @@ export default function DashboardOverlayHost() {
       <ZaehlerModal />
       <WasserzaehlerModal />
       <AblesungenModal />
-      <HausOverviewModal />
-      <WohnungOverviewModal />
-      <ApartmentTenantDetailsModal />
       <FileUploadModal />
 
       {/* Modals that require external data passed as props at mount time */}

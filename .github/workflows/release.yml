@@ -47,22 +47,13 @@ jobs:
       # =========================================================================
       # Step 2: Setup Node.js Environment
       # =========================================================================
-      # Using Node.js 20.x with npm caching for faster installs
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22.x'
-          cache: 'npm'
 
       # =========================================================================
-      # Step 3: Install Dependencies
-      # =========================================================================
-      # Using npm ci for clean, reproducible installs from lock file
-      - name: Install Dependencies
-        run: npm ci
-
-      # =========================================================================
-      # Step 4: Determine Version Bump Level from PR Labels
+      # Step 3: Determine Version Bump Level from PR Labels
       # =========================================================================
       # Parse PR labels to determine the version bump type
       # Priority: major > minor > patch (default)
@@ -96,7 +87,7 @@ jobs:
           echo "Determined bump level: $BUMP_LEVEL"
 
       # =========================================================================
-      # Step 5: Get Current Version from Latest Git Tag
+      # Step 4: Get Current Version from Latest Git Tag
       # =========================================================================
       # Fetch the latest semantic version tag, default to v0.0.0 if none exist
       - name: Get Current Version
@@ -130,7 +121,7 @@ jobs:
           echo "Current version breakdown: Major=$MAJOR, Minor=$MINOR, Patch=$PATCH"
 
       # =========================================================================
-      # Step 6: Calculate New Version
+      # Step 5: Calculate New Version
       # =========================================================================
       # Increment the appropriate version segment and reset lower segments
       # - major: increment major, reset minor and patch to 0
@@ -176,7 +167,7 @@ jobs:
           echo "✅ New version: $NEW_VERSION (tag: $NEW_TAG)"
 
       # =========================================================================
-      # Step 7: Update package.json Version
+      # Step 6: Update package.json Version
       # =========================================================================
       # Use jq to safely update the version field in package.json
       # This handles edge cases like missing version field
@@ -209,7 +200,7 @@ jobs:
           fi
 
       # =========================================================================
-      # Step 8: Commit Version Changes
+      # Step 7: Commit Version Changes
       # =========================================================================
       # Configure git with github-actions bot user and commit changes
       # Using [skip ci] to prevent infinite workflow loops
@@ -235,7 +226,7 @@ jobs:
           echo "✅ Version bump committed"
 
       # =========================================================================
-      # Step 9: Push Commit to Main Branch
+      # Step 8: Push Commit to Main Branch
       # =========================================================================
       - name: Push Commit
         run: |
@@ -244,7 +235,7 @@ jobs:
           echo "✅ Commit pushed successfully"
 
       # =========================================================================
-      # Step 10: Create and Push Git Tag
+      # Step 9: Create and Push Git Tag
       # =========================================================================
       - name: Create and Push Tag
         run: |
@@ -261,7 +252,7 @@ jobs:
           echo "✅ Tag $NEW_TAG created and pushed"
 
       # =========================================================================
-      # Step 11: Generate Changelog
+      # Step 10: Generate Changelog
       # =========================================================================
       # Generate changelog from commits between previous and new tag
       - name: Generate Changelog
@@ -295,12 +286,12 @@ jobs:
           cat changelog.txt
 
       # =========================================================================
-      # Step 12: Create GitHub Release
+      # Step 11: Create GitHub Release
       # =========================================================================
       # Create release with tag, changelog, and auto-generated notes
       - name: Create GitHub Release
         id: release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ steps.version.outputs.new_tag }}
           name: Release ${{ steps.version.outputs.new_tag }}
@@ -312,7 +303,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # =========================================================================
-      # Step 13: Send Discord Notification
+      # Step 12: Send Discord Notification
       # =========================================================================
       # Send release notification to Discord webhook
       - name: Send Discord Notification
@@ -373,7 +364,7 @@ jobs:
           echo "✅ Discord notification sent"
 
       # =========================================================================
-      # Step 14: Output Summary
+      # Step 13: Output Summary
       # =========================================================================
       # Display summary with release details and URL
       - name: Output Summary

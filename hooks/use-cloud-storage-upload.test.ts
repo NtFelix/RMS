@@ -25,7 +25,7 @@ describe('useCloudStorageUpload', () => {
       new File(['test1'], 'test1.pdf', { type: 'application/pdf' }),
       new File(['test2'], 'test2.jpg', { type: 'image/jpeg' })
     ]
-    const targetPath = 'user_123/test'
+    const targetPath = 'org_org-1/test'
     
     act(() => {
       result.current.addToUploadQueue(testFiles, targetPath)
@@ -49,7 +49,7 @@ describe('useCloudStorageUpload', () => {
     const testFile = new File(['test'], 'test.pdf', { type: 'application/pdf' })
     
     act(() => {
-      result.current.addToUploadQueue([testFile], 'user_123/test')
+      result.current.addToUploadQueue([testFile], 'org_org-1/test')
     })
     
     const uploadId = result.current.uploadQueue[0].id
@@ -67,7 +67,7 @@ describe('useCloudStorageUpload', () => {
     const testFile = new File(['test'], 'test.pdf', { type: 'application/pdf' })
     
     act(() => {
-      result.current.addToUploadQueue([testFile], 'user_123/test')
+      result.current.addToUploadQueue([testFile], 'org_org-1/test')
     })
     
     const uploadId = result.current.uploadQueue[0].id
@@ -95,7 +95,7 @@ describe('useCloudStorageUpload', () => {
     ]
     
     act(() => {
-      result.current.addToUploadQueue(testFiles, 'user_123/test')
+      result.current.addToUploadQueue(testFiles, 'org_org-1/test')
     })
     
     expect(result.current.uploadQueue).toHaveLength(2)
@@ -119,7 +119,7 @@ describe('useCloudStorageUpload', () => {
     ]
     
     act(() => {
-      result.current.addToUploadQueue(testFiles, 'user_123/test')
+      result.current.addToUploadQueue(testFiles, 'org_org-1/test')
     })
     
     expect(result.current.uploadQueue).toHaveLength(2)
@@ -158,14 +158,14 @@ describe('useCloudStorageUpload', () => {
     const testFile = new File(['test'], 'test.pdf', { type: 'application/pdf' })
     
     act(() => {
-      result.current.addToUploadQueue([testFile], 'user_123/test')
+      result.current.addToUploadQueue([testFile], 'org_org-1/test')
     })
     
     await act(async () => {
       await result.current.processUploadQueue()
     })
     
-    expect(uploadFile).toHaveBeenCalledWith(testFile, 'user_123/test/test.pdf')
+    expect(uploadFile).toHaveBeenCalledWith(testFile, 'org_org-1/test/test.pdf')
     expect(result.current.uploadQueue[0].status).toBe('completed')
     expect(result.current.uploadQueue[0].progress).toBe(100)
     expect(result.current.isUploading).toBe(false)
@@ -180,7 +180,7 @@ describe('useCloudStorageUpload', () => {
     const testFile = new File(['test'], 'test.pdf', { type: 'application/pdf' })
     
     act(() => {
-      result.current.addToUploadQueue([testFile], 'user_123/test')
+      result.current.addToUploadQueue([testFile], 'org_org-1/test')
     })
     
     await act(async () => {
@@ -201,7 +201,7 @@ describe('useCloudStorageUpload', () => {
     const testFile = new File(['test'], 'test.pdf', { type: 'application/pdf' })
     
     act(() => {
-      result.current.addToUploadQueue([testFile], 'user_123/test')
+      result.current.addToUploadQueue([testFile], 'org_org-1/test')
     })
     
     await act(async () => {
@@ -225,7 +225,7 @@ describe('useCloudStorageUpload', () => {
     ]
     
     act(() => {
-      result.current.addToUploadQueue(testFiles, 'user_123/test')
+      result.current.addToUploadQueue(testFiles, 'org_org-1/test')
     })
     
     await act(async () => {
@@ -233,8 +233,8 @@ describe('useCloudStorageUpload', () => {
     })
     
     expect(uploadFile).toHaveBeenCalledTimes(2)
-    expect(uploadFile).toHaveBeenCalledWith(testFiles[0], 'user_123/test/test1.pdf')
-    expect(uploadFile).toHaveBeenCalledWith(testFiles[1], 'user_123/test/test2.jpg')
+    expect(uploadFile).toHaveBeenCalledWith(testFiles[0], 'org_org-1/test/test1.pdf')
+    expect(uploadFile).toHaveBeenCalledWith(testFiles[1], 'org_org-1/test/test2.jpg')
     
     expect(result.current.uploadQueue[0].status).toBe('completed')
     expect(result.current.uploadQueue[1].status).toBe('completed')
@@ -253,7 +253,7 @@ describe('useCloudStorageUpload', () => {
     ]
     
     act(() => {
-      result.current.addToUploadQueue(testFiles, 'user_123/test')
+      result.current.addToUploadQueue(testFiles, 'org_org-1/test')
     })
     
     // Mark first file as completed
@@ -268,6 +268,6 @@ describe('useCloudStorageUpload', () => {
     
     // Should only upload the second file
     expect(uploadFile).toHaveBeenCalledTimes(1)
-    expect(uploadFile).toHaveBeenCalledWith(testFiles[1], 'user_123/test/test2.jpg')
+    expect(uploadFile).toHaveBeenCalledWith(testFiles[1], 'org_org-1/test/test2.jpg')
   })
 })

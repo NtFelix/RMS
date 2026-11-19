@@ -31,15 +31,20 @@ import { DocumentsSummaryCards } from "@/components/common/documents-summary-car
 import { useStorageUsage } from "@/hooks/use-storage-usage"
 import { getStorageUsageState, NO_STORAGE_MESSAGE, STORAGE_FULL_MESSAGE } from "@/lib/storage-usage"
 import { useUserProfile } from "@/hooks/use-user-profile"
+import { orgRoot } from "@/lib/storage-paths"
+import { storagePathFromUrl, storageUrlFor } from "@/lib/storage-navigation"
 
 interface CloudStorageProps {
     userId: string
+    orgId: string
     initialFiles?: StorageObject[]
     initialFolders?: VirtualFolder[]
     initialPath?: string
     initialBreadcrumbs?: BreadcrumbItem[]
     initialTotalSize?: number
     initialStorageLimit?: number | null
+    /** Error text of the server-side first load (refused or unavailable folder), shown instead of an empty folder */
+    initialError?: string
 }
 
 type ViewMode = 'grid' | 'list'
@@ -56,12 +61,14 @@ type FilterType = 'all' | 'folders' | 'images' | 'documents' | 'recent'
  */
 export function CloudStorage({
     userId,
+    orgId,
     initialFiles = [],
     initialFolders = [],
-    initialPath = `user_${userId}`,
+    initialPath = orgRoot(orgId),
     initialBreadcrumbs = [],
     initialTotalSize = 0,
-    initialStorageLimit
+    initialStorageLimit,
+    initialError
 }: CloudStorageProps) {
     const router = useRouter()
     const { toast } = useToast()
@@ -85,8 +92,7 @@ export function CloudStorage({
         error: navigationError,
         navigate,
         cancelAll: cancelAllNavigations,
-        stats,
-        clearError: clearNavigationError
+        stats
     } = useNavigation()
 
     const MAX_RETRIES = 3
@@ -121,28 +127,28 @@ export function CloudStorage({
     // Track initialization
     const isInitialized = useRef(false)
 
+    // Error of the first (server-side) load: without it a refused folder would look like an empty one. A new
+    // server-side load (other folder or other result) is a new instance: the pages key this component by path and
+    // error, which starts the state (this error, selection, search) and the store initialisation below from scratch.
+    // The error is cleared only by a successful load of the folder, never by the user: "ignoring" it would show the
+    // folder that could not be read as an empty, writable one.
+    const [initialLoadError, setInitialLoadError] = useState<string | null>(initialError ?? null)
+
+    // A folder that failed to load (refused, missing or technical error) must not offer upload or creating anything
+    const displayError = navigationError || initialLoadError
+    const blockedByLoadError = useCallback(() => {
+        if (!displayError) return false
+        toast({ title: "Nicht möglich", description: displayError, variant: "destructive" })
+        return true
+    }, [displayError, toast])
+
     // Cleanup on unmount
     useEffect(() => {
         return () => {
             cancelAllNavigations()
-            cancelAllPendingLoads(userId)
+            cancelAllPendingLoads()
         }
-    }, [userId, cancelAllNavigations])
-
-    /**
-     * Convert storage path to URL path
-     */
-    const pathToUrl = useCallback((path: string): string => {
-        const base = `user_${userId}`
-        if (!path || path === base) return "/dateien"
-
-        const prefix = `${base}/`
-        if (path.startsWith(prefix)) {
-            const rest = path.slice(prefix.length)
-            return `/dateien/${rest}`
-        }
-        return "/dateien"
-    }, [userId])
+    }, [cancelAllNavigations])
 
     /**
      * Initialize component with initial data and set history state
@@ -153,22 +159,24 @@ export function CloudStorage({
             
             setCurrentPath(initialPath)
 
-            if (initialFiles.length > 0) setFiles(initialFiles)
-            if (initialFolders.length > 0) setFolders(initialFolders)
+            // Also when empty: the store is global and outlives this instance, a refused or empty folder must not
+            // keep the files of the previous one (they would also drive the skeleton count)
+            setFiles(initialFiles)
+            setFolders(initialFolders)
             if (initialBreadcrumbs.length > 0) setBreadcrumbs(initialBreadcrumbs)
 
             setError(null)
             setLoading(false)
 
             // Replace the current history state so back/forward works from the initial page
-            const url = pathToUrl(initialPath)
+            const url = storageUrlFor(initialPath)
             window.history.replaceState(
                 { path: initialPath, clientNavigation: true, timestamp: Date.now() },
                 '',
                 url
             )
         }
-    }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading, pathToUrl])
+    }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading])
 
     /**
      * Handle efficient navigation using the navigation controller
@@ -197,11 +205,12 @@ export function CloudStorage({
                     if (data.breadcrumbs) setBreadcrumbs(data.breadcrumbs)
                     setError(null)
                 })
+                setInitialLoadError(null)
 
                 // Update URL AFTER successful data load using native History API
                 // Skip for popstate (back/forward) navigation since browser already handles URL
                 if (!skipHistoryPush) {
-                    const url = pathToUrl(path)
+                    const url = storageUrlFor(path)
                     window.history.pushState(
                         { path, clientNavigation: true, timestamp: Date.now() },
                         '',
@@ -210,7 +219,7 @@ export function CloudStorage({
                 }
             }
         }
-    }, [currentPath, navigate, pathToUrl, router, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, startTransition])
+    }, [currentPath, navigate, router, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, startTransition])
 
     // Synchronize with external navigation store changes (e.g. sidebar file tree click)
     const navCurrentPath = useCloudStorageNavigationStore(state => state.currentPath)
@@ -264,6 +273,7 @@ export function CloudStorage({
                     setFolders(data.folders)
                     if (data.breadcrumbs) setBreadcrumbs(data.breadcrumbs)
                 })
+                setInitialLoadError(null)
 
                 if (showToast) {
                     toast({ description: "Dateien wurden aktualisiert." })
@@ -299,7 +309,7 @@ export function CloudStorage({
                 const pathMatch = pathname.match(/^\/dateien(?:\/(.+))?$/)
                 if (pathMatch) {
                     const urlPath = pathMatch[1] || ''
-                    const storagePath = urlPath ? `user_${userId}/${urlPath}` : `user_${userId}`
+                    const storagePath = storagePathFromUrl(orgRoot(orgId), urlPath)
                     if (storagePath !== currentPath) {
                         handleNavigate(storagePath, true, true)
                     }
@@ -309,7 +319,7 @@ export function CloudStorage({
 
         window.addEventListener('popstate', handlePopState)
         return () => window.removeEventListener('popstate', handlePopState)
-    }, [handleNavigate, userId, currentPath])
+    }, [handleNavigate, orgId, currentPath])
 
     /**
      * Filter and sort items
@@ -517,6 +527,8 @@ export function CloudStorage({
                         description: `Ordner "${folder.displayName || folder.name}" wurde dauerhaft gelöscht.`
                     })
                 } catch (error) {
+                    // Also after a failure: a partly deleted folder must not keep showing the files that are gone
+                    handleRefresh(false)
                     toast({
                         description: error instanceof Error ? error.message : "Der Ordner konnte nicht gelöscht werden.",
                         variant: "destructive"
@@ -525,12 +537,13 @@ export function CloudStorage({
                 }
             }
         })
-    }, [deleteFolder, toast])
+    }, [deleteFolder, handleRefresh, toast])
 
     /**
      * Handle upload
      */
     const handleUpload = useCallback(() => {
+        if (blockedByLoadError()) return
         const targetPath = currentPath || initialPath
         if (targetPath) {
             openUploadModal(targetPath, () => {
@@ -540,12 +553,13 @@ export function CloudStorage({
                 })
             })
         }
-    }, [currentPath, initialPath, openUploadModal, handleRefresh, toast])
+    }, [blockedByLoadError, currentPath, initialPath, openUploadModal, handleRefresh, toast])
 
     /**
      * Handle upload with files (for drag & drop)
      */
     const handleUploadWithFiles = useCallback((files: File[]) => {
+        if (blockedByLoadError()) return
         const targetPath = currentPath || initialPath
         if (targetPath) {
             openUploadModal(targetPath, () => {
@@ -555,12 +569,13 @@ export function CloudStorage({
                 })
             }, files)
         }
-    }, [currentPath, initialPath, openUploadModal, handleRefresh, toast])
+    }, [blockedByLoadError, currentPath, initialPath, openUploadModal, handleRefresh, toast])
 
     /**
      * Handle create folder
      */
     const handleCreateFolder = useCallback(() => {
+        if (blockedByLoadError()) return
         const targetPath = currentPath || initialPath
         if (targetPath) {
             openCreateFolderModal(targetPath, (folderName: string) => {
@@ -582,12 +597,13 @@ export function CloudStorage({
                 })
             })
         }
-    }, [currentPath, initialPath, openCreateFolderModal, folders, setFolders, handleRefresh, toast])
+    }, [blockedByLoadError, currentPath, initialPath, openCreateFolderModal, folders, setFolders, handleRefresh, toast])
 
     /**
      * Handle create file
      */
     const handleCreateFile = useCallback(() => {
+        if (blockedByLoadError()) return
         const targetPath = currentPath || initialPath
         if (targetPath) {
             openCreateFileModal(targetPath, (fileName: string) => {
@@ -598,11 +614,10 @@ export function CloudStorage({
                 })
             })
         }
-    }, [currentPath, initialPath, openCreateFileModal, handleRefresh, toast])
+    }, [blockedByLoadError, currentPath, initialPath, openCreateFileModal, handleRefresh, toast])
 
     // Determine loading and error states
     const showLoading = isNavigating || isPending
-    const displayError = navigationError
 
     return (
         <div className="absolute inset-0 flex flex-col p-4 sm:p-6 min-h-0 overflow-hidden gap-6">
@@ -644,8 +659,8 @@ export function CloudStorage({
                                     selectedCount={selectedItems.size}
                                     onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
                                     onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
-                                    isUploadDisabled={isUploadDisabled}
-                                    storageDisabledMessage={hasNoStorageAccess ? NO_STORAGE_MESSAGE : STORAGE_FULL_MESSAGE}
+                                    isUploadDisabled={isUploadDisabled || !!displayError}
+                                    storageDisabledMessage={displayError ?? (hasNoStorageAccess ? NO_STORAGE_MESSAGE : STORAGE_FULL_MESSAGE)}
                                 />
 
                                 {/* Breadcrumb Navigation */}
@@ -751,9 +766,6 @@ export function CloudStorage({
                                             <Button onClick={() => handleRefresh(true)}>
                                                 <RefreshCw className="size-4 mr-2" />
                                                 Erneut versuchen
-                                            </Button>
-                                            <Button variant="outline" onClick={clearNavigationError}>
-                                                Fehler ignorieren
                                             </Button>
                                         </div>
                                     </div>

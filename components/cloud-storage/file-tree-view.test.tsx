@@ -29,7 +29,7 @@ describe('FileTreeView', () => {
     })
     
     mockUseCloudStorageStore.mockReturnValue({
-      currentPath: 'user_test-user',
+      currentPath: 'org_org-1',
       navigateToPath: mockNavigateToPath,
       setBreadcrumbs: mockSetBreadcrumbs,
       folders: [],
@@ -38,6 +38,7 @@ describe('FileTreeView', () => {
       files: [],
       isLoading: false,
       error: null,
+      errorKind: null,
       uploadQueue: [],
       isUploading: false,
       previewFile: null,
@@ -65,27 +66,69 @@ describe('FileTreeView', () => {
       tenants: [],
       isLoading: true,
       error: null,
+      errorKind: null,
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     expect(document.querySelector('.animate-pulse')).toBeInTheDocument()
   })
 
-  it('renders error state', () => {
+  it('renders error state with a retry that reloads the hierarchy', () => {
+    const refetch = jest.fn()
     mockUsePropertyHierarchy.mockReturnValue({
       houses: [],
       apartments: [],
       tenants: [],
       isLoading: false,
       error: 'Failed to load data',
+      errorKind: 'load',
+      refetch,
+    })
+
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
+    
+    expect(screen.getByText('Fehler beim Laden der Ordnerstruktur')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }))
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('names a failed permission check of the server (retry helps) instead of the generic error, with the same retry', () => {
+    const refetch = jest.fn()
+    mockUsePropertyHierarchy.mockReturnValue({
+      houses: [],
+      apartments: [],
+      tenants: [],
+      isLoading: false,
+      error: 'Permission check failed',
+      errorKind: 'permission-check',
+      refetch,
+    })
+
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
+
+    expect(screen.getByText(/Berechtigungsprüfung ist vorübergehend fehlgeschlagen/)).toBeInTheDocument()
+    expect(screen.queryByText('Fehler beim Laden der Ordnerstruktur')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }))
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('decides on the kind of the error, not on its text: a "load" error with that text keeps the generic message', () => {
+    mockUsePropertyHierarchy.mockReturnValue({
+      houses: [],
+      apartments: [],
+      tenants: [],
+      isLoading: false,
+      error: 'Permission check failed',
+      errorKind: 'load',
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
-    
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
+
     expect(screen.getByText('Fehler beim Laden der Ordnerstruktur')).toBeInTheDocument()
+    expect(screen.queryByText(/Berechtigungsprüfung ist vorübergehend fehlgeschlagen/)).not.toBeInTheDocument()
   })
 
   it('renders tree structure with houses and apartments', async () => {
@@ -101,14 +144,15 @@ describe('FileTreeView', () => {
       ],
       isLoading: false,
       error: null,
+      errorKind: null,
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     await waitFor(() => {
       expect(screen.getByText('Cloud Storage')).toBeInTheDocument()
-      expect(screen.getByText('Häuser')).toBeInTheDocument()
+      expect(screen.getByText('Gemeinsam')).toBeInTheDocument()
       expect(screen.getByText('Sonstiges')).toBeInTheDocument()
     })
   })
@@ -124,17 +168,18 @@ describe('FileTreeView', () => {
       tenants: [],
       isLoading: false,
       error: null,
+      errorKind: null,
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     await waitFor(() => {
-      expect(screen.getByText('Häuser')).toBeInTheDocument()
+      expect(screen.getByText('Gemeinsam')).toBeInTheDocument()
     })
 
     // Click to expand Häuser
-    const haeuserExpandButton = screen.getByText('Häuser').parentElement?.querySelector('button')
+    const haeuserExpandButton = screen.getByText('Gemeinsam').parentElement?.querySelector('button')
     if (haeuserExpandButton) {
       fireEvent.click(haeuserExpandButton)
     }
@@ -153,19 +198,20 @@ describe('FileTreeView', () => {
       tenants: [],
       isLoading: false,
       error: null,
+      errorKind: null,
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     await waitFor(() => {
-      expect(screen.getByText('Häuser')).toBeInTheDocument()
+      expect(screen.getByText('Gemeinsam')).toBeInTheDocument()
     })
 
     // Click on Häuser
-    fireEvent.click(screen.getByText('Häuser'))
+    fireEvent.click(screen.getByText('Gemeinsam'))
 
-    expect(mockHandleFolderClick).toHaveBeenCalledWith('user_test-user/haeuser')
+    expect(mockHandleFolderClick).toHaveBeenCalledWith('org_org-1/shared')
   })
 
   it('shows empty folder indicators', async () => {
@@ -175,10 +221,11 @@ describe('FileTreeView', () => {
       tenants: [],
       isLoading: false,
       error: null,
+      errorKind: null,
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     await waitFor(() => {
       expect(screen.getByText('Sonstiges')).toBeInTheDocument()
@@ -202,19 +249,20 @@ describe('FileTreeView', () => {
       ],
       isLoading: false,
       error: null,
+      errorKind: null,
       refetch: jest.fn(),
     })
 
-    render(<FileTreeView userId="test-user" />)
+    render(<FileTreeView orgId="org-1" userId="user-1" />)
     
     await waitFor(() => {
-      expect(screen.getByText('Häuser')).toBeInTheDocument()
+      expect(screen.getByText('Gemeinsam')).toBeInTheDocument()
     })
 
     // Click on Häuser to navigate there first
-    fireEvent.click(screen.getByText('Häuser'))
+    fireEvent.click(screen.getByText('Gemeinsam'))
 
     // Verify that handleFolderClick was called with the correct path
-    expect(mockHandleFolderClick).toHaveBeenCalledWith('user_test-user/haeuser')
+    expect(mockHandleFolderClick).toHaveBeenCalledWith('org_org-1/shared')
   })
 })

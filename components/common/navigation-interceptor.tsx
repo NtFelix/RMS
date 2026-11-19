@@ -5,9 +5,11 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useCloudStorageNavigation } from '@/hooks/use-cloud-storage-navigation'
 import { getDirectoryCache } from '@/lib/directory-cache'
 import { useToast } from '@/hooks/use-toast'
+import { orgRoot } from '@/lib/storage-paths'
+import { storagePathFromUrl, storageUrlFor } from '@/lib/storage-navigation'
 
 export interface NavigationInterceptorProps {
-  userId: string
+  orgId: string
   onNavigate?: (path: string, options?: NavigationOptions) => void
   fallbackToSSR?: boolean
   enableDebouncing?: boolean
@@ -42,7 +44,7 @@ interface NavigationAttempt {
  * - Performance monitoring and error recovery
  */
 export function NavigationInterceptor({
-  userId,
+  orgId,
   onNavigate,
   fallbackToSSR = true,
   enableDebouncing = true,
@@ -78,7 +80,7 @@ export function NavigationInterceptor({
     }
     
     // Don't use client navigation for external paths
-    if (!path.startsWith(`user_${userId}`)) {
+    if (!path.startsWith(orgRoot(orgId))) {
       return false
     }
     
@@ -89,21 +91,7 @@ export function NavigationInterceptor({
     
     // Use client navigation for normal folder navigation
     return true
-  }, [userId, directoryCache])
-
-  /**
-   * Converts storage path to SSR URL
-   */
-  const pathToHref = useCallback((path: string): string => {
-    const base = `user_${userId}`
-    if (!path || path === base) return "/dateien"
-    const prefix = `${base}/`
-    if (path.startsWith(prefix)) {
-      const rest = path.slice(prefix.length)
-      return `/dateien/${rest}`
-    }
-    return "/dateien"
-  }, [userId])
+  }, [orgId, directoryCache])
 
   /**
    * Performs client-side navigation with error handling
@@ -151,13 +139,13 @@ export function NavigationInterceptor({
     } finally {
       navigationInProgress.current = false
     }
-  }, [navigation, pathToHref, onNavigate, toast])
+  }, [navigation, onNavigate, toast])
 
   /**
    * Performs SSR navigation fallback
    */
   const performSSRNavigation = useCallback((path: string, replace = false) => {
-    const url = pathToHref(path)
+    const url = storageUrlFor(path)
     
     navigationStats.current.fallbackToSSR++
     
@@ -166,7 +154,7 @@ export function NavigationInterceptor({
     } else {
       router.push(url)
     }
-  }, [router, pathToHref])
+  }, [router])
 
   /**
    * Main navigation handler with debouncing and fallback logic
@@ -282,7 +270,7 @@ export function NavigationInterceptor({
         
         if (pathMatch) {
           const urlPath = pathMatch[1] || ''
-          const storagePath = urlPath ? `user_${userId}/${urlPath}` : `user_${userId}`
+          const storagePath = storagePathFromUrl(orgRoot(orgId), urlPath)
           
           // Only navigate if it's different from current path
           if (storagePath !== navigation.currentPath) {
@@ -298,7 +286,7 @@ export function NavigationInterceptor({
     
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [handleNavigation, userId, navigation.currentPath])
+  }, [handleNavigation, orgId, navigation.currentPath])
 
   /**
    * Cleanup debounce timer on unmount
@@ -403,23 +391,12 @@ export function useNavigationInterceptor() {
  * Enhanced folder click handler that integrates with navigation interceptor
  * This can be used by existing components to replace their router.push calls
  */
-export function useFolderNavigation(userId: string) {
+export function useFolderNavigation(orgId: string) {
   const navigation = useCloudStorageNavigation()
   const directoryCache = getDirectoryCache()
   const { toast } = useToast()
   const router = useRouter()
   const pathname = usePathname()
-  
-  const pathToHref = useCallback((path: string): string => {
-    const base = `user_${userId}`
-    if (!path || path === base) return "/dateien"
-    const prefix = `${base}/`
-    if (path.startsWith(prefix)) {
-      const rest = path.slice(prefix.length)
-      return `/dateien/${rest}`
-    }
-    return "/dateien"
-  }, [userId])
   
   const handleFolderClick = useCallback(async (
     folderPath: string,
@@ -428,7 +405,7 @@ export function useFolderNavigation(userId: string) {
     try {
       // Check if we should use client-side navigation
       const isFilesPage = pathname ? pathname.startsWith('/dateien') : false
-      const shouldUseClient = folderPath.startsWith(`user_${userId}`) && 
+      const shouldUseClient = folderPath.startsWith(orgRoot(orgId)) && 
                              !navigation.isNavigating &&
                              isFilesPage
       
@@ -438,7 +415,7 @@ export function useFolderNavigation(userId: string) {
         await navigation.navigateToPath(folderPath, options)
       } else {
         // Fall back to SSR navigation
-        const url = pathToHref(folderPath)
+        const url = storageUrlFor(folderPath)
         if (options.replace) {
           router.replace(url)
         } else {
@@ -455,15 +432,15 @@ export function useFolderNavigation(userId: string) {
         variant: "destructive"
       })
       
-      const url = pathToHref(folderPath)
+      const url = storageUrlFor(folderPath)
       router.push(url)
     }
-  }, [userId, navigation, pathToHref, router, toast])
+  }, [orgId, navigation, router, toast])
   
   return {
     handleFolderClick,
     isNavigating: navigation.isNavigating,
-    pathToHref
+    pathToHref: storageUrlFor
   }
 }
 
@@ -474,9 +451,9 @@ export function withNavigationInterceptor<P extends object>(
   Component: React.ComponentType<P>,
   interceptorProps?: Partial<NavigationInterceptorProps>
 ) {
-  return function WrappedComponent(props: P & { userId: string }) {
+  return function WrappedComponent(props: P & { orgId: string }) {
     return (
-      <NavigationInterceptor userId={props.userId} {...interceptorProps}>
+      <NavigationInterceptor orgId={props.orgId} {...interceptorProps}>
         <Component {...props} />
       </NavigationInterceptor>
     )

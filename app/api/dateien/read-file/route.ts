@@ -1,3 +1,4 @@
+import { resolveChildPath } from "@/lib/storage-access"
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
@@ -25,16 +26,12 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Validate that the path belongs to the user
-    if (!filePath.startsWith(`user_${user.id}`)) {
-      return NextResponse.json({ error: 'Invalid path' }, {
-        status: 403,
-        headers: NO_CACHE_HEADERS,
-      })
+    // Validate the name and check read access on the TARGET path
+    const target = await resolveChildPath(supabase, user.id, filePath, fileName, { allowLegacyOwnRead: true })
+    if ('error' in target) {
+      return NextResponse.json({ error: target.error }, { status: target.status, headers: NO_CACHE_HEADERS })
     }
-
-    // Construct the full file path
-    const fullPath = `${filePath}/${fileName}`.replace(/\/+/g, '/').replace(/^\//, '')
+    const fullPath = target.path
 
     console.log(`Reading file: ${fullPath} (timestamp: ${timestamp || 'none'})`)
 

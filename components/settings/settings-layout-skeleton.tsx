@@ -6,11 +6,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 
 // Static Suspense fallback of the settings layout: the sidebar with a search field and the "Konto" group,
-// next to the content area. It needs no data. Tabs that depend on permissions or feature flags (E-Mail, KI,
-// API-Keys, MCP-Server) are left out because they are unknown before the layout resolves; the "Konto" group
-// always has these seven entries (Profil, Sicherheit, Abo, Darstellung, Datenexport, Vorschau, Mietevo).
+// next to the content area. It needs no data. Tabs that depend on permissions or feature flags (Datenexport,
+// E-Mail, KI, API-Keys, MCP-Server) are left out because they are unknown before the layout resolves; the
+// "Konto" group always has these six entries (Profil, Sicherheit, Abo, Darstellung, Vorschau, Mietevo).
 
-const ALWAYS_VISIBLE_TAB_COUNT = 7
+const ALWAYS_VISIBLE_TAB_COUNT = 6
 
 export function SettingsLayoutSkeleton() {
   return (

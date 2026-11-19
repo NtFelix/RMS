@@ -35,7 +35,8 @@ interface FileMoveModalProps {
   item: StorageObject | VirtualFolder
   itemType: 'file' | 'folder'
   currentPath: string
-  userId: string
+  /** Not used any more: the tree route takes the user from the session (kept for the modal store payload) */
+  userId?: string
   onMove: (targetPath: string) => Promise<void>
 }
 
@@ -45,7 +46,6 @@ export function FileMoveModal({
   item,
   itemType,
   currentPath,
-  userId,
   onMove
 }: FileMoveModalProps) {
   const [treeData, setTreeData] = useState<TreeNode[]>([])
@@ -58,7 +58,7 @@ export function FileMoveModal({
   const loadFolderTree = useCallback(async () => {
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/dateien/tree?userId=${userId}`)
+      const response = await fetch('/api/dateien/tree')
       if (!response.ok) {
         throw new Error('Failed to load folder structure')
       }
@@ -75,12 +75,12 @@ export function FileMoveModal({
     } finally {
       setIsLoading(false)
     }
-  }, [userId, toast])
+  }, [toast])
 
   // Load folder children when expanding
   const loadFolderChildren = useCallback(async (folderPath: string) => {
     try {
-      const response = await fetch(`/api/dateien/tree?userId=${userId}&path=${encodeURIComponent(folderPath)}`)
+      const response = await fetch(`/api/dateien/tree?path=${encodeURIComponent(folderPath)}`)
       if (!response.ok) {
         throw new Error('Failed to load folder children')
       }
@@ -96,7 +96,7 @@ export function FileMoveModal({
       })
       return []
     }
-  }, [userId, toast])
+  }, [toast])
 
   // Toggle folder expansion
   const toggleFolder = useCallback(async (nodePath: string) => {

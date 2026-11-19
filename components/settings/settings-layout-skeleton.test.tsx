@@ -34,11 +34,11 @@ describe('SettingsLayoutSkeleton', () => {
     expect(container.querySelector('nav')).toHaveClass(...SETTINGS_SIDEBAR_CLASS.split(' '));
   });
 
-  it('shows the seven tabs that are always visible, without data-dependent ones', () => {
+  it('shows the six tabs that are always visible, without data-dependent ones', () => {
     const { container } = render(<SettingsLayoutSkeleton />);
     const sidebar = container.querySelector(`.${CSS.escape('w-56')}`) as HTMLElement;
 
-    // search field + group label + seven tab placeholders
-    expect(sidebar.querySelectorAll('.h-9')).toHaveLength(1 + 7);
+    // search field + group label + six tab placeholders
+    expect(sidebar.querySelectorAll('.h-9')).toHaveLength(1 + 6);
   });
 });

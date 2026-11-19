@@ -12,7 +12,7 @@
 
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
+import { BatchSpanProcessor } from '@opentelemetry/sdk-trace';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { diag, DiagLogLevel } from '@opentelemetry/api';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
@@ -124,7 +124,8 @@ export function initTracing(): void {
   sdk = new NodeSDK({
     resource: resourceFromAttributes(getSdkResourceAttributes()),
     spanProcessors: [
-      new BatchSpanProcessor(exporter, {
+      new BatchSpanProcessor({
+        exporter,
         scheduledDelayMillis: 1000,
         exportTimeoutMillis: 10000,
         maxQueueSize: 1024,

@@ -12,6 +12,7 @@ jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }));
 
+
 describe('finance-file-actions', () => {
   let mockSupabase: any;
 
@@ -26,6 +27,7 @@ describe('finance-file-actions', () => {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn(),
+      rpc: jest.fn().mockResolvedValue({ data: 'org1', error: null }),
       storage: {
         from: jest.fn().mockReturnThis(),
         createSignedUrl: jest.fn(),
@@ -34,6 +36,7 @@ describe('finance-file-actions', () => {
     };
 
     (createSupabaseServerClient as jest.Mock).mockResolvedValue(mockSupabase);
+
   });
 
   describe('getFinanceDocumentPath', () => {
@@ -47,7 +50,7 @@ describe('finance-file-actions', () => {
 
       expect(result).toEqual({
         success: true,
-        path: 'user_user123/Rechnungen/Allgemein',
+        path: 'org_org1/private/user123/Rechnungen/Allgemein',
       });
     });
 
@@ -75,7 +78,7 @@ describe('finance-file-actions', () => {
         data: {
           id: 'apt1',
           name: 'Apartment 1',
-          Haeuser: { name: 'House A' },
+          haus_id: 'haus-a',
         },
         error: null,
       });
@@ -84,11 +87,11 @@ describe('finance-file-actions', () => {
 
       expect(result).toEqual({
         success: true,
-        path: 'user_user123/Rechnungen/House_A/Apartment_1',
+        path: 'org_org1/shared/haus-a/Rechnungen/apt1',
       });
     });
 
-    it('should sanitize folder names', async () => {
+    it('should use IDs instead of display names in the path', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({
         data: { user: { id: 'user123' } },
         error: null,
@@ -98,7 +101,7 @@ describe('finance-file-actions', () => {
         data: {
           id: 'apt1',
           name: 'München Apartment',
-          Haeuser: { name: 'Grüner Weg' },
+          haus_id: 'haus-a',
         },
         error: null,
       });
@@ -107,7 +110,7 @@ describe('finance-file-actions', () => {
 
       expect(result).toEqual({
         success: true,
-        path: 'user_user123/Rechnungen/Gruener_Weg/Muenchen_Apartment',
+        path: 'org_org1/shared/haus-a/Rechnungen/apt1',
       });
     });
 

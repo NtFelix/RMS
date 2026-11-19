@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getFinanceDocumentPath } from "@/app/finance-file-actions";
+import { getAccessibleHaeuserIds } from "@/lib/object-scope";
+import { assertPathAllowed, StoragePathError } from "@/lib/storage-paths";
 import { logger } from "@/utils/logger";
 import {
     SUPPORTED_MIME_TYPES,
@@ -14,7 +16,8 @@ import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 export async function POST(request: NextRequest) {
     try {
         const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
-        await requireApiPermission('finanzen', 'erstellen');
+        // Storage and metadata policies below Rechnungen/ need finanzen:ansehen in addition to the write right
+        await Promise.all([requireApiPermission('finanzen', 'ansehen'), requireApiPermission('finanzen', 'erstellen')]);
 
         const supabase = await createSupabaseServerClient();
 
@@ -100,6 +103,30 @@ export async function POST(request: NextRequest) {
         const uniqueFilename = `${timestamp}_${sanitizedFilename}`;
         const fullPath = `${pathResult.path}/${uniqueFilename}`;
 
+        // Defense in depth: the target must lie in the active org and in an accessible house
+        const { data: orgId, error: orgError } = await supabase.rpc("current_organisation_id");
+        if (orgError || !orgId) {
+            return NextResponse.json(
+                { error: "Keine aktive Organisation gefunden" },
+                { status: 400, headers: NO_CACHE_HEADERS }
+            );
+        }
+        try {
+            assertPathAllowed(fullPath, {
+                orgId,
+                userId: user.id,
+                accessibleHouseIds: await getAccessibleHaeuserIds(),
+            }, "write");
+        } catch (pathError) {
+            logger.warn("Finance upload target rejected by path check", {
+                code: pathError instanceof StoragePathError ? pathError.code : "UNKNOWN",
+            });
+            return NextResponse.json(
+                { error: "Zugriff verweigert (Speicherpfad nicht erlaubt)" },
+                { status: 403, headers: NO_CACHE_HEADERS }
+            );
+        }
+
         logger.info("Uploading finance file", {
             originalName: file.name,
             uniqueFilename,
@@ -141,9 +168,13 @@ export async function POST(request: NextRequest) {
         if (metadataError || !metadataRecord) {
             logger.error("Metadata insert error", metadataError instanceof Error ? metadataError : new Error(String(metadataError)), { fullPath });
 
-            // Cleanup: remove the uploaded file if metadata insert failed
+            // Cleanup: remove the uploaded file if metadata insert failed. remove() resolves with an error instead of
+            // throwing (for example without finanzen:loeschen, which the delete policy needs), so check the result too
             try {
-                await supabase.storage.from("documents").remove([fullPath]);
+                const { error: removeError } = await supabase.storage.from("documents").remove([fullPath]);
+                if (removeError) {
+                    logger.error("Failed to cleanup orphaned file after metadata insert error", removeError, { fullPath });
+                }
             } catch (cleanupError) {
                 logger.error("Failed to cleanup orphaned file after metadata insert error", cleanupError instanceof Error ? cleanupError : new Error(String(cleanupError)), { fullPath });
             }

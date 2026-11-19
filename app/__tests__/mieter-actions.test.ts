@@ -198,6 +198,19 @@ describe('mieter-actions', () => {
   });
 
   describe('updateTenantApartment', () => {
+    it('translates the blocked apartment change (23503, fk_mieter_mietverhaeltnis) into a clear message', async () => {
+      mockSupabase.update.mockReturnValue({
+        eq: jest.fn().mockResolvedValue({
+          error: { code: '23503', message: 'update violates foreign key constraint "fk_mieter_mietverhaeltnis"' },
+        }),
+      });
+
+      const result = await updateTenantApartment('t1', 'w2');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe('Die Wohnung kann hier nicht geändert werden, weil der Mieter zu einem Mietverhältnis gehört. Nutzen Sie im Abschnitt Mietverhältnis den Punkt „Umzug in eine andere Wohnung“.');
+    });
+
     it('updates tenant apartment link', async () => {
       mockSupabase.update.mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
 
