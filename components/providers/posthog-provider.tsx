@@ -88,6 +88,13 @@ async function initializePostHog(nonce?: string) {
     enable_recording_console_log: false, // Disabled: don't capture console logs in session recordings
     // GDPR: Always opt-out by default, require explicit consent
     opt_out_capturing_by_default: true,
+    // GDPR: Visitors without consent are still counted anonymously. No cookies or
+    // storage are used; PostHog keeps a server-side privacy-preserving hash instead.
+    cookieless_mode: 'on_reject',
+    // Only identified users get person profiles; anonymous events stay personless.
+    person_profiles: 'identified_only',
+    // Browsers with "Do Not Track" stay anonymous even after explicit opt-in.
+    respect_dnt: true,
     nonce: nonce, // Add nonce for CSP
     // Enable early access features
     bootstrap: {
@@ -183,20 +190,26 @@ function PostHogPageView() {
     let currentIsAuthenticated = false;
 
     const trackPageview = async () => {
-      if (!pathname || !posthog.has_opted_in_capturing?.()) return;
+      // is_capturing() also covers visitors without consent: with cookieless_mode
+      // "on_reject" they are tracked anonymously, so their pageviews count too.
+      if (!pathname || !posthog.is_capturing?.()) return;
 
       let url = window.origin + pathname;
       if (searchParams.toString()) {
         url = url + `?${searchParams.toString()}`;
       }
 
-      try {
-        const { createClient } = await import('@/utils/supabase/client');
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        currentIsAuthenticated = !!user;
-      } catch {
-        currentIsAuthenticated = false;
+      // Anonymous visitors skip the auth lookup: without consent they stay
+      // anonymous in PostHog, so the authenticated label would not apply anyway.
+      if (posthog.has_opted_in_capturing?.()) {
+        try {
+          const { createClient } = await import('@/utils/supabase/client');
+          const supabase = createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          currentIsAuthenticated = !!user;
+        } catch {
+          currentIsAuthenticated = false;
+        }
       }
 
       posthog.capture('$pageview', {
@@ -209,7 +222,7 @@ function PostHogPageView() {
     trackPageview();
 
     return () => {
-      if (pathname && posthog.has_opted_in_capturing?.()) {
+      if (pathname && posthog.is_capturing?.()) {
         let url = window.origin + pathname;
         if (searchParams.toString()) {
           url = url + `?${searchParams.toString()}`;
