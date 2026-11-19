@@ -24,6 +24,14 @@ jest.mock("@/app/mietverhaeltnis-actions", () => ({
   mieterTrennenAction: jest.fn(),
 }));
 
+// Contract document section: not under test here, no document linked
+jest.mock("@/app/mietverhaeltnis-dokument-actions", () => ({
+  getVertragsdokumentAction: jest.fn().mockResolvedValue({ success: true, data: null }),
+  listeVertragsdokumentKandidatenAction: jest.fn(),
+  vertragsdokumentSetzenAction: jest.fn(),
+  vertragsdokumentOeffnenAction: jest.fn(),
+}));
+
 jest.mock("@/hooks/use-toast", () => ({
   toast: jest.fn(),
 }));
