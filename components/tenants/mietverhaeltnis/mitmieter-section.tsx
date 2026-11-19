@@ -4,7 +4,6 @@ import { useCallback, useEffect, useId, useState } from "react";
 import { format } from "date-fns";
 import { Calendar, Euro, Loader2, Users } from "lucide-react";
 import {
-  abrechnungsmodusSetzenAction,
   getMitmieterUebersichtAction,
   mieterTrennenAction,
   mieterZusammenfuehrenAction,
@@ -13,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { CustomCombobox, type ComboboxOption } from "@/components/ui/custom-combobox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { NumberInput } from "@/components/ui/number-input";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { PropertyHeader } from "@/components/tenants/property-header";
 import { FEHLER_BETRAG, FEHLER_DATUM, istGueltigesDatum, parseBetragEingabe } from "@/components/tenants/mietverhaeltnis/miete-format";
@@ -23,7 +21,7 @@ import type { Mietverhaeltnis, MitmieterUebersicht } from "@/types/Mietverhaeltn
 interface MitmieterSectionProps {
   mieterId: string;
   mietverhaeltnis: Mietverhaeltnis;
-  /** Called after a change that affects the tenancy shown above (join, separate, settlement mode). */
+  /** Called after a change that affects the tenancy shown above (join, separate). */
   onGeaendert: () => void;
 }
 
@@ -41,20 +39,15 @@ const alsIso = (date: Date | undefined) => (date ? format(date, "yyyy-MM-dd") : 
 
 /**
  * Several tenants in one tenancy (GH-17, phase 6): shows who shares the tenancy, lets the tenant join another tenancy of
- * the same apartment or leave a shared one, and sets the settlement mode. Renders nothing when there is nobody to share
- * with. The app checks no legal rules: pair or shared-flat deposit, roles and the addressee of a shared settlement are
- * legal questions (professional advice).
+ * the same apartment or leave a shared one. There is no separate settlement switch: whoever shares a tenancy is settled
+ * together, for the period in which they shared it. Renders nothing when there is nobody to share with. The app checks no
+ * legal rules: pair or shared-flat deposit, roles and the addressee of a shared settlement are legal questions (professional advice).
  */
 export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: MitmieterSectionProps) {
   const id = useId();
   const [daten, setDaten] = useState<MitmieterUebersicht | null>(null);
   const [formular, setFormular] = useState<Formular>("keins");
   const [isSaving, setIsSaving] = useState(false);
-  /** Settlement mode as last saved here; follows the tenancy when the parent reloads. */
-  const [gemeinsam, setGemeinsam] = useState(mietverhaeltnis.abrechnungsmodus === "gemeinsam");
-  useEffect(() => {
-    setGemeinsam(mietverhaeltnis.abrechnungsmodus === "gemeinsam");
-  }, [mietverhaeltnis.abrechnungsmodus]);
 
   const [ziel, setZiel] = useState("");
   const [rolle, setRolle] = useState("");
@@ -138,26 +131,6 @@ export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: Mit
     }
   };
 
-  const handleModus = async (gemeinsam_: boolean) => {
-    if (isSaving) return;
-    setIsSaving(true);
-    try {
-      const result = await abrechnungsmodusSetzenAction({ mieterId, modus: gemeinsam_ ? "gemeinsam" : "je_mieter" });
-      if (result.success) {
-        // Set locally: the switch must not jump back if the reload of the parent fails
-        setGemeinsam(gemeinsam_);
-        toast({ title: "Erfolg", description: "Die Abrechnungsart wurde gespeichert.", variant: "success" });
-        onGeaendert();
-      } else {
-        melde(result.error.message);
-      }
-    } catch {
-      toast({ title: "Systemfehler", description: SYSTEMFEHLER, variant: "destructive" });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   if (!daten || (daten.mitmieter.length === 0 && daten.kandidaten.length === 0)) return null;
 
   const zielOptionen: ComboboxOption[] = daten.kandidaten.map((kandidat) => ({
@@ -189,19 +162,10 @@ export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: Mit
               ))}
             </ul>
           </div>
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-0.5">
-              <label htmlFor={`${id}-modus`} className="text-sm font-medium">
-                Eine Abrechnung für das ganze Mietverhältnis
-              </label>
-              <p className="text-xs text-muted-foreground">
-                Aus: eine Abrechnung je Mieter (wie bisher). An: die Mieter dieses Mietverhältnisses werden gemeinsam abgerechnet.
-                Die Einstellung gilt für alle Abrechnungen dieses Mietverhältnisses, auch für frühere, die neu geöffnet werden.
-                Wer der Adressat ist und ob das zulässig ist, ist rechtlich zu klären.
-              </p>
-            </div>
-            <Switch id={`${id}-modus`} checked={gemeinsam} disabled={isSaving} onCheckedChange={(wert) => void handleModus(wert)} />
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Die Mieter dieses Mietverhältnisses werden gemeinsam abgerechnet, für den Zeitraum, in dem sie es teilen. Frühere Zeiträume
+            bleiben beim damaligen Mietverhältnis. Wer der Adressat ist und ob das zulässig ist, ist rechtlich zu klären.
+          </p>
         </div>
       )}
 

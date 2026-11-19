@@ -1,12 +1,14 @@
 /**
  * Abrechnung per tenancy (GH-17, phase 6).
  *
- * A tenancy ("Mietverhältnis") can have several tenant rows (a couple, a flat share with one contract). The
- * settlement mode of the tenancy decides how the Abrechnung treats them:
+ * A tenancy ("Mietverhältnis") can have several tenant rows (a couple, a flat share with one contract). Whoever is
+ * assigned to the same tenancy is settled together: the rows of the tenancy are merged into ONE tenant before the
+ * calculation, so the Abrechnung (all distributions, prepayments, meter costs) runs once per tenancy. There is no
+ * separate switch. Today every person has an own tenancy, so this is the same as one settlement per tenant row.
  *
- *  - `je_mieter` (default): nothing changes, every tenant row is settled on its own, exactly as before.
- *  - `gemeinsam`: the tenant rows of the tenancy are merged into ONE tenant before the calculation, so the
- *    Abrechnung (all distributions, prepayments, meter costs) runs once per tenancy.
+ * `mietverhaeltnis_id` of the rows must be the tenancy that applied in the billing period, not the current one
+ * (the loader in `lib/abrechnung-mietverhaeltnis-laden.ts` sets it from the assignment history). A later merge
+ * therefore never changes the settlement of an earlier year.
  *
  * The merge is a plain data step in front of the unchanged calculation. Rules of the merged tenant (technical,
  * not legal; who the addressee of a shared settlement is, and whether it is allowed, is a legal question):
@@ -26,8 +28,6 @@
  * relevant (money): not production ready until the maintainer has reviewed it.
  */
 import type { Mieter, Rechnung } from "@/lib/types";
-
-export type Abrechnungsmodus = "je_mieter" | "gemeinsam";
 
 export interface ZusammenfassungErgebnis {
   tenants: Mieter[];
@@ -143,19 +143,14 @@ function haengeRechnungenUm(rechnungen: Rechnung[], ersetzung: ReadonlyMap<strin
 }
 
 /**
- * Applies the settlement mode: tenancies with mode `gemeinsam` and at least two rows in the same apartment are
- * merged, everything else is returned unchanged (same objects, same order position of the first row).
- * `modi` maps a tenancy ID to its mode; a missing entry means `je_mieter`.
+ * Merges the rows of every tenancy with at least two rows in the same apartment; everything else is returned
+ * unchanged (same objects, same order position of the first row).
  */
-export function fasseGemeinsameMietverhaeltnisseZusammen(
-  tenants: Mieter[],
-  modi: ReadonlyMap<string, Abrechnungsmodus>,
-  rechnungen: Rechnung[] = []
-): ZusammenfassungErgebnis {
+export function fasseGemeinsameMietverhaeltnisseZusammen(tenants: Mieter[], rechnungen: Rechnung[] = []): ZusammenfassungErgebnis {
   const gruppen = new Map<string, Mieter[]>();
   for (const tenant of tenants) {
     const mvId = tenant.mietverhaeltnis_id;
-    if (!mvId || !tenant.wohnung_id || modi.get(mvId) !== "gemeinsam") continue;
+    if (!mvId || !tenant.wohnung_id) continue;
     const schluessel = `${mvId}|${tenant.wohnung_id}`;
     gruppen.set(schluessel, [...(gruppen.get(schluessel) ?? []), tenant]);
   }

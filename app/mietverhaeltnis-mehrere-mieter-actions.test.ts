@@ -2,7 +2,7 @@
 
 /**
  * Tests for the actions of phase 6 (several tenants per tenancy, GH-17): `getMitmieterUebersichtAction`,
- * `mieterZusammenfuehrenAction`, `mieterTrennenAction`, `abrechnungsmodusSetzenAction`.
+ * `mieterZusammenfuehrenAction`, `mieterTrennenAction`.
  *
  * `jest.setup.js` mocks `@/lib/permissions` (always `true`) and `@/lib/auth-utils` globally; the negative cases
  * override them. All IDs, names and amounts are synthetic placeholders.
@@ -13,7 +13,6 @@ import { ensureAuth } from "@/lib/auth-utils";
 import { hasPermission } from "@/lib/permissions";
 import { getAccessibleWohnungIds } from "@/lib/object-scope";
 import {
-  abrechnungsmodusSetzenAction,
   getMitmieterUebersichtAction,
   mieterTrennenAction,
   mieterZusammenfuehrenAction,
@@ -41,11 +40,8 @@ let mieterZeile: Antwort;
 let mieterListe: Antwort;
 let mvListe: Antwort;
 let rpcErgebnis: Antwort;
-let updateErgebnis: Antwort;
 
 const mockRpc = jest.fn();
-const mockUpdate = jest.fn();
-const mockUpdateFilter = jest.fn();
 const mockFrom = jest.fn();
 
 beforeEach(() => {
@@ -57,7 +53,6 @@ beforeEach(() => {
   mieterListe = { data: [], error: null };
   mvListe = { data: [], error: null };
   rpcErgebnis = { data: NEU_MV_ID, error: null };
-  updateErgebnis = { data: [{ id: MV_ID }], error: null };
 
   mockRpc.mockImplementation(async () => rpcErgebnis);
   mockFrom.mockImplementation((table: string) => ({
@@ -68,15 +63,6 @@ beforeEach(() => {
           maybeSingle: async () => (table === "Mieter" ? mieterZeile : { data: null, error: null }),
         }),
     }),
-    update: (werte: unknown) => {
-      mockUpdate(table, werte);
-      return {
-        eq: (spalte: string, wert: unknown) => {
-          mockUpdateFilter(spalte, wert);
-          return { select: async () => updateErgebnis };
-        },
-      };
-    },
   }));
   mockEnsureAuth.mockResolvedValue({ user: { id: "user-1" }, supabase: { from: mockFrom, rpc: mockRpc } });
   mockHasPermission.mockResolvedValue(true);
@@ -258,33 +244,5 @@ describe("mieterTrennenAction", () => {
     const result = await mieterTrennenAction({ mieterId: MIETER_ID, datum: "2026-09-01" });
     expect(result).toMatchObject({ success: false, error: { code: "42501" } });
     expect(mockRpc).not.toHaveBeenCalled();
-  });
-});
-
-describe("abrechnungsmodusSetzenAction", () => {
-  it("updates the tenancy of the tenant", async () => {
-    const result = await abrechnungsmodusSetzenAction({ mieterId: MIETER_ID, modus: "gemeinsam" });
-    expect(result).toEqual({ success: true, data: undefined });
-    expect(mockUpdate).toHaveBeenCalledWith("Mieter_Mietverhaeltnisse", { abrechnungsmodus: "gemeinsam" });
-    expect(mockUpdateFilter).toHaveBeenCalledWith("id", MV_ID);
-  });
-
-  it.each([["unknown mode", "alle"], ["missing mode", undefined]])("rejects %s with MV004", async (_name, modus) => {
-    const result = await abrechnungsmodusSetzenAction({ mieterId: MIETER_ID, modus } as never);
-    expect(result).toMatchObject({ success: false, error: { code: "MV004" } });
-    expect(mockUpdate).not.toHaveBeenCalled();
-  });
-
-  it("rejects a tenant without tenancy with MV003", async () => {
-    mieterZeile = { data: { ...(mieterZeile.data as object), mietverhaeltnis_id: null }, error: null };
-    const result = await abrechnungsmodusSetzenAction({ mieterId: MIETER_ID, modus: "gemeinsam" });
-    expect(result).toMatchObject({ success: false, error: { code: "MV003" } });
-    expect(mockUpdate).not.toHaveBeenCalled();
-  });
-
-  it("reports 42501 when row level security returns no row", async () => {
-    updateErgebnis = { data: [], error: null };
-    const result = await abrechnungsmodusSetzenAction({ mieterId: MIETER_ID, modus: "je_mieter" });
-    expect(result).toMatchObject({ success: false, error: { code: "42501" } });
   });
 });

@@ -33,7 +33,6 @@ export interface Mietverhaeltnis {
   kuendigung_eingang_am: string | null;
   kuendigung_zum: string | null;
   kuendigung_durch: "mieter" | "vermieter" | null;
-  abrechnungsmodus: "je_mieter" | "gemeinsam";
   vertrag_dokument_id: string | null;
   notiz: string | null;
   quelle: "app" | "migration_bestand";

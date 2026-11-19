@@ -110,11 +110,6 @@ export interface MieterTrennenInput {
   miete?: number | null;
 }
 
-export interface AbrechnungsmodusSetzenInput {
-  mieterId: string;
-  modus: "je_mieter" | "gemeinsam";
-}
-
 /** Module right actions used here. */
 type MieterAktion = "ansehen" | "bearbeiten" | "erstellen";
 
@@ -147,7 +142,7 @@ const AENDERUNGSART = "vereinbarung";
 const NOT_SIGNED_IN_MESSAGE_PREFIX = "Nicht authentifiziert";
 
 const MIETVERHAELTNIS_SPALTEN =
-  "id, wohnung_id, vertragsbeginn, vertragsende, befristet_bis, kuendigung_eingang_am, kuendigung_zum, kuendigung_durch, abrechnungsmodus, vertrag_dokument_id, notiz, quelle";
+  "id, wohnung_id, vertragsbeginn, vertragsende, befristet_bis, kuendigung_eingang_am, kuendigung_zum, kuendigung_durch, vertrag_dokument_id, notiz, quelle";
 
 function fail<T>(error: MietverhaeltnisActionError): Step<T> {
   return { ok: false, error };
@@ -781,39 +776,6 @@ export async function mieterTrennenAction(
       if (error) return fail(mapMietverhaeltnisError(error));
       if (!istUuid(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
       return { ok: true, data: { mietverhaeltnisId: data } };
-    },
-  });
-}
-
-/**
- * Sets the settlement mode of the tenancy of a tenant: `je_mieter` (default, one settlement per tenant row, as before)
- * or `gemeinsam` (one settlement per tenancy). Written through RLS like the contract data. Who the addressee of a
- * shared settlement is and whether that is allowed for a given contract: legal question, not checked here.
- */
-export async function abrechnungsmodusSetzenAction(input: AbrechnungsmodusSetzenInput): Promise<MietverhaeltnisActionResult> {
-  return runMietverhaeltnisAction<undefined>({
-    actionName: "abrechnungsmodusSetzen",
-    aktionen: ["ansehen", "bearbeiten"],
-    schreibend: true,
-    run: async (supabase) => {
-      const mieterId = input?.mieterId;
-      if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
-      const modus = input?.modus;
-      if (modus !== "je_mieter" && modus !== "gemeinsam") return fail(mietverhaeltnisFehler("MV004"));
-
-      const mieter = await ladeMieter(supabase, mieterId);
-      if (!mieter.ok) return mieter;
-      if (!mieter.data.mietverhaeltnisId) return fail(mietverhaeltnisFehler("MV003"));
-
-      const { data, error } = await supabase
-        .from("Mieter_Mietverhaeltnisse")
-        .update({ abrechnungsmodus: modus })
-        .eq("id", mieter.data.mietverhaeltnisId)
-        .select("id");
-      if (error) return fail(mapMietverhaeltnisError(error));
-      // No row back: RLS refused the update (or the tenancy is not visible)
-      if (!Array.isArray(data) || data.length === 0) return fail(mietverhaeltnisFehler("42501"));
-      return { ok: true, data: undefined };
     },
   });
 }

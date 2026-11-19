@@ -16,7 +16,9 @@ import type { Nebenkosten } from '@/lib/types';
 import { calculateCompleteTenantResult } from './abrechnung-calculations';
 import { computeWgFactorsByTenant } from './wg-cost-calculations';
 import { buildRechnung, buildTenant } from './__fixtures__/abrechnung-builders';
-import { fasseGemeinsameMietverhaeltnisseZusammen, type Abrechnungsmodus } from './abrechnung-mietverhaeltnis';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { fasseGemeinsameMietverhaeltnisseZusammen } from './abrechnung-mietverhaeltnis';
+import { gruppiereNachMietverhaeltnisImZeitraum } from '@/lib/abrechnung-mietverhaeltnis-laden';
 
 const APT_A = { name: 'Wohnung A', groesse: 60 };
 const APT_B = { name: 'Wohnung B', groesse: 40 };
@@ -51,8 +53,6 @@ const zeileA = (id: string, mv: string, einzug: string, auszug: string | null, s
   mietverhaeltnis_id: mv,
 });
 
-const gemeinsam = (...mvIds: string[]): Map<string, Abrechnungsmodus> => new Map(mvIds.map(id => [id, 'gemeinsam' as const]));
-
 /** Runs the calculation for every tenant of the (possibly merged) list, like the billing run does. */
 function rechne(tenants: Mieter[], rechenbasis: (typeof BASES)[number], rechnungen: Rechnung[] = []) {
   const nk = nebenkosten(rechenbasis);
@@ -71,8 +71,8 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
       mieterB(),
     ];
 
-    it.each(BASES)('%s, mode gemeinsam: one settlement for the tenancy (900 € costs, 1800 € prepaid, -900 € result)', basis => {
-      const { tenants } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen(), gemeinsam('mv-a'));
+    it.each(BASES)('%s, one tenancy: one settlement for the tenancy (900 € costs, 1800 € prepaid, -900 € result)', basis => {
+      const { tenants } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen());
       expect(tenants.map(t => t.id)).toEqual(['a1', 'b1']);
       const ergebnis = rechne(tenants, basis);
       expect(ergebnis.a1.operatingCosts.costItems.map(i => i.tenantShare)).toEqual([expect.closeTo(600, EUR), expect.closeTo(300, EUR)]);
@@ -84,8 +84,9 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
       expect(ergebnis.b1.finalSettlement).toBeCloseTo(-260, EUR);
     });
 
-    it.each(BASES)('%s, mode je_mieter: unchanged, two settlements of 450 € that add up to the shared one', basis => {
-      const { tenants } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen(), new Map());
+    it.each(BASES)('%s, each person with an own tenancy: unchanged, two settlements of 450 € that add up to the shared one', basis => {
+      const getrennt = [{ ...zeilen()[0], mietverhaeltnis_id: 'mv-a1' }, { ...zeilen()[1], mietverhaeltnis_id: 'mv-a2' }, mieterB()];
+      const { tenants } = fasseGemeinsameMietverhaeltnisseZusammen(getrennt);
       expect(tenants.map(t => t.id)).toEqual(['a1', 'a2', 'b1']);
       const ergebnis = rechne(tenants, basis);
       // each tenant bears half of the apartment: 300 + 150 = 450 €; prepaid 1200 € and 600 €
@@ -106,8 +107,8 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
       mieterB(),
     ];
 
-    it('calendar days, mode gemeinsam', () => {
-      const { tenants } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen(), gemeinsam('mv-a'));
+    it('calendar days, one tenancy', () => {
+      const { tenants } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen());
       const a = rechne(tenants, 'kalendertage').a1;
       expect(a.daysOccupied).toBe(181);
       expect(a.operatingCosts.totalCost).toBeCloseTo(446.3014, EUR);
@@ -115,8 +116,8 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
       expect(a.finalSettlement).toBeCloseTo(-453.6986, EUR);
     });
 
-    it('360 days, mode gemeinsam', () => {
-      const { tenants } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen(), gemeinsam('mv-a'));
+    it('360 days, one tenancy', () => {
+      const { tenants } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen());
       const a = rechne(tenants, '360_tage').a1;
       expect(a.rechentage?.rechentage).toBe(180);
       expect(a.operatingCosts.totalCost).toBeCloseTo(450, EUR);
@@ -134,9 +135,9 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
       mieterB(),
     ];
 
-    it('is returned unchanged, also when every tenancy is set to gemeinsam (one row each, nothing to merge)', () => {
+    it('is returned unchanged, one row per tenancy, nothing to merge', () => {
       const eingabe = zeilen();
-      const { tenants, zusammengefasst } = fasseGemeinsameMietverhaeltnisseZusammen(eingabe, gemeinsam('mv-w1', 'mv-w2', 'mv-w3'));
+      const { tenants, zusammengefasst } = fasseGemeinsameMietverhaeltnisseZusammen(eingabe);
       expect(tenants).toBe(eingabe);
       expect(zusammengefasst.size).toBe(0);
     });
@@ -156,7 +157,7 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
         zeileA('w3', 'mv-w', '2024-09-01', null, [['2025-01-01', '60']]),
         mieterB(),
       ];
-      const { tenants, zusammengefasst } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen, gemeinsam('mv-w'));
+      const { tenants, zusammengefasst } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen);
       expect(zusammengefasst.get('w1')).toEqual(['w1', 'w2', 'w3']);
       expect(tenants.find(t => t.id === 'w1')).toMatchObject({ name: 'w1, w2, w3', einzug: '2023-01-01', auszug: null });
       const a = rechne(tenants, basis).w1;
@@ -169,7 +170,7 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
   describe('change of person inside one contract (p1 until 30.06.2025, p2 from 01.07.2025)', () => {
     // p1 pays 100 €/month, p2 pays 120 €/month. Merged: one continuous tenancy, whole year.
     //   costs 600 + 300 = 900 €; prepaid Jan-Jun 6 x 100 + Jul-Dec 6 x 120 = 1320 €; result -420 €.
-    // Single settlements (je_mieter), by hand:
+    // Single settlements (rows not merged), by hand:
     //   calendar: p1 181/365 -> 297.5342 + 148.7671 = 446.3014 €, prepaid 600 -> -153.6986 €
     //             p2 184/365 -> 302.4658 + 151.2329 = 453.6986 €, prepaid 720 -> -266.3014 €
     //   360 days: Jan-Jun 180 and Jul-Dec 180 Rechentage -> 0.5 each -> 450 € each, prepaid 600 and 720 -> -150 € and -270 €
@@ -179,8 +180,8 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
       mieterB(),
     ];
 
-    it.each(BASES)('%s, mode gemeinsam: the leaving person does not count after the move-out', basis => {
-      const { tenants } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen(), gemeinsam('mv-p'));
+    it.each(BASES)('%s, one tenancy: the leaving person does not count after the move-out', basis => {
+      const { tenants } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen());
       const merged = tenants.find(t => t.id === 'p1')!;
       expect(merged).toMatchObject({ einzug: '2020-01-01', auszug: null, name: 'p1, p2' });
       expect(merged.nebenkosten?.map(n => [n.date, n.amount])).toEqual([
@@ -193,7 +194,7 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
       expect(a.finalSettlement).toBeCloseTo(-420, EUR);
     });
 
-    it('calendar days, mode je_mieter: two settlements', () => {
+    it('calendar days, rows not merged: two settlements', () => {
       const ergebnis = rechne(zeilen(), 'kalendertage');
       expect(ergebnis.p1.operatingCosts.totalCost).toBeCloseTo(446.3014, EUR);
       expect(ergebnis.p2.operatingCosts.totalCost).toBeCloseTo(453.6986, EUR);
@@ -201,12 +202,48 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
       expect(ergebnis.p2.finalSettlement).toBeCloseTo(-266.3014, EUR);
     });
 
-    it('360 days, mode je_mieter: two settlements', () => {
+    it('360 days, rows not merged: two settlements', () => {
       const ergebnis = rechne(zeilen(), '360_tage');
       expect(ergebnis.p1.operatingCosts.totalCost).toBeCloseTo(450, EUR);
       expect(ergebnis.p2.operatingCosts.totalCost).toBeCloseTo(450, EUR);
       expect(ergebnis.p1.finalSettlement).toBeCloseTo(-150, EUR);
       expect(ergebnis.p2.finalSettlement).toBeCloseTo(-270, EUR);
+    });
+  });
+
+  describe('2025 settled, merged into one tenancy on 01.03.2026: 2025 stays unchanged', () => {
+    // a1 and a2 had their own tenancies in 2025 (mv-a1, mv-a2); a2 joins mv-a1 on 01.03.2026. The assignment history
+    // keeps 2025 with the old tenancies, so the settlement of 2025 is the one of the separate rows: 450 € each,
+    // -750 € and -150 € (see "couple, one tenancy, whole year"). The current tenancy (mv-a1 for both) is not used.
+    const zeilen = () => [
+      zeileA('a1', 'mv-a1', '2023-01-01', null, [['2025-01-01', '100']]),
+      zeileA('a2', 'mv-a1', '2023-01-01', null, [['2025-01-01', '50']]),
+      mieterB(),
+    ];
+    const historie = [
+      { mieter_id: 'a1', mietverhaeltnis_id: 'mv-a1', gueltig_ab: '2023-01-01', gueltig_bis: null },
+      { mieter_id: 'a2', mietverhaeltnis_id: 'mv-a2', gueltig_ab: '2023-01-01', gueltig_bis: '2026-02-28' },
+      { mieter_id: 'a2', mietverhaeltnis_id: 'mv-a1', gueltig_ab: '2026-03-01', gueltig_bis: null },
+      { mieter_id: 'b1', mietverhaeltnis_id: 'mv-b', gueltig_ab: '2020-01-01', gueltig_bis: null },
+    ];
+    const supabase = {
+      from: () => ({ select: () => ({ in: async () => ({ data: historie, error: null }) }) }),
+    } as unknown as SupabaseClient;
+
+    it.each(BASES)('%s: two settlements of 450 €, results -750 € and -150 € as before the merge', async basis => {
+      const eingabe = { tenants: zeilen(), rechnungen: [] };
+      const { tenants } = await gruppiereNachMietverhaeltnisImZeitraum(supabase, eingabe, { startdatum: '2025-01-01', enddatum: '2025-12-31' });
+      expect(tenants.map(t => t.id)).toEqual(['a1', 'a2', 'b1']);
+      const ergebnis = rechne(tenants, basis);
+      expect(ergebnis.a1.operatingCosts.totalCost).toBeCloseTo(450, EUR);
+      expect(ergebnis.a2.operatingCosts.totalCost).toBeCloseTo(450, EUR);
+      expect(ergebnis.a1.finalSettlement).toBeCloseTo(-750, EUR);
+      expect(ergebnis.a2.finalSettlement).toBeCloseTo(-150, EUR);
+    });
+
+    it('for comparison: grouped by the current tenancy, 2025 would wrongly become one settlement', () => {
+      const { tenants } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen());
+      expect(tenants.map(t => t.id)).toEqual(['a1', 'b1']);
     });
   });
 
@@ -219,7 +256,7 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
         zeileA('a2', 'mv-a', '2023-01-01', null, [['2025-01-01', '50']]),
         mieterB(),
       ];
-      const { tenants } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen, gemeinsam('mv-a'));
+      const { tenants } = fasseGemeinsameMietverhaeltnisseZusammen(zeilen);
       const nk = nebenkosten('kalendertage', { nebenkostenart: ['Müllabfuhr'], betrag: [730], berechnungsart: ['pro Mieter'] });
       const wg = computeWgFactorsByTenant(tenants, nk.startdatum, nk.enddatum, nk.rechenbasis);
       const a = calculateCompleteTenantResult(tenants[0], nk, tenants, [], [], undefined, 'scheduled', [], wg);
@@ -233,33 +270,33 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
     it('keeps the original rows untouched (no mutation)', () => {
       const eingabe = [zeileA('a1', 'mv-a', '2023-01-01', null, [['2025-01-01', '100']]), zeileA('a2', 'mv-a', '2023-01-01', null, [['2025-01-01', '50']])];
       const kopie = JSON.parse(JSON.stringify(eingabe));
-      fasseGemeinsameMietverhaeltnisseZusammen(eingabe, gemeinsam('mv-a'));
+      fasseGemeinsameMietverhaeltnisseZusammen(eingabe);
       expect(eingabe).toEqual(kopie);
     });
 
     it('move-out is empty while one row still lives there, otherwise the latest move-out', () => {
       const beide = [zeileA('a1', 'mv-a', '2023-01-01', '2025-03-31', []), zeileA('a2', 'mv-a', '2024-01-01', '2025-09-30', [])];
-      expect(fasseGemeinsameMietverhaeltnisseZusammen(beide, gemeinsam('mv-a')).tenants[0]).toMatchObject({ einzug: '2023-01-01', auszug: '2025-09-30' });
+      expect(fasseGemeinsameMietverhaeltnisseZusammen(beide).tenants[0]).toMatchObject({ einzug: '2023-01-01', auszug: '2025-09-30' });
       const einer = [zeileA('a1', 'mv-a', '2023-01-01', '2025-03-31', []), zeileA('a2', 'mv-a', '2024-01-01', null, [])];
-      expect(fasseGemeinsameMietverhaeltnisseZusammen(einer, gemeinsam('mv-a')).tenants[0].auszug).toBeNull();
+      expect(fasseGemeinsameMietverhaeltnisseZusammen(einer).tenants[0].auszug).toBeNull();
     });
 
     it('a row without move-in date does not count for the dates and the prepayments', () => {
       const zeilen = [zeileA('a1', 'mv-a', '2023-01-01', null, [['2025-01-01', '100']]), { ...zeileA('a2', 'mv-a', '2023-01-01', null, [['2025-01-01', '50']]), einzug: null }];
-      const merged = fasseGemeinsameMietverhaeltnisseZusammen(zeilen, gemeinsam('mv-a')).tenants[0];
+      const merged = fasseGemeinsameMietverhaeltnisseZusammen(zeilen).tenants[0];
       expect(merged.einzug).toBe('2023-01-01');
       expect(merged.nebenkosten?.map(n => n.amount)).toEqual(['100']);
     });
 
     it('has no prepayment schedule when no row has one', () => {
       const zeilen = [zeileA('a1', 'mv-a', '2023-01-01', null, []), zeileA('a2', 'mv-a', '2023-01-01', null, [])];
-      expect(fasseGemeinsameMietverhaeltnisseZusammen(zeilen, gemeinsam('mv-a')).tenants[0].nebenkosten).toBeNull();
+      expect(fasseGemeinsameMietverhaeltnisseZusammen(zeilen).tenants[0].nebenkosten).toBeNull();
     });
 
     it('re-assigns invoices of the merged rows to the merged tenant, others stay', () => {
       const zeilen = [zeileA('a1', 'mv-a', '2023-01-01', null, []), zeileA('a2', 'mv-a', '2023-01-01', null, []), mieterB()];
       const rechnungen = [buildRechnung('r1', 'nk', 'a2', 'Sonderposten', 90), buildRechnung('r2', 'nk', 'b1', 'Sonderposten', 40)];
-      const ergebnis = fasseGemeinsameMietverhaeltnisseZusammen(zeilen, gemeinsam('mv-a'), rechnungen);
+      const ergebnis = fasseGemeinsameMietverhaeltnisseZusammen(zeilen, rechnungen);
       expect(ergebnis.rechnungen.map(r => r.mieter_id)).toEqual(['a1', 'b1']);
       expect(rechnungen[0].mieter_id).toBe('a2');
     });
@@ -272,7 +309,7 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
         buildRechnung('r3', 'nk', 'a2', 'Schornsteinfeger', 20),
         buildRechnung('r4', 'nk', 'b1', 'Sonderposten', 15),
       ];
-      const ergebnis = fasseGemeinsameMietverhaeltnisseZusammen(zeilen, gemeinsam('mv-a'), rechnungen);
+      const ergebnis = fasseGemeinsameMietverhaeltnisseZusammen(zeilen, rechnungen);
       expect(ergebnis.rechnungen.map(r => [r.mieter_id, r.name, r.betrag])).toEqual([
         ['a1', 'Sonderposten', 130.5],
         ['a1', 'Schornsteinfeger', 20],
@@ -284,7 +321,7 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
     it('does not merge rows without apartment or without tenancy, and keeps the order of the list', () => {
       const ohneWohnung = { ...zeileA('x1', 'mv-a', '2023-01-01', null, []), wohnung_id: null };
       const ohneMv = { ...zeileA('x2', 'mv-a', '2023-01-01', null, []), mietverhaeltnis_id: null };
-      const ergebnis = fasseGemeinsameMietverhaeltnisseZusammen([ohneWohnung, mieterB(), ohneMv], gemeinsam('mv-a'));
+      const ergebnis = fasseGemeinsameMietverhaeltnisseZusammen([ohneWohnung, mieterB(), ohneMv]);
       expect(ergebnis.tenants.map(t => t.id)).toEqual(['x1', 'b1', 'x2']);
       expect(ergebnis.zusammengefasst.size).toBe(0);
     });
@@ -296,7 +333,7 @@ describe('fasseGemeinsameMietverhaeltnisseZusammen', () => {
         { ...zeileA('c1', 'mv-a', '2023-01-01', null, []), wohnung_id: 'apt-c' },
         zeileA('a2', 'mv-a', '2023-01-01', null, []),
       ];
-      const ergebnis = fasseGemeinsameMietverhaeltnisseZusammen(zeilen, gemeinsam('mv-a'));
+      const ergebnis = fasseGemeinsameMietverhaeltnisseZusammen(zeilen);
       expect(ergebnis.tenants.map(t => t.id)).toEqual(['b1', 'a1', 'c1']);
     });
   });

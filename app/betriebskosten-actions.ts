@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { Nebenkosten, MeterReadingFormData, Mieter, Zaehler, ZaehlerAblesung, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchMeterReadingsByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new meter types
 import { roundToNearest5 } from "@/lib/utils";
 import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
-import { wendeAbrechnungsmodusAn } from "@/lib/abrechnung-mietverhaeltnis-laden";
+import { gruppiereNachMietverhaeltnisImZeitraum } from "@/lib/abrechnung-mietverhaeltnis-laden";
 import { logAction } from '@/lib/logging-middleware';
 import { withTiming } from '@/lib/posthog-metrics';
 import { type SupabaseClient } from "@supabase/supabase-js";
@@ -2082,8 +2082,9 @@ async function resolveActualPaymentsData(
  * @see {@link components/abrechnung-modal.tsx} Modal component that consumes this data
  */
 /**
- * Modal data of an Abrechnung. Tenancies in settlement mode `gemeinsam` (GH-17, phase 6) are merged into one tenant,
- * so every consumer (modal, PDF, server calculation) settles them once; mode `je_mieter` (default) changes nothing.
+ * Modal data of an Abrechnung. Tenants who shared a tenancy in the billing period (GH-17, phase 6) are merged into one
+ * tenant, so every consumer (modal, PDF, server calculation) settles them once. The tenancy of the period counts, not the
+ * current one (a later merge never changes an earlier year). Today every person has an own tenancy: nothing changes.
  */
 async function getAbrechnungModalDataActionImpl(
   nebenkostenId: string
@@ -2093,17 +2094,19 @@ async function getAbrechnungModalDataActionImpl(
   try {
     // The user was checked by ladeAbrechnungModalData; a plain server client (cookies, RLS of the user) avoids a second auth round trip.
     const supabase = await createSupabaseServerClient();
-    const angepasst = await wendeAbrechnungsmodusAn(
+    const nebenkostenDaten = result.data.nebenkosten_data as { startdatum?: unknown; enddatum?: unknown } | null | undefined;
+    const angepasst = await gruppiereNachMietverhaeltnisImZeitraum(
       supabase,
       { tenants: result.data.tenants as any[], rechnungen: result.data.rechnungen as any[] },
-      code => logger.warn('Abrechnungsmodus nicht angewendet (je Mieter abgerechnet)', { code, nebenkostenId })
+      { startdatum: nebenkostenDaten?.startdatum, enddatum: nebenkostenDaten?.enddatum },
+      code => logger.warn('Gruppierung nach Mietverhältnis nicht angewendet (je Mieter abgerechnet)', { code, nebenkostenId })
     );
     return {
       ...result,
       data: { ...result.data, tenants: angepasst.tenants as any[], rechnungen: angepasst.rechnungen as any[] }
     };
   } catch {
-    logger.warn('Abrechnungsmodus nicht angewendet (je Mieter abgerechnet)', { code: 'CLIENT', nebenkostenId });
+    logger.warn('Gruppierung nach Mietverhältnis nicht angewendet (je Mieter abgerechnet)', { code: 'CLIENT', nebenkostenId });
     return result;
   }
 }

@@ -22,7 +22,6 @@ jest.mock("@/app/mietverhaeltnis-actions", () => ({
   getMitmieterUebersichtAction: jest.fn().mockResolvedValue({ success: true, data: { mitmieter: [], kandidaten: [] } }),
   mieterZusammenfuehrenAction: jest.fn(),
   mieterTrennenAction: jest.fn(),
-  abrechnungsmodusSetzenAction: jest.fn(),
 }));
 
 jest.mock("@/hooks/use-toast", () => ({
@@ -81,7 +80,6 @@ const mietverhaeltnis = {
   kuendigung_eingang_am: null,
   kuendigung_zum: null,
   kuendigung_durch: "mieter" as const,
-  abrechnungsmodus: "je_mieter" as const,
   vertrag_dokument_id: null,
   notiz: null,
   quelle: "app" as const,

@@ -2,7 +2,6 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MitmieterSection } from "@/components/tenants/mietverhaeltnis/mitmieter-section";
 import {
-  abrechnungsmodusSetzenAction,
   getMitmieterUebersichtAction,
   mieterTrennenAction,
   mieterZusammenfuehrenAction,
@@ -14,7 +13,6 @@ jest.mock("@/app/mietverhaeltnis-actions", () => ({
   getMitmieterUebersichtAction: jest.fn(),
   mieterZusammenfuehrenAction: jest.fn(),
   mieterTrennenAction: jest.fn(),
-  abrechnungsmodusSetzenAction: jest.fn(),
 }));
 jest.mock("@/hooks/use-toast", () => ({ toast: jest.fn() }));
 
@@ -63,7 +61,6 @@ const mietverhaeltnis: Mietverhaeltnis = {
   kuendigung_eingang_am: null,
   kuendigung_zum: null,
   kuendigung_durch: null,
-  abrechnungsmodus: "je_mieter",
   vertrag_dokument_id: null,
   notiz: null,
   quelle: "app",
@@ -72,7 +69,6 @@ const mietverhaeltnis: Mietverhaeltnis = {
 const mockUebersicht = getMitmieterUebersichtAction as jest.Mock;
 const mockZusammen = mieterZusammenfuehrenAction as jest.Mock;
 const mockTrennen = mieterTrennenAction as jest.Mock;
-const mockModus = abrechnungsmodusSetzenAction as jest.Mock;
 const mockToast = toast as unknown as jest.Mock;
 const onGeaendert = jest.fn();
 
@@ -84,7 +80,6 @@ beforeEach(() => {
   mockUebersicht.mockResolvedValue({ success: true, data: { mitmieter: [], kandidaten: [] } });
   mockZusammen.mockResolvedValue({ success: true, data: { mietverhaeltnisId: ZIEL_MV_ID } });
   mockTrennen.mockResolvedValue({ success: true, data: { mietverhaeltnisId: MV_ID } });
-  mockModus.mockResolvedValue({ success: true, data: undefined });
 });
 
 describe("MitmieterSection", () => {
@@ -169,49 +164,13 @@ describe("MitmieterSection", () => {
     await waitFor(() => expect(onGeaendert).toHaveBeenCalledTimes(1));
   });
 
-  it("switches the settlement mode and tells the parent", async () => {
+  it("has no settlement switch and explains that shared tenants are settled together", async () => {
     mockUebersicht.mockResolvedValue({
       success: true,
       data: { mitmieter: [{ mieterId: MITMIETER_ID, name: "Test Zwei", rolle: null }], kandidaten: [] },
     });
     rendere();
-    const schalter = await screen.findByRole("switch", { name: /Eine Abrechnung für das ganze Mietverhältnis/ });
-    expect(schalter.getAttribute("aria-checked")).toBe("false");
-    fireEvent.click(schalter);
-    await waitFor(() => expect(mockModus).toHaveBeenCalledWith({ mieterId: MIETER_ID, modus: "gemeinsam" }));
-    await waitFor(() => expect(onGeaendert).toHaveBeenCalledTimes(1));
-  });
-
-  it("keeps the saved mode on the switch even if the parent does not reload", async () => {
-    mockUebersicht.mockResolvedValue({
-      success: true,
-      data: { mitmieter: [{ mieterId: MITMIETER_ID, name: "Test Zwei", rolle: null }], kandidaten: [] },
-    });
-    rendere();
-    const schalter = await screen.findByRole("switch");
-    fireEvent.click(schalter);
-    await waitFor(() => expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("true"));
-  });
-
-  it("does not switch when saving fails", async () => {
-    mockModus.mockResolvedValue({ success: false, error: { code: "42501", message: "Keine Berechtigung" } });
-    mockUebersicht.mockResolvedValue({
-      success: true,
-      data: { mitmieter: [{ mieterId: MITMIETER_ID, name: "Test Zwei", rolle: null }], kandidaten: [] },
-    });
-    rendere();
-    fireEvent.click(await screen.findByRole("switch"));
-    await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: "destructive" })));
-    expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false");
-  });
-
-  it("shows the shared mode as switched on", async () => {
-    mockUebersicht.mockResolvedValue({
-      success: true,
-      data: { mitmieter: [{ mieterId: MITMIETER_ID, name: "Test Zwei", rolle: null }], kandidaten: [] },
-    });
-    rendere({ ...mietverhaeltnis, abrechnungsmodus: "gemeinsam" });
-    const schalter = await screen.findByRole("switch");
-    expect(schalter.getAttribute("aria-checked")).toBe("true");
+    expect(await screen.findByText(/werden gemeinsam abgerechnet, für den Zeitraum, in dem sie es teilen/)).toBeTruthy();
+    expect(screen.queryByRole("switch")).toBeNull();
   });
 });
