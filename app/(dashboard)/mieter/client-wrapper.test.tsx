@@ -67,9 +67,14 @@ jest.mock('@/components/dashboard/dashboard-charts-wrapper', () => ({
 
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 
+// Der Kautionseintrag öffnet über den Hook (Auswahl bei mehreren Kautionen); hier wird nur der Aufruf geprüft.
+const mockOeffneKaution = jest.fn();
+jest.mock('@/hooks/use-kaution-oeffnen', () => ({
+  useKautionOeffnen: () => mockOeffneKaution,
+}));
+
 describe('MieterClientView - Layout Changes', () => {
   const mockOpenTenantModal = jest.fn();
-  const mockOpenKautionModal = jest.fn();
   const mockSetCanViewKautionen = jest.fn();
   const mockServerAction = jest.fn();
 
@@ -132,7 +137,6 @@ describe('MieterClientView - Layout Changes', () => {
     mockKautionFlagGeladen = true;
     mockUseModalStore.mockReturnValue({
       openTenantModal: mockOpenTenantModal,
-      openKautionModal: mockOpenKautionModal,
       setCanViewKautionen: mockSetCanViewKautionen,
     } as any);
   });
@@ -501,8 +505,8 @@ describe('MieterClientView - Layout Changes', () => {
 
       await user.click(screen.getByText('Kautions Mieter'));
 
-      expect(mockOpenKautionModal).toHaveBeenCalledTimes(1);
-      const args = mockOpenKautionModal.mock.calls[0];
+      expect(mockOeffneKaution).toHaveBeenCalledTimes(1);
+      const args = mockOeffneKaution.mock.calls[0];
       expect(args).toHaveLength(1);
       expect(args[0]).toMatchObject({ id: 't-deposit', name: 'Kautions Mieter' });
     });
@@ -518,14 +522,14 @@ describe('MieterClientView - Layout Changes', () => {
       zeile.focus();
       expect(zeile).toHaveFocus();
       await user.keyboard('{Enter}');
-      expect(mockOpenKautionModal).toHaveBeenCalledTimes(1);
+      expect(mockOeffneKaution).toHaveBeenCalledTimes(1);
 
       await user.keyboard(' ');
-      expect(mockOpenKautionModal).toHaveBeenCalledTimes(2);
-      expect(mockOpenKautionModal.mock.calls[1][0]).toMatchObject({ id: 't-deposit' });
+      expect(mockOeffneKaution).toHaveBeenCalledTimes(2);
+      expect(mockOeffneKaution.mock.calls[1][0]).toMatchObject({ id: 't-deposit' });
 
       await user.keyboard('a'); // other keys do nothing
-      expect(mockOpenKautionModal).toHaveBeenCalledTimes(2);
+      expect(mockOeffneKaution).toHaveBeenCalledTimes(2);
     });
   });
 });

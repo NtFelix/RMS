@@ -208,7 +208,7 @@ describe('mieter-actions', () => {
       const result = await updateTenantApartment('t1', 'w2');
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toBe('Die Wohnung kann nicht geändert werden, weil der Mieter zu einem Mietverhältnis in der bisherigen Wohnung gehört.');
+      expect(result.error?.message).toBe('Die Wohnung kann hier nicht geändert werden, weil der Mieter zu einem Mietverhältnis gehört. Nutzen Sie im Abschnitt Mietverhältnis den Punkt „Umzug in eine andere Wohnung“.');
     });
 
     it('updates tenant apartment link', async () => {

@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import type { ComboboxOption } from "@/components/ui/custom-combobox";
 import { toast } from "@/hooks/use-toast";
 import { PropertyHeader } from "@/components/tenants/property-header";
 import { KARTE, UEBERSCHRIFT, WERT, ZEILE } from "@/components/tenants/mietverhaeltnis/stile";
@@ -25,6 +26,8 @@ import { MietverhaeltnisAnlegenForm } from "@/components/tenants/mietverhaeltnis
 import { MieterhoehungForm } from "@/components/tenants/mietverhaeltnis/mieterhoehung-form";
 import { VertragsdatenForm } from "@/components/tenants/mietverhaeltnis/vertragsdaten-form";
 import { VertragsdokumentSection } from "@/components/tenants/mietverhaeltnis/vertragsdokument-section";
+import { UmzugForm } from "@/components/tenants/mietverhaeltnis/umzug-form";
+import { MitmieterSection } from "@/components/tenants/mietverhaeltnis/mitmieter-section";
 import {
   aktuelleMiete,
   formatDatum,
@@ -35,6 +38,10 @@ import {
 interface TenantMieteSectionProps {
   /** Tenant to show. The section is only rendered for an existing tenant. */
   mieterId: string;
+  /** Apartments for the move to another apartment. Without them (or an empty list) the move is not offered. */
+  wohnungen?: ComboboxOption[];
+  /** Called after a move was saved, with the new apartment (the tenant dialog takes it over). */
+  onUmzug?: (wohnungId: string) => void;
 }
 
 /** Type of change as shown in the history: first letter capitalised ("vereinbarung" becomes "Vereinbarung"). */
@@ -47,7 +54,7 @@ function artAnzeige(text: string): string {
  * applicants); with a tenancy it shows contract data, the rent history and the form for rent changes. Rights are
  * checked by the server actions. The app calculates no deadlines and gives no legal advice.
  */
-export function TenantMieteSection({ mieterId }: TenantMieteSectionProps) {
+export function TenantMieteSection({ mieterId, wohnungen = [], onUmzug }: TenantMieteSectionProps) {
   const id = useId();
   const [uebersicht, setUebersicht] = useState<MietverhaeltnisUebersicht | null>(null);
   const [ladeStatus, setLadeStatus] = useState<"laedt" | "fehler" | "bereit">("laedt");
@@ -57,6 +64,10 @@ export function TenantMieteSection({ mieterId }: TenantMieteSectionProps) {
 
   /** The form for a rent change is shown inside the history card after a click. */
   const [erfassenOffen, setErfassenOffen] = useState(false);
+  /** The move form is shown in its own card after a click. */
+  const [umzugOffen, setUmzugOffen] = useState(false);
+  /** After a move a note points to the deposit; it stays until the dialog closes. Nothing is moved automatically. */
+  const [umzugHinweis, setUmzugHinweis] = useState(false);
 
   const [zuEntfernen, setZuEntfernen] = useState<MietEintrag | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
@@ -112,9 +123,19 @@ export function TenantMieteSection({ mieterId }: TenantMieteSectionProps) {
     }
   };
 
+  /** After a move: the form closes, the section reloads in the background, the parent gets the new apartment. */
+  const handleUmgezogen = (wohnungId: string) => {
+    setUmzugOffen(false);
+    setUmzugHinweis(true);
+    void laden(true);
+    onUmzug?.(wohnungId);
+  };
+
   const heute = heuteIso();
   const mietverhaeltnis = uebersicht?.mietverhaeltnis ?? null;
   const aktuell = uebersicht ? aktuelleMiete(uebersicht.mieten, heute) : null;
+  // The current apartment of the tenancy is never a target of the move.
+  const umzugOptionen = mietverhaeltnis ? wohnungen.filter((wohnung) => wohnung.value !== mietverhaeltnis.wohnung_id) : [];
 
   return (
     <section
@@ -216,6 +237,42 @@ export function TenantMieteSection({ mieterId }: TenantMieteSectionProps) {
             onGeaendert={() => void laden(true)}
           />
 
+          <MitmieterSection mieterId={mieterId} mietverhaeltnis={mietverhaeltnis} onGeaendert={() => void laden(true)} />
+
+          {umzugOptionen.length > 0 && (
+            <div className="space-y-3">
+              <h4 className={UEBERSCHRIFT}>Wohnungswechsel</h4>
+              {umzugHinweis && (
+                <div role="status" className={`${KARTE} p-3 sm:p-4 text-sm text-muted-foreground`}>
+                  Der Umzug ist gespeichert. Eine hinterlegte Kaution bleibt unverändert bei dieser Person, es wird nichts
+                  automatisch übertragen oder abgerechnet. Ob sie weitergeführt oder abgerechnet wird, entscheiden Sie im
+                  Bereich Kaution.
+                </div>
+              )}
+              {umzugOffen ? (
+                <div className={`${KARTE} p-3 sm:p-4`}>
+                  <UmzugForm
+                    key={`umzug-${ladeZaehler}`}
+                    mieterId={mieterId}
+                    wohnungen={umzugOptionen}
+                    onUmgezogen={handleUmgezogen}
+                    onAbbrechen={() => setUmzugOffen(false)}
+                  />
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setUmzugOffen(true)}
+                  className="w-full hover:scale-[1.005] active:scale-[0.995]"
+                >
+                  Umzug in eine andere Wohnung
+                </Button>
+              )}
+            </div>
+          )}
+
           <div className="space-y-3">
             <h4 className={UEBERSCHRIFT}>Miethistorie</h4>
             <div className={KARTE}>
@@ -227,7 +284,8 @@ export function TenantMieteSection({ mieterId }: TenantMieteSectionProps) {
                 <ul className={uebersicht.mieten.length > 3 ? "max-h-56 overflow-y-auto" : undefined}>
                   {uebersicht.mieten.map((eintrag) => {
                     const details = [
-                      eintrag.aenderungsart ? artAnzeige(eintrag.aenderungsart) : null,
+                      // The default type says nothing; only a type that was entered on purpose is shown.
+                      eintrag.aenderungsart && eintrag.aenderungsart !== "vereinbarung" ? artAnzeige(eintrag.aenderungsart) : null,
                       eintrag.erklaert_am ? `erklärt am ${formatDatum(eintrag.erklaert_am)}` : null,
                       eintrag.grund,
                       eintrag.quelle === "migration_bestand" ? "aus Bestand übernommen" : null,

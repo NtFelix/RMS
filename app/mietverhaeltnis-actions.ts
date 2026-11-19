@@ -7,9 +7,8 @@
  * - Thin actions: sign-in check -> module right (`hasPermission('mieter', ...)`, writes also `ansehen`; fast
  *   failure, the database stays authoritative) -> input validation -> database access -> error mapping
  *   (`lib/mietverhaeltnis-errors.ts`) -> `revalidatePath` for writes -> log.
- * - Tenancy creation, rent entries and rent increases are written ONLY through RPCs
- *   (`mietverhaeltnis_anlegen`, `mietverhaeltnis_miete_setzen`, `mietverhaeltnis_miete_entfernen`,
- *   `mietverhaeltnis_mieterhoehung_erfassen`). No `.insert()` or `.delete()` on the tenancy tables here.
+ * - Tenancy creation and rent entries (including changes of the rent) are written ONLY through RPCs
+ *   (`mietverhaeltnis_anlegen`, `mietverhaeltnis_miete_setzen`, `mietverhaeltnis_miete_entfernen`). No `.insert()` or `.delete()` on the tenancy tables here.
  * - The ONLY direct write to a tenancy table is `vertragsdatenSpeichernAction`: a `.update()` on
  *   `"Mieter_Mietverhaeltnisse"` for six contract columns (RLS applies). Rent history is never written that way.
  * - The tenancy ID is never taken from the client: it is read from the tenant row on the server.
@@ -38,6 +37,7 @@ import type {
   MietverhaeltnisActionError,
   MietverhaeltnisActionResult,
   MietverhaeltnisUebersicht,
+  MitmieterUebersicht,
 } from "@/types/Mietverhaeltnis";
 
 // ---------------------------------------------------------------------------
@@ -79,18 +79,35 @@ export interface VertragsdatenSpeichernInput {
   notiz: string | null;
 }
 
-export interface MieterhoehungErfassenInput {
+/** Move of a tenant with a tenancy into another apartment. The database ends the old tenancy the day before. */
+export interface MieterUmzugInput {
   mieterId: string;
-  /** Valid from `YYYY-MM-DD`. */
-  wirksamAb: string;
-  /** New monthly rent in euro, same rules as `betrag` of `mieteSetzen`. */
-  betrag: number;
-  /** Type of change, required, trimmed, 1 to 50 characters. Free text (suggestions in the UI only). */
-  aenderungsart: string;
-  /** Date of the declaration of the change (`YYYY-MM-DD`), optional. */
-  erklaertAm?: string | null;
-  /** Optional reason, trimmed, at most 500 characters. */
-  grund?: string | null;
+  /** Target apartment; must differ from the current one and lie inside the object scope. */
+  wohnungId: string;
+  /** Move date (`YYYY-MM-DD`). The old tenancy ends the day before; it must start before this date. */
+  datum: string;
+  /** Monthly rent of the new tenancy from the move date, same rules as `betrag` of `mieteSetzen`. Omitted or `null`: no entry, the apartment rent applies. */
+  miete?: number | null;
+}
+
+/** A tenant joins an existing tenancy of the same apartment (several tenants in one contract). */
+export interface MieterZusammenfuehrenInput {
+  mieterId: string;
+  /** Target tenancy; must belong to the same apartment as the tenant. */
+  zielMietverhaeltnisId: string;
+  /** Date from which the tenant belongs to the target tenancy (`YYYY-MM-DD`). The old tenancy of the tenant ends the day before. */
+  datum: string;
+  /** Optional role (info field only). Omitted or `null`: unchanged. */
+  rolle?: "hauptmieter" | "mitmieter" | null;
+}
+
+/** A tenant leaves a shared tenancy and gets an own tenancy in the same apartment. */
+export interface MieterTrennenInput {
+  mieterId: string;
+  /** Start of the own tenancy (`YYYY-MM-DD`). */
+  datum: string;
+  /** Monthly rent of the own tenancy from the start date, same rules as `betrag` of `mieteSetzen`. Omitted or `null`: no entry. */
+  miete?: number | null;
 }
 
 /** Module right actions used here. */
@@ -101,6 +118,7 @@ type Step<T> = { ok: true; data: T } | { ok: false; error: MietverhaeltnisAction
 /** Tenant data the actions need: tenancy link, apartment rent and move-in date, applicant flag. */
 interface MieterDaten {
   mietverhaeltnisId: string | null;
+  wohnungId: string | null;
   wohnungsmiete: number | null;
   einzug: string | null;
   istBewerber: boolean;
@@ -118,14 +136,13 @@ const MAX_DATUM = "2100-12-31";
 const BETRAG_MAX = 99999999.99;
 const GRUND_MAX_LAENGE = 500;
 const NOTIZ_MAX_LAENGE = 2000;
-const AENDERUNGSART_MAX_LAENGE = 50;
 /** Change type of entries entered in the rent form (the database default). */
 const AENDERUNGSART = "vereinbarung";
 /** Start of the message `ensureAuth` throws for "not signed in" (`lib/auth-utils.ts`). */
 const NOT_SIGNED_IN_MESSAGE_PREFIX = "Nicht authentifiziert";
 
 const MIETVERHAELTNIS_SPALTEN =
-  "id, wohnung_id, vertragsbeginn, vertragsende, befristet_bis, kuendigung_eingang_am, kuendigung_zum, kuendigung_durch, abrechnungsmodus, vertrag_dokument_id, notiz, quelle";
+  "id, wohnung_id, vertragsbeginn, vertragsende, befristet_bis, kuendigung_eingang_am, kuendigung_zum, kuendigung_durch, vertrag_dokument_id, notiz, quelle";
 
 function fail<T>(error: MietverhaeltnisActionError): Step<T> {
   return { ok: false, error };
@@ -186,14 +203,6 @@ function pruefeFreitext(value: unknown, maxLaenge: number): string | null | unde
   if (text === "") return null;
   if (Array.from(text).length > maxLaenge) return undefined;
   return text;
-}
-
-/** Type of change: trimmed, 1 to 50 characters, otherwise `undefined`. */
-function pruefeAenderungsart(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const text = value.trim();
-  const laenge = Array.from(text).length;
-  return laenge >= 1 && laenge <= AENDERUNGSART_MAX_LAENGE ? text : undefined;
 }
 
 /** Type of termination: `null` (no statement) or one of the two values, otherwise `undefined`. */
@@ -258,6 +267,7 @@ async function ladeMieter(supabase: SupabaseClient, mieterId: string): Promise<S
     ok: true,
     data: {
       mietverhaeltnisId: typeof record.mietverhaeltnis_id === "string" ? record.mietverhaeltnis_id : null,
+      wohnungId: typeof record.wohnung_id === "string" ? record.wohnung_id : null,
       wohnungsmiete: parseWohnungsmiete(record.Wohnungen),
       einzug: typeof record.einzug === "string" ? record.einzug : null,
       istBewerber: record.status === "bewerber",
@@ -314,9 +324,11 @@ async function runMietverhaeltnisAction<T>(options: {
   aktionen: readonly MieterAktion[];
   /** Writes revalidate the tenant list and the finance page. */
   schreibend: boolean;
+  /** Further pages to revalidate after a successful write (only for writes). */
+  zusaetzlichePfade?: readonly string[];
   run: (supabase: SupabaseClient) => Promise<Step<T>>;
 }): Promise<MietverhaeltnisActionResult<T>> {
-  const { actionName, aktionen, schreibend, run } = options;
+  const { actionName, aktionen, schreibend, zusaetzlichePfade = [], run } = options;
 
   const failure = (error: MietverhaeltnisActionError): MietverhaeltnisActionResult<T> => {
     const unexpected = error.code === "UNBEKANNT";
@@ -352,6 +364,7 @@ async function runMietverhaeltnisAction<T>(options: {
     if (schreibend) {
       revalidatePath("/mieter");
       revalidatePath("/finanzen");
+      for (const pfad of zusaetzlichePfade) revalidatePath(pfad);
     }
     logAction(actionName, "success", {});
     return { success: true, data: step.data };
@@ -573,51 +586,196 @@ export async function vertragsdatenSpeichernAction(input: VertragsdatenSpeichern
 }
 
 /**
- * Records a rent increase as one process: new rent from a date, type of change, optional declaration date and
- * reason. Creates exactly one rent entry (through the RPC). The app checks no deadlines or limits.
+ * Moves a tenant with a tenancy into another apartment (GH-17, Wohnungswechsel). The database ends the current
+ * tenancy the day before the move, opens a new one in the new apartment and moves the tenant, in one transaction.
+ * The new apartment must lie inside the object scope too; the database checks rights and both houses again.
  */
-export async function mieterhoehungErfassenAction(
-  input: MieterhoehungErfassenInput
-): Promise<MietverhaeltnisActionResult<{ mieteId: string }>> {
-  return runMietverhaeltnisAction<{ mieteId: string }>({
-    actionName: "mieterhoehungErfassen",
-    aktionen: ["bearbeiten", "ansehen"],
+export async function mieterUmzugAction(
+  input: MieterUmzugInput
+): Promise<MietverhaeltnisActionResult<{ mietverhaeltnisId: string }>> {
+  return runMietverhaeltnisAction<{ mietverhaeltnisId: string }>({
+    actionName: "mieterUmzug",
+    aktionen: ["ansehen", "bearbeiten", "erstellen"],
+    schreibend: true,
+    zusaetzlichePfade: ["/wohnungen"],
+    run: async (supabase) => {
+      // Validation first, before any database call.
+      const mieterId = input?.mieterId;
+      if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
+      const wohnungId = input?.wohnungId;
+      if (!istUuid(wohnungId)) return fail(mietverhaeltnisFehler("MV004"));
+      const datum = pruefeIsoDatum(input?.datum);
+      if (!datum) return fail(mietverhaeltnisFehler("MV004"));
+      const miete = input?.miete;
+      let betrag: number | null = null;
+      if (miete !== undefined && miete !== null) {
+        const geprueft = pruefeBetrag(miete);
+        if (geprueft === null) return fail(mietverhaeltnisFehler("MV004"));
+        betrag = Number(geprueft);
+      }
+
+      // Object scope: the current apartment (in ladeMieter) and the new apartment (here).
+      const mieter = await ladeMieter(supabase, mieterId);
+      if (!mieter.ok) return mieter;
+      const wohnungIds = await getAccessibleWohnungIds();
+      if (wohnungIds !== null && !wohnungIds.includes(wohnungId)) return fail(mietverhaeltnisFehler("42501"));
+
+      const { data, error } = await supabase.rpc("mietverhaeltnis_umzug", {
+        p_mieter_id: mieterId,
+        p_wohnung_id: wohnungId,
+        p_datum: datum,
+        p_miete: betrag,
+      });
+      if (error) return fail(mapMietverhaeltnisError(error));
+      if (!istUuid(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
+      return { ok: true, data: { mietverhaeltnisId: data } };
+    },
+  });
+}
+
+/**
+ * Other tenants of the same apartment, for the tenancy section: who shares the tenancy of this tenant (`mitmieter`) and
+ * which other tenancies of the apartment the tenant could join (`kandidaten`, one entry per tenancy). Read-only.
+ */
+export async function getMitmieterUebersichtAction(mieterId: string): Promise<MietverhaeltnisActionResult<MitmieterUebersicht>> {
+  return runMietverhaeltnisAction<MitmieterUebersicht>({
+    actionName: "getMitmieterUebersicht",
+    aktionen: ["ansehen"],
+    schreibend: false,
+    run: async (supabase) => {
+      if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
+      const mieter = await ladeMieter(supabase, mieterId);
+      if (!mieter.ok) return mieter;
+      const { wohnungId, mietverhaeltnisId } = mieter.data;
+      const leer: MitmieterUebersicht = { mitmieter: [], kandidaten: [] };
+      // Without apartment or tenancy there is nothing to share or join.
+      if (!wohnungId || !mietverhaeltnisId) return { ok: true, data: leer };
+
+      const { data, error } = await supabase
+        .from("Mieter")
+        .select("id, name, status, rolle, mietverhaeltnis_id, geloescht_am, auszug")
+        .eq("wohnung_id", wohnungId);
+      if (error) return fail(mapMietverhaeltnisError(error));
+      if (!Array.isArray(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
+
+      const heute = new Date().toISOString().slice(0, 10);
+      const kandidaten = new Map<string, string[]>();
+      const ergebnis: MitmieterUebersicht = { mitmieter: [], kandidaten: [] };
+      for (const row of data) {
+        const record = asRecord(row);
+        if (!record || !istUuid(record.id) || record.id === mieterId) continue;
+        if (record.geloescht_am !== null && record.geloescht_am !== undefined) continue;
+        if (record.status === "bewerber") continue;
+        // A tenant who has already moved out is neither a fellow tenant nor the tenant of a tenancy to join
+        if (typeof record.auszug === "string" && record.auszug < heute) continue;
+        const name = typeof record.name === "string" ? record.name : "";
+        const mvId = typeof record.mietverhaeltnis_id === "string" ? record.mietverhaeltnis_id : null;
+        if (mvId === mietverhaeltnisId) {
+          ergebnis.mitmieter.push({
+            mieterId: record.id,
+            name,
+            rolle: record.rolle === "hauptmieter" || record.rolle === "mitmieter" ? record.rolle : null,
+          });
+        } else if (mvId) {
+          kandidaten.set(mvId, [...(kandidaten.get(mvId) ?? []), name]);
+        }
+      }
+      // Tenancies that have already ended cannot be joined (the database rejects the date): leave them out
+      if (kandidaten.size > 0) {
+        const { data: mvData, error: mvError } = await supabase
+          .from("Mieter_Mietverhaeltnisse")
+          .select("id, vertragsende")
+          .in("id", Array.from(kandidaten.keys()));
+        if (mvError) return fail(mapMietverhaeltnisError(mvError));
+        if (!Array.isArray(mvData)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
+        const beendet = new Set<string>();
+        for (const row of mvData) {
+          const mv = asRecord(row);
+          if (mv && typeof mv.id === "string" && typeof mv.vertragsende === "string" && mv.vertragsende < heute) beendet.add(mv.id);
+        }
+        for (const id of beendet) kandidaten.delete(id);
+      }
+      ergebnis.kandidaten = Array.from(kandidaten, ([id, namen]) => ({ mietverhaeltnisId: id, mieterNamen: namen }));
+      return { ok: true, data: ergebnis };
+    },
+  });
+}
+
+/**
+ * A tenant joins an existing tenancy of the same apartment (GH-17, phase 6). The database ends the old tenancy of the
+ * tenant the day before and keeps it as history; deposits stay where they were agreed. No legal rule is checked here.
+ */
+export async function mieterZusammenfuehrenAction(
+  input: MieterZusammenfuehrenInput
+): Promise<MietverhaeltnisActionResult<{ mietverhaeltnisId: string }>> {
+  return runMietverhaeltnisAction<{ mietverhaeltnisId: string }>({
+    actionName: "mieterZusammenfuehren",
+    aktionen: ["ansehen", "bearbeiten"],
+    schreibend: true,
+    zusaetzlichePfade: ["/wohnungen"],
+    run: async (supabase) => {
+      // Validation first, before any database call.
+      const mieterId = input?.mieterId;
+      if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
+      const ziel = input?.zielMietverhaeltnisId;
+      if (!istUuid(ziel)) return fail(mietverhaeltnisFehler("MV004"));
+      const datum = pruefeIsoDatum(input?.datum);
+      if (!datum) return fail(mietverhaeltnisFehler("MV004"));
+      const rolle = input?.rolle ?? null;
+      if (rolle !== null && rolle !== "hauptmieter" && rolle !== "mitmieter") return fail(mietverhaeltnisFehler("MV004"));
+
+      // Object scope (apartment of the tenant); the database checks rights and the house again.
+      const mieter = await ladeMieter(supabase, mieterId);
+      if (!mieter.ok) return mieter;
+
+      const { data, error } = await supabase.rpc("mietverhaeltnis_mieter_zusammenfuehren", {
+        p_mieter_id: mieterId,
+        p_ziel_mietverhaeltnis_id: ziel,
+        p_datum: datum,
+        p_rolle: rolle,
+      });
+      if (error) return fail(mapMietverhaeltnisError(error));
+      if (!istUuid(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
+      return { ok: true, data: { mietverhaeltnisId: data } };
+    },
+  });
+}
+
+/**
+ * A tenant leaves a shared tenancy and gets an own tenancy in the same apartment (GH-17, phase 6). The shared
+ * tenancy continues for the other tenants; deposits stay at the shared tenancy.
+ */
+export async function mieterTrennenAction(
+  input: MieterTrennenInput
+): Promise<MietverhaeltnisActionResult<{ mietverhaeltnisId: string }>> {
+  return runMietverhaeltnisAction<{ mietverhaeltnisId: string }>({
+    actionName: "mieterTrennen",
+    aktionen: ["ansehen", "bearbeiten", "erstellen"],
     schreibend: true,
     run: async (supabase) => {
       const mieterId = input?.mieterId;
       if (!istUuid(mieterId)) return fail(mietverhaeltnisFehler("MV004"));
-      const wirksamAb = pruefeIsoDatum(input?.wirksamAb);
-      if (!wirksamAb) return fail(mietverhaeltnisFehler("MV004"));
-      const betrag = pruefeBetrag(input?.betrag);
-      if (betrag === null) return fail(mietverhaeltnisFehler("MV004"));
-      const aenderungsart = pruefeAenderungsart(input?.aenderungsart);
-      if (aenderungsart === undefined) return fail(mietverhaeltnisFehler("MV004"));
-      const erklaertAmEingabe = input?.erklaertAm;
-      let erklaertAm: string | null = null;
-      if (erklaertAmEingabe !== undefined && erklaertAmEingabe !== null) {
-        erklaertAm = pruefeIsoDatum(erklaertAmEingabe);
-        if (erklaertAm === null) return fail(mietverhaeltnisFehler("MV004"));
+      const datum = pruefeIsoDatum(input?.datum);
+      if (!datum) return fail(mietverhaeltnisFehler("MV004"));
+      const miete = input?.miete;
+      let betrag: number | null = null;
+      if (miete !== undefined && miete !== null) {
+        const geprueft = pruefeBetrag(miete);
+        if (geprueft === null) return fail(mietverhaeltnisFehler("MV004"));
+        betrag = Number(geprueft);
       }
-      const grund = pruefeFreitext(input?.grund, GRUND_MAX_LAENGE);
-      if (grund === undefined) return fail(mietverhaeltnisFehler("MV004"));
 
-      // The tenancy ID comes from the tenant row, never from the client.
       const mieter = await ladeMieter(supabase, mieterId);
       if (!mieter.ok) return mieter;
-      const mietverhaeltnisId = mieter.data.mietverhaeltnisId;
-      if (!mietverhaeltnisId) return fail(mietverhaeltnisFehler("MV003"));
 
-      const { data, error } = await supabase.rpc("mietverhaeltnis_mieterhoehung_erfassen", {
-        p_mietverhaeltnis_id: mietverhaeltnisId,
-        p_wirksam_ab: wirksamAb,
-        p_betrag: betrag,
-        p_aenderungsart: aenderungsart,
-        p_erklaert_am: erklaertAm,
-        p_grund: grund,
+      const { data, error } = await supabase.rpc("mietverhaeltnis_mieter_trennen", {
+        p_mieter_id: mieterId,
+        p_datum: datum,
+        p_miete: betrag,
       });
       if (error) return fail(mapMietverhaeltnisError(error));
       if (!istUuid(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
-      return { ok: true, data: { mieteId: data } };
+      return { ok: true, data: { mietverhaeltnisId: data } };
     },
   });
 }

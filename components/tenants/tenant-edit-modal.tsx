@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
+import { useKautionOeffnen } from "@/hooks/use-kaution-oeffnen"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { cn } from "@/lib/utils"
 import { Tenant, NebenkostenEntry, TenantStatus } from "@/types/Tenant"
@@ -734,11 +735,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     tenantModalWohnungen,
     isTenantModalDirty,
     setTenantModalDirty,
-    openKautionModal,
     canViewKautionen: kautionsrecht,
     openTenantMailTemplatesModal,
     openApplicantScoreModal,
   } = useModalStore()
+  // Mehrere Kautionen eines Mieters: zuerst die Auswahl (hooks/use-kaution-oeffnen.ts).
+  const oeffneKaution = useKautionOeffnen()
 
   const getSortedNebenkostenEntries = (entries: NebenkostenEntry[]): NebenkostenEntry[] => {
     const sorted = [...entries]
@@ -1053,7 +1055,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           actions={tenantInitialData ? getVisibleActions(tenantInitialData, { templatesEnabled: !!templatesEnabled, canViewKautionen }).flatMap((action) => {
             const handlerMap: Record<string, (() => void) | undefined> = {
               // Der Kautionsdialog lädt seine Daten selbst (getKautionDetailsAction): nur der Mieter wird übergeben.
-              kaution: () => openKautionModal(
+              kaution: () => void oeffneKaution(
                 { id: tenantInitialData.id, name: tenantInitialData.name, wohnung_id: tenantInitialData.wohnung_id }
               ),
               vorlagen: () => openTenantMailTemplatesModal(tenantInitialData.name, tenantInitialData.email || undefined),
@@ -1094,7 +1096,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
             />
             {tenantInitialData?.id && !isApplicant && mietverhaeltnisSichtbar && (
               <div className="max-w-[90%] mx-auto pb-6 px-4 sm:px-8">
-                <TenantMieteSection mieterId={tenantInitialData.id} />
+                <TenantMieteSection
+                  mieterId={tenantInitialData.id}
+                  wohnungen={apartmentOptions}
+                  // After a move the tenant lives in the new apartment: the dialog must not save the old one back.
+                  onUmzug={(wohnungId) => setFormData(prev => ({ ...prev, wohnung_id: wohnungId }))}
+                />
               </div>
             )}
           </ScrollArea>

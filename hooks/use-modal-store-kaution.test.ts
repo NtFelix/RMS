@@ -25,6 +25,7 @@ describe('Modal store - Kaution (GH-6)', () => {
       isKautionModalOpen: false,
       kautionInitialData: undefined,
       isKautionModalDirty: false,
+      kautionAuswahl: null,
       canViewKautionen: false,
       isConfirmationModalOpen: false,
     });
@@ -78,6 +79,60 @@ describe('Modal store - Kaution (GH-6)', () => {
     expect(useModalStore.getState().isConfirmationModalOpen).toBe(true);
 
     useModalStore.getState().closeKautionModal({ force: true });
+    expect(useModalStore.getState().isKautionModalOpen).toBe(false);
+  });
+
+  it('stores the optional kautionId of one deposit for the dialog', () => {
+    useModalStore.getState().openKautionModal(tenant, { kautionId: 'kaution-2' });
+
+    expect(useModalStore.getState().kautionInitialData).toMatchObject({
+      tenant: { id: 'tenant-1', name: 'Test Mieter', wohnung_id: 'wohnung-1' },
+      kautionId: 'kaution-2',
+    });
+  });
+
+  it('has no selection of deposits by default', () => {
+    expect(useModalStore.getState().kautionAuswahl).toBeNull();
+  });
+
+  it('opens the selection of deposits with the tenant (id, name, wohnung_id) and the list entries', () => {
+    const eintraege = [
+      {
+        kautionId: 'kaution-1',
+        mietverhaeltnisId: 'mv-1',
+        kautionsart: 'barkaution',
+        sollBetrag: 1500,
+        kontostand: 1500,
+        istAktuell: false,
+        vertragsbeginn: '2020-01-01',
+        vertragsende: '2021-12-31',
+      },
+      {
+        kautionId: 'kaution-2',
+        mietverhaeltnisId: 'mv-2',
+        kautionsart: 'sparbuch',
+        sollBetrag: 2000,
+        kontostand: 0,
+        istAktuell: true,
+        vertragsbeginn: '2022-01-01',
+        vertragsende: null,
+      },
+    ] as const;
+
+    useModalStore.getState().openKautionAuswahl(tenant, [...eintraege]);
+
+    expect(useModalStore.getState().kautionAuswahl).toEqual({
+      tenant: { id: 'tenant-1', name: 'Test Mieter', wohnung_id: 'wohnung-1' },
+      eintraege,
+    });
+  });
+
+  it('closes the selection without touching the deposit dialog', () => {
+    useModalStore.getState().openKautionAuswahl(tenant, []);
+
+    useModalStore.getState().closeKautionAuswahl();
+
+    expect(useModalStore.getState().kautionAuswahl).toBeNull();
     expect(useModalStore.getState().isKautionModalOpen).toBe(false);
   });
 

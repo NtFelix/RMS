@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { Nebenkosten, MeterReadingFormData, Mieter, Zaehler, ZaehlerAblesung, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchMeterReadingsByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new meter types
 import { roundToNearest5 } from "@/lib/utils";
 import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
+import { gruppiereNachMietverhaeltnisImZeitraum } from "@/lib/abrechnung-mietverhaeltnis-laden";
 import { logAction } from '@/lib/logging-middleware';
 import { withTiming } from '@/lib/posthog-metrics';
 import { type SupabaseClient } from "@supabase/supabase-js";
@@ -2080,7 +2081,37 @@ async function resolveActualPaymentsData(
  * @see {@link docs/database-functions.md#get_abrechnung_modal_data} Database function documentation
  * @see {@link components/abrechnung-modal.tsx} Modal component that consumes this data
  */
+/**
+ * Modal data of an Abrechnung. Tenants who shared a tenancy in the billing period (GH-17, phase 6) are merged into one
+ * tenant, so every consumer (modal, PDF, server calculation) settles them once. The tenancy of the period counts, not the
+ * current one (a later merge never changes an earlier year). Today every person has an own tenancy: nothing changes.
+ */
 async function getAbrechnungModalDataActionImpl(
+  nebenkostenId: string
+): Promise<OptimizedActionResponse<AbrechnungModalData>> {
+  const result = await ladeAbrechnungModalData(nebenkostenId);
+  if (!result.success || !result.data) return result;
+  try {
+    // The user was checked by ladeAbrechnungModalData; a plain server client (cookies, RLS of the user) avoids a second auth round trip.
+    const supabase = await createSupabaseServerClient();
+    const nebenkostenDaten = result.data.nebenkosten_data as { startdatum?: unknown; enddatum?: unknown } | null | undefined;
+    const angepasst = await gruppiereNachMietverhaeltnisImZeitraum(
+      supabase,
+      { tenants: result.data.tenants as any[], rechnungen: result.data.rechnungen as any[] },
+      { startdatum: nebenkostenDaten?.startdatum, enddatum: nebenkostenDaten?.enddatum },
+      code => logger.warn('Gruppierung nach Mietverhältnis nicht angewendet (je Mieter abgerechnet)', { code, nebenkostenId })
+    );
+    return {
+      ...result,
+      data: { ...result.data, tenants: angepasst.tenants as any[], rechnungen: angepasst.rechnungen as any[] }
+    };
+  } catch {
+    logger.warn('Gruppierung nach Mietverhältnis nicht angewendet (je Mieter abgerechnet)', { code: 'CLIENT', nebenkostenId });
+    return result;
+  }
+}
+
+async function ladeAbrechnungModalData(
   nebenkostenId: string
 ): Promise<OptimizedActionResponse<AbrechnungModalData>> {
   if (!nebenkostenId || nebenkostenId.trim() === '') {

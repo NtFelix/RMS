@@ -17,7 +17,7 @@ import {
   mietverhaeltnisAnlegenAction,
   mieteEntfernenAction,
   mieteSetzenAction,
-  mieterhoehungErfassenAction,
+  mieterUmzugAction,
   vertragsdatenSpeichernAction,
 } from "@/app/mietverhaeltnis-actions";
 
@@ -32,6 +32,7 @@ const FREMDE_MIETE_ID = "55555555-5555-4555-8555-555555555555";
 const WOHNUNG_ID = "66666666-6666-4666-8666-666666666666";
 const NEU_MV_ID = "77777777-7777-4777-8777-777777777777";
 const NEU_MIETE_ID = "88888888-8888-4888-8888-888888888888";
+const NEU_WOHNUNG_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 const mockHasPermission = hasPermission as jest.Mock;
 const mockWohnungIds = getAccessibleWohnungIds as jest.Mock;
@@ -93,8 +94,8 @@ beforeEach(() => {
   rpcErgebnisse = {
     mietverhaeltnis_miete_setzen: { data: FREMDE_MIETE_ID, error: null },
     mietverhaeltnis_anlegen: { data: NEU_MV_ID, error: null },
-    mietverhaeltnis_mieterhoehung_erfassen: { data: NEU_MIETE_ID, error: null },
     mietverhaeltnis_miete_entfernen: { data: null, error: null },
+    mietverhaeltnis_umzug: { data: NEU_MV_ID, error: null },
   };
 
   mockRpc.mockImplementation(async (name: string) => {
@@ -154,16 +155,6 @@ const vertragsdatenEingabe = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const mieterhoehungEingabe = (overrides: Record<string, unknown> = {}) => ({
-  mieterId: MIETER_ID,
-  wirksamAb: "2026-04-01",
-  betrag: 920.5,
-  aenderungsart: "  Staffelmiete  ",
-  erklaertAm: "2026-03-10",
-  grund: "  Vereinbart am Vertrag  ",
-  ...overrides,
-});
-
 const anlegenEingabe = (overrides: Record<string, unknown> = {}) => ({
   mieterId: MIETER_ID,
   vertragsbeginn: "2026-01-01",
@@ -190,11 +181,10 @@ describe("sign-in and module right", () => {
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  it("returns MV001 for anlegen, vertragsdaten and mieterhoehung when not signed in, without writes", async () => {
+  it("returns MV001 for anlegen and vertragsdaten when not signed in, without writes", async () => {
     mockEnsureAuth.mockRejectedValue(new Error("Nicht authentifiziert"));
     expect(fehlercode(await mietverhaeltnisAnlegenAction(anlegenEingabe()))).toBe("MV001");
     expect(fehlercode(await vertragsdatenSpeichernAction(vertragsdatenEingabe()))).toBe("MV001");
-    expect(fehlercode(await mieterhoehungErfassenAction(mieterhoehungEingabe()))).toBe("MV001");
     expect(mockRpc).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(mockFrom).not.toHaveBeenCalled();
@@ -231,10 +221,9 @@ describe("sign-in and module right", () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it("returns 42501 for vertragsdaten and mieterhoehung without bearbeiten, no write and no RPC", async () => {
+  it("returns 42501 for vertragsdaten without bearbeiten, no write and no RPC", async () => {
     mockHasPermission.mockImplementation(async (_modul: string, aktion: string) => aktion !== "bearbeiten");
     expect(fehlercode(await vertragsdatenSpeichernAction(vertragsdatenEingabe()))).toBe("42501");
-    expect(fehlercode(await mieterhoehungErfassenAction(mieterhoehungEingabe()))).toBe("42501");
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(mockRpc).not.toHaveBeenCalled();
   });
@@ -294,21 +283,6 @@ describe("input validation (no RPC or update call)", () => {
     expect(fehlercode(result)).toBe("MV004");
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(mockRpc).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ["Art leer", { aenderungsart: "   " }],
-    ["Art zu lang", { aenderungsart: "x".repeat(51) }],
-    ["Art fehlt", { aenderungsart: undefined }],
-    ["Wirksam ab ungueltig", { wirksamAb: "2026-02-29" }],
-    ["Erklaert am ungueltig", { erklaertAm: "10.03.2026" }],
-    ["Betrag mit drei Nachkommastellen", { betrag: 920.555 }],
-    ["Grund zu lang", { grund: "x".repeat(501) }],
-  ])("mieterhoehung rejects %s with MV004, no RPC call", async (_label, overrides) => {
-    const result = await mieterhoehungErfassenAction(mieterhoehungEingabe(overrides) as Parameters<typeof mieterhoehungErfassenAction>[0]);
-    expect(fehlercode(result)).toBe("MV004");
-    expect(mockRpc).not.toHaveBeenCalled();
-    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it("accepts 0 and two decimal places and sends them as exact decimal string", async () => {
@@ -660,76 +634,6 @@ describe("vertragsdatenSpeichernAction", () => {
   });
 });
 
-describe("mieterhoehungErfassenAction", () => {
-  it("calls the RPC with the server-side tenancy ID and exact arguments", async () => {
-    const result = await mieterhoehungErfassenAction(mieterhoehungEingabe());
-    expect(result).toEqual({ success: true, data: { mieteId: NEU_MIETE_ID } });
-    expect(mockRpc).toHaveBeenCalledWith("mietverhaeltnis_mieterhoehung_erfassen", {
-      p_mietverhaeltnis_id: MV_ID,
-      p_wirksam_ab: "2026-04-01",
-      p_betrag: "920.50",
-      p_aenderungsart: "Staffelmiete",
-      p_erklaert_am: "2026-03-10",
-      p_grund: "Vereinbart am Vertrag",
-    });
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/mieter");
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/finanzen");
-  });
-
-  it("sends null for an omitted declaration date and an empty reason", async () => {
-    await mieterhoehungErfassenAction({ mieterId: MIETER_ID, wirksamAb: "2026-04-01", betrag: 900, aenderungsart: "Vereinbarung", grund: "  " });
-    expect(mockRpc).toHaveBeenLastCalledWith("mietverhaeltnis_mieterhoehung_erfassen", {
-      p_mietverhaeltnis_id: MV_ID,
-      p_wirksam_ab: "2026-04-01",
-      p_betrag: "900.00",
-      p_aenderungsart: "Vereinbarung",
-      p_erklaert_am: null,
-      p_grund: null,
-    });
-  });
-
-  it("accepts a type of change with exactly 50 characters", async () => {
-    const art = "x".repeat(50);
-    const result = await mieterhoehungErfassenAction(mieterhoehungEingabe({ aenderungsart: art }));
-    expect(result.success).toBe(true);
-    expect(mockRpc).toHaveBeenLastCalledWith("mietverhaeltnis_mieterhoehung_erfassen", expect.objectContaining({ p_aenderungsart: art }));
-  });
-
-  it("returns 42501 for a tenant outside the object scope, no RPC call", async () => {
-    mockWohnungIds.mockResolvedValue(["99999999-9999-4999-8999-999999999999"]);
-    const result = await mieterhoehungErfassenAction(mieterhoehungEingabe());
-    expect(fehlercode(result)).toBe("42501");
-    expect(mockRpc).not.toHaveBeenCalled();
-  });
-
-  it("returns MV003 for a tenant without tenancy, no RPC call", async () => {
-    mieterOhneMietverhaeltnis();
-    const result = await mieterhoehungErfassenAction(mieterhoehungEingabe());
-    expect(fehlercode(result)).toBe("MV003");
-    expect(mockRpc).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ["MV004", "Die Eingabe ist ungültig."],
-    ["42501", "Für diese Aktion fehlt die Berechtigung (Modul Mieter)."],
-    ["MV012", "Der Mieter gehört bereits zu einem Mietverhältnis."],
-  ])("maps database error %s to its fixed message and drops the database text", async (code, message) => {
-    rpcErgebnisse.mietverhaeltnis_mieterhoehung_erfassen = { data: null, error: { code, message: "Betrag 920.50 fuer Max Muster", details: "x" } };
-    const result = await mieterhoehungErfassenAction(mieterhoehungEingabe());
-    expect(result).toEqual({ success: false, error: { code, message } });
-    expect(mockRevalidatePath).not.toHaveBeenCalled();
-  });
-
-  it("logs no amounts, dates, reasons or IDs", async () => {
-    await mieterhoehungErfassenAction(mieterhoehungEingabe());
-    const alleAttribute = JSON.stringify(mockLogAction.mock.calls);
-    expect(alleAttribute).not.toContain("920");
-    expect(alleAttribute).not.toContain("Staffelmiete");
-    expect(alleAttribute).not.toContain("Vereinbart");
-    expect(alleAttribute).not.toContain(MIETER_ID);
-  });
-});
-
 describe("object scope (user restricted to certain houses)", () => {
   const ANDERE_WOHNUNG_ID = "99999999-9999-4999-8999-999999999999";
 
@@ -760,5 +664,130 @@ describe("object scope (user restricted to certain houses)", () => {
     mockWohnungIds.mockResolvedValue([WOHNUNG_ID]);
     const result = await getMietverhaeltnisUebersichtAction(MIETER_ID);
     expect(result.success).toBe(true);
+  });
+});
+
+describe("mieterUmzugAction", () => {
+  const umzugEingabe = (overrides: Record<string, unknown> = {}) => ({
+    mieterId: MIETER_ID,
+    wohnungId: NEU_WOHNUNG_ID,
+    datum: "2026-04-01",
+    miete: 920.5,
+    ...overrides,
+  });
+
+  it("returns MV001 without database access when not signed in", async () => {
+    mockEnsureAuth.mockRejectedValueOnce(new Error("Nicht authentifiziert"));
+    const result = await mieterUmzugAction(umzugEingabe());
+    expect(result).toEqual({ success: false, error: { code: "MV001", message: "Bitte melden Sie sich erneut an." } });
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it.each(["ansehen", "bearbeiten", "erstellen"])("returns 42501 without the right %s, no database call", async (fehlendeAktion) => {
+    mockHasPermission.mockImplementation(async (_modul: string, aktion: string) => aktion !== fehlendeAktion);
+    const result = await mieterUmzugAction(umzugEingabe());
+    expect(fehlercode(result)).toBe("42501");
+    expect(mockHasPermission).toHaveBeenCalledWith("mieter", "ansehen");
+    expect(mockHasPermission).toHaveBeenCalledWith("mieter", "bearbeiten");
+    expect(mockHasPermission).toHaveBeenCalledWith("mieter", "erstellen");
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["ungueltige Mieter-ID", { mieterId: "keine-uuid" }],
+    ["ungueltige Wohnungs-ID", { wohnungId: "keine-uuid" }],
+    ["Wohnungs-ID fehlt", { wohnungId: undefined }],
+    ["ungueltiges Datum", { datum: "2026-02-31" }],
+    ["Datum ohne Format", { datum: "01.04.2026" }],
+    ["Datum vor 1900", { datum: "1899-12-31" }],
+    ["Miete mit drei Nachkommastellen", { miete: 10.005 }],
+    ["negative Miete", { miete: -1 }],
+    ["Miete als Text", { miete: "920" }],
+    ["Miete NaN", { miete: Number.NaN }],
+  ])("rejects %s with MV004 and does not call the database", async (_label, overrides) => {
+    const result = await mieterUmzugAction(umzugEingabe(overrides));
+    expect(fehlercode(result)).toBe("MV004");
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("returns 42501 for a new apartment outside the object scope, no RPC call", async () => {
+    mockWohnungIds.mockResolvedValue([WOHNUNG_ID]);
+    const result = await mieterUmzugAction(umzugEingabe());
+    expect(fehlercode(result)).toBe("42501");
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("returns 42501 for a tenant outside the object scope, no RPC call", async () => {
+    mockWohnungIds.mockResolvedValue([NEU_WOHNUNG_ID]);
+    const result = await mieterUmzugAction(umzugEingabe());
+    expect(fehlercode(result)).toBe("42501");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("returns MV003 for an unknown tenant and does not call the RPC", async () => {
+    tableResults.Mieter = { data: null, error: null };
+    const result = await mieterUmzugAction(umzugEingabe());
+    expect(fehlercode(result)).toBe("MV003");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("calls the RPC with exactly the given arguments, including the rent, and revalidates", async () => {
+    const result = await mieterUmzugAction(umzugEingabe());
+    expect(result).toEqual({ success: true, data: { mietverhaeltnisId: NEU_MV_ID } });
+    expect(mockRpc).toHaveBeenCalledWith("mietverhaeltnis_umzug", {
+      p_mieter_id: MIETER_ID,
+      p_wohnung_id: NEU_WOHNUNG_ID,
+      p_datum: "2026-04-01",
+      p_miete: 920.5,
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/mieter");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/finanzen");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/wohnungen");
+  });
+
+  it("sends p_miete as null when no rent is given", async () => {
+    const result = await mieterUmzugAction(umzugEingabe({ miete: undefined }));
+    expect(result.success).toBe(true);
+    expect(mockRpc).toHaveBeenCalledWith("mietverhaeltnis_umzug", {
+      p_mieter_id: MIETER_ID,
+      p_wohnung_id: NEU_WOHNUNG_ID,
+      p_datum: "2026-04-01",
+      p_miete: null,
+    });
+
+    await mieterUmzugAction(umzugEingabe({ miete: null }));
+    expect(mockRpc).toHaveBeenLastCalledWith("mietverhaeltnis_umzug", expect.objectContaining({ p_miete: null }));
+  });
+
+  it.each([
+    ["MV013", "Das Mietverhältnis hat weitere Mieter. Bitte trennen Sie zuerst den Mieter vom gemeinsamen Mietverhältnis."],
+    ["MV004", "Die Eingabe ist ungültig."],
+    ["MV007", "Die Wohnung fehlt oder befindet sich im Papierkorb."],
+    ["42501", "Für diese Aktion fehlt die Berechtigung (Modul Mieter)."],
+  ])("maps database error %s to its fixed message and drops the database text", async (code, message) => {
+    rpcErgebnisse.mietverhaeltnis_umzug = { data: null, error: { code, message: "Mieter Max Muster, Miete 920,50", details: "id=abc" } };
+    const result = await mieterUmzugAction(umzugEingabe());
+    expect(result).toEqual({ success: false, error: { code, message } });
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("returns UNBEKANNT when the RPC returns no ID", async () => {
+    rpcErgebnisse.mietverhaeltnis_umzug = { data: null, error: null };
+    const result = await mieterUmzugAction(umzugEingabe());
+    expect(fehlercode(result)).toBe("UNBEKANNT");
+  });
+
+  it("logs only the action name, the event and the code, never amounts, dates or IDs", async () => {
+    await mieterUmzugAction(umzugEingabe());
+    expect(mockLogAction).toHaveBeenCalledWith("mieterUmzug", "success", {});
+    const alleAttribute = JSON.stringify(mockLogAction.mock.calls);
+    expect(alleAttribute).not.toContain("920");
+    expect(alleAttribute).not.toContain("2026-04-01");
+    expect(alleAttribute).not.toContain(MIETER_ID);
+    expect(alleAttribute).not.toContain(NEU_WOHNUNG_ID);
   });
 });

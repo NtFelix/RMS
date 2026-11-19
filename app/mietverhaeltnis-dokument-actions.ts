@@ -14,7 +14,7 @@
  * - The database only checks organisation and visibility: the foreign key `(vertrag_dokument_id, organisation_id)` and the
  *   trigger `MV011` (the signed-in user must be able to see the document). The house-folder rule above is therefore a
  *   restriction of the app, not of the database: whoever may write `"Mieter_Mietverhaeltnisse"` through RLS can link any
- *   document he can see. A rule in the database (trigger) would have to be added in mietevo-db.
+ *   document they can see. A rule in the database (trigger) would have to be added in mietevo-db.
  * - Opening goes through `createSignedUrls`, which validates the path against organisation and house scope. The
  *   link lives only a few minutes.
  * - No file names, paths or IDs in logs: only the action name, the event and the error code.

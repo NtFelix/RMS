@@ -24,6 +24,7 @@ import { toast } from "@/hooks/use-toast"
 import { deleteTenantAction } from "@/app/mieter-actions"
 import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 import { useModalStore } from "@/hooks/use-modal-store"
+import { useKautionOeffnen } from "@/hooks/use-kaution-oeffnen"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { tenantActions, getVisibleActions, type TenantActionDef } from "@/components/tenants/tenant-menu-actions"
 
@@ -52,14 +53,15 @@ export function TenantContextMenu({
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
 
-  const { openKautionModal, openTenantMailTemplatesModal, openApplicantScoreModal } = useModalStore()
+  const { openTenantMailTemplatesModal, openApplicantScoreModal } = useModalStore()
+  const oeffneKaution = useKautionOeffnen()
   const templatesEnabled = useFeatureFlagEnabled('template-modal-enabled')
 
   const handleKaution = () => {
     // Der Kautionsdialog lädt seine Daten selbst (getKautionDetailsAction); hier wird nur der Mieter übergeben.
     // Das Öffnen im nächsten Event-Loop-Tick bleibt, damit sich das Kontextmenü zuerst sauber schließt.
     setTimeout(() => {
-      openKautionModal({ id: tenant.id, name: tenant.name, wohnung_id: tenant.wohnung_id });
+      void oeffneKaution({ id: tenant.id, name: tenant.name, wohnung_id: tenant.wohnung_id });
     }, 0);
   };
 
