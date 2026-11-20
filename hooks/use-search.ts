@@ -62,7 +62,11 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   } = options;
 
   // Memoize categories to prevent recreation on every render
-  const memoizedCategories = useMemo(() => categories, [categories.join(',')]);
+  const categoriesKey = categories.join(',');
+  const memoizedCategories = useMemo<SearchCategory[]>(
+    () => (categoriesKey ? (categoriesKey.split(',') as SearchCategory[]) : []),
+    [categoriesKey]
+  );
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -75,6 +79,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const [lastSuccessfulQuery, setLastSuccessfulQuery] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const recentSearchesRef = useRef<string[]>([]);
 
   // Cache for storing search results with LRU eviction
   const cacheRef = useRef<SearchCache>({});
@@ -110,7 +115,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
-          setRecentSearches(parsed.slice(0, MAX_RECENT_SEARCHES));
+          const initial = parsed.slice(0, MAX_RECENT_SEARCHES);
+          recentSearchesRef.current = initial;
+          setRecentSearches(initial);
         }
       }
     } catch (error) {
@@ -126,26 +133,25 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     // Skip if query is too short or empty
     if (normalizedQuery.length < 2) return;
 
-    setRecentSearches(prev => {
-      // Check if the query is already the most recent search
-      if (prev.length > 0 && prev[0].toLowerCase() === normalizedQuery.toLowerCase()) {
-        return prev; // No need to update if it's the same as the most recent search
-      }
+    const prev = recentSearchesRef.current;
+    // Check if the query is already the most recent search
+    if (prev.length > 0 && prev[0].toLowerCase() === normalizedQuery.toLowerCase()) {
+      return;
+    }
 
-      // Filter out any existing instances of this query (case-insensitive)
-      const filtered = prev.filter(s => s.toLowerCase() !== normalizedQuery.toLowerCase());
+    // Filter out any existing instances of this query (case-insensitive)
+    const filtered = prev.filter(s => s.toLowerCase() !== normalizedQuery.toLowerCase());
 
-      // Add the new query to the beginning and limit the array size
-      const updated = [normalizedQuery, ...filtered].slice(0, MAX_RECENT_SEARCHES);
+    // Add the new query to the beginning and limit the array size
+    const updated = [normalizedQuery, ...filtered].slice(0, MAX_RECENT_SEARCHES);
+    recentSearchesRef.current = updated;
+    setRecentSearches(updated);
 
-      try {
-        localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
-      } catch (error) {
-        console.warn('Failed to save recent searches:', error);
-      }
-
-      return updated;
-    });
+    try {
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
+    } catch (error) {
+      console.warn('Failed to save recent searches:', error);
+    }
   }, []);
 
   // Generate search suggestions based on query
@@ -157,11 +163,13 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
     const queryLower = query.toLowerCase();
     const newSuggestions: string[] = [];
+    const seenSuggestions = new Set<string>();
 
     // Add recent searches that match
     recentSearches.forEach(recent => {
       if (recent.toLowerCase().includes(queryLower) && recent.toLowerCase() !== queryLower) {
         newSuggestions.push(recent);
+        seenSuggestions.add(recent);
       }
     });
 
@@ -182,8 +190,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     commonSuggestions.forEach(suggestion => {
       if (suggestion.toLowerCase().includes(queryLower) &&
         suggestion.toLowerCase() !== queryLower &&
-        !newSuggestions.includes(suggestion)) {
+        !seenSuggestions.has(suggestion)) {
         newSuggestions.push(suggestion);
+        seenSuggestions.add(suggestion);
       }
     });
 
@@ -372,7 +381,8 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       return;
     }
 
-    const cacheKey = `${searchQuery}:${limit}:${filteredCategories.sort().join(',')}`;
+    const sortedCategories = [...filteredCategories].sort();
+    const cacheKey = `${searchQuery}:${limit}:${sortedCategories.join(',')}`;
 
     // Check cache first
     const cached = cacheRef.current[cacheKey];
@@ -415,7 +425,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       const searchParams = new URLSearchParams({
         q: actualQuery,
         limit: limit.toString(),
-        categories: filteredCategories.join(',')
+        categories: sortedCategories.join(',')
       });
 
       // Add timeout to the fetch request
@@ -735,6 +745,11 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   // Effect to trigger search when debounced query changes
   useEffect(() => {
     performSearch(debouncedQuery);
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [debouncedQuery, performSearch]);
 
   // Cleanup function to cancel ongoing requests and timeouts
