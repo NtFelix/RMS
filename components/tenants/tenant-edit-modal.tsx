@@ -14,11 +14,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NumberInput } from "@/components/ui/number-input"
 import { Label } from "@/components/ui/label"
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card"
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Textarea } from "@/components/ui/textarea"
@@ -33,7 +28,6 @@ import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useKautionenSichtbar } from "@/hooks/use-kaution-flag"
 import { useMietverhaeltnisSichtbar } from "@/hooks/use-mietverhaeltnis-flag"
 import { TenantMieteSection } from "@/components/tenants/tenant-miete-section"
-import { PropertyHeader } from "@/components/tenants/property-header"
 import { tenantActions, getVisibleActions } from "@/components/tenants/tenant-menu-actions"
 import {
   Users,
@@ -42,12 +36,10 @@ import {
   Mail,
   Phone,
   FileText,
-  Lightbulb,
   GripVertical,
   Trash2,
   MoreHorizontal,
   Calendar,
-  type LucideIcon,
 } from "lucide-react"
 import { CustomDropdown, CustomDropdownItem, CustomDropdownSeparator } from "@/components/ui/custom-dropdown"
 import {
@@ -61,6 +53,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { deleteTenantAction } from "@/app/mieter-actions"
+import { PropertyHeader } from "@/components/ui/property-header"
+import { ResizeHandle } from "@/components/ui/resize-handle"
 import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 
 interface Mieter extends Tenant {}
@@ -72,42 +66,6 @@ interface Wohnung {
 
 interface TenantEditModalProps {
   serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>
-}
-
-function ResizeHandle({
-  isResizing,
-  setWidth,
-  onMouseDown,
-}: {
-  isResizing: boolean
-  setWidth: React.Dispatch<React.SetStateAction<number>>
-  onMouseDown: (e: React.MouseEvent) => void
-}) {
-  return (
-    <button
-      type="button"
-      aria-label="Panelgröße anpassen"
-      onMouseDown={onMouseDown}
-      onKeyDown={(e) => {
-        if (e.key === 'ArrowLeft') {
-          e.preventDefault()
-          setWidth(prev => Math.max(360, prev - 20))
-        } else if (e.key === 'ArrowRight') {
-          e.preventDefault()
-          setWidth(prev => Math.min(window.innerWidth * 0.9, prev + 20))
-        }
-      }}
-      className={cn(
-        "absolute -left-1 top-0 bottom-0 w-2 cursor-ew-resize z-50 select-none group/resize-handle hidden sm:block appearance-none bg-transparent border-none p-0",
-        isResizing ? "cursor-ew-resize" : ""
-      )}
-    >
-      <div className={cn(
-        "absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 transition-all duration-150 ease-in-out",
-        isResizing ? "bg-primary" : "bg-transparent group-hover/resize-handle:bg-primary/40"
-      )} />
-    </button>
-  )
 }
 
 function TopBar({
@@ -519,10 +477,14 @@ function FormFields({
                   onChange={onFieldChange}
                   placeholder="Interne Notizen..."
                   disabled={isSubmitting}
-                  className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all text-sm focus-visible:scale-100 resize-none min-h-[80px] pr-8"
+                  className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors text-sm focus-visible:scale-100 resize-none min-h-[80px] pr-8"
                 />
                 <div
-                  className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors"
+                  role="separator"
+                  tabIndex={0}
+                  aria-orientation="horizontal"
+                  aria-label="Textfeldgröße anpassen"
+                  className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors outline-none focus-visible:ring-1 focus-visible:ring-primary"
                   onMouseDown={initResize}
                 >
                   <GripVertical className="size-4 text-foreground/70" />
@@ -662,11 +624,13 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   // Sheet resize
   const [width, setWidth] = useState<number>(() => {
     if (typeof window !== "undefined") {
-      const savedWidth = localStorage.getItem("tenant-modal-width")
-      if (savedWidth) {
-        const parsed = parseInt(savedWidth, 10)
-        if (!isNaN(parsed)) return parsed
-      }
+      try {
+        const savedWidth = localStorage.getItem("tenant-modal-width")
+        if (savedWidth) {
+          const parsed = parseInt(savedWidth, 10)
+          if (!isNaN(parsed) && parsed >= 360) return parsed
+        }
+      } catch {}
     }
     return 600
   })
@@ -713,7 +677,9 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       document.body.style.userSelect = ""
       const finalWidth = widthRef.current
       if (typeof finalWidth === "number" && !isNaN(finalWidth) && finalWidth >= 360) {
-        localStorage.setItem("tenant-modal-width", String(finalWidth))
+        try {
+          localStorage.setItem("tenant-modal-width", String(finalWidth))
+        } catch {}
       }
     }
 
@@ -1047,6 +1013,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           isResizing={isSheetResizing}
           setWidth={setWidth}
           onMouseDown={startResizing}
+          width={width}
+          onCommit={(w) => {
+            try {
+              localStorage.setItem("tenant-modal-width", String(w))
+            } catch {}
+          }}
         />
 
         <TopBar
