@@ -35,8 +35,9 @@ export interface Mietverhaeltnis {
   kuendigung_durch: "mieter" | "vermieter" | null;
   /**
    * Contract area in m² INCLUDING the share of common areas (kitchen, bath, hall) the user agreed on; optional, for flat
-   * shares with single contracts. The Abrechnung then splits the apartment by area (area / apartment size, at most 100 %,
-   * the rest is vacancy for the landlord). `null`: the apartment share is split equally among the tenants present.
+   * shares with single contracts. The Abrechnung then splits each day of the apartment by area (area / max(apartment size,
+   * sum of the areas present that day), so at most 100 %; the rest is vacancy for the landlord). If any tenant present has no
+   * area, or the apartment size is unknown, that day is split equally among the tenants present (see `computeWgFactorsByTenant`).
    */
   flaeche: number | null;
   vertrag_dokument_id: string | null;
