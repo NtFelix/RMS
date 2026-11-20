@@ -484,6 +484,22 @@ describe("TenantMieteSection with tenancy", () => {
     await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ description: expect.stringContaining("rechtlich zu klären") })));
   });
 
+  it("locks the option switch while typed contract data is unsaved", async () => {
+    mockUebersicht.mockResolvedValue({
+      success: true,
+      data: {
+        ...mitMietverhaeltnis,
+        flaechen: { hinweise: [{ art: "flaeche_fehlt", ohneFlaeche: 1, restflaecheVerteilen: false }], restflaecheVerteilen: false },
+      },
+    });
+    const { container } = render(<TenantMieteSection mieterId={MIETER_ID} />);
+    const schalter = await screen.findByRole("switch", { name: "Restfläche auf Mietverhältnisse ohne Fläche verteilen" });
+    expect(schalter).not.toBeDisabled();
+    setze(feld(container, "flaeche"), "50");
+    expect(schalter).toBeDisabled();
+    expect(screen.getByText(/zuerst die geänderten Vertragsdaten/)).toBeInTheDocument();
+  });
+
   it("hides the option while no contract lacks an area and the option is off", async () => {
     mockUebersicht.mockResolvedValue({
       success: true,

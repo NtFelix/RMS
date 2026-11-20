@@ -223,7 +223,8 @@ export function VertragsdatenForm({ mieterId, mietverhaeltnis, flaechen = null, 
                 id={`${id}-restflaeche`}
                 checked={flaechen?.restflaecheVerteilen === true}
                 onCheckedChange={(wert) => void handleRestflaeche(wert)}
-                disabled={isSchalten || isSaving || flaechen?.optionAenderbar === false}
+                // A switch reloads the section: never while typed contract data is unsaved (it would be lost)
+                disabled={isSchalten || isSaving || geaendert || flaechen?.optionAenderbar === false}
                 aria-describedby={`${id}-restflaeche-info`}
               />
               <div className="text-xs">
@@ -234,6 +235,7 @@ export function VertragsdatenForm({ mieterId, mietverhaeltnis, flaechen = null, 
                   Gilt für die ganze Wohnung. Verträge mit Fläche tragen ihren Flächenanteil, der Rest der Wohnung geht zu gleichen
                   Teilen an die Verträge ohne Fläche. Ob dieser gemischte Schlüssel zulässig ist, ist rechtlich zu klären.
                   {flaechen?.optionAenderbar === false && " Zum Ändern brauchen Sie das Recht, Wohnungen zu bearbeiten."}
+                  {geaendert && flaechen?.optionAenderbar !== false && " Bitte speichern oder verwerfen Sie zuerst die geänderten Vertragsdaten."}
                 </p>
               </div>
             </div>
