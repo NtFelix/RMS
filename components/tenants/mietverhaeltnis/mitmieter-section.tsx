@@ -278,7 +278,7 @@ export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: Mit
             <div className={ZEILE}>
               <PropertyHeader
                 icon={Maximize2}
-                label="Fläche eigenes"
+                label="Fläche neu"
                 htmlFor={`${id}-flaeche-neu`}
                 infoText="Nur bei WG mit Einzelverträgen (optional): Vertragsfläche des eigenen Mietverhältnisses in m² inkl. vereinbartem Anteil an Küche, Bad und Flur. Leer lassen: ohne Fläche."
               />
@@ -290,7 +290,7 @@ export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: Mit
             <div className={ZEILE}>
               <PropertyHeader
                 icon={Maximize2}
-                label="Fläche gemeinsames"
+                label="Fläche verbleibend"
                 htmlFor={`${id}-flaeche-bisher`}
                 infoText="Neue Vertragsfläche des gemeinsamen Mietverhältnisses, das für die übrigen Mieter weiterläuft (optional). Leer lassen: unverändert. Die Fläche ist nicht versioniert und gilt auch für frühere Zeiträume, wenn deren Abrechnung neu berechnet wird."
               />

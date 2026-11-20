@@ -107,4 +107,6 @@ export type MietverhaeltnisActionResult<T = undefined> =
 export interface FlaechenStand {
   hinweise: FlaechenHinweis[];
   restflaecheVerteilen: boolean | null;
+  /** The user may switch the option (`wohnungen: bearbeiten`); set only by the overview. */
+  optionAenderbar?: boolean;
 }

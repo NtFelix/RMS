@@ -379,7 +379,7 @@ describe("getMietverhaeltnisUebersichtAction", () => {
         mieterEinzug: "2020-01-01",
         istBewerber: false,
         // Apartment not readable in this test: no notes, option unknown
-        flaechen: { hinweise: [], restflaecheVerteilen: null },
+        flaechen: { hinweise: [], restflaecheVerteilen: null, optionAenderbar: true },
       },
     });
     expect(mockRpc).toHaveBeenCalledWith("get_mietverhaeltnis_mieten", { p_mietverhaeltnis_id: MV_ID });
@@ -452,6 +452,27 @@ describe("getMietverhaeltnisUebersichtAction", () => {
         { art: "flaeche_fehlt", ohneFlaeche: 1, restflaecheVerteilen: false },
       ],
       restflaecheVerteilen: false,
+      optionAenderbar: true,
+    });
+  });
+
+  it("ends a tenancy for the notes at the last move-out of its tenants, and tells when the option may not be changed", async () => {
+    mockHasPermission.mockImplementation(async (modul: string) => modul !== "wohnungen");
+    tableResults.Wohnungen = { data: { groesse: 70, restflaeche_verteilen: false }, error: null };
+    listenErgebnisse.Mieter_Mietverhaeltnisse = {
+      data: [
+        { id: MV_ID, flaeche: 50, vertragsbeginn: "2026-01-01", vertragsende: null },
+        { id: "mv-b", flaeche: null, vertragsbeginn: "2020-01-01", vertragsende: null },
+      ],
+      error: null,
+    };
+    // b's only tenant moved out before this tenancy started: b no longer counts
+    listenErgebnisse.Mieter = { data: [{ mietverhaeltnis_id: MV_ID, auszug: null }, { mietverhaeltnis_id: "mv-b", auszug: "2025-06-30" }], error: null };
+    const result = await getMietverhaeltnisUebersichtAction(MIETER_ID);
+    expect(result.success && result.data.flaechen).toEqual({
+      hinweise: [{ art: "leerstand", flaeche: 50, wohnungsgroesse: 70 }],
+      restflaecheVerteilen: false,
+      optionAenderbar: false,
     });
   });
 
@@ -459,7 +480,9 @@ describe("getMietverhaeltnisUebersichtAction", () => {
     await getMietverhaeltnisUebersichtAction(MIETER_ID);
     const benutzteTabellen = mockFrom.mock.calls.map((call) => call[0]);
     // The last two reads are the contract area notes (apartment and its tenancies)
-    expect(benutzteTabellen).toEqual(["Mieter", "Mieter_Mietverhaeltnisse", "Mieter_Mietverhaeltnisse_Mieten", "Wohnungen", "Mieter_Mietverhaeltnisse"]);
+    expect([...benutzteTabellen].sort()).toEqual(
+      ["Mieter", "Mieter", "Mieter_Mietverhaeltnisse", "Mieter_Mietverhaeltnisse", "Mieter_Mietverhaeltnisse_Mieten", "Wohnungen"].sort()
+    );
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(mockRevalidatePath).not.toHaveBeenCalled();
   });

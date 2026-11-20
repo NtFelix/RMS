@@ -254,23 +254,40 @@ async function ladeFlaechenStand(supabase: SupabaseClient, wohnungId: string | n
   const leer: FlaechenStand = { hinweise: [], restflaecheVerteilen: null };
   if (!wohnungId) return leer;
   try {
-    const [wohnung, vertraege] = await Promise.all([
+    const [wohnung, vertraege, mieter] = await Promise.all([
       supabase.from("Wohnungen").select("groesse, restflaeche_verteilen").eq("id", wohnungId).maybeSingle(),
       supabase.from("Mieter_Mietverhaeltnisse").select("id, flaeche, vertragsbeginn, vertragsende").eq("wohnung_id", wohnungId),
+      supabase.from("Mieter").select("mietverhaeltnis_id, auszug").eq("wohnung_id", wohnungId),
     ]);
     const wohnungRecord = asRecord(wohnung.data);
     if (wohnung.error || !wohnungRecord || vertraege.error || !Array.isArray(vertraege.data)) return leer;
     const restflaecheVerteilen = wohnungRecord.restflaeche_verteilen === true;
+    // The Abrechnung counts a tenancy by the move-in and move-out of its tenants: when all its tenants have moved out, the
+    // tenancy ends for the notes at the last move-out, even without a contract end. Without tenant rows (or if they cannot
+    // be read) the contract dates apply.
+    const auszugJeVertrag = new Map<string, string | null>();
+    if (!mieter.error && Array.isArray(mieter.data)) {
+      for (const zeile of mieter.data) {
+        const record = asRecord(zeile);
+        if (!record || typeof record.mietverhaeltnis_id !== "string") continue;
+        const auszug = typeof record.auszug === "string" ? record.auszug.slice(0, 10) : null;
+        const bisher = auszugJeVertrag.get(record.mietverhaeltnis_id);
+        // null = at least one tenant has not moved out
+        auszugJeVertrag.set(record.mietverhaeltnis_id, bisher === null || auszug === null ? null : bisher === undefined || auszug > bisher ? auszug : bisher);
+      }
+    }
     const liste: VertragMitFlaeche[] = [];
     for (const zeile of vertraege.data) {
       const record = asRecord(zeile);
       if (!record || typeof record.id !== "string" || typeof record.vertragsbeginn !== "string") continue;
       const flaeche = alsZahl(record.flaeche);
+      const vertragsende = typeof record.vertragsende === "string" ? record.vertragsende.slice(0, 10) : null;
+      const letzterAuszug = auszugJeVertrag.get(record.id) ?? null;
       liste.push({
         id: record.id,
         flaeche: flaeche !== null && flaeche > 0 ? flaeche : null,
         beginn: record.vertragsbeginn.slice(0, 10),
-        ende: typeof record.vertragsende === "string" ? record.vertragsende.slice(0, 10) : null,
+        ende: letzterAuszug !== null && (vertragsende === null || letzterAuszug < vertragsende) ? letzterAuszug : vertragsende,
       });
     }
     return { hinweise: flaechenHinweise(mietverhaeltnisId, liste, alsZahl(wohnungRecord.groesse), restflaecheVerteilen), restflaecheVerteilen };
@@ -479,12 +496,17 @@ export async function getMietverhaeltnisUebersichtAction(
       const mietverhaeltnis = asRecord(mvData) as Mietverhaeltnis | null;
       if (!mietverhaeltnis) return fail(mietverhaeltnisFehler("MV003"));
 
-      const historie = await ladeHistorie(supabase, mietverhaeltnisId);
+      // The area notes never fail and do not depend on the history: load them alongside
+      const [historie, stand, optionAenderbar] = await Promise.all([
+        ladeHistorie(supabase, mietverhaeltnisId),
+        ladeFlaechenStand(supabase, wohnungId, mietverhaeltnisId),
+        hasPermission("wohnungen", "bearbeiten"),
+      ]);
       if (!historie.ok) return historie;
 
       const erklaert = await ladeErklaertAm(supabase, mietverhaeltnisId, "getMietverhaeltnisUebersicht");
       const mieten = historie.data.map((eintrag) => ({ ...eintrag, erklaert_am: erklaert.get(eintrag.miete_id) ?? null }));
-      const flaechen = await ladeFlaechenStand(supabase, wohnungId, mietverhaeltnisId);
+      const flaechen: FlaechenStand = { ...stand, optionAenderbar };
 
       return { ok: true, data: { mietverhaeltnis, mieten, ...basis, flaechen } };
     },
@@ -657,7 +679,10 @@ export async function vertragsdatenSpeichernAction(
       if (error) return fail(mapMietverhaeltnisError(error));
       // No row back: RLS refused the update (or the tenancy is not visible)
       if (!Array.isArray(data) || data.length === 0) return fail(mietverhaeltnisFehler("42501"));
-      const flaechen = await ladeFlaechenStand(supabase, mieter.data.wohnungId, mietverhaeltnisId);
+      // Notes only matter when this tenancy has an area (the section reloads the overview with all notes anyway)
+      const flaechen: FlaechenStand = flaeche === null
+        ? { hinweise: [], restflaecheVerteilen: null }
+        : await ladeFlaechenStand(supabase, mieter.data.wohnungId, mietverhaeltnisId);
       return { ok: true, data: { flaechen } };
     },
   });
