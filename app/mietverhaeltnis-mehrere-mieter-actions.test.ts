@@ -227,8 +227,22 @@ describe("mieterTrennenAction", () => {
     expect(mockRpc).toHaveBeenCalledWith("mietverhaeltnis_mieter_trennen", { p_mieter_id: MIETER_ID, p_datum: "2026-09-01", p_miete: null });
   });
 
+  it("sends the areas of the new and the shared tenancy only when given", async () => {
+    await mieterTrennenAction({ mieterId: MIETER_ID, datum: "2026-09-01", flaecheNeu: 20, flaecheBisher: 50.25 });
+    expect(mockRpc).toHaveBeenCalledWith("mietverhaeltnis_mieter_trennen", {
+      p_mieter_id: MIETER_ID, p_datum: "2026-09-01", p_miete: null, p_flaeche_neu: 20, p_flaeche_bisher: 50.25,
+    });
+    mockRpc.mockClear();
+    await mieterTrennenAction({ mieterId: MIETER_ID, datum: "2026-09-01", flaecheNeu: 20, flaecheBisher: null });
+    expect(mockRpc).toHaveBeenCalledWith("mietverhaeltnis_mieter_trennen", { p_mieter_id: MIETER_ID, p_datum: "2026-09-01", p_miete: null, p_flaeche_neu: 20 });
+  });
+
   it.each([
     ["invalid ID", { mieterId: "x", datum: "2026-09-01" }],
+    ["new area 0", { mieterId: MIETER_ID, datum: "2026-09-01", flaecheNeu: 0 }],
+    ["shared area with three decimals", { mieterId: MIETER_ID, datum: "2026-09-01", flaecheBisher: 20.001 }],
+    ["new area above 100000", { mieterId: MIETER_ID, datum: "2026-09-01", flaecheNeu: 100000.01 }],
+    ["area as text", { mieterId: MIETER_ID, datum: "2026-09-01", flaecheBisher: "50" }],
     ["invalid date", { mieterId: MIETER_ID, datum: "01.09.2026" }],
     ["negative rent", { mieterId: MIETER_ID, datum: "2026-09-01", miete: -1 }],
     ["rent with three decimals", { mieterId: MIETER_ID, datum: "2026-09-01", miete: 10.999 }],

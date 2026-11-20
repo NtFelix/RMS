@@ -8,7 +8,9 @@
  *
  * Contract area (optional, flat share with single contracts): each tenant also gets `vertragsflaeche` of the tenancy that applied
  * in the period (`Mieter_Mietverhaeltnisse.flaeche`); `computeWgFactorsByTenant` then splits the apartment by area instead of
- * equally. A failed read of the areas leaves them out (equal split as before).
+ * equally. A failed read of the areas leaves them out (equal split as before). When areas are entered, the remaining area option
+ * of the apartments (`Wohnungen.restflaeche_verteilen`) is read too and set on `tenant.Wohnungen`; a failed read leaves the option
+ * off (the behaviour before the option).
  *
  * Reference day: the end of the billing period, or the move-out of the tenant if it lies inside the period. A tenant who
  * changes the tenancy inside the period is settled with the tenancy of its reference day for the whole period (a change
@@ -81,6 +83,26 @@ async function ladeVertragsflaechen(
   return flaechen;
 }
 
+/** IDs of the apartments with the remaining area option switched on (`Wohnungen.restflaeche_verteilen`), under RLS. Empty on any error. */
+async function ladeRestflaechenOption(
+  supabase: SupabaseClient,
+  wohnungIds: string[],
+  log: (code: string) => void
+): Promise<Set<string>> {
+  const an = new Set<string>();
+  if (wohnungIds.length === 0) return an;
+  const { data, error } = await supabase.from("Wohnungen").select("id, restflaeche_verteilen").in("id", wohnungIds);
+  if (error || !Array.isArray(data)) {
+    log("RESTFLAECHE_NICHT_GELADEN");
+    return an;
+  }
+  for (const zeile of data) {
+    const record = asRecord(zeile);
+    if (record && typeof record.id === "string" && record.restflaeche_verteilen === true) an.add(record.id);
+  }
+  return an;
+}
+
 export async function gruppiereNachMietverhaeltnisImZeitraum<T extends AbrechnungMietverhaeltnisDaten>(
   supabase: SupabaseClient,
   daten: T,
@@ -127,10 +149,21 @@ export async function gruppiereNachMietverhaeltnisImZeitraum<T extends Abrechnun
 
     // Contract areas of these tenancies (optional). A failed read only drops the areas: equal split as before.
     const flaechen = await ladeVertragsflaechen(supabase, mvJeMieter, log);
+    // The remaining area option only matters when areas are entered
+    const restflaecheAn = flaechen.size > 0
+      ? await ladeRestflaechenOption(
+          supabase,
+          Array.from(new Set(tenants.map(tenant => tenant.wohnung_id).filter((id): id is string => typeof id === "string"))),
+          log
+        )
+      : new Set<string>();
 
     const imZeitraum = tenants.map(tenant => {
       const mvId = mvJeMieter.get(tenant.id) ?? null;
-      return { ...tenant, mietverhaeltnis_id: mvId, vertragsflaeche: mvId ? (flaechen.get(mvId) ?? null) : null };
+      const mitOption = tenant.wohnung_id !== null && restflaecheAn.has(tenant.wohnung_id) && tenant.Wohnungen
+        ? { Wohnungen: { ...tenant.Wohnungen, restflaeche_verteilen: true } }
+        : {};
+      return { ...tenant, ...mitOption, mietverhaeltnis_id: mvId, vertragsflaeche: mvId ? (flaechen.get(mvId) ?? null) : null };
     });
     const ergebnis = fasseGemeinsameMietverhaeltnisseZusammen(imZeitraum, daten.rechnungen ?? []);
     if (ergebnis.zusammengefasst.size > 0) return { ...daten, tenants: ergebnis.tenants, rechnungen: ergebnis.rechnungen };

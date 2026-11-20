@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 import { format } from "date-fns";
-import { Calendar, Euro, Loader2, Users } from "lucide-react";
+import { Calendar, Euro, Loader2, Maximize2, Users } from "lucide-react";
 import {
   getMitmieterUebersichtAction,
   mieterTrennenAction,
@@ -14,7 +14,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { NumberInput } from "@/components/ui/number-input";
 import { toast } from "@/hooks/use-toast";
 import { PropertyHeader } from "@/components/tenants/property-header";
-import { FEHLER_BETRAG, FEHLER_DATUM, istGueltigesDatum, parseBetragEingabe } from "@/components/tenants/mietverhaeltnis/miete-format";
+import { FEHLER_BETRAG, FEHLER_DATUM, FEHLER_FLAECHE, istGueltigesDatum, parseBetragEingabe, parseFlaecheEingabe } from "@/components/tenants/mietverhaeltnis/miete-format";
 import { DATUM, FEHLERTEXT, FELD, KARTE, UEBERSCHRIFT, ZEILE } from "@/components/tenants/mietverhaeltnis/stile";
 import type { Mietverhaeltnis, MitmieterUebersicht } from "@/types/Mietverhaeltnis";
 
@@ -26,6 +26,7 @@ interface MitmieterSectionProps {
 }
 
 type Formular = "keins" | "zusammenfuehren" | "trennen";
+type Feld = "ziel" | "datum" | "miete" | "flaecheNeu" | "flaecheBisher";
 
 const ROLLEN: ComboboxOption[] = [
   { value: "hauptmieter", label: "Hauptmieter" },
@@ -53,7 +54,9 @@ export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: Mit
   const [rolle, setRolle] = useState("");
   const [datum, setDatum] = useState("");
   const [miete, setMiete] = useState("");
-  const [fehler, setFehler] = useState<{ ziel?: string; datum?: string; miete?: string }>({});
+  const [flaecheNeu, setFlaecheNeu] = useState("");
+  const [flaecheBisher, setFlaecheBisher] = useState("");
+  const [fehler, setFehler] = useState<Partial<Record<Feld, string>>>({});
 
   const laden = useCallback(async () => {
     try {
@@ -75,6 +78,8 @@ export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: Mit
     setRolle("");
     setDatum("");
     setMiete("");
+    setFlaecheNeu("");
+    setFlaecheBisher("");
     setFehler({});
   };
 
@@ -113,15 +118,20 @@ export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: Mit
 
   const handleTrennen = async () => {
     if (isSaving) return;
-    const neuerFehler: { datum?: string; miete?: string } = {};
+    const neuerFehler: Partial<Record<Feld, string>> = {};
     if (!istGueltigesDatum(datum)) neuerFehler.datum = FEHLER_DATUM;
     const betrag = miete.trim() === "" ? null : parseBetragEingabe(miete);
     if (miete.trim() !== "" && betrag === null) neuerFehler.miete = FEHLER_BETRAG;
+    // Both areas optional: empty = none (own tenancy) or unchanged (shared tenancy)
+    const neu = parseFlaecheEingabe(flaecheNeu);
+    const bisher = parseFlaecheEingabe(flaecheBisher);
+    if (neu === undefined) neuerFehler.flaecheNeu = FEHLER_FLAECHE;
+    if (bisher === undefined) neuerFehler.flaecheBisher = FEHLER_FLAECHE;
     setFehler(neuerFehler);
-    if (Object.keys(neuerFehler).length > 0) return;
+    if (Object.keys(neuerFehler).length > 0 || neu === undefined || bisher === undefined) return;
     setIsSaving(true);
     try {
-      const result = await mieterTrennenAction({ mieterId, datum, miete: betrag });
+      const result = await mieterTrennenAction({ mieterId, datum, miete: betrag, flaecheNeu: neu, flaecheBisher: bisher });
       if (result.success) await abschliessen("Der Mieter hat jetzt ein eigenes Mietverhältnis.");
       else melde(result.error.message);
     } catch {
@@ -137,9 +147,9 @@ export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: Mit
     value: kandidat.mietverhaeltnisId,
     label: kandidat.mieterNamen.length > 0 ? kandidat.mieterNamen.join(", ") : "Mietverhältnis ohne Namen",
   }));
-  const fehlerAttribute = (feld: "ziel" | "datum" | "miete") =>
+  const fehlerAttribute = (feld: Feld) =>
     fehler[feld] ? { "aria-invalid": true as const, "aria-describedby": `${id}-${feld}-fehler` } : {};
-  const fehlerText = (feld: "ziel" | "datum" | "miete") =>
+  const fehlerText = (feld: Feld) =>
     fehler[feld] ? <p id={`${id}-${feld}-fehler`} className={FEHLERTEXT}>{fehler[feld]}</p> : null;
 
   return (
@@ -263,6 +273,30 @@ export function MitmieterSection({ mieterId, mietverhaeltnis, onGeaendert }: Mit
               <div>
                 <NumberInput id={`${id}-miete`} step="0.01" placeholder="Optional (€)" value={miete} onChange={(event) => setMiete(event.target.value)} disabled={isSaving} className={FELD} {...fehlerAttribute("miete")} />
                 {fehlerText("miete")}
+              </div>
+            </div>
+            <div className={ZEILE}>
+              <PropertyHeader
+                icon={Maximize2}
+                label="Fläche eigenes"
+                htmlFor={`${id}-flaeche-neu`}
+                infoText="Nur bei WG mit Einzelverträgen (optional): Vertragsfläche des eigenen Mietverhältnisses in m² inkl. vereinbartem Anteil an Küche, Bad und Flur. Leer lassen: ohne Fläche."
+              />
+              <div>
+                <NumberInput id={`${id}-flaeche-neu`} step="0.01" placeholder="Optional (m²)" value={flaecheNeu} onChange={(event) => setFlaecheNeu(event.target.value)} disabled={isSaving} className={FELD} {...fehlerAttribute("flaecheNeu")} />
+                {fehlerText("flaecheNeu")}
+              </div>
+            </div>
+            <div className={ZEILE}>
+              <PropertyHeader
+                icon={Maximize2}
+                label="Fläche gemeinsames"
+                htmlFor={`${id}-flaeche-bisher`}
+                infoText="Neue Vertragsfläche des gemeinsamen Mietverhältnisses, das für die übrigen Mieter weiterläuft (optional). Leer lassen: unverändert. Die Fläche ist nicht versioniert und gilt auch für frühere Zeiträume, wenn deren Abrechnung neu berechnet wird."
+              />
+              <div>
+                <NumberInput id={`${id}-flaeche-bisher`} step="0.01" placeholder="Optional (m²)" value={flaecheBisher} onChange={(event) => setFlaecheBisher(event.target.value)} disabled={isSaving} className={FELD} {...fehlerAttribute("flaecheBisher")} />
+                {fehlerText("flaecheBisher")}
               </div>
             </div>
           </div>

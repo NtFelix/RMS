@@ -8,6 +8,10 @@
  * Security relevant (permissions, money): not production ready until the maintainer has reviewed it.
  */
 
+import type { FlaechenHinweis } from "@/utils/vertragsflaeche-hinweise";
+
+export type { FlaechenHinweis };
+
 /** One entry of the rent history. `gueltig_ab` is an ISO date (YYYY-MM-DD), `betrag` is the monthly rent in euro. */
 export interface MietEintrag {
   miete_id: string;
@@ -37,7 +41,9 @@ export interface Mietverhaeltnis {
    * Contract area in m² INCLUDING the share of common areas (kitchen, bath, hall) the user agreed on; optional, for flat
    * shares with single contracts. The Abrechnung then splits each day of the apartment by area (area / max(apartment size,
    * sum of the areas present that day), so at most 100 %; the rest is vacancy for the landlord). If any tenant present has no
-   * area, or the apartment size is unknown, that day is split equally among the tenants present (see `computeWgFactorsByTenant`).
+   * area, that day is split equally among the tenants present, unless the apartment distributes the remaining area to the
+   * tenants without area (`Wohnungen.restflaeche_verteilen`); without apartment size always equally (see `analysiereWgVerteilung`).
+   * Not versioned: a change also applies to earlier periods when their Abrechnung is calculated again.
    */
   flaeche: number | null;
   vertrag_dokument_id: string | null;
@@ -55,6 +61,8 @@ export interface MietverhaeltnisUebersicht {
   mieterEinzug: string | null;
   /** `Mieter.status` is `bewerber`: no tenancy is created for applicants. */
   istBewerber: boolean;
+  /** Contract area notes and remaining area option of the apartment; `null` without tenancy. */
+  flaechen: FlaechenStand | null;
 }
 
 /** Other tenants of the apartment of a tenant (phase 6, several tenants per tenancy). */
@@ -92,10 +100,11 @@ export type MietverhaeltnisActionResult<T = undefined> =
   | { success: true; data: T }
   | { success: false; error: MietverhaeltnisActionError };
 
-/** The contract areas of the running tenancies of an apartment add up to more than the apartment (shown as a warning after saving). */
-export interface FlaechenWarnung {
-  /** Sum of the contract areas of the tenancies of the apartment that have not ended, m². */
-  summe: number;
-  /** `Wohnungen.groesse`, m². */
-  wohnungsgroesse: number;
+/**
+ * Contract areas around a tenancy for the tenant dialog: notes (see `flaechenHinweise`, only tenancies running at the same time)
+ * and the remaining area option of the apartment (`Wohnungen.restflaeche_verteilen`, `null` if it could not be read).
+ */
+export interface FlaechenStand {
+  hinweise: FlaechenHinweis[];
+  restflaecheVerteilen: boolean | null;
 }

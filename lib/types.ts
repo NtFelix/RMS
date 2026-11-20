@@ -51,6 +51,11 @@ export type Mieter = {
     Wohnungen?: {
         name: string;
         groesse: number;
+        /**
+         * Remaining area option of the apartment (`Wohnungen.restflaeche_verteilen`, GH-17). Set only by the Abrechnung loader,
+         * and only when contract areas are entered; see `analysiereWgVerteilung` for the effect.
+         */
+        restflaeche_verteilen?: boolean;
     } | null;
 };
 
