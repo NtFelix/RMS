@@ -43,6 +43,11 @@ export type Mieter = {
     erstellt_von: string;
     /** Tenancy of the tenant (GH-17). Set only where the Abrechnung needs it (see `utils/abrechnung-mietverhaeltnis.ts`). */
     mietverhaeltnis_id?: string | null;
+    /**
+     * Contract area in m² of the tenancy that applied in the billing period (incl. the agreed share of common areas; flat share
+     * with single contracts). Set only by the Abrechnung loader; see `computeWgFactorsByTenant` for the effect.
+     */
+    vertragsflaeche?: number | null;
     Wohnungen?: {
         name: string;
         groesse: number;

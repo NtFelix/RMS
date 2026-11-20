@@ -61,6 +61,7 @@ const mietverhaeltnis: Mietverhaeltnis = {
   kuendigung_eingang_am: null,
   kuendigung_zum: null,
   kuendigung_durch: null,
+  flaeche: null,
   vertrag_dokument_id: null,
   notiz: null,
   quelle: "app",

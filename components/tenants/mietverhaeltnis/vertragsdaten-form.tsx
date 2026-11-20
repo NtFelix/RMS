@@ -2,16 +2,17 @@
 
 import { useId, useState } from "react";
 import { format } from "date-fns";
-import { CalendarCheck, CalendarClock, CalendarX, Loader2, StickyNote, UserRound } from "lucide-react";
+import { CalendarCheck, CalendarClock, CalendarX, Loader2, Maximize2, StickyNote, UserRound } from "lucide-react";
 import { vertragsdatenSpeichernAction } from "@/app/mietverhaeltnis-actions";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
+import { NumberInput } from "@/components/ui/number-input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Mietverhaeltnis } from "@/types/Mietverhaeltnis";
 import { PropertyHeader } from "@/components/tenants/property-header";
-import { NOTIZ_MAX_LAENGE, textOderNull, zeichenZahl } from "@/components/tenants/mietverhaeltnis/miete-format";
+import { FEHLER_FLAECHE, NOTIZ_MAX_LAENGE, parseFlaecheEingabe, textOderNull, zeichenZahl } from "@/components/tenants/mietverhaeltnis/miete-format";
 import { DATUM, FEHLERTEXT, FELD, ZEILE, ZEILE_OBEN } from "@/components/tenants/mietverhaeltnis/stile";
 
 interface VertragsdatenFormProps {
@@ -30,9 +31,12 @@ const DURCH_OPTIONEN: { wert: Durch; label: string }[] = [
 ];
 
 const alsIso = (date: Date | undefined) => (date ? format(date, "yyyy-MM-dd") : "");
+const formatFlaeche = (wert: number) => wert.toLocaleString("de-DE", { maximumFractionDigits: 2 });
 
 /**
- * Contract data of the tenancy: end, fixed term, termination and note, as rows like the rest of the tenant dialog.
+ * Contract data of the tenancy: end, fixed term, termination, contract area and note, as rows like the rest of the tenant dialog.
+ * The contract area (optional, flat share with single contracts) includes the share of common areas the user agreed on; after
+ * saving, a warning appears when the running contracts of the apartment together exceed the apartment.
  * Saved with its own button, which appears once something changed. The app calculates no deadlines and gives no
  * legal advice; the form only stores what the user enters.
  */
@@ -45,9 +49,12 @@ export function VertragsdatenForm({ mieterId, mietverhaeltnis, onGespeichert }: 
     kuendigungZum: mietverhaeltnis.kuendigung_zum ?? "",
     kuendigungDurch: (mietverhaeltnis.kuendigung_durch ?? "") as Durch,
     notiz: mietverhaeltnis.notiz ?? "",
+    // As typed (German decimal comma); the stored value comes back as a number
+    flaeche: mietverhaeltnis.flaeche === null || mietverhaeltnis.flaeche === undefined ? "" : String(mietverhaeltnis.flaeche),
   };
   const [werte, setWerte] = useState(start);
   const [notizFehler, setNotizFehler] = useState<string | null>(null);
+  const [flaecheFehler, setFlaecheFehler] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const setze = <K extends keyof typeof start>(feld: K, wert: (typeof start)[K]) => setWerte((alt) => ({ ...alt, [feld]: wert }));
@@ -60,6 +67,12 @@ export function VertragsdatenForm({ mieterId, mietverhaeltnis, onGespeichert }: 
       return;
     }
     setNotizFehler(null);
+    const flaeche = parseFlaecheEingabe(werte.flaeche);
+    if (flaeche === undefined) {
+      setFlaecheFehler(FEHLER_FLAECHE);
+      return;
+    }
+    setFlaecheFehler(null);
 
     setIsSaving(true);
     try {
@@ -71,9 +84,17 @@ export function VertragsdatenForm({ mieterId, mietverhaeltnis, onGespeichert }: 
         kuendigungZum: werte.kuendigungZum || null,
         kuendigungDurch: werte.kuendigungDurch === "" ? null : werte.kuendigungDurch,
         notiz: textOderNull(werte.notiz),
+        flaeche,
       });
       if (result.success) {
         toast({ title: "Erfolg", description: "Die Vertragsdaten wurden gespeichert.", variant: "success" });
+        const warnung = result.data?.flaechenWarnung;
+        if (warnung) {
+          toast({
+            title: "Hinweis zur Vertragsfläche",
+            description: `Die laufenden Mietverhältnisse dieser Wohnung haben zusammen ${formatFlaeche(warnung.summe)} m², die Wohnung hat ${formatFlaeche(warnung.wohnungsgroesse)} m². In der Abrechnung werden die Anteile gekürzt, sodass höchstens 100 % verteilt werden.`,
+          });
+        }
         onGespeichert();
       } else {
         toast({ title: "Fehler", description: result.error.message, variant: "destructive" });
@@ -135,6 +156,29 @@ export function VertragsdatenForm({ mieterId, mietverhaeltnis, onGespeichert }: 
       </div>
 
       <div className={ZEILE_OBEN}>
+        <PropertyHeader
+          icon={Maximize2}
+          label="Vertragsfläche"
+          htmlFor={`${id}-flaeche`}
+          infoText="Nur bei WG mit Einzelverträgen (optional): Fläche dieses Mietvertrags in m² einschließlich des vereinbarten Anteils an Küche, Bad und Flur. Die Nebenkosten der Wohnung werden dann nach Fläche verteilt, ein leeres Zimmer trägt der Vermieter. Leer lassen: Kosten wie bisher gleich je Mitbewohner."
+        />
+        <div>
+          <NumberInput
+            id={`${id}-flaeche`}
+            step="0.01"
+            placeholder="Optional (m²)"
+            value={werte.flaeche}
+            onChange={(event) => setze("flaeche", event.target.value)}
+            disabled={isSaving}
+            aria-invalid={flaecheFehler ? true : undefined}
+            aria-describedby={flaecheFehler ? `${id}-flaeche-fehler` : undefined}
+            className={FELD}
+          />
+          {flaecheFehler && <p id={`${id}-flaeche-fehler`} className={FEHLERTEXT}>{flaecheFehler}</p>}
+        </div>
+      </div>
+
+      <div className={ZEILE_OBEN}>
         <PropertyHeader icon={StickyNote} label="Vertragsnotiz" htmlFor={`${id}-notiz`} infoText="Interne Notiz zum Mietvertrag, zum Beispiel zu Nachträgen (optional)." />
         <div>
           <Textarea
@@ -153,7 +197,7 @@ export function VertragsdatenForm({ mieterId, mietverhaeltnis, onGespeichert }: 
 
       {geaendert && (
         <div className="flex justify-end gap-2 pt-1 animate-in fade-in slide-in-from-top-1">
-          <Button type="button" variant="ghost" size="sm" disabled={isSaving} onClick={() => { setWerte(start); setNotizFehler(null); }}>
+          <Button type="button" variant="ghost" size="sm" disabled={isSaving} onClick={() => { setWerte(start); setNotizFehler(null); setFlaecheFehler(null); }}>
             Verwerfen
           </Button>
           <Button type="button" variant="outline" size="sm" disabled={isSaving} onClick={() => void handleSpeichern()}>

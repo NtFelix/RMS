@@ -45,7 +45,7 @@ describe("gruppiereNachMietverhaeltnisImZeitraum", () => {
     expect(ergebnis.tenants).toHaveLength(1);
     expect(ergebnis.tenants[0]).toMatchObject({ id: "a1", name: "a1, a2", mietverhaeltnis_id: "mv-1" });
     expect(ergebnis.tenants[0].nebenkosten?.[0].amount).toBe("100");
-    expect(aufrufe).toEqual(["Mieter_Mietverhaeltnis_Zuordnungen"]);
+    expect(aufrufe).toEqual(["Mieter_Mietverhaeltnis_Zuordnungen", "Mieter_Mietverhaeltnisse"]);
   });
 
   it("leaves rows with their own tenancy untouched (same object, as before)", async () => {
@@ -97,11 +97,57 @@ describe("gruppiereNachMietverhaeltnisImZeitraum", () => {
     expect(await gruppiereNachMietverhaeltnisImZeitraum(supabase, eingabe, JAHR_2025)).toBe(eingabe);
   });
 
-  it("skips everything for fewer than two tenants", async () => {
+  it("skips everything without tenants", async () => {
     const { supabase, aufrufe } = client({});
-    const eingabe = { tenants: [tenant("a1")], rechnungen: [] };
+    const eingabe = { tenants: [] as Mieter[], rechnungen: [] };
     expect(await gruppiereNachMietverhaeltnisImZeitraum(supabase, eingabe, JAHR_2025)).toBe(eingabe);
     expect(aufrufe).toEqual([]);
+  });
+
+  describe("contract area (flat share with single contracts)", () => {
+    const zuordnung = (mieter: string, mv: string): Zeile => ({ mieter_id: mieter, mietverhaeltnis_id: mv, gueltig_ab: "2023-01-01", gueltig_bis: null });
+
+    it("adds the area of the tenancy in the period to every tenant, also to a single one", async () => {
+      const { supabase } = client({
+        Mieter_Mietverhaeltnis_Zuordnungen: { data: [zuordnung("a1", "mv-1"), zuordnung("a2", "mv-2")], error: null },
+        Mieter_Mietverhaeltnisse: { data: [{ id: "mv-1", flaeche: 50 }, { id: "mv-2", flaeche: "20.00" }], error: null },
+      });
+      const ergebnis = await gruppiereNachMietverhaeltnisImZeitraum(supabase, daten(), JAHR_2025);
+      expect(ergebnis.tenants.map(t => [t.id, t.vertragsflaeche])).toEqual([["a1", 50], ["a2", 20]]);
+
+      const einzeln = await gruppiereNachMietverhaeltnisImZeitraum(supabase, { tenants: [tenant("a1")], rechnungen: [] }, JAHR_2025);
+      expect(einzeln.tenants[0].vertragsflaeche).toBe(50);
+    });
+
+    it("keeps the data object when no tenancy has an area", async () => {
+      const { supabase } = client({
+        Mieter_Mietverhaeltnis_Zuordnungen: { data: [zuordnung("a1", "mv-1"), zuordnung("a2", "mv-2")], error: null },
+        Mieter_Mietverhaeltnisse: { data: [{ id: "mv-1", flaeche: null }, { id: "mv-2", flaeche: 0 }], error: null },
+      });
+      const eingabe = daten();
+      expect(await gruppiereNachMietverhaeltnisImZeitraum(supabase, eingabe, JAHR_2025)).toBe(eingabe);
+    });
+
+    it("gives a merged tenancy the area of that tenancy", async () => {
+      const { supabase } = client({
+        Mieter_Mietverhaeltnis_Zuordnungen: { data: [zuordnung("a1", "mv-1"), zuordnung("a2", "mv-1")], error: null },
+        Mieter_Mietverhaeltnisse: { data: [{ id: "mv-1", flaeche: 45 }], error: null },
+      });
+      const ergebnis = await gruppiereNachMietverhaeltnisImZeitraum(supabase, daten(), JAHR_2025);
+      expect(ergebnis.tenants).toHaveLength(1);
+      expect(ergebnis.tenants[0].vertragsflaeche).toBe(45);
+    });
+
+    it("drops the areas (equal split as before) when they cannot be read, and logs only the kind", async () => {
+      const { supabase } = client({
+        Mieter_Mietverhaeltnis_Zuordnungen: { data: [zuordnung("a1", "mv-1"), zuordnung("a2", "mv-2")], error: null },
+        Mieter_Mietverhaeltnisse: { data: null, error: { code: "42703" } },
+      });
+      const log = jest.fn();
+      const eingabe = daten();
+      expect(await gruppiereNachMietverhaeltnisImZeitraum(supabase, eingabe, JAHR_2025, log)).toBe(eingabe);
+      expect(log).toHaveBeenCalledWith("FLAECHE_NICHT_GELADEN");
+    });
   });
 
   it.each([

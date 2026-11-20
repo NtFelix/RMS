@@ -20,9 +20,38 @@ export function groupTenantsByApartment(tenants: Mieter[]): Map<string, Mieter[]
   return groups;
 }
 
-// Compute the WG factor for each tenant: the fraction of an apartment's share
-// that should be borne by the tenant, splitting each active period equally among active roommates.
-// The factors per apartment sum to ~1 across roommates, considering periods with no occupants are ignored.
+/**
+ * Shares of one day (or Rechentag) of an apartment among its tenants present on that day (GH-17, contract area).
+ *
+ * - All present tenants have a contract area (`vertragsflaeche`, incl. their share of common areas) and the apartment size is
+ *   known: each bears `vertragsflaeche / max(apartment size, sum of the present contract areas)`. A tenant never bears more
+ *   than its own area; a room without tenant stays vacancy (landlord), and contract areas that together exceed the apartment
+ *   are reduced so that at most 100 % are distributed.
+ * - Otherwise (no or partial areas, apartment size unknown): the day is split equally among the present tenants, as before.
+ */
+function tagesAnteile(anwesend: { flaeche: number | null }[], wohnungsgroesse: number): number[] {
+  const alleMitFlaeche = anwesend.every(r => r.flaeche !== null && r.flaeche > 0);
+  if (!alleMitFlaeche || !(wohnungsgroesse > 0)) return anwesend.map(() => 1 / anwesend.length);
+  const summe = anwesend.reduce((acc, r) => acc + (r.flaeche as number), 0);
+  const basis = Math.max(wohnungsgroesse, summe);
+  return anwesend.map(r => (r.flaeche as number) / basis);
+}
+
+/** Contract area of a tenant as a usable number, `null` if missing or not positive. */
+function vertragsflaecheVon(tenant: Mieter): number | null {
+  const wert = Number(tenant.vertragsflaeche);
+  return tenant.vertragsflaeche !== null && tenant.vertragsflaeche !== undefined && Number.isFinite(wert) && wert > 0 ? wert : null;
+}
+
+/** Size of the apartment of a group of tenants (all share one apartment), 0 if unknown. */
+function wohnungsgroesseVon(group: Mieter[]): number {
+  const wert = Number(group.find(t => t.Wohnungen?.groesse)?.Wohnungen?.groesse);
+  return Number.isFinite(wert) && wert > 0 ? wert : 0;
+}
+
+// Compute the WG factor for each tenant: the fraction of an apartment's share that should be borne by the tenant.
+// Each day is split among the roommates present, equally or, when all of them have a contract area, by area (see tagesAnteile).
+// The factors per apartment sum to at most 1; the rest (days without occupants, rooms without tenant) is vacancy.
 export function computeWgFactorsByTenant(tenants: Mieter[], year: number): Record<string, number>;
 export function computeWgFactorsByTenant(tenants: Mieter[], startdatum: string, enddatum: string, rechenbasis?: Rechenbasis): Record<string, number>;
 export function computeWgFactorsByTenant(tenants: Mieter[], yearOrStartdatum: number | string, enddatum?: string, rechenbasis?: Rechenbasis): Record<string, number> {
@@ -46,24 +75,23 @@ export function computeWgFactorsByTenant(tenants: Mieter[], yearOrStartdatum: nu
   const totalDays = calculateTotalDays(from, to);
 
   for (const group of groupTenantsByApartment(tenants).values()) {
+    const wohnungsgroesse = wohnungsgroesseVon(group);
     const ranges = group.map(t => ({
       id: t.id,
       // No move-in date means no occupancy, as in calculateTenantOccupancy
       start: t.einzug ? parseAsUtc(t.einzug).getTime() : Infinity,
       end: t.auszug ? parseAsUtc(t.auszug).getTime() : periodEnd,
+      flaeche: vertragsflaecheVon(t),
       share: 0
     }));
 
-    // For each day in the period, split the day equally among the active roommates
+    // For each day in the period, split the day among the active roommates (equally or by contract area)
     for (let day = 0; day < totalDays; day++) {
       const time = periodStart + day * DAY_MS;
-      const isActive = (r: { start: number; end: number }) => time >= r.start && time <= r.end;
-
-      let count = 0;
-      for (const r of ranges) if (isActive(r)) count++;
-      if (count === 0) continue;
-
-      for (const r of ranges) if (isActive(r)) r.share += 1 / count;
+      const active = ranges.filter(r => time >= r.start && time <= r.end);
+      if (active.length === 0) continue;
+      const anteile = tagesAnteile(active, wohnungsgroesse);
+      active.forEach((r, i) => { r.share += anteile[i]; });
     }
 
     // Normalize by total days to get the factor (0-1 range)
@@ -91,15 +119,17 @@ function computeWgFactorsByTenant360(tenants: Mieter[], startdatum: string, endd
   }
 
   for (const group of groupTenantsByApartment(tenants).values()) {
+    const wohnungsgroesse = wohnungsgroesseVon(group);
     const ranges = group.map(t => {
       const r = calculateTenantRechentage(t, startdatum, enddatum);
-      return { id: t.id, start: r.start, end: r.end, share: 0 };
+      return { id: t.id, start: r.start, end: r.end, flaeche: vertragsflaecheVon(t), share: 0 };
     });
 
     for (let position = period.start; position < period.end; position++) {
       const active = ranges.filter(r => r.start !== undefined && r.end !== undefined && position >= r.start! && position < r.end!);
       if (active.length === 0) continue;
-      for (const r of active) r.share += 1 / active.length;
+      const anteile = tagesAnteile(active, wohnungsgroesse);
+      active.forEach((r, i) => { r.share += anteile[i]; });
     }
 
     for (const r of ranges) {

@@ -88,6 +88,7 @@ const mietverhaeltnis = {
   kuendigung_eingang_am: null,
   kuendigung_zum: null,
   kuendigung_durch: "mieter" as const,
+  flaeche: null as number | null,
   vertrag_dokument_id: null,
   notiz: null,
   quelle: "app" as const,
@@ -113,7 +114,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockUebersicht.mockResolvedValue({ success: true, data: ohneMietverhaeltnis });
   mockAnlegen.mockResolvedValue({ success: true, data: { mietverhaeltnisId: MV_ID } });
-  mockVertragsdaten.mockResolvedValue({ success: true, data: undefined });
+  mockVertragsdaten.mockResolvedValue({ success: true, data: { flaechenWarnung: null } });
   mockSetzen.mockResolvedValue({ success: true, data: { mieteId: MIETE_NEU } });
   mockEntfernen.mockResolvedValue({ success: true, data: undefined });
   mockUmzug.mockResolvedValue({ success: true, data: { mietverhaeltnisId: NEU_MV_ID_UMZUG } });
@@ -402,6 +403,7 @@ describe("TenantMieteSection with tenancy", () => {
         kuendigungZum: null,
         kuendigungDurch: "vermieter",
         notiz: "Haustiere erlaubt",
+        flaeche: null,
       })
     );
     await waitFor(() => expect(mockUebersicht).toHaveBeenCalledTimes(2));
@@ -414,6 +416,47 @@ describe("TenantMieteSection with tenancy", () => {
     fireEvent.click(screen.getByRole("button", { name: "Vertragsdaten speichern" }));
 
     await waitFor(() => expect(mockVertragsdaten).toHaveBeenCalledWith(expect.objectContaining({ kuendigungDurch: null, notiz: null })));
+  });
+
+  it("saves a contract area with a decimal comma and shows a stored one", async () => {
+    const { container } = await mitVertrag();
+
+    setze(feld(container, "flaeche"), "50,5");
+    fireEvent.click(screen.getByRole("button", { name: "Vertragsdaten speichern" }));
+
+    await waitFor(() => expect(mockVertragsdaten).toHaveBeenCalledWith(expect.objectContaining({ flaeche: 50.5 })));
+  });
+
+  it("pre-fills a stored contract area", async () => {
+    mockUebersicht.mockResolvedValue({ success: true, data: { ...mitMietverhaeltnis, mietverhaeltnis: { ...mietverhaeltnis, flaeche: 20 } } });
+    const { container } = render(<TenantMieteSection mieterId={MIETER_ID} />);
+    await screen.findByRole("list");
+    expect(feld(container, "flaeche")).toHaveValue("20");
+  });
+
+  it.each([["0"], ["-5"], ["100000,01"], ["12,345"]])("rejects the contract area %s at the field, without an action call", async (wert) => {
+    const { container } = await mitVertrag();
+
+    setze(feld(container, "flaeche"), wert);
+    fireEvent.click(screen.getByRole("button", { name: "Vertragsdaten speichern" }));
+
+    expect(await screen.findByText(/Bitte geben Sie eine Fläche über 0 bis 100.000 m²/)).toBeInTheDocument();
+    expect(feld(container, "flaeche")).toHaveAttribute("aria-invalid", "true");
+    expect(mockVertragsdaten).not.toHaveBeenCalled();
+  });
+
+  it("shows a hint when the contract areas of the apartment exceed the apartment", async () => {
+    mockVertragsdaten.mockResolvedValue({ success: true, data: { flaechenWarnung: { summe: 90, wohnungsgroesse: 70 } } });
+    const { container } = await mitVertrag();
+
+    setze(feld(container, "flaeche"), "50");
+    fireEvent.click(screen.getByRole("button", { name: "Vertragsdaten speichern" }));
+
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Hinweis zur Vertragsfläche", description: expect.stringContaining("zusammen 90 m², die Wohnung hat 70 m²") })
+      )
+    );
   });
 
   it("rejects a note that is too long at the field, without an action call", async () => {
