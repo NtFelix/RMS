@@ -66,7 +66,7 @@ async function run<T>(
     return { success: true, data: await work(await getStorageContext()) }
   } catch (error) {
     unstable_rethrow(error)
-    console.error(`[storage-actions] ${operation} failed:`, error)
+    console.error('[storage-actions] %s failed:', operation, error)
     return { success: false, error: toErrorMessage(error) }
   }
 }

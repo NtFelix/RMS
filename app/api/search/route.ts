@@ -339,7 +339,7 @@ export async function GET(request: Request) {
             });
             
             if (process.env.NODE_ENV === 'development') {
-              console.log(`Returning ${tenantResults.length} tenant results:`, tenantResults.map(t => ({ id: t.id, name: t.name, email: t.email })));
+              console.log('Returning %d tenant results:', tenantResults.length, tenantResults.map(t => ({ id: t.id, name: t.name, email: t.email })));
             }
             
             return { type: 'tenant' as const, data: tenantResults };
@@ -449,7 +449,7 @@ export async function GET(request: Request) {
             });
             
             if (process.env.NODE_ENV === 'development') {
-              console.log(`Returning ${houseResults.length} house results:`, houseResults.map(h => ({ id: h.id, name: h.name, address: h.address })));
+              console.log('Returning %d house results:', houseResults.length, houseResults.map(h => ({ id: h.id, name: h.name, address: h.address })));
             }
             
             return { type: 'house', data: houseResults };

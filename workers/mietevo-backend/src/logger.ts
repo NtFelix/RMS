@@ -89,7 +89,7 @@ export class WorkerLogger {
 
     log(severity: 'debug' | 'info' | 'warn' | 'error', message: string, attributes: LogAttributes = {}) {
         // Console log for local debugging / real-time logs in dashboard
-        console.log(`[${severity.toUpperCase()}] ${message}`, JSON.stringify(attributes));
+        console.log('[%s] %s', severity.toUpperCase(), message, JSON.stringify(attributes));
 
         const apiKey = getPostHogApiKey(this.env);
         if (!apiKey) return;

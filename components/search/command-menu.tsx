@@ -421,7 +421,7 @@ export function CommandMenu() {
 
       return data
     } catch (error) {
-      console.error(`Error fetching ${entityType}:`, error)
+      console.error('Error fetching %s:', entityType, error)
       throw error
     }
   }, [])

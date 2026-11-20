@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
+import { BASE_URL } from '@/lib/constants';
 
 export async function POST(request: Request) {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -31,12 +32,30 @@ export async function POST(request: Request) {
     }
 
     // Get return URL from request body or use default
-    const body = await request.json();
-    const origin = request.headers.get('origin') || 'http://localhost:3000';
-    const returnUrl = body.return_url || `${origin}/dashboard`;
+    const body = await request.json().catch(() => ({}));
+    const trustedBase =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : BASE_URL);
+    const trustedOrigin = new URL(trustedBase).origin;
+    let returnUrl = `${trustedOrigin}/dashboard`;
+    if (typeof body?.return_url === 'string') {
+      try {
+        const parsed = new URL(body.return_url, trustedOrigin);
+        if (
+          (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
+          parsed.origin === trustedOrigin &&
+          !parsed.username &&
+          !parsed.password
+        ) {
+          returnUrl = parsed.toString();
+        }
+      } catch {
+        // keep default returnUrl
+      }
+    }
     
     if (process.env.NODE_ENV === 'development') {
-      console.log('Creating Stripe portal session with return_url:', returnUrl);
+      console.log('Creating Stripe portal session for user %s', user.id);
     }
     
     const portalSession = await stripe.billingPortal.sessions.create({
@@ -50,10 +69,9 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Error creating customer portal session:', error);
-    const errorMessage = error instanceof Stripe.errors.StripeError 
-      ? error.message 
-      : 'Failed to create customer portal session';
-    
-    return NextResponse.json({ error: errorMessage }, { status: 500, headers: NO_CACHE_HEADERS });
+    return NextResponse.json(
+      { error: 'Failed to create customer portal session' },
+      { status: 500, headers: NO_CACHE_HEADERS }
+    );
   }
 }
