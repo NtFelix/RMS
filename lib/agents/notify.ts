@@ -68,7 +68,7 @@ export async function sendNotifications(
           break;
       }
     } catch (err) {
-      console.error(`[Notify] Error delivering notification for channel ${channel.type}:`, err);
+      console.error('[Notify] Error delivering notification for channel %s:', channel.type, err);
     }
   });
 

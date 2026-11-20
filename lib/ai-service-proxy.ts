@@ -139,13 +139,13 @@ export async function proxyToAiService(
     });
   } catch (err: any) {
     if (err.name === 'AbortError') {
-      console.error(`[AI Proxy] Request timed out for ${targetUrl}`);
+      console.error('[AI Proxy] Request timed out for %s', targetUrl);
       return NextResponse.json(
         { error: 'AI Service request timed out' },
         { status: 504 }
       );
     }
-    console.error(`[AI Proxy] Failed to proxy request to ${targetUrl}:`, err);
+    console.error('[AI Proxy] Failed to proxy request to %s:', targetUrl, err);
     return NextResponse.json(
       { error: 'AI Service unavailable' },
       { status: 502 }

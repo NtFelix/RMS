@@ -73,7 +73,7 @@ function sendLogImmediate(
 ): void {
     if (!POSTHOG_API_KEY) {
         // Just log to console if no API key
-        console.log(`[${severityText.toUpperCase()}] ${message}`, attributes);
+        console.log('[%s] %s', severityText.toUpperCase(), message, attributes);
         return;
     }
 

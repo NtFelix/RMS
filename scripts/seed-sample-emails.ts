@@ -232,7 +232,7 @@ async function seedEmails(userId: string) {
 
       console.log(`✓ Created email: ${email.betreff}`);
     } catch (error) {
-      console.error(`Error processing email "${email.betreff}":`, error);
+      console.error('Error processing email "%s":', email.betreff, error);
     }
   }
 

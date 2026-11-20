@@ -161,7 +161,7 @@ export function ArchiveBrowserModal({ isOpen, onClose }: ArchiveBrowserModalProp
       try {
         await restoreFile(file, file.originalPath || undefined)
       } catch (error) {
-        console.error(`Failed to restore ${file.name}:`, error)
+        console.error('Failed to restore %s:', file.name, error)
       }
     }
 
@@ -183,7 +183,7 @@ export function ArchiveBrowserModal({ isOpen, onClose }: ArchiveBrowserModalProp
       try {
         await permanentlyDeleteFile(file)
       } catch (error) {
-        console.error(`Failed to delete ${file.name}:`, error)
+        console.error('Failed to delete %s:', file.name, error)
       }
     }
 

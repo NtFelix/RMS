@@ -21,7 +21,7 @@ export async function GET(
             .single();
 
         if (error) {
-            console.error(`GET /api/mieter/${id} error:`, error);
+            console.error('GET /api/mieter/%s error:', id, error);
             if (error.code === 'PGRST116') {
                 return NextResponse.json({ error: 'Mieter nicht gefunden.' }, { status: 404, headers: NO_CACHE_HEADERS });
             }
@@ -83,7 +83,7 @@ export async function PATCH(
             .select(MIETER_SPALTEN_OHNE_KAUTION);
 
         if (error) {
-            console.error(`PATCH /api/mieter/${id} error:`, error);
+            console.error('PATCH /api/mieter/%s error:', id, error);
             return NextResponse.json({ error: ermittleWohnungswechselFehler(error) ?? error.message }, { status: 400, headers: NO_CACHE_HEADERS });
         }
 
@@ -131,7 +131,7 @@ export async function DELETE(
         });
 
         if (error) {
-            console.error(`DELETE /api/mieter/${id} error:`, error);
+            console.error('DELETE /api/mieter/%s error:', id, error);
             return NextResponse.json({ error: error.message }, { status: 500, headers: NO_CACHE_HEADERS });
         }
 

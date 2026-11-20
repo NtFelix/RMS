@@ -51,12 +51,12 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
     ? createSupabaseUserClient(userJwt, orgId) 
     : createSupabaseServiceClient();
 
-  console.log(`[sandboxRpc] Executing ${rpcName}`, { params, orgId });
+  console.log('[sandboxRpc] Executing %s', rpcName, { params, orgId });
 
   // 1. Try RPC execution first
   const { data, error } = await supabase.rpc(rpcName, params);
   if (!error) {
-    console.log(`[sandboxRpc] RPC ${rpcName} returned successfully`, { count: Array.isArray(data) ? data.length : 1 });
+    console.log('[sandboxRpc] RPC %s returned successfully', rpcName, { count: Array.isArray(data) ? data.length : 1 });
     return data;
   }
 
@@ -66,7 +66,7 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
                        (error as any).status === 404;
 
   if (!isMissingRpc) {
-    console.error(`[sandboxRpc] RPC Error in ${rpcName}:`, error);
+    console.error('[sandboxRpc] RPC Error in %s:', rpcName, error);
     throw new Error(`Supabase RPC Error in ${rpcName}: ${error.message}`);
   }
 
@@ -101,10 +101,10 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
 
     const { data: fallbackData, error: fallbackErr } = await query;
     if (fallbackErr) {
-      console.error(`[sandboxRpc] Fallback query failed for ${rpcName}:`, fallbackErr);
+      console.error('[sandboxRpc] Fallback query failed for %s:', rpcName, fallbackErr);
       throw new Error(`Fallback table query failed for ${rpcName}: ${fallbackErr.message}`);
     }
-    console.log(`[sandboxRpc] Fallback query succeeded for ${rpcName}`, { count: fallbackData?.length || 0 });
+    console.log('[sandboxRpc] Fallback query succeeded for %s', rpcName, { count: fallbackData?.length || 0 });
     return fallbackData;
   }
 
@@ -129,10 +129,10 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
 
     const { data: fallbackData, error: fallbackErr } = await query;
     if (fallbackErr) {
-      console.error(`[sandboxRpc] Fallback query failed for ${rpcName}:`, fallbackErr);
+      console.error('[sandboxRpc] Fallback query failed for %s:', rpcName, fallbackErr);
       throw new Error(`Fallback table query failed for ${rpcName}: ${fallbackErr.message}`);
     }
-    console.log(`[sandboxRpc] Fallback query succeeded for ${rpcName}`, { count: fallbackData?.length || 0 });
+    console.log('[sandboxRpc] Fallback query succeeded for %s', rpcName, { count: fallbackData?.length || 0 });
     return fallbackData;
   }
 
@@ -152,10 +152,10 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
 
     const { data: fallbackData, error: fallbackErr } = await query;
     if (fallbackErr) {
-      console.error(`[sandboxRpc] Fallback query failed for ${rpcName}:`, fallbackErr);
+      console.error('[sandboxRpc] Fallback query failed for %s:', rpcName, fallbackErr);
       throw new Error(`Fallback table query failed for ${rpcName}: ${fallbackErr.message}`);
     }
-    console.log(`[sandboxRpc] Fallback query succeeded for ${rpcName}`, { count: fallbackData?.length || 0 });
+    console.log('[sandboxRpc] Fallback query succeeded for %s', rpcName, { count: fallbackData?.length || 0 });
     return fallbackData;
   }
 
@@ -177,10 +177,10 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
       .single();
 
     if (fallbackErr) {
-      console.error(`[sandboxRpc] Fallback insert failed for ${rpcName}:`, fallbackErr);
+      console.error('[sandboxRpc] Fallback insert failed for %s:', rpcName, fallbackErr);
       throw new Error(`Fallback table insert failed for ${rpcName}: ${fallbackErr.message}`);
     }
-    console.log(`[sandboxRpc] Fallback insert succeeded for ${rpcName}`, { id: fallbackData?.id });
+    console.log('[sandboxRpc] Fallback insert succeeded for %s', rpcName, { id: fallbackData?.id });
     return fallbackData;
   }
 
