@@ -14,7 +14,7 @@
  */
 import type { Mieter, Nebenkosten } from '@/lib/types';
 import { calculateCompleteTenantResult, calculateVacancyCosts } from './abrechnung-calculations';
-import { computeWgFactorsByTenant } from './wg-cost-calculations';
+import { analysiereWgVerteilung, computeWgFactorsByTenant } from './wg-cost-calculations';
 import { buildTenant } from './__fixtures__/abrechnung-builders';
 
 const APT_W = { name: 'Wohnung W', groesse: 70 };
@@ -46,6 +46,9 @@ const zimmer = (id: string, flaeche: number | null, einzug = '2023-01-01', auszu
   ...buildTenant(id, 'apt-w', APT_W, einzug, auszug, [['2025-01-01', '50']]),
   vertragsflaeche: flaeche,
 });
+
+/** Same tenant, apartment W with the remaining area option switched on (`Wohnungen.restflaeche_verteilen`). */
+const mitRestflaeche = (t: Mieter): Mieter => ({ ...t, Wohnungen: { ...APT_W, restflaeche_verteilen: true } });
 
 /** Operating costs per tenant and the vacancy amount of apartment W, like the billing run computes them. */
 function rechne(tenants: Mieter[], rechenbasis: 'kalendertage' | '360_tage' = 'kalendertage') {
@@ -127,5 +130,75 @@ describe('contract area in a flat share with single contracts', () => {
     const factors = computeWgFactorsByTenant(tenants, '2025-01-01', '2025-12-31', 'kalendertage');
     expect(factors.a).toBeCloseTo(0.5, 6);
     expect(factors.b).toBeCloseTo(0.5, 6);
+  });
+
+  it('a single contract smaller than the apartment (65 of 70 m²): 928.57 € tenant, 71.43 € vacancy', () => {
+    // 1000 × 65/70 = 928.5714 €; vacancy 1000 × 5/70 = 71.4286 €
+    const { kosten, leerstand } = rechne([zimmer('a', 65), mieterX()]);
+    expect(kosten.a).toBeCloseTo(928.5714, EUR);
+    expect(leerstand).toBeCloseTo(71.4286, EUR);
+  });
+
+  describe('remaining area option (A 50 m², B and C without area, apartment W 70 m², 1000 €)', () => {
+    // With option: A 1000 × 50/70 = 714.2857 €; rest 1000 × 20/70 = 285.7143 € in equal parts -> B, C 142.8571 € each; no vacancy
+    it('option on: A 714.29 €, B 142.86 €, C 142.86 €', () => {
+      const tenants = [mitRestflaeche(zimmer('a', 50)), mitRestflaeche(zimmer('b', null)), mitRestflaeche(zimmer('c', null)), mieterX()];
+      const { kosten, leerstand } = rechne(tenants);
+      expect(kosten.a).toBeCloseTo(714.2857, EUR);
+      expect(kosten.b).toBeCloseTo(142.8571, EUR);
+      expect(kosten.c).toBeCloseTo(142.8571, EUR);
+      expect(leerstand).toBeCloseTo(0, EUR);
+      expect(kosten.x1).toBeCloseTo(600, EUR);
+      expect(analysiereWgVerteilung(tenants, '2025-01-01', '2025-12-31', 'kalendertage').tageJeWohnung['apt-w']).toEqual({ restflaeche: 365 });
+    });
+
+    // Without option (default): one present tenant without area -> equal split, 1000 / 3 = 333.3333 € each
+    it('option off: 333.33 € each, and the days are marked as split equally because an area is missing', () => {
+      const tenants = [zimmer('a', 50), zimmer('b', null), zimmer('c', null), mieterX()];
+      const { kosten } = rechne(tenants);
+      expect(kosten.a).toBeCloseTo(333.3333, EUR);
+      expect(kosten.b).toBeCloseTo(333.3333, EUR);
+      expect(kosten.c).toBeCloseTo(333.3333, EUR);
+      expect(analysiereWgVerteilung(tenants, '2025-01-01', '2025-12-31', 'kalendertage').tageJeWohnung['apt-w']).toEqual({ gleich_flaeche_fehlt: 365 });
+    });
+
+    // 360 days, same figures: the shares do not depend on the day count when everybody is present all year
+    it('360 days: same 714.29 / 142.86 / 142.86 €', () => {
+      const tenants = [mitRestflaeche(zimmer('a', 50)), mitRestflaeche(zimmer('b', null)), mitRestflaeche(zimmer('c', null)), mieterX()];
+      const { kosten } = rechne(tenants, '360_tage');
+      expect(kosten.a).toBeCloseTo(714.2857, EUR);
+      expect(kosten.b).toBeCloseTo(142.8571, EUR);
+      expect(kosten.c).toBeCloseTo(142.8571, EUR);
+      expect(analysiereWgVerteilung(tenants, '2025-01-01', '2025-12-31', '360_tage').tageJeWohnung['apt-w']).toEqual({ restflaeche: 360 });
+    });
+
+    // Areas 50 + 30 = 80 m² >= 70 m²: nothing left for C -> equal split 1000 / 3 = 333.3333 € each, days marked accordingly
+    it('nothing left (A 50, B 30, C without area): equal split and marked as used up', () => {
+      const tenants = [mitRestflaeche(zimmer('a', 50)), mitRestflaeche(zimmer('b', 30)), mitRestflaeche(zimmer('c', null)), mieterX()];
+      const { kosten } = rechne(tenants);
+      expect(kosten.a).toBeCloseTo(333.3333, EUR);
+      expect(kosten.b).toBeCloseTo(333.3333, EUR);
+      expect(kosten.c).toBeCloseTo(333.3333, EUR);
+      expect(analysiereWgVerteilung(tenants, '2025-01-01', '2025-12-31', 'kalendertage').tageJeWohnung['apt-w']).toEqual({ gleich_restflaeche_aufgebraucht: 365 });
+    });
+
+    // C moves out on 30.06.2025 (181 days present, 184 days only A and B).
+    //   Jan-Jun: A 50/70, B and C 10/70 each;  Jul-Dec: A 50/70, B 20/70 (B is the only one without area and gets the whole rest)
+    //   A: 1000 × 50/70 = 714.2857 €
+    //   B: 1000 × (10/70 × 181 + 20/70 × 184) / 365 = 1000 × (1810 + 3680) / 25550 = 214.8728 €
+    //   C: 1000 × 10/70 × 181/365 = 70.8415 €;  714.2857 + 214.8728 + 70.8415 = 1000.0000, no vacancy
+    it('a tenant without area moves out: the rest goes to the remaining one', () => {
+      const tenants = [
+        mitRestflaeche(zimmer('a', 50)),
+        mitRestflaeche(zimmer('b', null)),
+        mitRestflaeche(zimmer('c', null, '2023-01-01', '2025-06-30')),
+        mieterX(),
+      ];
+      const { kosten, leerstand } = rechne(tenants);
+      expect(kosten.a).toBeCloseTo(714.2857, EUR);
+      expect(kosten.b).toBeCloseTo(214.8728, EUR);
+      expect(kosten.c).toBeCloseTo(70.8415, EUR);
+      expect(leerstand).toBeCloseTo(0, EUR);
+    });
   });
 });

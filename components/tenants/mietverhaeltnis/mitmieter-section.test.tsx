@@ -161,8 +161,32 @@ describe("MitmieterSection", () => {
     datumEingeben("2026-09-01");
     fireEvent.change(screen.getByPlaceholderText("Optional (€)"), { target: { value: "450,50" } });
     fireEvent.click(screen.getByRole("button", { name: "Lösen" }));
-    await waitFor(() => expect(mockTrennen).toHaveBeenCalledWith({ mieterId: MIETER_ID, datum: "2026-09-01", miete: 450.5 }));
+    await waitFor(() =>
+      expect(mockTrennen).toHaveBeenCalledWith({ mieterId: MIETER_ID, datum: "2026-09-01", miete: 450.5, flaecheNeu: null, flaecheBisher: null })
+    );
     await waitFor(() => expect(onGeaendert).toHaveBeenCalledTimes(1));
+  });
+
+  it("passes the optional areas of the own and the shared tenancy, and rejects an invalid one at the field", async () => {
+    mockUebersicht.mockResolvedValue({
+      success: true,
+      data: { mitmieter: [{ mieterId: MITMIETER_ID, name: "Test Zwei", rolle: null }], kandidaten: [] },
+    });
+    rendere();
+    fireEvent.click(await screen.findByRole("button", { name: "Aus dem gemeinsamen Mietverhältnis lösen" }));
+    datumEingeben("2026-09-01");
+    const [neu, bisher] = screen.getAllByPlaceholderText("Optional (m²)");
+    fireEvent.change(neu, { target: { value: "0" } });
+    fireEvent.click(screen.getByRole("button", { name: "Lösen" }));
+    expect(await screen.findByText(/Bitte geben Sie eine Fläche über 0/)).toBeInTheDocument();
+    expect(mockTrennen).not.toHaveBeenCalled();
+
+    fireEvent.change(neu, { target: { value: "20" } });
+    fireEvent.change(bisher, { target: { value: "50,5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Lösen" }));
+    await waitFor(() =>
+      expect(mockTrennen).toHaveBeenCalledWith({ mieterId: MIETER_ID, datum: "2026-09-01", miete: null, flaecheNeu: 20, flaecheBisher: 50.5 })
+    );
   });
 
   it("has no settlement switch and explains that shared tenants are settled together", async () => {

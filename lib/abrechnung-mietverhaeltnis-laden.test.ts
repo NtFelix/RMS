@@ -148,6 +148,45 @@ describe("gruppiereNachMietverhaeltnisImZeitraum", () => {
       expect(await gruppiereNachMietverhaeltnisImZeitraum(supabase, eingabe, JAHR_2025, log)).toBe(eingabe);
       expect(log).toHaveBeenCalledWith("FLAECHE_NICHT_GELADEN");
     });
+
+    describe("remaining area option of the apartment", () => {
+      const mitWohnung = (id: string): Mieter => ({ ...tenant(id), Wohnungen: { name: "W", groesse: 70 } });
+      const flaechen = { data: [{ id: "mv-1", flaeche: 50 }], error: null };
+      const zuordnungenAB = { data: [zuordnung("a1", "mv-1"), zuordnung("a2", "mv-2")], error: null };
+
+      it("sets the option on the apartment of every tenant when it is switched on", async () => {
+        const { supabase, aufrufe } = client({
+          Mieter_Mietverhaeltnis_Zuordnungen: zuordnungenAB,
+          Mieter_Mietverhaeltnisse: flaechen,
+          Wohnungen: { data: [{ id: "apt-1", restflaeche_verteilen: true }], error: null },
+        });
+        const ergebnis = await gruppiereNachMietverhaeltnisImZeitraum(supabase, { tenants: [mitWohnung("a1"), mitWohnung("a2")], rechnungen: [] }, JAHR_2025);
+        expect(ergebnis.tenants.map(t => t.Wohnungen?.restflaeche_verteilen)).toEqual([true, true]);
+        expect(ergebnis.tenants[0].Wohnungen?.groesse).toBe(70);
+        expect(aufrufe).toEqual(["Mieter_Mietverhaeltnis_Zuordnungen", "Mieter_Mietverhaeltnisse", "Wohnungen"]);
+      });
+
+      it("leaves the option off when it is off or cannot be read (logs only the kind)", async () => {
+        for (const [antwort, code] of [
+          [{ data: [{ id: "apt-1", restflaeche_verteilen: false }], error: null }, null],
+          [{ data: null, error: { code: "42703" } }, "RESTFLAECHE_NICHT_GELADEN"],
+        ] as const) {
+          const { supabase } = client({ Mieter_Mietverhaeltnis_Zuordnungen: zuordnungenAB, Mieter_Mietverhaeltnisse: flaechen, Wohnungen: antwort });
+          const log = jest.fn();
+          const ergebnis = await gruppiereNachMietverhaeltnisImZeitraum(supabase, { tenants: [mitWohnung("a1"), mitWohnung("a2")], rechnungen: [] }, JAHR_2025, log);
+          expect(ergebnis.tenants.map(t => t.Wohnungen?.restflaeche_verteilen)).toEqual([undefined, undefined]);
+          expect(ergebnis.tenants[0].vertragsflaeche).toBe(50);
+          if (code) expect(log).toHaveBeenCalledWith(code);
+          else expect(log).not.toHaveBeenCalled();
+        }
+      });
+
+      it("does not read the option when no tenancy has an area", async () => {
+        const { supabase, aufrufe } = client({ Mieter_Mietverhaeltnis_Zuordnungen: zuordnungenAB, Mieter_Mietverhaeltnisse: { data: [], error: null } });
+        await gruppiereNachMietverhaeltnisImZeitraum(supabase, { tenants: [mitWohnung("a1"), mitWohnung("a2")], rechnungen: [] }, JAHR_2025);
+        expect(aufrufe).not.toContain("Wohnungen");
+      });
+    });
   });
 
   it.each([

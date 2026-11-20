@@ -11,8 +11,7 @@ import {
   deleteRechnungenByNebenkostenId,
   createRechnungenBatch,
   getAbrechnungModalDataAction,
-  createAbrechnungCalculationAction,
-  createAbrechnungCalculationOptimizedAction
+  createAbrechnungCalculationAction
 } from './betriebskosten-actions';
 import { metrics, type MeterProvider } from '@opentelemetry/api';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
@@ -736,19 +735,6 @@ describe('Abrechnung actions — nach Rechnung', () => {
       'createAbrechnungCalculationAction',
       createAbrechnungCalculationAction,
       { nebenkosten_data: nebenkosten, tenants, rechnungen, meters: [], readings: [] }
-    ],
-    [
-      'createAbrechnungCalculationOptimizedAction',
-      createAbrechnungCalculationOptimizedAction,
-      {
-        // Copy: the optimized action writes gesamtFlaeche onto nebenkosten_data
-        nebenkosten_data: { ...nebenkosten },
-        tenants_with_occupancy: tenants,
-        rechnungen,
-        wasserzaehler_meters: [],
-        wasserzaehler_readings: [],
-        house_metrics: { totalArea: 100 }
-      }
     ]
   ])('%s bills each tenant their own Einzelbetrag', async (_name, action, rpcData) => {
     mockSupabaseWithTables({});
