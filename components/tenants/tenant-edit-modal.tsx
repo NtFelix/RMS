@@ -652,6 +652,14 @@ const generateId = () => crypto.randomUUID()
 /**
  * Startwerte der Personenfelder. Altdaten ohne Vor-/Nachnamen: der bisherige Anzeigename (`name`) wird Nachname.
  */
+/**
+ * true, wenn die Ausgangsdaten die Personenfelder enthalten. Fehlen sie (z. B. Aufrufer, die nur `name` kennen),
+ * darf das Formular Anrede, Vor- und Nachname nicht ungefragt zurueckschreiben.
+ */
+function personNamenBekannt(initial: any): boolean {
+  return Boolean(initial) && (initial.anrede != null || initial.vorname != null || initial.nachname != null)
+}
+
 function personFormFelderAusInitialData(initial: any): PersonFormFelder {
   const vorname: string = initial?.vorname ?? ""
   const nachname: string = initial?.nachname ?? (vorname ? "" : (initial?.name ?? ""))
@@ -1061,6 +1069,17 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       else currentFormData.set('wohnung_id', '')
 
       currentFormData.set('status', formData.status)
+
+      // Beim Bearbeiten ohne bekannte Personenfelder: unveraenderte Namensfelder nicht senden (sonst wuerden
+      // Anrede und Vorname geleert und der ganze Name in den Nachnamen geschrieben).
+      if (tenantInitialData?.id && !personNamenBekannt(tenantInitialData)) {
+        const ausgang = personFormFelderAusInitialData(tenantInitialData)
+        if (formData.anrede === ausgang.anrede && formData.vorname === ausgang.vorname && formData.nachname === ausgang.nachname) {
+          currentFormData.delete('anrede')
+          currentFormData.delete('vorname')
+          currentFormData.delete('nachname')
+        }
+      }
 
       if (tenantInitialData?.id) {
         currentFormData.set('id', tenantInitialData.id)
