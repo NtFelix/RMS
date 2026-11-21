@@ -379,7 +379,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Abzüglich Vorauszahlungen</span>
-                          <span className="font-bold text-emerald-600">- 1.200,00 €</span>
+                          <span className="font-bold text-emerald-700 dark:text-emerald-400">- 1.200,00 €</span>
                         </div>
                         <div className="h-px w-full bg-border border-dashed" />
                         <div className="flex justify-between text-lg font-black">
@@ -487,7 +487,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                     <motion.div
                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 1 }}
-                      className="mt-8 flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20"
+                      className="mt-8 flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-full border border-emerald-500/20"
                     >
                       <Check size={14} strokeWidth={3} />
                       <span className="text-xs font-bold uppercase tracking-wide">PDF Generiert</span>
