@@ -29,8 +29,9 @@ export const TemplatePreview = React.memo<TemplatePreviewProps>(({
     );
   }
 
-  // If no highlights, render as plain text
-  if (!previewData.hasHighlights) {
+  // Without mentions or conditional blocks, render as plain text
+  const hatBedingungen = previewData.segments.some(segment => segment.isBedingung);
+  if (!previewData.hasHighlights && !hatBedingungen) {
     return (
       <div className={className}>
         {previewData.text}
@@ -54,6 +55,14 @@ export const TemplatePreview = React.memo<TemplatePreviewProps>(({
           );
         }
         
+        if (segment.isBedingung) {
+          return (
+            <span key={index} className="italic text-muted-foreground/80">
+              {segment.text}
+            </span>
+          );
+        }
+
         return (
           <span key={index}>
             {segment.text}

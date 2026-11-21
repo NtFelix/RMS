@@ -1,5 +1,7 @@
 import { TemplatePayload } from '@/types/template';
-import { TEMPLATE_CATEGORIES } from '@/lib/template-constants';
+import { MENTION_VARIABLES, TEMPLATE_CATEGORIES } from '@/lib/template-constants';
+import { AUFLOESBARE_VARIABLEN } from '@/lib/vorlagen/variablen';
+import { pruefeBedingungen } from '@/lib/vorlagen/bedingungen';
 import { JSONContent } from '@tiptap/react';
 
 export interface ValidationError {
@@ -120,15 +122,15 @@ export function isEmptyTipTapContent(content: JSONContent): boolean {
     return true;
   }
 
-  // Check if content only contains empty paragraphs
-  const hasContent = content.content.some(node => {
-    if (node.type === 'paragraph') {
-      return node.content && node.content.some(textNode => 
-        textNode.type === 'text' && textNode.text && textNode.text.trim().length > 0
-      );
-    }
-    return node.type !== 'paragraph'; // Non-paragraph content is considered non-empty
-  });
+  // Inhalt = Text mit Zeichen, eine Variable oder ein Block, der nicht nur aus leeren Containern besteht
+  // (z. B. ein Bedingungsblock oder eine Liste mit leerem Absatz zaehlt nicht als Inhalt).
+  const hatInhalt = (node: JSONContent): boolean => {
+    if (node.type === 'text') return Boolean(node.text && node.text.trim().length > 0);
+    if (node.type === 'mention') return true;
+    if (node.type === 'horizontalRule') return true;
+    return (node.content ?? []).some(hatInhalt);
+  };
+  const hasContent = content.content.some(hatInhalt);
 
   return !hasContent;
 }
@@ -191,13 +193,8 @@ export function getTemplatePreview(content: JSONContent, maxLength: number = 150
  */
 export function validateMentionVariables(content: JSONContent): ValidationResult {
   const errors: ValidationError[] = [];
-  const validMentionIds = new Set([
-    'mieter.name', 'mieter.vorname', 'mieter.nachname', 'mieter.email', 'mieter.telefon',
-    'wohnung.adresse', 'wohnung.strasse', 'wohnung.hausnummer', 'wohnung.plz', 'wohnung.ort',
-    'wohnung.zimmer', 'wohnung.groesse', 'haus.name', 'haus.adresse',
-    'datum.heute', 'datum.monat', 'datum.jahr',
-    'vermieter.name', 'vermieter.adresse', 'vermieter.telefon', 'vermieter.email'
-  ]);
+  // Gültige IDs ergeben sich aus der Variablen-Registry, nicht aus einer zweiten Liste.
+  const validMentionIds = new Set(MENTION_VARIABLES.map(variable => variable.id));
 
   function validateNode(node: any): void {
     if (node.type === 'mention' && node.attrs?.id) {
@@ -218,6 +215,22 @@ export function validateMentionVariables(content: JSONContent): ValidationResult
     content.content.forEach(validateNode);
   }
 
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+
+/**
+ * Bedingungsblöcke prüfen: unbekannte Variable, fehlender Operator oder fehlender Vergleichswert.
+ * Nur Variablen, die beim Versand aufgelöst werden (sonst fällt der Block stillschweigend immer weg).
+ * Getrennt von validateMentionVariables, damit die Oberfläche die Meldungen mit eigenem Titel zeigt.
+ */
+export function validateBedingungen(content: JSONContent): ValidationResult {
+  const errors: ValidationError[] = pruefeBedingungen(content, AUFLOESBARE_VARIABLEN).map(message => ({
+    field: 'inhalt',
+    message
+  }));
   return {
     isValid: errors.length === 0,
     errors
