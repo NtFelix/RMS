@@ -19,6 +19,7 @@ import { toast } from "@/hooks/use-toast"
 import { updateTenantApartment } from "@/app/mieter-actions"
 import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 import { formatBulkDeleteSuffix, formatFailureReasons, stripDbCodePrefix } from "@/lib/bulk-delete-summary"
+import { bewerberLoeschenAction } from "@/app/bewerber-actions"
 
 interface TenantBulkActionBarProps {
   selectedTenants: Set<string>
@@ -29,6 +30,33 @@ interface TenantBulkActionBarProps {
   onUpdate?: () => void // Callback to refresh the tenant list after a change (assign apartment, delete)
   canEdit?: boolean
   canDelete?: boolean
+  /**
+   * "bewerber": Die Auswahl sind Bewerber (Tabelle "Bewerber"). Löschen geht dann je ID über bewerberLoeschenAction,
+   * "Wohnung zuweisen" entfällt (Bewerber werden nicht über /api/mieter/bulk-update geändert). Export bleibt.
+   */
+  modus?: "mieter" | "bewerber"
+}
+
+/** Löscht die Bewerber einzeln (Papierkorb) und fasst die Ergebnisse in die Form der Massenlösch-Route. */
+async function loescheBewerber(ids: string[]): Promise<{ status: number; result: BulkLoeschErgebnis }> {
+  const ergebnisse = await Promise.all(ids.map((id) => bewerberLoeschenAction(id)));
+  const successCount = ergebnisse.filter((e) => e.success).length;
+  const reasons = ergebnisse
+    .filter((e) => !e.success)
+    .map((e) => e.error?.message ?? "")
+    .filter(Boolean);
+  return {
+    // Wie die Route: nichts gelöscht = 409 (reine Ablehnung), sonst Teil- oder Vollerfolg.
+    status: successCount > 0 ? 200 : 409,
+    result: { successCount, errorCount: ids.length - successCount, reasons },
+  };
+}
+
+interface BulkLoeschErgebnis {
+  successCount?: number;
+  errorCount?: number;
+  reasons?: unknown;
+  error?: unknown;
 }
 
 export function TenantBulkActionBar({
@@ -40,7 +68,10 @@ export function TenantBulkActionBar({
   onUpdate,
   canEdit = true,
   canDelete = true,
+  modus = "mieter",
 }: TenantBulkActionBarProps) {
+  const istBewerber = modus === "bewerber";
+  const nomen = istBewerber ? "Bewerber" : "Mieter";
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -58,6 +89,11 @@ export function TenantBulkActionBar({
       });
       return;
     }
+    // Bewerber haben keine Kaution: direkt die übliche Frage.
+    if (istBewerber) {
+      setIsDeleteDialogOpen(true);
+      return;
+    }
     // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
     void starteLoeschenMitKautionen("Mieter", Array.from(selectedTenants), {
       einfach: () => setIsDeleteDialogOpen(true),
@@ -71,22 +107,25 @@ export function TenantBulkActionBar({
     try {
       const ids = Array.from(selectedTenants);
 
-      const response = await fetch('/api/mieter/bulk-delete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ids }),
-      });
-
-      const result = await response.json();
+      const { status, result } = istBewerber
+        ? await loescheBewerber(ids)
+        : await (async () => {
+            const response = await fetch('/api/mieter/bulk-delete', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ ids }),
+            });
+            return { status: response.status, result: await response.json() as BulkLoeschErgebnis };
+          })();
 
       // Die Datenbank kann einzelne Löschungen ablehnen (z. B. Mieter mit hinterlegter Kaution). Die Route meldet
       // Teilerfolge (HTTP 200) mit den Gründen ohne technisches Präfix; ohne jeden Erfolg antwortet sie mit 409/500.
       const successCount = Number(result.successCount) || 0;
       const errorCount = Number(result.errorCount) || 0;
       const reasons: string[] = Array.isArray(result.reasons)
-        ? result.reasons
+        ? (result.reasons as unknown[])
             .filter((reason: unknown): reason is string => typeof reason === 'string')
             .map(stripDbCodePrefix)
             .filter(Boolean)
@@ -95,14 +134,14 @@ export function TenantBulkActionBar({
 
       // Bereits gelöschte Mieter sollen auch nach einem (Teil-)Fehlschlag aus der Liste verschwinden. Nur eine
       // reine Ablehnung (409, nichts gelöscht) lässt den Stand unverändert.
-      if (successCount > 0 || response.status !== 409) {
+      if (successCount > 0 || status !== 409) {
         onUpdate?.();
       }
 
       if (successCount > 0) {
         toast({
           title: "Erfolg",
-          description: `${successCount} Mieter erfolgreich gelöscht${formatBulkDeleteSuffix(errorCount, reasons)}`,
+          description: `${successCount} ${nomen} erfolgreich gelöscht${formatBulkDeleteSuffix(errorCount, reasons)}`,
           variant: "success",
         });
 
@@ -116,8 +155,8 @@ export function TenantBulkActionBar({
         toast({
           title: "Fehler",
           description: reasonText
-            ? `Keine Mieter konnten gelöscht werden. ${reasonText}`
-            : technicalMessage || "Fehler beim Löschen der Mieter",
+            ? `Keine ${nomen} konnten gelöscht werden. ${reasonText}`
+            : technicalMessage || `Fehler beim Löschen der ${nomen}`,
           variant: "destructive",
         });
       }
@@ -127,7 +166,7 @@ export function TenantBulkActionBar({
       onUpdate?.();
       toast({
         title: "Fehler",
-        description: "Fehler beim Löschen der Mieter",
+        description: `Fehler beim Löschen der ${nomen}`,
         variant: "destructive",
       });
     } finally {
@@ -237,16 +276,18 @@ export function TenantBulkActionBar({
         </Button>
       </div>
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsAssignDialogOpen(true)}
-          disabled={!canEdit || isUpdating}
-          className="h-8 gap-2"
-        >
-          <Home className="h-4 w-4" />
-          Wohnung zuweisen
-        </Button>
+        {!istBewerber && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsAssignDialogOpen(true)}
+            disabled={!canEdit || isUpdating}
+            className="h-8 gap-2"
+          >
+            <Home className="h-4 w-4" />
+            Wohnung zuweisen
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"
@@ -281,7 +322,7 @@ export function TenantBulkActionBar({
             <DialogHeader>
               <DialogTitle>Sind Sie sicher?</DialogTitle>
               <DialogDescription>
-                Möchten Sie wirklich {selectedTenants.size} ausgewählte Mieter löschen?
+                Möchten Sie wirklich {selectedTenants.size} ausgewählte {istBewerber ? "Bewerber" : "Mieter"} löschen?
                 Diese Aktion kann nicht rückgängig gemacht werden.
               </DialogDescription>
             </DialogHeader>
@@ -310,7 +351,8 @@ export function TenantBulkActionBar({
         </Dialog>
       </div>
 
-      {/* Assign Apartment Dialog */}
+      {/* Assign Apartment Dialog (nur für Mieter) */}
+      {!istBewerber && (
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -362,6 +404,7 @@ export function TenantBulkActionBar({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   )
 }

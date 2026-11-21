@@ -278,8 +278,9 @@ export async function bewerberAnnehmenAction(
     return fehler("Nicht authentifiziert");
   }
 
+  // Annehmen legt einen Mieter an (erstellen) und setzt den Bewerber auf "angenommen" (bearbeiten).
   const { hasPermission } = await import("@/lib/permissions");
-  if (!(await hasPermission("mieter", "erstellen"))) {
+  if (!(await hasPermission("mieter", "erstellen")) || !(await hasPermission("mieter", "bearbeiten"))) {
     return fehler("Keine Berechtigung");
   }
 

@@ -1435,8 +1435,8 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
 
 
 /** Felder der KI-Auswertung, die in die Tabelle "Personen" übernommen werden (leere Werte werden ignoriert). */
-export function personFelderAusAuswertung(personalInfo: Record<string, unknown> | undefined | null): Record<string, string> {
-    const felder: Record<string, string> = {};
+export function personFelderAusAuswertung(personalInfo: Record<string, unknown> | undefined | null): Record<string, string | null> {
+    const felder: Record<string, string | null> = {};
     const zuordnung: ReadonlyArray<readonly [string, string]> = [
         ['firstName', 'vorname'],
         ['lastName', 'nachname'],
@@ -1448,6 +1448,12 @@ export function personFelderAusAuswertung(personalInfo: Record<string, unknown> 
         if (typeof wert === 'string' && wert.trim() !== '') {
             felder[ziel] = wert.trim();
         }
+    }
+    // Liefert die KI nur einen Namensteil, wird der andere auf null gesetzt. Sonst bliebe ein alter Wert stehen
+    // bzw. die Anzeige würde den Namen doppeln (z. B. "Max Max Muster").
+    if (felder.vorname !== undefined || felder.nachname !== undefined) {
+        felder.vorname = felder.vorname ?? null;
+        felder.nachname = felder.nachname ?? null;
     }
     return felder;
 }

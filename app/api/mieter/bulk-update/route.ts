@@ -28,7 +28,7 @@ export async function PATCH(request: Request) {
     }
 
     // Personen- und Mieterfelder getrennt übernehmen (Whitelist); das Altfeld "kaution" wird verworfen.
-    const person = istEingabeObjekt(rawUpdates) ? personEingabeAusBody(rawUpdates) : {}
+    const person = istEingabeObjekt(rawUpdates) ? personEingabeAusBody(rawUpdates, "aendern") : {}
     const mieter = istEingabeObjekt(rawUpdates) ? mieterEingabeAusBody(rawUpdates) : {}
     if (Object.keys(person).length === 0 && Object.keys(mieter).length === 0) {
       return NextResponse.json(

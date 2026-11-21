@@ -2567,9 +2567,9 @@ function detectMissingPrepaymentSchedules(
   logger.warn(`Prepayment schedule data missing for some tenants${logContext ? ` (${logContext})` : ''}`, {
     userId,
     nebenkostenId,
+    // Datenschutz: nur IDs ins Log, keine Namen (die Namen stehen nur in der Meldung an die Oberfläche).
     affectedTenants: affected.map(t => ({
       tenantId: t.tenantId,
-      tenantName: t.tenantName,
       missingMonths: t.prepayments.missingScheduleMonths
     }))
   });

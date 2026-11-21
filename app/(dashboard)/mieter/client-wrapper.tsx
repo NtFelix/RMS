@@ -884,6 +884,7 @@ export default function MieterClientView({
                     onUpdate={() => router.refresh()}
                     canEdit={canEdit}
                     canDelete={canDelete}
+                    modus={currentTab === "bewerber" ? "bewerber" : "mieter"}
                   />
                 </div>
                 <TenantTable

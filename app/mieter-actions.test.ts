@@ -59,6 +59,7 @@ function builder(ergebnis: Ergebnis = { data: null, error: null }) {
     b[methode] = jest.fn(() => b);
   }
   b.single = jest.fn(async () => ergebnis);
+  b.maybeSingle = jest.fn(async () => ergebnis);
   b.then = (resolve: (v: Ergebnis) => unknown, reject?: (e: unknown) => unknown) =>
     Promise.resolve(ergebnis).then(resolve, reject);
   return b as Record<string, jest.Mock> & PromiseLike<Ergebnis>;
@@ -234,8 +235,8 @@ describe('Mieter Server Actions', () => {
 
     it('ändert einen Bewerber direkt in "Bewerber" und "Personen" (Modul mieter per RLS)', async () => {
       const bewerber = builder({ data: { person_id: 'p-7' }, error: null });
-      const personen = builder({ data: null, error: null });
-      const bewerberUpdate = builder({ data: null, error: null });
+      const personen = builder({ data: { id: 'p-7' }, error: null });
+      const bewerberUpdate = builder({ data: { id: 'b-7' }, error: null });
       // Erster Zugriff auf "Bewerber": Lesen der person_id; danach das Update.
       const bewerberTabelle = jest.fn()
         .mockReturnValueOnce(bewerber)
@@ -259,6 +260,80 @@ describe('Mieter Server Actions', () => {
       expect(personen.update).toHaveBeenCalledWith({ vorname: 'Bea', nachname: 'Neu' });
       expect(personen.eq).toHaveBeenCalledWith('id', 'p-7');
       expect(bewerberUpdate.update).toHaveBeenCalledWith({ wohnung_id: 'w1', notiz: 'Aktualisiert' });
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('meldet einen Fehler, wenn das Update des Bewerbers keine Zeile trifft (kein stiller Erfolg)', async () => {
+      const bewerber = builder({ data: { person_id: 'p-7' }, error: null });
+      const personen = builder({ data: { id: 'p-7' }, error: null });
+      const bewerberUpdate = builder({ data: null, error: null });
+      const bewerberTabelle = jest.fn()
+        .mockReturnValueOnce(bewerber)
+        .mockReturnValueOnce(bewerberUpdate);
+      mockFrom.mockImplementation((tabelle: string) => {
+        if (tabelle === 'Bewerber') return bewerberTabelle();
+        if (tabelle === 'Personen') return personen;
+        return builder();
+      });
+
+      const result = await handleSubmit(formular({
+        id: 'b-7',
+        vorname: 'Bea',
+        nachname: 'Neu',
+        wohnung_id: 'w1',
+        status: 'bewerber',
+      }));
+
+      expect(result).toEqual({ success: false, error: { message: 'Der Bewerber konnte nicht gespeichert werden.' } });
+    });
+
+    it('meldet einen Fehler, wenn das Update der Person keine Zeile trifft', async () => {
+      const bewerber = builder({ data: { person_id: 'p-7' }, error: null });
+      const personen = builder({ data: null, error: null });
+      mockFrom.mockImplementation((tabelle: string) => {
+        if (tabelle === 'Bewerber') return bewerber;
+        if (tabelle === 'Personen') return personen;
+        return builder();
+      });
+
+      const result = await handleSubmit(formular({
+        id: 'b-7',
+        vorname: 'Bea',
+        nachname: 'Neu',
+        wohnung_id: 'w1',
+        status: 'bewerber',
+      }));
+
+      expect(result).toEqual({ success: false, error: { message: 'Die Person konnte nicht gespeichert werden.' } });
+    });
+  });
+
+  describe('Wohnungs-Scope für eingeschränkte Nutzer', () => {
+    it('legt einen Bewerber ohne Wohnung an, auch wenn der Nutzer nur eingeschränkte Wohnungen sieht', async () => {
+      (getAccessibleWohnungIds as jest.Mock).mockResolvedValueOnce(['w1']);
+      mockRpc.mockResolvedValueOnce({ data: { bewerber_id: 'b-neu' }, error: null });
+
+      const result = await handleSubmit(formular({ vorname: 'Bea', nachname: 'Ohne', wohnung_id: '', status: 'bewerber' }));
+
+      expect(result).toEqual({ success: true });
+      expect(mockRpc).toHaveBeenCalledWith('bewerber_anlegen', expect.anything());
+    });
+
+    it('verweigert einen Bewerber mit einer Wohnung außerhalb des Scopes', async () => {
+      (getAccessibleWohnungIds as jest.Mock).mockResolvedValueOnce(['w1']);
+
+      const result = await handleSubmit(formular({ vorname: 'Bea', nachname: 'Fremd', wohnung_id: 'w9', status: 'bewerber' }));
+
+      expect(result).toEqual({ success: false, error: { message: 'Zugriff auf die angegebene Wohnung verweigert.' } });
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('verlangt bei einem Mieter weiterhin eine Wohnung im Scope', async () => {
+      (getAccessibleWohnungIds as jest.Mock).mockResolvedValueOnce(['w1']);
+
+      const result = await handleSubmit(formular({ vorname: 'Max', nachname: 'Ohne', wohnung_id: '', status: 'mieter' }));
+
+      expect(result).toEqual({ success: false, error: { message: 'Zugriff auf die angegebene Wohnung verweigert.' } });
       expect(mockRpc).not.toHaveBeenCalled();
     });
   });

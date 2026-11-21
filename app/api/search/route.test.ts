@@ -208,7 +208,7 @@ describe('/api/search', () => {
           return mockQueryBuilder;
         }
         if (table === 'Personen') {
-          return { select: jest.fn().mockReturnThis(), or: jest.fn().mockReturnThis(), limit: jest.fn().mockResolvedValue({ data: [{ id: 'p1' }], error: null }) };
+          return { select: jest.fn().mockReturnThis(), or: jest.fn().mockReturnThis(), order: jest.fn().mockReturnThis(), limit: jest.fn().mockResolvedValue({ data: [{ id: 'p1' }], error: null }) };
         }
         // Return empty results for other tables
         return {
