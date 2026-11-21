@@ -52,12 +52,12 @@ export function anredeVoll(mieter: VorlagenKontext['mieter']): string {
   return name ? `Guten Tag ${name}` : 'Guten Tag';
 }
 
-function anredeKurz(mieter: MieterKontext): string | null {
+function anredeKurz(mieter: MieterKontext): string {
   const anrede = trimmen(mieter.anrede).toLowerCase();
   if (anrede === 'frau') return 'Frau';
   if (anrede === 'herr') return 'Herr';
-  if (anrede === 'keine_angabe') return '';
-  return null;
+  // keine_angabe oder nicht gepflegt: leerer Text (bekanntes, aber leeres Feld)
+  return '';
 }
 
 /**
@@ -66,6 +66,22 @@ function anredeKurz(mieter: MieterKontext): string | null {
  * Ein bekanntes, aber leeres Feld (z. B. keine E-Mail hinterlegt) ergibt einen leeren Text, damit im versendeten
  * Text kein Platzhalter steht; mit einem bedingten Block "ist leer" lässt sich darauf reagieren.
  */
+/**
+ * Variablen, die loeseVariable beim Versand tatsaechlich aufloest. Bedingungen duerfen nur diese verwenden: eine
+ * Bedingung auf eine nie aufgeloeste Variable wuerde ihren Block sonst stillschweigend immer weglassen.
+ */
+export const AUFLOESBARE_VARIABLEN: ReadonlySet<string> = new Set([
+  'mieter.name',
+  'mieter.vorname',
+  'mieter.nachname',
+  'mieter.anrede',
+  'mieter.anrede_voll',
+  'mieter.email',
+  'mieter.telefon',
+  'datum.heute',
+  'vermieter.name',
+]);
+
 export function loeseVariable(id: string, kontext: VorlagenKontext): string | null {
   switch (id) {
     case 'mieter.name': {

@@ -1,5 +1,6 @@
 import { TemplatePayload } from '@/types/template';
 import { MENTION_VARIABLES, TEMPLATE_CATEGORIES } from '@/lib/template-constants';
+import { AUFLOESBARE_VARIABLEN } from '@/lib/vorlagen/variablen';
 import { pruefeBedingungen } from '@/lib/vorlagen/bedingungen';
 import { JSONContent } from '@tiptap/react';
 
@@ -121,15 +122,15 @@ export function isEmptyTipTapContent(content: JSONContent): boolean {
     return true;
   }
 
-  // Check if content only contains empty paragraphs
-  const hasContent = content.content.some(node => {
-    if (node.type === 'paragraph') {
-      return node.content && node.content.some(textNode => 
-        textNode.type === 'text' && textNode.text && textNode.text.trim().length > 0
-      );
-    }
-    return node.type !== 'paragraph'; // Non-paragraph content is considered non-empty
-  });
+  // Inhalt = Text mit Zeichen, eine Variable oder ein Block, der nicht nur aus leeren Containern besteht
+  // (z. B. ein Bedingungsblock oder eine Liste mit leerem Absatz zaehlt nicht als Inhalt).
+  const hatInhalt = (node: JSONContent): boolean => {
+    if (node.type === 'text') return Boolean(node.text && node.text.trim().length > 0);
+    if (node.type === 'mention') return true;
+    if (node.type === 'horizontalRule') return true;
+    return (node.content ?? []).some(hatInhalt);
+  };
+  const hasContent = content.content.some(hatInhalt);
 
   return !hasContent;
 }
@@ -215,7 +216,8 @@ export function validateMentionVariables(content: JSONContent): ValidationResult
   }
 
   // Bedingungsblöcke: unbekannte Variable, fehlender Operator oder fehlender Vergleichswert
-  pruefeBedingungen(content, validMentionIds).forEach(message => {
+  // Nur Variablen, die beim Versand aufgeloest werden (sonst faellt der Block stillschweigend immer weg).
+  pruefeBedingungen(content, AUFLOESBARE_VARIABLEN).forEach(message => {
     errors.push({
       field: 'inhalt',
       message

@@ -60,7 +60,7 @@ function blockZuText(node: JSONContent, kontext: VorlagenKontext): string {
 
     case BEDINGUNG_NODE_NAME: {
       const attrs = (node.attrs ?? {}) as BedingungAttrs;
-      const wert = loeseVariable(String(attrs.variable ?? ''), kontext);
+      const wert = loeseVariable(String(attrs.variable ?? '').trim(), kontext);
       if (!bedingungErfuellt(attrs, wert)) return '';
       return blocksZuText(node.content ?? [], kontext).join('\n\n');
     }
@@ -87,10 +87,11 @@ function listenZuText(
 ): string {
   const zeilen: string[] = [];
 
-  (liste.content ?? []).forEach((eintrag, index) => {
-    const text = listenEintragZuText(eintrag, kontext, marke(index));
+  // Nummern nur fuer ausgegebene Eintraege vergeben (leere Eintraege erzeugen keine Luecke)
+  for (const eintrag of liste.content ?? []) {
+    const text = listenEintragZuText(eintrag, kontext, marke(zeilen.length));
     if (text.length > 0) zeilen.push(text);
-  });
+  }
 
   return zeilen.join('\n');
 }

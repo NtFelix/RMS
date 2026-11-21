@@ -193,4 +193,19 @@ describe('vorlageZuText (Golden)', () => {
     expect(vorlageZuText({ type: 'doc', content: [absatz()] }, kontext)).toBe('');
     expect(vorlageZuText({ type: 'doc' }, kontext)).toBe('');
   });
+
+  it('nummeriert Listen ohne Lücken, wenn ein Eintrag leer bleibt', () => {
+    const doc = {
+      type: 'doc',
+      content: [{
+        type: 'orderedList',
+        content: [
+          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Erstens' }] }] },
+          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'mention', attrs: { id: 'mieter.telefon', label: 'Mieter.Telefon' } }] }] },
+          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Drittens' }] }] },
+        ],
+      }],
+    };
+    expect(vorlageZuText(doc as any, { mieter: { telefonnummer: null } })).toBe('1. Erstens\n2. Drittens');
+  });
 });

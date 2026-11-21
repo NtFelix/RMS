@@ -70,7 +70,7 @@ export const POSTHOG_FEATURE_FLAGS = {
   ADVANCED_KAUTIONSMANAGEMENT: 'advanced-kautionsmanagment',
   // Mietverhältnis und Miethistorie (GH-17): nur UX, Rechte bleiben in der Datenbank, siehe hooks/use-mietverhaeltnis-flag.ts
   MIETVERHAELTNIS_MIETHISTORIE: 'mietverhaeltnis-miethistorie',
-  // Vorlagen mit Variablen und bedingten Blöcken: nur UX, Versand und Rendern bleiben unverändert, siehe hooks/use-vorlagen-bedingungen-flag.ts
+  // Bedingte Blöcke in Vorlagen: steuert nur die Toolbar-Schaltfläche; Laden, Versand und Auswertung gespeicherter Blöcke laufen immer, siehe hooks/use-vorlagen-bedingungen-flag.ts
   VORLAGEN_BEDINGUNGEN: 'vorlagen-bedingungen',
   // Sidebar features
   SUPPORT_BUTTON: 'support-button',

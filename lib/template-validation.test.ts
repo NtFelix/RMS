@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/react';
-import { validateMentionVariables } from './template-validation';
+import { validateMentionVariables, isEmptyTipTapContent } from './template-validation';
 import { MENTION_VARIABLES } from './template-constants';
 
 const absatz = (...inhalt: JSONContent[]): JSONContent => ({ type: 'paragraph', content: inhalt });
@@ -89,5 +89,30 @@ describe('validateMentionVariables', () => {
     const ergebnis = validateMentionVariables(doc);
     expect(ergebnis.isValid).toBe(false);
     expect(ergebnis.errors.length).toBeGreaterThan(0);
+  });
+
+  describe('GH-30 Bedingungen und leere Inhalte', () => {
+    it('meldet Bedingungen auf Variablen, die beim Versand nicht aufgelöst werden', () => {
+      const result = validateMentionVariables({
+        type: 'doc',
+        content: [{ type: 'bedingung', attrs: { variable: 'wohnung.adresse', operator: 'ausgefuellt', wert: null }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x' }] }] }],
+      } as any);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('akzeptiert Bedingungen auf aufloesbare Variablen', () => {
+      const result = validateMentionVariables({
+        type: 'doc',
+        content: [{ type: 'bedingung', attrs: { variable: 'mieter.anrede', operator: 'gleich', wert: 'Frau' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x' }] }] }],
+      } as any);
+      expect(result.isValid).toBe(true);
+    });
+
+    it('wertet einen Bedingungsblock nur mit leerem Absatz als leeren Inhalt', () => {
+      expect(isEmptyTipTapContent({
+        type: 'doc',
+        content: [{ type: 'bedingung', attrs: { variable: 'mieter.name', operator: 'ausgefuellt' }, content: [{ type: 'paragraph' }] }],
+      } as any)).toBe(true);
+    });
   });
 });

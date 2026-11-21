@@ -85,8 +85,8 @@ describe('loeseVariable', () => {
     expect(loeseVariable('mieter.anrede', { mieter: { anrede: 'keine_angabe', nachname: 'Muster' } })).toBe('');
   });
 
-  it('liefert null für die Anrede, wenn sie unbekannt ist', () => {
-    expect(loeseVariable('mieter.anrede', { mieter: { anrede: null, nachname: 'Muster' } })).toBeNull();
+  it('liefert leeren Text für die Anrede, wenn sie nicht gepflegt ist (kein Platzhalter)', () => {
+    expect(loeseVariable('mieter.anrede', { mieter: { anrede: null, nachname: 'Muster' } })).toBe('');
   });
 
   it('löst die komplette Briefanrede auf', () => {

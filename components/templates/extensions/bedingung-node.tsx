@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { MENTION_VARIABLES } from '@/lib/template-constants';
+import { AUFLOESBARE_VARIABLEN } from '@/lib/vorlagen/variablen';
 import {
   BEDINGUNG_NODE_NAME,
   BEDINGUNG_OPERATOREN,
@@ -69,7 +70,7 @@ function BedingungNodeView({ node, updateAttributes, editor, getPos }: NodeViewP
             <SelectValue placeholder="Variable wählen" />
           </SelectTrigger>
           <SelectContent>
-            {MENTION_VARIABLES.map((variable) => (
+            {MENTION_VARIABLES.filter((variable) => AUFLOESBARE_VARIABLEN.has(variable.id)).map((variable) => (
               <SelectItem key={variable.id} value={variable.id}>
                 {variable.label}
               </SelectItem>
@@ -184,7 +185,8 @@ export const BedingungNode = Node.create({
 
           // Auswahl vorhanden oder leerer Absatz: der Absatz (bzw. die Auswahl) wird eingeschlossen.
           if (!state.selection.empty || state.selection.$from.parent.content.size === 0) {
-            return commands.wrapIn(BEDINGUNG_NODE_NAME, nodeAttrs);
+            // wrapIn scheitert z. B. im ersten Absatz eines Listeneintrags; dann unten einen neuen Block einfuegen
+            if (commands.wrapIn(BEDINGUNG_NODE_NAME, nodeAttrs)) return true;
           }
 
           // Cursor in einem gefüllten Absatz: neuen Block mit leerem Absatz direkt darunter einfügen.
