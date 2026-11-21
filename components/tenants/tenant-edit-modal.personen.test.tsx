@@ -108,6 +108,21 @@ describe('TenantEditModal - Personen-Stammdaten', () => {
     expect(formData.get('status')).toBe('mieter');
   });
 
+  it('schreibt unbekannte Personenfelder beim Speichern nicht zurück (Aufrufer kennt nur name)', async () => {
+    oeffne({ id: 'm5', name: 'Altdaten Name', nebenkosten: [] });
+    const serverAction = jest.fn().mockResolvedValue({ success: true });
+
+    render(<TenantEditModal serverAction={serverAction} />);
+    document.querySelector<HTMLFormElement>('#tenant-form-container form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    await waitFor(() => expect(serverAction).toHaveBeenCalledTimes(1));
+    const formData = serverAction.mock.calls[0][0] as FormData;
+    expect(formData.has('anrede')).toBe(false);
+    expect(formData.has('vorname')).toBe(false);
+    expect(formData.has('nachname')).toBe(false);
+    expect(formData.get('id')).toBe('m5');
+  });
+
   it('sendet nicht, wenn weder Vor- noch Nachname angegeben sind', async () => {
     oeffne({ id: 'm4', name: '', vorname: '', nachname: '', nebenkosten: [] });
     const serverAction = jest.fn().mockResolvedValue({ success: true });

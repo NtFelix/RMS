@@ -631,6 +631,10 @@ export default function MieterClientView({
         id: tenantToEdit.id,
         wohnung_id: tenantToEdit.wohnung_id || "",
         name: tenantToEdit.name,
+        // GH-30: Personenfelder mitgeben, sonst setzt der Dialog beim Speichern Anrede/Vorname/Nachname zurueck
+        anrede: tenantToEdit.anrede,
+        vorname: tenantToEdit.vorname,
+        nachname: tenantToEdit.nachname,
         einzug: tenantToEdit.einzug || "",
         auszug: tenantToEdit.auszug || "",
         email: tenantToEdit.email || "",
