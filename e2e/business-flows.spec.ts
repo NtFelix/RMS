@@ -323,8 +323,9 @@ test.describe('Business Logic Flows', () => {
     const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#einzug') }).first();
     await expect(modal).toBeVisible({ timeout: 10000 });
 
-    // Fill form using IDs
-    await page.fill('#name', tenantName);
+    // Fill form using IDs (GH-30: Name als Vor- und Nachname; der Anzeigename ist "Vorname Nachname")
+    await page.fill('#vorname', 'E2E');
+    await page.fill('#nachname', `Tenant ${randomId}`);
     await page.waitForTimeout(300);
 
     // Select Apartment
