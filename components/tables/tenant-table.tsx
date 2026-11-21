@@ -15,6 +15,7 @@ import { ActionMenu } from "@/components/ui/action-menu"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useKautionOeffnen } from "@/hooks/use-kaution-oeffnen"
 import { deleteTenantAction } from "@/app/mieter-actions"
+import { bewerberLoeschenAction } from "@/app/bewerber-actions"
 import { toast } from "@/hooks/use-toast"
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant";
@@ -301,6 +302,7 @@ function TenantTableContent({
   canViewKautionen,
   contextMenuRefs,
   wohnungsMap,
+  wohnungen,
   mode,
   router,
   handleOpenKaution,
@@ -320,6 +322,7 @@ function TenantTableContent({
   canViewKautionen: boolean;
   contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   wohnungsMap: Record<string, string>;
+  wohnungen: { id: string; name: string }[];
   mode: "tenants" | "applicants";
   router: ReturnType<typeof import("next/navigation").useRouter>;
   handleOpenKaution: (tenant: Tenant) => void;
@@ -370,6 +373,7 @@ function TenantTableContent({
                     canEdit={canEdit}
                     canDelete={canDelete}
                     canViewKautionen={canViewKautionen}
+                    wohnungen={wohnungen}
                   >
                     <TableRow
                       ref={(el) => {
@@ -471,7 +475,7 @@ function TenantTableContent({
                             }] : []),
                             // Kaution (GH-6): nur mit Modulrecht `kautionen: ansehen`; der Dialog bekommt seine Rechte
                             // (erstellen/bearbeiten/löschen) autoritativ vom Server, die Datenbank prüft erneut.
-                            ...(canViewKautionen ? [{
+                            ...(canViewKautionen && tenant.status !== "bewerber" ? [{
                               id: `kaution-${tenant.id}`,
                               icon: Euro,
                               label: "Kaution",
@@ -642,8 +646,10 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     dispatchDialog({ type: "SET_BULK_DELETING", payload: true })
     const selectedIds = Array.from(selectedTenants)
 
+    // Bewerber liegen in "Bewerber" und werden dort gelöscht; alle anderen Zeilen sind Mieter.
+    const bewerberIds = new Set(tenants.filter((t) => t.status === "bewerber").map((t) => t.id))
     const results = await Promise.allSettled(
-      selectedIds.map((id) => deleteTenantAction(id))
+      selectedIds.map((id) => (bewerberIds.has(id) ? bewerberLoeschenAction(id) : deleteTenantAction(id)))
     )
     // Gründe der abgelehnten Löschungen (z. B. Mieter mit hinterlegter Kaution) werden angezeigt, nicht verworfen.
     const { successCount, errorCount, reasons } = summarizeBulkDeleteResults(results)
@@ -737,6 +743,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
         canViewKautionen={canViewKautionen}
         contextMenuRefs={contextMenuRefs}
         wohnungsMap={wohnungsMap}
+        wohnungen={wohnungen}
         mode={mode}
         router={router}
         handleOpenKaution={handleOpenKaution}

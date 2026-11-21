@@ -91,11 +91,12 @@ export async function getSidebarUserData(
       evaluatePermission(supabase, user.id, orgId, 'dokumente', 'ansehen'),
       evaluatePermission(supabase, user.id, orgId, 'organisation', 'ansehen'),
       evaluatePermission(supabase, user.id, orgId, 'zaehler', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'kontakte', 'ansehen'),
     ]);
 
     isOrganisationHidden = orgDataResult.data?.ist_versteckt ?? false;
 
-    const GATED_MODULES = ['haeuser', 'wohnungen', 'mieter', 'finanzen', 'betriebskosten', 'aufgaben', 'dokumente', 'organisation', 'zaehler'] as const;
+    const GATED_MODULES = ['haeuser', 'wohnungen', 'mieter', 'finanzen', 'betriebskosten', 'aufgaben', 'dokumente', 'organisation', 'zaehler', 'kontakte'] as const;
     const allAllowed = permChecks.every(r => r === true);
 
     if (!allAllowed && !isOrganisationHidden) {

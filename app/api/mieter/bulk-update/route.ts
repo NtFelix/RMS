@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
-import { pickMieterSchreibbareFelder } from "@/lib/mieter-columns"
-import { ermittleWohnungswechselFehler } from "@/lib/mietverhaeltnis-errors"
+import { fehlerAusRpc, istEingabeObjekt, mieterEingabeAusBody, personEingabeAusBody } from "@/lib/mieter-schreibpfad"
 
 
 type BulkUpdateRequest = {
   ids: string[]
   updates: {
     wohnung_id?: string | null
+    [feld: string]: unknown
   }
 }
 
@@ -27,9 +27,10 @@ export async function PATCH(request: Request) {
       )
     }
 
-    // Nur schreibbare Mieterspalten übernehmen; das Altfeld "kaution" wird verworfen.
-    const updates = pickMieterSchreibbareFelder(rawUpdates)
-    if (!updates || Object.keys(updates).length === 0) {
+    // Personen- und Mieterfelder getrennt übernehmen (Whitelist); das Altfeld "kaution" wird verworfen.
+    const person = istEingabeObjekt(rawUpdates) ? personEingabeAusBody(rawUpdates, "aendern") : {}
+    const mieter = istEingabeObjekt(rawUpdates) ? mieterEingabeAusBody(rawUpdates) : {}
+    if (Object.keys(person).length === 0 && Object.keys(mieter).length === 0) {
       return NextResponse.json(
         { error: "Keine Aktualisierungen angegeben." },
         { status: 400, headers: NO_CACHE_HEADERS }
@@ -57,26 +58,39 @@ export async function PATCH(request: Request) {
     }
 
     // Check scope of new target apartment
-    if (updates.wohnung_id && !(await verifyWohnungInScope(updates.wohnung_id as string))) {
+    if (typeof mieter.wohnung_id === 'string' && !(await verifyWohnungInScope(mieter.wohnung_id))) {
       return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
     }
 
-    const { data, error } = await supabase
-      .from('Mieter')
-      .update(updates)
-      .in('id', ids)
-      .select('id') // nur gezählt; keine Mieterzeilen (inkl. Altfeld "kaution") zurücklesen
+    // Je Mieter eine RPC (Person und Mieter liegen getrennt, die RPC ändert nur die übergebenen Felder).
+    // Alle Ergebnisse abwarten, damit die Anzahl der erfolgreichen Änderungen stimmt.
+    const ergebnisse = await Promise.allSettled(
+      ids.map(async (id) => {
+        const { error } = await supabase.rpc('mieter_aktualisieren', {
+          p_mieter_id: id,
+          p_person: person,
+          p_mieter: mieter,
+        });
+        if (error) throw error;
+      })
+    );
 
-    if (error) {
-      console.error("Supabase Bulk Update Error:", error)
+    const fehlgeschlagen = ergebnisse.filter((e): e is PromiseRejectedResult => e.status === 'rejected');
+    if (fehlgeschlagen.length > 0) {
+      const erster = fehlgeschlagen[0].reason as { code?: string; message?: string };
+      console.error("Supabase Bulk Update Error:", erster?.code)
+      const fehler = fehlerAusRpc(erster ?? {});
+      const successCount = ergebnisse.length - fehlgeschlagen.length;
+      // Teilerfolg wie beim Bulk-Löschen: 200 mit Zählern, damit die Oberfläche neu lädt. Nur wenn nichts geklappt hat,
+      // der Status der ersten Ablehnung (403/404/400).
       return NextResponse.json(
-        { error: ermittleWohnungswechselFehler(error) ?? error.message },
-        { status: 500, headers: NO_CACHE_HEADERS }
+        { error: fehler.message, successCount, errorCount: fehlgeschlagen.length },
+        { status: successCount > 0 ? 200 : fehler.status, headers: NO_CACHE_HEADERS }
       )
     }
 
     return NextResponse.json(
-      { successCount: data?.length || 0 },
+      { successCount: ergebnisse.length },
       { status: 200, headers: NO_CACHE_HEADERS }
     )
   } catch (e) {

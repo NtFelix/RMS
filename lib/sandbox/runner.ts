@@ -4,6 +4,7 @@ import { mkdirSync, rmSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
 
 import { agentRuntimeLocalStorage } from '@/lib/agents/mietevo-agent';
+import { PERSON_SPALTEN_ROLLE, mitPersonenfeldern, type Person } from '@/lib/personen';
 
 const WHITELIST = ['fetch_mieter_list', 'fetch_finanzen_summary', 'create_aufgabe', 'get_haeuser_list'];
 
@@ -82,9 +83,12 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
     const hausId = params.p_haus_id as string | undefined;
     const search = params.p_search as string | undefined;
 
+    // Name und Kontakt stehen in "Personen". Mit Suchbegriff wird die Person per !inner eingebettet, damit die
+    // Suche auf die Person zielt und nur passende Mieter zurückkommen.
+    const personEmbed = `person:Personen!fk_mieter_person${search ? '!inner' : ''}(${PERSON_SPALTEN_ROLLE})`;
     let query = supabase
       .from('Mieter')
-      .select('id, name, email, telefonnummer, status, einzug, auszug, wohnung_id, Wohnungen!inner(haus_id)')
+      .select(`id, ${personEmbed}, einzug, auszug, wohnung_id, Wohnungen!inner(haus_id)`)
       .is('geloescht_am', null)
       .is('Wohnungen.geloescht_am', null)
       .limit(limit);
@@ -96,7 +100,10 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
       query = query.eq('Wohnungen.haus_id', hausId);
     }
     if (search) {
-      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+      query = query.or(
+        `vorname.ilike.%${search}%,nachname.ilike.%${search}%,email.ilike.%${search}%`,
+        { referencedTable: 'person' },
+      );
     }
 
     const { data: fallbackData, error: fallbackErr } = await query;
@@ -105,7 +112,28 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
       throw new Error(`Fallback table query failed for ${rpcName}: ${fallbackErr.message}`);
     }
     console.log('[sandboxRpc] Fallback query succeeded for %s', rpcName, { count: fallbackData?.length || 0 });
-    return fallbackData;
+    // Jede Mieter-Zeile ist ein Mieter (Bewerber stehen in "Bewerber"); Name und Kontakt kommen aus der Person
+    return ((fallbackData ?? []) as unknown as Array<{
+      id: string;
+      einzug: string | null;
+      auszug: string | null;
+      wohnung_id: string | null;
+      Wohnungen: unknown;
+      person?: Person | Person[] | null;
+    }>).map((zeile) => {
+      const mieter = mitPersonenfeldern(zeile);
+      return {
+        id: mieter.id,
+        name: mieter.name,
+        email: mieter.email,
+        telefonnummer: mieter.telefonnummer,
+        status: 'mieter',
+        einzug: mieter.einzug,
+        auszug: mieter.auszug,
+        wohnung_id: mieter.wohnung_id,
+        Wohnungen: mieter.Wohnungen,
+      };
+    });
   }
 
   if (rpcName === 'fetch_finanzen_summary') {

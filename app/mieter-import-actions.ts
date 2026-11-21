@@ -4,6 +4,25 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { posthogLogger } from "@/lib/posthog-logger";
+import { stripDbCodePrefix } from "@/lib/bulk-delete-summary";
+
+/**
+ * Zerlegt den Absender einer Mail ("Name <adresse@example.de>") in Anzeigename und Adresse.
+ * Ohne Angle-Brackets ist der ganze Absender die Adresse und zugleich der Name.
+ */
+function absenderAufteilen(absender: string): { name: string; email: string } {
+    const emailMatch = absender.match(/<([^>]+)>/);
+    const email = emailMatch?.[1] ?? absender;
+    let name = absender;
+    if (emailMatch && emailMatch.index !== undefined) {
+        // Der Teil vor der Adresse ist der Name; umschließende Anführungszeichen werden entfernt.
+        name = absender.substring(0, emailMatch.index).trim();
+        if (name.startsWith('"') && name.endsWith('"')) {
+            name = name.substring(1, name.length - 1);
+        }
+    }
+    return { name: name.trim(), email };
+}
 
 export async function searchMailSenders(query: string) {
     let user, supabase;
@@ -97,7 +116,9 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
         return { success: false, error: "No mails provided" };
     }
 
-    // Process in chunks to avoid any potential batch size limits on insert
+    // Je Mail ein Bewerber über die Datenbankfunktion bewerber_anlegen (Person + Bewerber in einer Transaktion).
+    // Der Absendername landet im Nachnamen der Person, die Mail-ID in bewerbung_mail_id. Die Chunks begrenzen die
+    // Zahl gleichzeitiger Aufrufe.
     const CHUNK_SIZE = 100;
     let successCount = 0;
     const errors: string[] = [];
@@ -105,36 +126,27 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
     for (let i = 0; i < mails.length; i += CHUNK_SIZE) {
         const chunk = mails.slice(i, i + CHUNK_SIZE);
 
-        const newApplicants = chunk.map(mail => {
-            let name = mail.absender;
-            const emailMatch = mail.absender.match(/<([^>]+)>/);
-            if (emailMatch) {
-                // If there's an email in angle brackets, take the part before it as the name.
-                name = mail.absender.substring(0, emailMatch.index).trim();
-                // Remove quotes if the name is wrapped in them.
-                if (name.startsWith('"') && name.endsWith('"')) {
-                    name = name.substring(1, name.length - 1);
-                }
+        const ergebnisse = await Promise.allSettled(
+            chunk.map((mail) => {
+                const { name, email } = absenderAufteilen(mail.absender);
+                return supabase.rpc('bewerber_anlegen', {
+                    p_person: { nachname: name || email, email },
+                    p_bewerber: { bewerbung_mail_id: mail.id },
+                });
+            })
+        );
+
+        for (const ergebnis of ergebnisse) {
+            if (ergebnis.status === 'fulfilled' && !ergebnis.value.error) {
+                successCount++;
+                continue;
             }
-
-            return {
-                name: name,
-                email: mail.absender.match(/<([^>]+)>/)?.[1] ?? mail.absender,
-                status: 'bewerber',
-                bewerbung_mail_id: mail.id,
-                // bewerbung_metadaten left empty for now, to be filled by AI later
-            };
-        });
-
-        const { error: insertError } = await supabase
-            .from('Mieter')
-            .insert(newApplicants);
-
-        if (insertError) {
-            console.error("Error inserting applicants chunk:", insertError);
-            errors.push(insertError.message);
-        } else {
-            successCount += newApplicants.length;
+            const message = ergebnis.status === 'fulfilled'
+                ? ergebnis.value.error?.message
+                : (ergebnis.reason instanceof Error ? ergebnis.reason.message : undefined);
+            // Nur die Meldung der Datenbank ohne technisches Präfix; keine Absender- oder Personendaten.
+            const grund = stripDbCodePrefix(message ?? '') || 'Bewerber konnte nicht angelegt werden.';
+            if (!errors.includes(grund)) errors.push(grund);
         }
     }
 
