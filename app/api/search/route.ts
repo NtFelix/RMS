@@ -4,7 +4,7 @@ import { unstable_rethrow } from "next/navigation";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from "@/lib/object-scope";
 import { formatPlzOrt } from "@/lib/address";
-import { BEWERBER_PERSON_EMBED, MIETER_PERSON_EMBED, mitPersonenfeldern, type Person } from "@/lib/personen";
+import { BEWERBER_PERSON_EMBED, BEWERBER_PERSON_EMBED_INNER, MIETER_PERSON_EMBED, MIETER_PERSON_EMBED_INNER, mitPersonenfeldern, type Person } from "@/lib/personen";
 import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 import type { Modul } from "@/lib/permissions-core";
 import type {
@@ -56,7 +56,6 @@ const SEARCH_CATEGORY_MODULE: Record<string, Modul> = {
 };
 
 // Obergrenzen der Personensuche (GH-30): Treffer an "Personen" und Kandidaten an Mieter/Bewerber vor der Sortierung
-const PERSONEN_TREFFER_LIMIT = 200;
 const SUCHE_KANDIDATEN_LIMIT = 100;
 
 /**
@@ -64,7 +63,10 @@ const SUCHE_KANDIDATEN_LIMIT = 100;
  * geprüft; bei genau zwei Wörtern zusätzlich "Vorname Nachname" und "Nachname Vorname".
  * Kommas und Klammern werden aus den Wörtern entfernt, weil sie die or-Syntax zerlegen würden.
  */
-function personenSuchBedingungen(pattern: string, words: string[], mitTelefon: boolean): string[] {
+function personenSuchBedingungen(rohPattern: string, words: string[], mitTelefon: boolean): string[] {
+  // Komma, Klammern und Anführungszeichen trennen bzw. gruppieren Bedingungen im PostgREST-or(); im Suchtext entfernen
+  // (z. B. "Müller, Hans"), sonst scheitert die ganze Abfrage.
+  const pattern = rohPattern.replace(/[(),"]/g, '');
   const bedingungen = [
     `vorname.ilike.${pattern}`,
     `nachname.ilike.${pattern}`,
@@ -291,47 +293,32 @@ export async function GET(request: Request) {
         searchPromises.push(
           (async () => {
             try {
-              // 1. Personen-Treffer (bei "*" entfällt die Einschränkung auf Personen)
-              let personIds: string[] | null = null;
-              if (!isShowAllQuery) {
-                const { data: personen, error: personenError } = await supabase
-                  .from('Personen')
-                  .select('id')
-                  .or(personenSuchBedingungen(searchPattern, words, !searchPattern.includes('@')).join(','))
-                  .order('nachname')
-                  .order('vorname')
-                  .limit(PERSONEN_TREFFER_LIMIT);
-
-                if (personenError) {
-                  console.error('Tenant search (Personen) error:', personenError);
-                  return { type: 'tenant' as const, data: [] };
-                }
-
-                personIds = (personen ?? []).map((person: { id: string }) => person.id);
-                if (personIds.length === 0) {
-                  return { type: 'tenant' as const, data: [] };
-                }
-              }
-
-              // 2. Mieter und Bewerber zu den Personen; Bewerber, die bereits angenommen sind, sind als Mieter erfasst
+              // Mieter und Bewerber direkt über ihre Person filtern (Inner-Join auf "Personen"): so zählen nur Personen mit
+              // einer dieser Rollen, und die Grenze gilt für die Ergebnisse selbst, nicht für beliebige Kontakte.
+              // Bei "*" entfällt die Einschränkung. Bewerber, die bereits angenommen sind, sind als Mieter erfasst.
+              const bedingungen = isShowAllQuery
+                ? null
+                : personenSuchBedingungen(searchPattern, words, !searchPattern.includes('@')).join(',');
               let mieterQuery = supabase
                 .from('Mieter')
                 .select(`
-                  id, wohnung_id, einzug, auszug, ${MIETER_PERSON_EMBED},
+                  id, wohnung_id, einzug, auszug, ${bedingungen ? MIETER_PERSON_EMBED_INNER : MIETER_PERSON_EMBED},
                   Wohnungen!left(name, Haeuser!left(name))
                 `);
               let bewerberQuery = supabase
                 .from('Bewerber')
                 .select(`
-                  id, wohnung_id, ${BEWERBER_PERSON_EMBED},
+                  id, wohnung_id, ${bedingungen ? BEWERBER_PERSON_EMBED_INNER : BEWERBER_PERSON_EMBED},
                   Wohnungen!left(name, Haeuser!left(name))
                 `)
                 .neq('status', 'angenommen');
-
-              if (personIds !== null) {
-                mieterQuery = mieterQuery.in('person_id', personIds);
-                bewerberQuery = bewerberQuery.in('person_id', personIds);
+              if (bedingungen) {
+                mieterQuery = mieterQuery.or(bedingungen, { referencedTable: 'person' });
+                bewerberQuery = bewerberQuery.or(bedingungen, { referencedTable: 'person' });
               }
+              // Stabile Reihenfolge vor der Grenze (sonst wäre bei "*" eine zufällige Auswahl sichtbar)
+              mieterQuery = mieterQuery.order('person(nachname)').order('person(vorname)').order('id');
+              bewerberQuery = bewerberQuery.order('person(nachname)').order('person(vorname)').order('id');
               if (accessibleWohnungIds !== null) {
                 mieterQuery = mieterQuery.in('wohnung_id', accessibleWohnungIds);
                 // Bewerber dürfen ohne Wohnung sein (RLS erlaubt das), deshalb auch "wohnung_id is null" zulassen.

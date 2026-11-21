@@ -104,7 +104,9 @@ export async function PATCH(
             .eq('id', id)
             .single();
         if (leseFehler || !data) {
-            return NextResponse.json({ error: 'Mieter nicht gefunden.' }, { status: 404, headers: NO_CACHE_HEADERS });
+            // Die Änderung ist bereits gespeichert (RPC erfolgreich); nur das Nachladen scheiterte.
+            console.error('PUT /api/mieter/[id] read-back error:', leseFehler?.code);
+            return NextResponse.json({ id, warning: 'Mieter wurde gespeichert, konnte aber nicht gelesen werden.' }, { status: 200, headers: NO_CACHE_HEADERS });
         }
 
         return NextResponse.json(mitPersonenfeldern(data as unknown as MieterZeile), { status: 200, headers: NO_CACHE_HEADERS });

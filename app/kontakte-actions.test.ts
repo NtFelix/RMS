@@ -35,7 +35,14 @@ const mockRevalidatePath = revalidatePath as jest.Mock;
 /** Baut einen Query-Builder, dessen Endpunkte (select/insert/update/eq) das gegebene Ergebnis liefern. */
 function builder(result: unknown) {
   const b: Record<string, jest.Mock> = {};
-  b.select = jest.fn(() => Promise.resolve(result));
+  // `.select(...)` ist direkt await-bar und für die Liste verkettbar (.neq/.order/.range, seitenweises Laden).
+  const kette: Record<string, unknown> = {
+    then: (ok: (wert: unknown) => unknown, nein?: (grund: unknown) => unknown) => Promise.resolve(result).then(ok, nein),
+  };
+  kette.neq = jest.fn(() => kette);
+  kette.order = jest.fn(() => kette);
+  kette.range = jest.fn(() => Promise.resolve(result));
+  b.select = jest.fn(() => kette);
   b.insert = jest.fn(() => Promise.resolve(result));
   b.update = jest.fn(() => b);
   b.eq = jest.fn(() => b);

@@ -135,7 +135,7 @@ describe('GET /api/wohnungen', () => {
       const body = await res.json();
 
       expect(res.status).toBe(200);
-      expect(mieter.select).toHaveBeenCalledWith('id, wohnung_id, auszug, einzug, person:Personen!fk_mieter_person(id, anrede, vorname, nachname, email, telefon, strasse, plz, ort)');
+      expect(mieter.select).toHaveBeenCalledWith('id, wohnung_id, auszug, einzug, person:Personen!fk_mieter_person(id, anrede, vorname, nachname, email, telefon)');
       expect(body[0]).toEqual(expect.objectContaining({
         id: 'a1',
         status: 'vermietet',
@@ -220,7 +220,7 @@ describe('GET /api/wohnungen', () => {
 
       expect(res.status).toBe(200);
       expect(mieterChecks()).toHaveLength(2);
-      expect(mieter.select).toHaveBeenCalledWith('id, wohnung_id, auszug, einzug, person:Personen!fk_mieter_person(id, anrede, vorname, nachname, email, telefon, strasse, plz, ort)');
+      expect(mieter.select).toHaveBeenCalledWith('id, wohnung_id, auszug, einzug, person:Personen!fk_mieter_person(id, anrede, vorname, nachname, email, telefon)');
       expect(body[0].tenant).toEqual({ id: 'm1', name: 'Erika Beispiel', einzug: '2020-01-01', auszug: null });
       for (const apt of body) {
         expect(apt).not.toHaveProperty('tenantAccess');

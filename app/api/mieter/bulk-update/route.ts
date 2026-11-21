@@ -79,9 +79,13 @@ export async function PATCH(request: Request) {
     if (fehlgeschlagen.length > 0) {
       const erster = fehlgeschlagen[0].reason as { code?: string; message?: string };
       console.error("Supabase Bulk Update Error:", erster?.code)
+      const fehler = fehlerAusRpc(erster ?? {});
+      const successCount = ergebnisse.length - fehlgeschlagen.length;
+      // Teilerfolg wie beim Bulk-Löschen: 200 mit Zählern, damit die Oberfläche neu lädt. Nur wenn nichts geklappt hat,
+      // der Status der ersten Ablehnung (403/404/400).
       return NextResponse.json(
-        { error: fehlerAusRpc(erster ?? {}).message, successCount: ergebnisse.length - fehlgeschlagen.length },
-        { status: 500, headers: NO_CACHE_HEADERS }
+        { error: fehler.message, successCount, errorCount: fehlgeschlagen.length },
+        { status: successCount > 0 ? 200 : fehler.status, headers: NO_CACHE_HEADERS }
       )
     }
 

@@ -8,8 +8,9 @@ import { checkPermission } from '@/lib/permissions';
 import { getAccessibleWohnungIds } from '@/lib/object-scope';
 
 /**
- * GET /api/search, Kategorie "tenant" (GH-30): Name, E-Mail und Telefon stehen in "Personen". Die Suche findet Personen
- * und ordnet sie über Mieter.person_id und Bewerber.person_id zu. Alle Daten sind synthetisch.
+ * GET /api/search, Kategorie "tenant" (GH-30): Name, E-Mail und Telefon stehen in "Personen". Die Suche fragt Mieter und
+ * Bewerber direkt ab und filtert über die eingebettete Person (Inner-Join, Filter auf referencedTable 'person').
+ * Alle Daten sind synthetisch.
  */
 
 jest.mock('@/lib/supabase-server', () => ({
@@ -53,6 +54,12 @@ function setup(rows: Record<string, unknown[]>, failing: string[] = []) {
 const aufrufeVon = (aufrufe: Aufruf[], table: string, method: string) =>
   aufrufe.filter((a) => a.table === table && a.method === method);
 
+/** or()-Aufrufe auf der eingebetteten Person (Option referencedTable: 'person'). */
+const personenOder = (aufrufe: Aufruf[], table: string) =>
+  aufrufeVon(aufrufe, table, 'or')
+    .filter((a) => (a.args[1] as { referencedTable?: string } | undefined)?.referencedTable === 'person')
+    .map((a) => String(a.args[0]));
+
 describe('GET /api/search (tenant): Personensuche (GH-30)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -67,12 +74,15 @@ describe('GET /api/search (tenant): Personensuche (GH-30)', () => {
     jest.restoreAllMocks();
   });
 
-  it('sucht Personen über Vorname, Nachname, E-Mail und Telefon', async () => {
-    const { aufrufe } = setup({ Personen: [{ id: 'p1' }], Mieter: [], Bewerber: [] });
+  it('sucht Mieter und Bewerber über Vorname, Nachname, E-Mail und Telefon der Person', async () => {
+    const { aufrufe } = setup({ Mieter: [], Bewerber: [] });
 
     await GET(new NextRequest('http://localhost/api/search?q=Erika&categories=tenant'));
 
-    const [oder] = aufrufeVon(aufrufe, 'Personen', 'or').map((a) => String(a.args[0]));
+    expect(aufrufeVon(aufrufe, 'Personen', 'or')).toEqual([]);
+    expect(String(aufrufeVon(aufrufe, 'Mieter', 'select')[0].args[0])).toContain('!inner(');
+    expect(personenOder(aufrufe, 'Bewerber')).toHaveLength(1);
+    const [oder] = personenOder(aufrufe, 'Mieter');
     expect(oder).toContain('vorname.ilike.');
     expect(oder).toContain('nachname.ilike.');
     expect(oder).toContain('email.ilike.');
@@ -80,17 +90,16 @@ describe('GET /api/search (tenant): Personensuche (GH-30)', () => {
   });
 
   it('lässt Telefon weg, wenn die Suche eine E-Mail-Adresse ist', async () => {
-    const { aufrufe } = setup({ Personen: [{ id: 'p1' }], Mieter: [], Bewerber: [] });
+    const { aufrufe } = setup({ Mieter: [], Bewerber: [] });
 
     await GET(new NextRequest('http://localhost/api/search?q=erika%40example.invalid&categories=tenant'));
 
-    const [oder] = aufrufeVon(aufrufe, 'Personen', 'or').map((a) => String(a.args[0]));
+    const [oder] = personenOder(aufrufe, 'Mieter');
     expect(oder).not.toContain('telefon.ilike.');
   });
 
-  it('ordnet die gefundenen Personen über person_id Mietern und Bewerbern zu und überspringt angenommene Bewerber', async () => {
+  it('liefert Mieter und Bewerber mit Personendaten und überspringt angenommene Bewerber', async () => {
     const { aufrufe } = setup({
-      Personen: [{ id: 'p1' }],
       Mieter: [{ id: 'm1', einzug: '2024-01-01', auszug: null, person: PERSON_MATCH, Wohnungen: [] }],
       Bewerber: [{ id: 'b1', person: PERSON_MATCH, Wohnungen: [] }],
     });
@@ -98,8 +107,7 @@ describe('GET /api/search (tenant): Personensuche (GH-30)', () => {
     const res = await GET(new NextRequest('http://localhost/api/search?q=Erika&categories=tenant'));
     const data = await res.json();
 
-    expect(aufrufeVon(aufrufe, 'Mieter', 'in')).toEqual([{ table: 'Mieter', method: 'in', args: ['person_id', ['p1']] }]);
-    expect(aufrufeVon(aufrufe, 'Bewerber', 'in')).toEqual([{ table: 'Bewerber', method: 'in', args: ['person_id', ['p1']] }]);
+    expect(aufrufeVon(aufrufe, 'Mieter', 'in')).toEqual([]);
     expect(aufrufeVon(aufrufe, 'Bewerber', 'neq')).toEqual([{ table: 'Bewerber', method: 'neq', args: ['status', 'angenommen'] }]);
     expect(data.results.tenant.map((t: { id: string }) => t.id)).toEqual(expect.arrayContaining(['m1', 'b1']));
     expect(data.results.tenant.find((t: { id: string }) => t.id === 'm1')).toEqual(expect.objectContaining({
@@ -110,20 +118,29 @@ describe('GET /api/search (tenant): Personensuche (GH-30)', () => {
     }));
   });
 
-  it('liefert keine Treffer, wenn keine Person passt (ohne Mieter- oder Bewerberabfrage)', async () => {
-    const { aufrufe } = setup({ Personen: [], Mieter: [{ id: 'm1', person: PERSON_MATCH }] });
+  it('entfernt Komma und Klammern aus dem Suchtext (sonst scheitert das PostgREST-or)', async () => {
+    const { aufrufe } = setup({ Mieter: [], Bewerber: [] });
 
-    const res = await GET(new NextRequest('http://localhost/api/search?q=Niemand&categories=tenant'));
-    const data = await res.json();
+    await GET(new NextRequest('http://localhost/api/search?q=' + encodeURIComponent('Müller, Hans (alt)') + '&categories=tenant'));
 
-    expect(data.results.tenant).toEqual([]);
-    expect(aufrufeVon(aufrufe, 'Mieter', 'in')).toEqual([]);
+    const [oder] = personenOder(aufrufe, 'Mieter');
+    expect(oder).toContain('vorname.ilike.');
+    expect(oder).not.toMatch(/ilike\.[^,]*Müller,/);
+    expect(oder).not.toContain('(alt)');
+  });
+
+  it('fragt bei "*" ohne Personenfilter und ohne Inner-Join ab', async () => {
+    const { aufrufe } = setup({ Mieter: [], Bewerber: [] });
+
+    await GET(new NextRequest('http://localhost/api/search?q=*&categories=tenant'));
+
+    expect(personenOder(aufrufe, 'Mieter')).toEqual([]);
+    expect(String(aufrufeVon(aufrufe, 'Mieter', 'select')[0].args[0])).not.toContain('!inner(');
   });
 
   it('schreibt keine Personennamen in die Logs', async () => {
     setup({
-      Personen: [{ id: 'p1' }],
-      Mieter: [{ id: 'm1', einzug: '2024-01-01', auszug: null, person: PERSON_MATCH, Wohnungen: [] }],
+            Mieter: [{ id: 'm1', einzug: '2024-01-01', auszug: null, person: PERSON_MATCH, Wohnungen: [] }],
       Bewerber: [],
     });
 
@@ -142,8 +159,7 @@ describe('GET /api/search (tenant): Personensuche (GH-30)', () => {
   it('liefert Mieter weiter, wenn die Bewerber-Abfrage fehlschlägt', async () => {
     setup(
       {
-        Personen: [{ id: 'p1' }],
-        Mieter: [{ id: 'm1', einzug: '2024-01-01', auszug: null, person: PERSON_MATCH, Wohnungen: [] }],
+                Mieter: [{ id: 'm1', einzug: '2024-01-01', auszug: null, person: PERSON_MATCH, Wohnungen: [] }],
       },
       ['Bewerber']
     );
@@ -157,8 +173,7 @@ describe('GET /api/search (tenant): Personensuche (GH-30)', () => {
 
   it('kennzeichnet Bewerber mit is_applicant, Mieter nicht', async () => {
     setup({
-      Personen: [{ id: 'p1' }],
-      Mieter: [{ id: 'm1', einzug: '2024-01-01', auszug: null, person: PERSON_MATCH, Wohnungen: [] }],
+            Mieter: [{ id: 'm1', einzug: '2024-01-01', auszug: null, person: PERSON_MATCH, Wohnungen: [] }],
       Bewerber: [{ id: 'b1', person: PERSON_MATCH, Wohnungen: [] }],
     });
 
@@ -170,24 +185,25 @@ describe('GET /api/search (tenant): Personensuche (GH-30)', () => {
     expect(nachId.m1).toEqual(expect.objectContaining({ is_applicant: false }));
   });
 
-  it('sortiert die Personen vor dem Limit nach Nachname und Vorname', async () => {
-    const { aufrufe } = setup({ Personen: [{ id: 'p1' }], Mieter: [], Bewerber: [] });
+  it('sortiert Mieter und Bewerber vor dem Limit nach Nachname und Vorname der Person', async () => {
+    const { aufrufe } = setup({ Mieter: [], Bewerber: [] });
 
     await GET(new NextRequest('http://localhost/api/search?q=Erika&categories=tenant'));
 
-    expect(aufrufeVon(aufrufe, 'Personen', 'order').map((a) => a.args[0])).toEqual(['nachname', 'vorname']);
+    expect(aufrufeVon(aufrufe, 'Mieter', 'order').map((a) => a.args[0])).toEqual(['person(nachname)', 'person(vorname)', 'id']);
+    expect(aufrufeVon(aufrufe, 'Bewerber', 'order').map((a) => a.args[0])).toEqual(['person(nachname)', 'person(vorname)', 'id']);
   });
 
   it('lässt Bewerber ohne Wohnung im Scope eingeschränkter Nutzer zu und filtert gesetzte Wohnungen', async () => {
     (getAccessibleWohnungIds as jest.Mock).mockResolvedValue(['w1']);
-    const { aufrufe } = setup({ Personen: [{ id: 'p1' }], Mieter: [], Bewerber: [] });
+    const { aufrufe } = setup({ Mieter: [], Bewerber: [] });
 
     await GET(new NextRequest('http://localhost/api/search?q=Erika&categories=tenant'));
 
-    expect(aufrufeVon(aufrufe, 'Bewerber', 'or')).toEqual([
+    expect(aufrufeVon(aufrufe, 'Bewerber', 'or').filter((a) => a.args.length === 1)).toEqual([
       { table: 'Bewerber', method: 'or', args: ['wohnung_id.is.null,wohnung_id.in.(w1)'] },
     ]);
-    expect(aufrufeVon(aufrufe, 'Bewerber', 'in').map((a) => a.args[0])).toEqual(['person_id']);
-    expect(aufrufeVon(aufrufe, 'Mieter', 'in').map((a) => a.args[0])).toEqual(['person_id', 'wohnung_id']);
+    expect(aufrufeVon(aufrufe, 'Bewerber', 'in')).toEqual([]);
+    expect(aufrufeVon(aufrufe, 'Mieter', 'in').map((a) => a.args[0])).toEqual(['wohnung_id']);
   });
 });

@@ -1479,21 +1479,23 @@ export async function speichereBewerberAuswertung(
         throw bewerberError;
     }
 
-    const zeile = Array.isArray(bewerber) ? bewerber[0] : undefined;
-    if (!zeile) {
+    const zeilen = Array.isArray(bewerber) ? bewerber : [];
+    if (zeilen.length === 0) {
         return { bewerberGefunden: false, personAktualisiert: false };
     }
 
     const personalInfo = (aiResult as { personalInfo?: Record<string, unknown> } | null)?.personalInfo;
     const personFelder = personFelderAusAuswertung(personalInfo);
-    if (!zeile.person_id || Object.keys(personFelder).length === 0) {
+    // Alle Bewerber zu dieser Mail (eine Mail kann mehrfach importiert worden sein), nicht nur die erste Zeile.
+    const personIds = [...new Set(zeilen.map((z: { person_id: string | null }) => z.person_id).filter((id): id is string => Boolean(id)))];
+    if (personIds.length === 0 || Object.keys(personFelder).length === 0) {
         return { bewerberGefunden: true, personAktualisiert: false };
     }
 
     const { error: personError } = await supabase
         .from('Personen')
         .update(personFelder)
-        .eq('id', zeile.person_id);
+        .in('id', personIds);
 
     if (personError) {
         throw personError;

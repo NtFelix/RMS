@@ -21,6 +21,7 @@ function supabaseMit(tabellen: Record<string, Zeile[]>, fehlerBei?: string) {
       from(tabelle: string) {
         const abfrage = {
           select: () => abfrage,
+          neq: () => abfrage,
           order: () => abfrage,
           range: (von: number, bis: number) => {
             (bereiche[tabelle] ??= []).push([von, bis]);

@@ -101,8 +101,11 @@ describe('mitPersonenfeldern', () => {
 
 describe('Select-Fragmente', () => {
   it('betten die Person über den Fremdschlüssel mit Namen ein', () => {
-    expect(MIETER_PERSON_EMBED).toBe(`person:Personen!fk_mieter_person(${PERSON_SPALTEN})`);
-    expect(BEWERBER_PERSON_EMBED).toBe(`person:Personen!fk_bewerber_person(${PERSON_SPALTEN})`);
+    // Mieter- und Bewerber-Embeds ohne Anschrift (Datenminimierung); die Anschrift liest nur die Kontakte-Seite.
+    expect(MIETER_PERSON_EMBED).toBe('person:Personen!fk_mieter_person(id, anrede, vorname, nachname, email, telefon)');
+    expect(BEWERBER_PERSON_EMBED).toBe('person:Personen!fk_bewerber_person(id, anrede, vorname, nachname, email, telefon)');
+    expect(MIETER_PERSON_EMBED).not.toContain('strasse');
+    expect(PERSON_SPALTEN).toContain('strasse');
   });
 
   it('enthält alle Personenspalten, die die Oberfläche braucht', () => {

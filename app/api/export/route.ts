@@ -11,7 +11,8 @@ const tablesToExport = {
   Aufgaben: ['ist_erledigt', 'name', 'beschreibung', 'erstellungsdatum', 'aenderungsdatum'],
   Finanzen: ['name', 'datum', 'betrag', 'ist_einnahmen', 'notiz'],
   Haeuser: ['ort', 'name', 'strasse', 'groesse'],
-  Mieter: ['name', 'einzug', 'auszug', 'email', 'telefonnummer', 'notiz', 'nebenkosten', 'nebenkosten_datum'],
+  // nebenkosten_datum existiert in der Datenbank nicht (mehr); mit der Spalte scheiterte die Abfrage und Mieter fehlten im Export.
+  Mieter: ['name', 'einzug', 'auszug', 'email', 'telefonnummer', 'notiz', 'nebenkosten'],
   Nebenkosten: ['jahr', 'nebenkostenart', 'betrag', 'berechnungsart', 'wasserkosten', 'wasserverbrauch'],
   Rechnungen: ['name', 'betrag'],
   Zaehler_Ablesungen: ['ablese_datum', 'zaehlerstand', 'verbrauch', 'kommentar'],
@@ -21,7 +22,7 @@ const tablesToExport = {
 
 // GH-30: name, email und telefonnummer des Mieters stehen in der Tabelle "Personen" und werden über die eingebettete
 // Person gelesen (nicht mehr als Spalten von "Mieter"). Die Ausgabe-Schlüssel bleiben unverändert.
-const MIETER_DIREKT_GELESENE_SPALTEN = ['einzug', 'auszug', 'notiz', 'nebenkosten', 'nebenkosten_datum'];
+const MIETER_DIREKT_GELESENE_SPALTEN = ['einzug', 'auszug', 'notiz', 'nebenkosten'];
 
 /** Bildet eine Mieter-Zeile mit eingebetteter Person auf die Ausgabespalten ab (Reihenfolge wie in `columns`). */
 function mieterZeileFuerExport(zeile: Record<string, unknown>, columns: string[]): Record<string, unknown> {
