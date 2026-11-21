@@ -100,10 +100,12 @@ describe('PATCH /api/mieter/bulk-update', () => {
 
     const res = await PATCH(jsonRequest({ ids: ['m1'], updates: { wohnung_id: 'w2' } }));
 
-    expect(res.status).toBe(500);
+    // Nichts geändert: Status der Ablehnung (400), nicht 500
+    expect(res.status).toBe(400);
     expect(await res.json()).toEqual({
       error: 'Die Wohnung kann hier nicht geändert werden, weil der Mieter zu einem Mietverhältnis gehört. Nutzen Sie im Abschnitt Mietverhältnis den Punkt „Umzug in eine andere Wohnung“.',
       successCount: 0,
+      errorCount: 1,
     });
   });
 
@@ -112,8 +114,9 @@ describe('PATCH /api/mieter/bulk-update', () => {
 
     const res = await PATCH(jsonRequest({ ids: ['m1', 'm2'], updates: { notiz: 'Neu' } }));
 
-    expect(res.status).toBe(500);
-    expect(await res.json()).toEqual({ error: 'Mieter nicht gefunden.', successCount: 1 });
+    // Teilerfolg: 200 mit Zählern, damit die Oberfläche neu lädt
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ error: 'Mieter nicht gefunden.', successCount: 1, errorCount: 1 });
   });
 
   it('lehnt fehlende Updates ab (400) statt mit einem Serverfehler zu antworten', async () => {

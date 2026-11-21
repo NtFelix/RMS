@@ -18,7 +18,7 @@ type Aufruf = {
  * (oder keine Zeile). Alle Daten sind erfundene Testwerte.
  */
 function fakeSupabase(optionen: {
-    bewerber?: { id: string; person_id: string | null } | null;
+    bewerber?: { id: string; person_id: string | null } | Array<{ id: string; person_id: string | null }> | null;
     bewerberFehler?: string;
     personFehler?: string;
 }) {
@@ -27,17 +27,17 @@ function fakeSupabase(optionen: {
         from(tabelle: string) {
             return {
                 update(werte: Record<string, unknown>) {
-                    return {
-                        eq(spalte: string, wert: unknown) {
-                            aufrufe.push({ tabelle, werte, filter: [spalte, wert] });
-                            const fehler = tabelle === 'Bewerber' ? optionen.bewerberFehler : optionen.personFehler;
-                            const daten = tabelle === 'Bewerber' && optionen.bewerber ? [optionen.bewerber] : [];
-                            const ergebnis = { data: daten, error: fehler ? { message: fehler } : null };
-                            return Object.assign(Promise.resolve(ergebnis), {
-                                select: () => Promise.resolve(ergebnis),
-                            });
-                        },
+                    const filtern = (spalte: string, wert: unknown) => {
+                        aufrufe.push({ tabelle, werte, filter: [spalte, wert] });
+                        const fehler = tabelle === 'Bewerber' ? optionen.bewerberFehler : optionen.personFehler;
+                        const zeilen = optionen.bewerber ? (Array.isArray(optionen.bewerber) ? optionen.bewerber : [optionen.bewerber]) : [];
+                        const daten = tabelle === 'Bewerber' ? zeilen : [];
+                        const ergebnis = { data: daten, error: fehler ? { message: fehler } : null };
+                        return Object.assign(Promise.resolve(ergebnis), {
+                            select: () => Promise.resolve(ergebnis),
+                        });
                     };
+                    return { eq: filtern, in: filtern };
                 },
             };
         },
@@ -113,7 +113,7 @@ describe('speichereBewerberAuswertung', () => {
 
         const personAufruf = aufrufe.find(a => a.tabelle === 'Personen');
         expect(personAufruf).toBeDefined();
-        expect(personAufruf!.filter).toEqual(['id', 'p-1']);
+        expect(personAufruf!.filter).toEqual(['id', ['p-1']]);
         expect(personAufruf!.werte).toEqual({
             vorname: 'Testa',
             nachname: 'Beispiel',
@@ -141,6 +141,17 @@ describe('speichereBewerberAuswertung', () => {
 
         expect(ergebnis).toEqual({ bewerberGefunden: false, personAktualisiert: false });
         expect(aufrufe.map(a => a.tabelle)).toEqual(['Bewerber']);
+    });
+
+    it('aktualisiert bei mehrfach importierter Mail die Personen aller Bewerber-Zeilen', async () => {
+        const { supabase, aufrufe } = fakeSupabase({
+            bewerber: [{ id: 'b-1', person_id: 'p-1' }, { id: 'b-2', person_id: 'p-2' }, { id: 'b-3', person_id: 'p-1' }],
+        });
+
+        await speichereBewerberAuswertung(supabase, 'mail-1', beispielAuswertung, 80);
+
+        const personAufruf = aufrufe.find(a => a.tabelle === 'Personen');
+        expect(personAufruf!.filter).toEqual(['id', ['p-1', 'p-2']]);
     });
 
     it('überspringt die Person, wenn die Bewerber-Zeile keine person_id hat', async () => {

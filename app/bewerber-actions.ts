@@ -192,6 +192,33 @@ export async function bewerberAktualisierenAction(
     Object.entries(personEingabe).filter(([, wert]) => wert !== undefined)
   );
 
+  // Erst alles prüfen, dann schreiben: sonst wäre die Person schon geändert, wenn eine Bewerber-Angabe abgewiesen wird.
+  const bewerberUpdate: Record<string, unknown> = {};
+
+  const wohnungId = formularText(formData, "wohnung_id");
+  if (wohnungId !== undefined) {
+    if (wohnungId && !wohnungErlaubt(wohnungIds, wohnungId)) {
+      return fehler("Zugriff auf die angegebene Wohnung verweigert.");
+    }
+    bewerberUpdate.wohnung_id = wohnungId;
+  }
+
+  const notiz = formularText(formData, "notiz");
+  if (notiz !== undefined) {
+    if (notiz && notiz.length > NOTIZ_MAX_LAENGE) {
+      return fehler(`Notiz ist zu lang (höchstens ${NOTIZ_MAX_LAENGE} Zeichen).`);
+    }
+    bewerberUpdate.notiz = notiz;
+  }
+
+  const status = formularText(formData, "bewerber_status");
+  if (status !== undefined) {
+    if (!status || !BEWERBER_STATUS_AENDERBAR.includes(status as BewerberStatus)) {
+      return fehler("Ungültiger Status.");
+    }
+    bewerberUpdate.status = status;
+  }
+
   if (Object.keys(personUpdate).length > 0) {
     if (!bestand.person_id) return fehler("Der Bewerber hat keine Person.");
 
@@ -218,32 +245,6 @@ export async function bewerberAktualisierenAction(
       .maybeSingle();
     if (personFehler) return fehler(datenbankMeldung(personFehler));
     if (!geaendert) return fehler("Keine Berechtigung");
-  }
-
-  const bewerberUpdate: Record<string, unknown> = {};
-
-  const wohnungId = formularText(formData, "wohnung_id");
-  if (wohnungId !== undefined) {
-    if (wohnungId && !wohnungErlaubt(wohnungIds, wohnungId)) {
-      return fehler("Zugriff auf die angegebene Wohnung verweigert.");
-    }
-    bewerberUpdate.wohnung_id = wohnungId;
-  }
-
-  const notiz = formularText(formData, "notiz");
-  if (notiz !== undefined) {
-    if (notiz && notiz.length > NOTIZ_MAX_LAENGE) {
-      return fehler(`Notiz ist zu lang (höchstens ${NOTIZ_MAX_LAENGE} Zeichen).`);
-    }
-    bewerberUpdate.notiz = notiz;
-  }
-
-  const status = formularText(formData, "bewerber_status");
-  if (status !== undefined) {
-    if (!status || !BEWERBER_STATUS_AENDERBAR.includes(status as BewerberStatus)) {
-      return fehler("Ungültiger Status.");
-    }
-    bewerberUpdate.status = status;
   }
 
   if (Object.keys(bewerberUpdate).length > 0) {

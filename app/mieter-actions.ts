@@ -35,17 +35,8 @@ async function aktualisiereBewerber(
     return { message: "Bewerber nicht gefunden." };
   }
 
+  // Zuerst der Bewerber: dort greifen Wohnungs-Scope und Rechte (RLS). Scheitert er, bleibt die Person unverändert.
   // Ohne Treffer (0 Zeilen, z. B. durch RLS) ist nichts gespeichert: das ist ein Fehler, kein Erfolg.
-  if (Object.keys(person).length > 0) {
-    const { data: personGeaendert, error } = await supabase
-      .from("Personen")
-      .update(person)
-      .eq("id", zeile.person_id)
-      .select("id")
-      .maybeSingle();
-    if (error || !personGeaendert) return { message: "Die Person konnte nicht gespeichert werden." };
-  }
-
   const { data: bewerberGeaendert, error } = await supabase
     .from("Bewerber")
     .update({ wohnung_id: bewerber.wohnung_id ?? null, notiz: bewerber.notiz ?? null })
@@ -53,6 +44,16 @@ async function aktualisiereBewerber(
     .select("id")
     .maybeSingle();
   if (error || !bewerberGeaendert) return { message: "Der Bewerber konnte nicht gespeichert werden." };
+
+  if (Object.keys(person).length > 0) {
+    const { data: personGeaendert, error: personFehler } = await supabase
+      .from("Personen")
+      .update(person)
+      .eq("id", zeile.person_id)
+      .select("id")
+      .maybeSingle();
+    if (personFehler || !personGeaendert) return { message: "Die Person konnte nicht gespeichert werden." };
+  }
   return {};
 }
 

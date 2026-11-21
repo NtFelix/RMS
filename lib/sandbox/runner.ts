@@ -4,7 +4,7 @@ import { mkdirSync, rmSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
 
 import { agentRuntimeLocalStorage } from '@/lib/agents/mietevo-agent';
-import { PERSON_SPALTEN, mitPersonenfeldern, type Person } from '@/lib/personen';
+import { PERSON_SPALTEN_ROLLE, mitPersonenfeldern, type Person } from '@/lib/personen';
 
 const WHITELIST = ['fetch_mieter_list', 'fetch_finanzen_summary', 'create_aufgabe', 'get_haeuser_list'];
 
@@ -85,7 +85,7 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
 
     // Name und Kontakt stehen in "Personen". Mit Suchbegriff wird die Person per !inner eingebettet, damit die
     // Suche auf die Person zielt und nur passende Mieter zurückkommen.
-    const personEmbed = `person:Personen!fk_mieter_person${search ? '!inner' : ''}(${PERSON_SPALTEN})`;
+    const personEmbed = `person:Personen!fk_mieter_person${search ? '!inner' : ''}(${PERSON_SPALTEN_ROLLE})`;
     let query = supabase
       .from('Mieter')
       .select(`id, ${personEmbed}, einzug, auszug, wohnung_id, Wohnungen!inner(haus_id)`)

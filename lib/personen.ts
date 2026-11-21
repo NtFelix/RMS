@@ -32,14 +32,26 @@ export interface Person {
   ort?: string | null;
 }
 
-/** Spalten einer Person für Selects. */
+/** Alle Spalten einer Person (nur für die Kontakte-Seite, die auch die Anschrift pflegt). */
 export const PERSON_SPALTEN = 'id, anrede, vorname, nachname, email, telefon, strasse, plz, ort';
 
+/**
+ * Spalten der Person an Mieter- und Bewerber-Zeilen: ohne Anschrift (Datenminimierung). Mieter- und Bewerber-Ansichten,
+ * Exporte und API-Antworten brauchen nur Anrede, Name und Kontakt; die Anschrift gehört zur Kontakte-Seite.
+ */
+export const PERSON_SPALTEN_ROLLE = 'id, anrede, vorname, nachname, email, telefon';
+
 /** Eingebettete Person an einer Mieter-Zeile (Schlüssel `person`). */
-export const MIETER_PERSON_EMBED = `person:Personen!fk_mieter_person(${PERSON_SPALTEN})`;
+export const MIETER_PERSON_EMBED = `person:Personen!fk_mieter_person(${PERSON_SPALTEN_ROLLE})`;
+
+/** Wie MIETER_PERSON_EMBED, aber als Inner-Join: Filter auf `person` schränken dann die Mieter-Zeilen ein (Suche). */
+export const MIETER_PERSON_EMBED_INNER = `person:Personen!fk_mieter_person!inner(${PERSON_SPALTEN_ROLLE})`;
 
 /** Eingebettete Person an einer Bewerber-Zeile (Schlüssel `person`). */
-export const BEWERBER_PERSON_EMBED = `person:Personen!fk_bewerber_person(${PERSON_SPALTEN})`;
+export const BEWERBER_PERSON_EMBED = `person:Personen!fk_bewerber_person(${PERSON_SPALTEN_ROLLE})`;
+
+/** Wie BEWERBER_PERSON_EMBED, aber als Inner-Join (Suche). */
+export const BEWERBER_PERSON_EMBED_INNER = `person:Personen!fk_bewerber_person!inner(${PERSON_SPALTEN_ROLLE})`;
 
 /** Anzeigename "Vorname Nachname"; leerer String, wenn nichts gepflegt ist. */
 export function personAnzeigename(

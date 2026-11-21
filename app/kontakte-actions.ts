@@ -196,7 +196,8 @@ export async function ladeKontakteAction(): Promise<KontaktAktionsErgebnis<Konta
         supabase.from("Mieter").select("person_id").order("id").range(von, bis)
       ),
       ladeAlleSeiten<{ person_id: string | null }>((von, bis) =>
-        supabase.from("Bewerber").select("person_id").order("id").range(von, bis)
+        // Angenommene Bewerber sind Mieter geworden: keine Bewerber-Rolle mehr anzeigen (wie die Bewerberliste).
+        supabase.from("Bewerber").select("person_id").neq("status", "angenommen").order("id").range(von, bis)
       ),
     ]);
 

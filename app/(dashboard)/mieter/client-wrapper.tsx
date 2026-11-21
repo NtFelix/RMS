@@ -176,7 +176,8 @@ export default function MieterClientView({
       return {
         total: 0,
         activeCount: 0,
-        applicantCount: 0,
+        // Bewerber kommen aus eigener Quelle und zählen auch ohne Mieter.
+        applicantCount: bewerber.length,
         pastCount: 0,
         totalDeposit: 0,
         depositReceived: 0,

@@ -219,10 +219,13 @@ export function TenantBulkActionBar({
       const totalCount = selectedTenants.size
       
       if (successCount > 0) {
+        const teilweise = (result.errorCount || 0) > 0
         toast({
-          title: "Erfolgreich aktualisiert",
-          description: `${successCount} von ${totalCount} Mietern wurden erfolgreich aktualisiert.`,
-          variant: "success"
+          title: teilweise ? "Teilweise aktualisiert" : "Erfolgreich aktualisiert",
+          description: teilweise
+            ? `${successCount} von ${totalCount} Mietern wurden aktualisiert. ${result.error ?? ''}`.trim()
+            : `${successCount} von ${totalCount} Mietern wurden erfolgreich aktualisiert.`,
+          variant: teilweise ? "destructive" : "success"
         })
         
         setIsAssignDialogOpen(false)

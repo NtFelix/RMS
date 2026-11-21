@@ -91,7 +91,7 @@ describe("WohnungenPage - mieter:ansehen", () => {
 
     const { initialWohnungenData } = (await renderPage()).props as { initialWohnungenData: any[] };
 
-    expect(selects.Mieter).toEqual(["id,wohnung_id,einzug,auszug,person:Personen!fk_mieter_person(id, anrede, vorname, nachname, email, telefon, strasse, plz, ort)"]);
+    expect(selects.Mieter).toEqual(["id,wohnung_id,einzug,auszug,person:Personen!fk_mieter_person(id, anrede, vorname, nachname, email, telefon)"]);
     expect(initialWohnungenData[0]).toEqual(
       expect.objectContaining({
         status: "vermietet",
@@ -158,7 +158,7 @@ describe("WohnungenPage - mieter:ansehen", () => {
       const { initialWohnungenData } = (await renderPage()).props as { initialWohnungenData: any[] };
 
       expect(mieterChecks()).toHaveLength(2);
-      expect(selects.Mieter).toEqual(["id,wohnung_id,einzug,auszug,person:Personen!fk_mieter_person(id, anrede, vorname, nachname, email, telefon, strasse, plz, ort)"]);
+      expect(selects.Mieter).toEqual(["id,wohnung_id,einzug,auszug,person:Personen!fk_mieter_person(id, anrede, vorname, nachname, email, telefon)"]);
       expect(initialWohnungenData[0].tenant).toEqual(expect.objectContaining({ name: "Erika Beispiel" }));
       for (const w of initialWohnungenData) {
         expect(w).not.toHaveProperty("tenantAccess");
