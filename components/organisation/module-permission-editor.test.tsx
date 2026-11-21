@@ -11,7 +11,7 @@ import { ModulePermissionEditor } from './module-permission-editor';
  */
 
 const ALLE_MODULE = [
-  'haeuser', 'wohnungen', 'mieter', 'zaehler', 'finanzen', 'betriebskosten', 'dokumente', 'aufgaben', 'vorlagen', 'organisation', 'kautionen',
+  'haeuser', 'wohnungen', 'mieter', 'kontakte', 'zaehler', 'finanzen', 'betriebskosten', 'dokumente', 'aufgaben', 'vorlagen', 'organisation', 'kautionen',
 ];
 
 function renderEditor(

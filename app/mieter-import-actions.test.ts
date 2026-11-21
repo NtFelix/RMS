@@ -56,7 +56,7 @@ describe('mieter-import-actions', () => {
       gte: jest.fn().mockReturnThis(),
       lte: jest.fn().mockReturnThis(),
       insert: jest.fn().mockResolvedValue({ error: null }),
-      rpc: jest.fn().mockResolvedValue({ error: null })
+      rpc: jest.fn().mockResolvedValue({ data: { bewerber_id: 'b-1', person_id: 'p-1' }, error: null })
     };
 
     (ensureAuth as jest.Mock).mockResolvedValue({ user: { id: 'test-user-id' }, supabase: mockSupabase });
@@ -115,10 +115,44 @@ describe('mieter-import-actions', () => {
 
       expect(result.success).toBe(true);
       expect(result.count).toBe(1);
-      expect(mockSupabase.from).toHaveBeenCalledWith('Mieter');
-      expect(mockSupabase.insert).toHaveBeenCalled();
       expect(mockSupabase.rpc).toHaveBeenCalledWith('send_applicant_processing_message', { p_mail_id: '1' });
       expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('creates applicants through bewerber_anlegen and never writes to "Mieter"', async () => {
+      const mails = [{ id: 'mail-1', absender: 'sender1@example.com' }];
+      const result = await createApplicantsFromMails(mails);
+
+      expect(result.success).toBe(true);
+      expect(result.count).toBe(1);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('bewerber_anlegen', {
+        p_person: { nachname: 'sender1@example.com', email: 'sender1@example.com' },
+        p_bewerber: { bewerbung_mail_id: 'mail-1' },
+      });
+      expect(mockSupabase.from).not.toHaveBeenCalledWith('Mieter');
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
+    });
+
+    it('takes the sender name into the last name and the address from the angle brackets', async () => {
+      await createApplicantsFromMails([{ id: 'mail-2', absender: '"Max Muster" <max@example.test>' }]);
+
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('bewerber_anlegen', {
+        p_person: { nachname: 'Max Muster', email: 'max@example.test' },
+        p_bewerber: { bewerbung_mail_id: 'mail-2' },
+      });
+    });
+
+    it('reports failed applicants without the technical code and keeps the successful ones', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({ data: null, error: { message: 'PERSON_EINGABE_UNGUELTIG: Vor- oder Nachname ist erforderlich.' } });
+
+      const result = await createApplicantsFromMails([
+        { id: 'mail-3', absender: '<leer@example.test>' },
+        { id: 'mail-4', absender: 'Erika Beispiel <erika@example.test>' },
+      ]);
+
+      expect(result.success).toBe(true);
+      expect(result.count).toBe(1);
+      expect(result.error).toBe('Import partially failed: Vor- oder Nachname ist erforderlich.');
     });
   });
 

@@ -17,6 +17,7 @@ export const buildTenant = (
 ): Mieter => ({
   id,
   wohnung_id,
+  person_id: `person-${id}`,
   name: id,
   einzug,
   auszug,

@@ -93,10 +93,12 @@ describe("MieterPage - Kaution (GH-6)", () => {
 
     await renderPageProps();
 
-    const mieterSelect = selectCalls.find((columns) => columns.includes("bewerbung_score"));
+    // GH-30: name, email und telefonnummer kommen aus der eingebetteten Person, nicht mehr als Spalten von "Mieter"
+    const mieterSelect = selectCalls.find((columns) => columns.includes("person:Personen!fk_mieter_person"));
     expect(mieterSelect).toBeDefined();
     expect(mieterSelect).not.toMatch(/kaution/i);
     expect(mieterSelect).not.toMatch(/\*/);
+    expect(mieterSelect).not.toMatch(/bewerbung_|telefonnummer|\bstatus\b|\bname\b/);
   });
 
   it("keeps the deposit of the RPC row with the module right", async () => {

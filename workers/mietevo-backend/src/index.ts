@@ -1434,6 +1434,82 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
 }
 
 
+/** Felder der KI-Auswertung, die in die Tabelle "Personen" übernommen werden (leere Werte werden ignoriert). */
+export function personFelderAusAuswertung(personalInfo: Record<string, unknown> | undefined | null): Record<string, string> {
+    const felder: Record<string, string> = {};
+    const zuordnung: ReadonlyArray<readonly [string, string]> = [
+        ['firstName', 'vorname'],
+        ['lastName', 'nachname'],
+        ['email', 'email'],
+        ['phone', 'telefon'],
+    ];
+    for (const [quelle, ziel] of zuordnung) {
+        const wert = personalInfo?.[quelle];
+        if (typeof wert === 'string' && wert.trim() !== '') {
+            felder[ziel] = wert.trim();
+        }
+    }
+    return felder;
+}
+
+/**
+ * Schreibt die KI-Auswertung auf die Bewerber-Zeile (gefunden über bewerbung_mail_id) und deren Person.
+ * Die Person wird über person_id in "Personen" aktualisiert; Vor- und Nachname werden getrennt gespeichert.
+ * Wirft bei Datenbankfehlern, damit die Nachricht in der Queue erhalten bleibt und erneut versucht wird.
+ */
+export async function speichereBewerberAuswertung(
+    supabase: SupabaseClient,
+    mailId: string,
+    aiResult: unknown,
+    aiScore: number | null
+): Promise<{ bewerberGefunden: boolean; personAktualisiert: boolean }> {
+    const { data: bewerber, error: bewerberError } = await supabase
+        .from('Bewerber')
+        .update({ bewerbung_metadaten: aiResult, bewerbung_score: aiScore })
+        .eq('bewerbung_mail_id', mailId)
+        .select('id, person_id');
+
+    if (bewerberError) {
+        throw bewerberError;
+    }
+
+    const zeile = Array.isArray(bewerber) ? bewerber[0] : undefined;
+    if (!zeile) {
+        return { bewerberGefunden: false, personAktualisiert: false };
+    }
+
+    const personalInfo = (aiResult as { personalInfo?: Record<string, unknown> } | null)?.personalInfo;
+    const personFelder = personFelderAusAuswertung(personalInfo);
+    if (!zeile.person_id || Object.keys(personFelder).length === 0) {
+        return { bewerberGefunden: true, personAktualisiert: false };
+    }
+
+    const { error: personError } = await supabase
+        .from('Personen')
+        .update(personFelder)
+        .eq('id', zeile.person_id);
+
+    if (personError) {
+        throw personError;
+    }
+    return { bewerberGefunden: true, personAktualisiert: true };
+}
+
+/** Entfernt die Personenangaben aus der KI-Ausgabe, bevor sie an PostHog geht (Datenschutz, GH-30). */
+export function ausgabeOhnePersonenangaben(aiResult: unknown): unknown {
+    if (!aiResult || typeof aiResult !== 'object' || Array.isArray(aiResult)) return aiResult;
+    const kopie: Record<string, unknown> = { ...(aiResult as Record<string, unknown>) };
+    delete kopie.personalInfo;
+    return kopie;
+}
+
+/** Ersetzt den E-Mail-Inhalt im Prompt durch einen Platzhalter, bevor der Prompt an PostHog geht (Datenschutz, GH-30). */
+export function promptOhneEmailInhalt(prompt: string, emailInhalt: string): string {
+    const auszug = emailInhalt.substring(0, 30000);
+    if (auszug === '') return prompt;
+    return prompt.replace(auszug, '[E-Mail-Inhalt aus Datenschutzgründen entfernt]');
+}
+
 export async function processQueue(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const logger = new WorkerLogger(env, ctx);
 
@@ -1584,9 +1660,9 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                             $ai_span_name: 'applicant_analysis',
                             $ai_model: aiResponse.usage.model,
                             $ai_provider: 'google',
-                            $ai_input: [{ role: 'user', content: aiResponse.prompt }],
+                            $ai_input: [{ role: 'user', content: promptOhneEmailInhalt(aiResponse.prompt, emailContent) }],
                             $ai_input_tokens: aiResponse.usage.inputTokens || 0,
-                            $ai_output_choices: [{ role: 'assistant', content: JSON.stringify(aiResult).substring(0, 1000) }],
+                            $ai_output_choices: [{ role: 'assistant', content: JSON.stringify(ausgabeOhnePersonenangaben(aiResult)).substring(0, 1000) }],
                             $ai_output_tokens: aiResponse.usage.outputTokens || 0,
                             $ai_latency: aiResponse.usage.latencyMs / 1000,
                             // User visibility
@@ -1610,36 +1686,19 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                 });
                 endSpan(aiChildSpan, { code: STATUS_CODES.OK });
 
-                // Update DB with Top-Level fields for easier access/sorting
-                logger.info('Updating tenant record in database', { mailId: mail_id, msgId });
-                const updates: Record<string, unknown> = {
-                    bewerbung_metadaten: aiResult,
-                    bewerbung_score: aiScore
-                };
-
-                const personalInfo = (aiResult as { personalInfo?: Record<string, string> })?.personalInfo;
-                if (personalInfo) {
-                    if (personalInfo.firstName || personalInfo.lastName) {
-                        updates.name = `${personalInfo.firstName || ''} ${personalInfo.lastName || ''}`.trim();
-                    }
-                    if (personalInfo.email) {
-                        updates.email = personalInfo.email;
-                    }
-                    if (personalInfo.phone) {
-                        updates.telefonnummer = personalInfo.phone;
-                    }
+                // Bewerber-Zeile per Mail finden, Score/Metadaten dort ablegen, Kontaktdaten in die Person schreiben.
+                // "Mieter" wird nicht mehr angefasst (GH-30, Migration M2 entfernt dort die Bewerber-Spalten).
+                logger.info('Updating applicant record in database', { mailId: mail_id, msgId });
+                const ergebnis = await speichereBewerberAuswertung(supabase, mail_id, aiResult, aiScore);
+                if (!ergebnis.bewerberGefunden) {
+                    logger.warn('No applicant record found for mail', { mailId: mail_id, msgId });
                 }
-
-                const { error: updateError } = await supabase
-                    .from('Mieter')
-                    .update(updates)
-                    .eq('bewerbung_mail_id', mail_id);
-
-                if (updateError) {
-                    logger.error('Database update failed', { msgId, mailId: mail_id, error: updateError.message, code: updateError.code });
-                    throw updateError;
-                }
-                logger.info('Tenant record updated successfully', { mailId: mail_id, msgId });
+                logger.info('Applicant record updated successfully', {
+                    mailId: mail_id,
+                    msgId,
+                    bewerberGefunden: ergebnis.bewerberGefunden,
+                    personAktualisiert: ergebnis.personAktualisiert
+                });
 
             } catch (processError: unknown) {
                 if (!aiChildSpan.endTimeUnixNano) {

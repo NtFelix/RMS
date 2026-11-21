@@ -93,6 +93,7 @@ describe('/api/search', () => {
         eq: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
         then: jest.fn((resolve) => {
           if (resolve) resolve({ data: [], error: null });
           return Promise.resolve({ data: [], error: null });
@@ -172,9 +173,8 @@ describe('/api/search', () => {
       const mockTenantData = [
         {
           id: '1',
-          name: 'John Doe',
-          email: 'john@example.com',
-          telefonnummer: '123456789',
+          // Name, E-Mail und Telefon stehen in der eingebetteten Person (GH-30)
+          person: { id: 'p1', anrede: 'herr', vorname: 'John', nachname: 'Doe', email: 'john@example.com', telefon: '123456789' },
           einzug: '2023-01-01',
           auszug: null,
           Wohnungen: [{
@@ -198,12 +198,17 @@ describe('/api/search', () => {
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
       };
 
-      // Mock all table queries to return empty results except for Mieter
+      // Mock all table queries to return empty results except for Mieter and die passende Person
       mockSupabase.from.mockImplementation((table: string) => {
         if (table === 'Mieter') {
           return mockQueryBuilder;
+        }
+        if (table === 'Personen') {
+          return { select: jest.fn().mockReturnThis(), or: jest.fn().mockReturnThis(), limit: jest.fn().mockResolvedValue({ data: [{ id: 'p1' }], error: null }) };
         }
         // Return empty results for other tables
         return {
@@ -214,6 +219,8 @@ describe('/api/search', () => {
           not: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
           ilike: jest.fn().mockReturnThis(),
+          in: jest.fn().mockReturnThis(),
+          neq: jest.fn().mockReturnThis(),
         };
       });
 
@@ -265,6 +272,8 @@ describe('/api/search', () => {
             not: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
             ilike: jest.fn().mockReturnThis(),
+            in: jest.fn().mockReturnThis(),
+            neq: jest.fn().mockReturnThis(),
           };
         }
         return {
@@ -275,6 +284,8 @@ describe('/api/search', () => {
           not: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
           ilike: jest.fn().mockReturnThis(),
+          in: jest.fn().mockReturnThis(),
+          neq: jest.fn().mockReturnThis(),
         };
       });
 
@@ -298,7 +309,7 @@ describe('/api/search', () => {
           groesse: 75,
           miete: 800,
           Haeuser: { name: 'House 1' },
-          Mieter: [{ name: 'John Doe', einzug: '2023-01-01', auszug: null }]
+          Mieter: [{ einzug: '2023-01-01', auszug: null, person: { id: 'p1', vorname: 'John', nachname: 'Doe' } }]
         }
       ];
 
@@ -320,6 +331,8 @@ describe('/api/search', () => {
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
       };
 
       // Mock all table queries to return empty results except for Wohnungen
@@ -336,6 +349,8 @@ describe('/api/search', () => {
           not: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
           ilike: jest.fn().mockReturnThis(),
+          in: jest.fn().mockReturnThis(),
+          neq: jest.fn().mockReturnThis(),
         };
       });
 
@@ -377,6 +392,8 @@ describe('/api/search', () => {
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
         then: jest.fn((resolve) => {
           resolve({ data: mockFinanceData, error: null });
           return Promise.resolve({ data: mockFinanceData, error: null });
@@ -397,6 +414,8 @@ describe('/api/search', () => {
           not: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
           ilike: jest.fn().mockReturnThis(),
+          in: jest.fn().mockReturnThis(),
+          neq: jest.fn().mockReturnThis(),
         };
       });
 
@@ -435,6 +454,8 @@ describe('/api/search', () => {
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
       };
 
       // Mock all table queries to return empty results except for Aufgaben
@@ -451,6 +472,8 @@ describe('/api/search', () => {
           not: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
           ilike: jest.fn().mockReturnThis(),
+          in: jest.fn().mockReturnThis(),
+          neq: jest.fn().mockReturnThis(),
         };
       });
 
@@ -488,6 +511,8 @@ describe('/api/search', () => {
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
         then: jest.fn((resolve) => {
           resolve({ data: mockFinanceData, error: null });
           return Promise.resolve({ data: mockFinanceData, error: null });
@@ -508,6 +533,8 @@ describe('/api/search', () => {
           not: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
           ilike: jest.fn().mockReturnThis(),
+          in: jest.fn().mockReturnThis(),
+          neq: jest.fn().mockReturnThis(),
         };
       });
 
@@ -532,6 +559,7 @@ describe('/api/search', () => {
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue({ data: null, error: null }),
       }));
@@ -556,6 +584,7 @@ describe('/api/search', () => {
         eq: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnValue(new Promise(() => {})),
       }));
 
@@ -591,6 +620,7 @@ describe('/api/search', () => {
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue({ data: [], error: null }),
       }));
@@ -612,6 +642,7 @@ describe('/api/search', () => {
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue({ data: [], error: null }),
       }));
@@ -626,20 +657,20 @@ describe('/api/search', () => {
     });
 
     it('should handle partial results with warning headers', async () => {
-      let callCount = 0;
-
-      // Create successful mock for tenant query builder
+      // Create successful mock for tenant query builder (Mieter-Zeile mit eingebetteter Person)
       const mockSuccessfulQueryBuilder = {
         select: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue({
-          data: [{ id: '1', name: 'John', email: 'john@test.com', einzug: '2023-01-01', auszug: null, telefonnummer: null, Wohnungen: [] }],
+          data: [{ id: '1', person: { id: 'p1', vorname: 'John', nachname: '', email: 'john@test.com', telefon: null }, einzug: '2023-01-01', auszug: null, Wohnungen: [] }],
           error: null
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
       };
 
       // Create failing mock for other query builders
@@ -654,11 +685,12 @@ describe('/api/search', () => {
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
       };
 
       mockSupabase.from.mockImplementation((table: string) => {
-        callCount++;
-        if (table === 'Mieter' && callCount === 1) {
+        if (table === 'Mieter' || table === 'Personen') {
           return mockSuccessfulQueryBuilder;
         }
         return mockFailingQueryBuilder;
@@ -687,6 +719,7 @@ describe('/api/search', () => {
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue({ data: [], error: null }),
       }));
@@ -708,6 +741,7 @@ describe('/api/search', () => {
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue({ data: [], error: null }),
       }));
@@ -730,13 +764,14 @@ describe('/api/search', () => {
         or: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue({
-          data: [{ id: '1', name: 'John', email: 'john@test.com', einzug: '2023-01-01', auszug: null, telefonnummer: null, Wohnungen: [] }],
+          data: [{ id: '1', person: { id: 'p1', vorname: 'John', nachname: '', email: 'john@test.com', telefon: null }, einzug: '2023-01-01', auszug: null, Wohnungen: [] }],
           error: null
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
       };
 
       // Create default mock for other tables
@@ -749,10 +784,11 @@ describe('/api/search', () => {
         eq: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
       };
 
       mockSupabase.from.mockImplementation((table: string) => {
-        if (table === 'Mieter') {
+        if (table === 'Mieter' || table === 'Personen') {
           return mockTenantQueryBuilder;
         }
         return mockDefaultQueryBuilder;
@@ -779,13 +815,14 @@ describe('/api/search', () => {
         or: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue({
-          data: [{ id: '1', name: 'Test', email: null, telefonnummer: null, einzug: '2023-01-01', auszug: null, Wohnungen: [] }],
+          data: [{ id: '1', person: { id: 'p1', vorname: 'Test', nachname: '', email: null, telefon: null }, einzug: '2023-01-01', auszug: null, Wohnungen: [] }],
           error: null
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
       };
 
       const mockHouseQueryBuilder = {
@@ -800,6 +837,7 @@ describe('/api/search', () => {
         eq: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
       };
 
       // Create default mock for other tables
@@ -812,10 +850,11 @@ describe('/api/search', () => {
         eq: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
       };
 
       mockSupabase.from.mockImplementation((table: string) => {
-        if (table === 'Mieter') {
+        if (table === 'Mieter' || table === 'Personen') {
           return mockTenantQueryBuilder;
         }
         if (table === 'Haeuser') {

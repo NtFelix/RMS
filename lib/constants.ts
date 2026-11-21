@@ -58,6 +58,8 @@ export const POSTHOG_FEATURE_FLAGS = {
   // Navigation
   DOCUMENTS_TAB_ACCESS: 'documents_tab_access',
   MAILS_TAB: 'mails-tab',
+  // Kontakte (GH-30): Personenverzeichnis. UX only, Rechte prüfen Server und Datenbank.
+  KONTAKTE_SEITE: 'kontakte-seite',
   // Features
   TEMPLATE_MODAL_ENABLED: 'template-modal-enabled',
   CREATE_FILE_OPTION: 'create-file-option',

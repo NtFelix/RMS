@@ -70,7 +70,6 @@ const MIETER_ZEILE = {
   mietverhaeltnis_id: MV_ID,
   wohnung_id: WOHNUNG_ID,
   einzug: "2020-01-01",
-  status: "aktiv",
   Wohnungen: { miete: 800 },
 };
 
@@ -415,12 +414,12 @@ describe("getMietverhaeltnisUebersichtAction", () => {
     expect(mockFrom).not.toHaveBeenCalledWith("Mieter_Mietverhaeltnisse");
   });
 
-  it("reports an applicant and a missing move-in date", async () => {
-    mieterOhneMietverhaeltnis({ status: "bewerber", einzug: null });
+  it("reports a missing move-in date and never an applicant (applicants live in Bewerber, not in Mieter)", async () => {
+    mieterOhneMietverhaeltnis({ einzug: null });
     const result = await getMietverhaeltnisUebersichtAction(MIETER_ID);
     expect(result).toEqual({
       success: true,
-      data: { mietverhaeltnis: null, mieten: [], wohnungsmiete: 800, mieterEinzug: null, istBewerber: true, flaechen: null },
+      data: { mietverhaeltnis: null, mieten: [], wohnungsmiete: 800, mieterEinzug: null, istBewerber: false, flaechen: null },
     });
   });
 

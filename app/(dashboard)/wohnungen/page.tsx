@@ -10,6 +10,7 @@ import WohnungenClientView from './client'; // Import the default export from cl
 import type { Wohnung } from "@/types/Wohnung";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 import { pickCurrentTenantPerApartment } from "@/lib/tenant-access";
+import { MIETER_PERSON_EMBED, mitPersonenfeldern, type Person } from "@/lib/personen";
 import { hasPermission } from "@/lib/permissions";
 import { checkTenantViewAccess } from "@/lib/tenant-view-access";
 import { redirect } from "next/navigation";
@@ -87,9 +88,9 @@ async function WohnungenContent() {
     // Tenants query is unscoped — tenantMap is only accessed by scoped apartment IDs,
     // so extra tenant data is harmless.
     // Without mieter:ansehen only the dates for the status are read: no name and no id is loaded at all.
-    // (two literal selects: the typed client cannot parse a column list that is chosen at runtime)
+    // (two selects: the typed client cannot parse a column list that is chosen at runtime)
     canViewTenants
-      ? supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name')
+      ? supabase.from('Mieter').select(`id,wohnung_id,einzug,auszug,${MIETER_PERSON_EMBED}`)
       : supabase.from('Mieter').select('wohnung_id,einzug,auszug'),
     fetchScopedHaeuser(),
   ]);
@@ -138,14 +139,14 @@ async function WohnungenContent() {
   if (apartmentsError) console.error('Fehler beim Laden der Wohnungen:', apartmentsError);
 
   const { data: tenantRows, error: tenantsError } = tenantsResult;
-  // Widened: `id` and `name` are only there with mieter:ansehen (see the two selects above)
-  const tenants = tenantRows as Array<{
+  // Widened: `id` and the person are only there with mieter:ansehen (see the two selects above)
+  const tenants = tenantRows ? (tenantRows as Array<{
     wohnung_id: string | null;
     einzug: string | null;
     auszug: string | null;
     id?: string;
-    name?: string;
-  }> | null;
+    person?: Person | Person[] | null;
+  }>).map(mitPersonenfeldern) : null;
   if (tenantsError) console.error('Fehler beim Laden der Mieter:', tenantsError);
 
   const { data: housesData, error: housesError } = housesResult;

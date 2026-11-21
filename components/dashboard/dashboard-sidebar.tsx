@@ -108,12 +108,14 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
   const mailsEnabled = useFeatureFlagEnabled('mails-tab')
   const agentBuilderEnabled = useFeatureFlagEnabled('mietevo-agent-builder')
+  const kontakteEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.KONTAKTE_SEITE)
 
   const featureFlags = useMemo(() => new Map([
     ['/dateien', !!documentsEnabled],
     ['/mails', !!mailsEnabled],
     ['/agenten', !!agentBuilderEnabled],
-  ]), [documentsEnabled, mailsEnabled, agentBuilderEnabled]);
+    ['/kontakte', kontakteEnabled === true],
+  ]), [documentsEnabled, mailsEnabled, agentBuilderEnabled, kontakteEnabled]);
 
   const [{ organisations, currentOrgId }, setOrgState] = useState<{
     organisations: OrganisationItem[]

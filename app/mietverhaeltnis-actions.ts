@@ -28,6 +28,7 @@ import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ensureAuth } from "@/lib/auth-utils";
+import { MIETER_PERSON_EMBED, personAnzeigename, type Person } from "@/lib/personen";
 import { hasPermission } from "@/lib/permissions";
 import { getAccessibleWohnungIds } from "@/lib/object-scope";
 import { logAction } from "@/lib/logging-middleware";
@@ -130,7 +131,10 @@ type MieterAktion = "ansehen" | "bearbeiten" | "erstellen";
 
 type Step<T> = { ok: true; data: T } | { ok: false; error: MietverhaeltnisActionError };
 
-/** Tenant data the actions need: tenancy link, apartment rent and move-in date, applicant flag. */
+/**
+ * Tenant data the actions need: tenancy link, apartment rent and move-in date. Applicants are not in "Mieter"
+ * (they live in "Bewerber"), so a Mieter row is never an applicant.
+ */
 interface MieterDaten {
   mietverhaeltnisId: string | null;
   wohnungId: string | null;
@@ -338,7 +342,7 @@ function parseWohnungsmiete(wohnungen: unknown): number | null {
 async function ladeMieter(supabase: SupabaseClient, mieterId: string): Promise<Step<MieterDaten>> {
   const { data, error } = await supabase
     .from("Mieter")
-    .select("id, mietverhaeltnis_id, wohnung_id, einzug, status, Wohnungen(miete)")
+    .select("id, mietverhaeltnis_id, wohnung_id, einzug, Wohnungen(miete)")
     .eq("id", mieterId)
     .maybeSingle();
   if (error) return fail(mapMietverhaeltnisError(error));
@@ -355,7 +359,7 @@ async function ladeMieter(supabase: SupabaseClient, mieterId: string): Promise<S
       wohnungId: typeof record.wohnung_id === "string" ? record.wohnung_id : null,
       wohnungsmiete: parseWohnungsmiete(record.Wohnungen),
       einzug: typeof record.einzug === "string" ? record.einzug : null,
-      istBewerber: record.status === "bewerber",
+      istBewerber: false,
     },
   };
 }
@@ -793,7 +797,7 @@ export async function getMitmieterUebersichtAction(mieterId: string): Promise<Mi
 
       const { data, error } = await supabase
         .from("Mieter")
-        .select("id, name, status, rolle, mietverhaeltnis_id, geloescht_am, auszug")
+        .select(`id, rolle, mietverhaeltnis_id, geloescht_am, auszug, ${MIETER_PERSON_EMBED}`)
         .eq("wohnung_id", wohnungId);
       if (error) return fail(mapMietverhaeltnisError(error));
       if (!Array.isArray(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
@@ -805,10 +809,11 @@ export async function getMitmieterUebersichtAction(mieterId: string): Promise<Mi
         const record = asRecord(row);
         if (!record || !istUuid(record.id) || record.id === mieterId) continue;
         if (record.geloescht_am !== null && record.geloescht_am !== undefined) continue;
-        if (record.status === "bewerber") continue;
         // A tenant who has already moved out is neither a fellow tenant nor the tenant of a tenancy to join
         if (typeof record.auszug === "string" && record.auszug < heute) continue;
-        const name = typeof record.name === "string" ? record.name : "";
+        // Name from the person (Personen); Mieter rows are never applicants
+        const person = (Array.isArray(record.person) ? record.person[0] : record.person) as Person | null | undefined;
+        const name = personAnzeigename(person);
         const mvId = typeof record.mietverhaeltnis_id === "string" ? record.mietverhaeltnis_id : null;
         if (mvId === mietverhaeltnisId) {
           ergebnis.mitmieter.push({

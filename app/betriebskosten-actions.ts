@@ -5,7 +5,7 @@ import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, MeterReadingFormData, Mieter, Zaehler, ZaehlerAblesung, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchMeterReadingsByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new meter types
 import { roundToNearest5 } from "@/lib/utils";
-import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
+import { MIETER_PERSON_EMBED, mitPersonenfeldern } from "@/lib/personen";
 import { gruppiereNachMietverhaeltnisImZeitraum } from "@/lib/abrechnung-mietverhaeltnis-laden";
 import { logAction } from '@/lib/logging-middleware';
 import { withTiming } from '@/lib/posthog-metrics';
@@ -1727,11 +1727,11 @@ async function getMeterModalDataActionImpl(
         }
 
         // Get tenants who lived in the house during the billing period
-        const { data: tenants, error: tenantsError } = await supabase
+        const { data: tenantsRoh, error: tenantsError } = await supabase
           .from("Mieter")
           .select(`
             id,
-            name,
+            ${MIETER_PERSON_EMBED},
             einzug,
             auszug,
             wohnung_id,
@@ -1753,6 +1753,8 @@ async function getMeterModalDataActionImpl(
           });
           return { success: false, message: "Fehler beim Laden der Mieterdaten." };
         }
+        // name, email and telefonnummer come from the person (Personen)
+        const tenants = tenantsRoh?.map(mitPersonenfeldern);
 
         // Get current and previous readings from new table structure
         const apartmentIds = tenants?.map(t => t.wohnung_id).filter(Boolean) || [];
@@ -2343,12 +2345,15 @@ async function getAbrechnungModalDataFallback(
 
   // Fetch tenants overlapping the billing period for the same house, and ALL apartments of
   // the house (incl. vacant ones) for the apartment count and area fallback
-  const [{ data: tenants, error: tenantsError }, houseApartments] = await Promise.all([
+  const [{ data: tenantsRoh, error: tenantsError }, houseApartments] = await Promise.all([
     supabase
       .from("Mieter")
-      // Explizite Spaltenliste ohne das Altfeld "kaution": die Mieter gehen mit dem Modal-Datensatz an den Browser.
+      // Explizite Spaltenliste ohne das Altfeld "kaution" und ohne name/email/telefonnummer/status (Personen):
+      // die Mieter gehen mit dem Modal-Datensatz an den Browser.
       .select(`
-        ${MIETER_SPALTEN_OHNE_KAUTION},
+        id, organisation_id, wohnung_id, einzug, auszug, notiz, nebenkosten,
+        erstellt_am, erstellt_von, geaendert_am, geaendert_von, geloescht_am, geloescht_von,
+        ${MIETER_PERSON_EMBED},
         Wohnungen!inner (
           name,
           groesse,
@@ -2362,6 +2367,8 @@ async function getAbrechnungModalDataFallback(
     fetchHouseApartments(supabase, nebenkostenData.haeuser_id)
   ]);
   const houseTotals = houseApartments && sumHouseApartments(houseApartments);
+  // name, email and telefonnummer come from the person (Personen)
+  const tenants = tenantsRoh?.map(mitPersonenfeldern);
 
   if (tenantsError) {
     logger.error('Failed to fetch tenants in fallback', tenantsError || undefined, {

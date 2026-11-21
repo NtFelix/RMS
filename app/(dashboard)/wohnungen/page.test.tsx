@@ -35,8 +35,8 @@ const WOHNUNGEN = [
   { id: "w3", name: "Wohnung 3", groesse: 70, miete: 700, haus_id: "h1", Haeuser: { name: "Musterhaus" } },
 ];
 const MIETER = [
-  { id: "m1", wohnung_id: "w1", name: "Erika Beispiel", einzug: "2020-01-01", auszug: null },
-  { id: "m2", wohnung_id: "w2", name: "Max Muster", einzug: "2015-01-01", auszug: "2016-01-01" },
+  { id: "m1", wohnung_id: "w1", person: { anrede: "frau", vorname: "Erika", nachname: "Beispiel", email: null, telefon: null, strasse: null, plz: null, ort: null }, einzug: "2020-01-01", auszug: null },
+  { id: "m2", wohnung_id: "w2", person: { anrede: "herr", vorname: "Max", nachname: "Muster", email: null, telefon: null, strasse: null, plz: null, ort: null }, einzug: "2015-01-01", auszug: "2016-01-01" },
 ];
 
 /** Awaitable Supabase query mock; `select(spalten)` begrenzt die Mieterspalten wie PostgREST. */
@@ -50,7 +50,8 @@ function table(name: string, selects: Record<string, string[]>) {
     } else if (name === "Wohnungen") {
       data = WOHNUNGEN;
     } else if (name === "Mieter") {
-      const wanted = columns.split(",").map((c) => c.trim());
+      // Der Embed "person:Personen!fk_mieter_person(...)" zählt als eine Spalte "person"
+      const wanted = columns.replace(/person:Personen!\w+\([^)]*\)/g, "person").split(",").map((c) => c.trim());
       data = MIETER.map((m) => Object.fromEntries(Object.entries(m).filter(([k]) => wanted.includes(k))));
     } else {
       data = [{ id: "h1", name: "Musterhaus" }];
@@ -90,7 +91,7 @@ describe("WohnungenPage - mieter:ansehen", () => {
 
     const { initialWohnungenData } = (await renderPage()).props as { initialWohnungenData: any[] };
 
-    expect(selects.Mieter).toEqual(["id,wohnung_id,einzug,auszug,name"]);
+    expect(selects.Mieter).toEqual(["id,wohnung_id,einzug,auszug,person:Personen!fk_mieter_person(id, anrede, vorname, nachname, email, telefon, strasse, plz, ort)"]);
     expect(initialWohnungenData[0]).toEqual(
       expect.objectContaining({
         status: "vermietet",
@@ -157,7 +158,7 @@ describe("WohnungenPage - mieter:ansehen", () => {
       const { initialWohnungenData } = (await renderPage()).props as { initialWohnungenData: any[] };
 
       expect(mieterChecks()).toHaveLength(2);
-      expect(selects.Mieter).toEqual(["id,wohnung_id,einzug,auszug,name"]);
+      expect(selects.Mieter).toEqual(["id,wohnung_id,einzug,auszug,person:Personen!fk_mieter_person(id, anrede, vorname, nachname, email, telefon, strasse, plz, ort)"]);
       expect(initialWohnungenData[0].tenant).toEqual(expect.objectContaining({ name: "Erika Beispiel" }));
       for (const w of initialWohnungenData) {
         expect(w).not.toHaveProperty("tenantAccess");

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import {
   BarChart3,
   Users,
+  Contact,
   Search as SearchIcon,
   Wallet,
   Menu,
@@ -21,6 +22,7 @@ import {
 import { useSidebarActiveState } from '@/hooks/use-active-state-manager'
 import { SidebarUserData } from '@/lib/server/user-data'
 import { useCommandMenu } from '@/hooks/use-command-menu'
+import { useKontakteFlag } from '@/hooks/use-kontakte-flag'
 import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
@@ -130,6 +132,7 @@ function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteAc
   const router = useRouter()
   const { setOpen: setCommandMenuOpen } = useCommandMenu()
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
+  const kontakteFlagAktiv = useKontakteFlag()
 
   const [navState, dispatch] = useReducer(navReducer, initialNavState)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -322,6 +325,7 @@ function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteAc
     { id: 'organisation', title: 'Organisationen', href: '/organisation', icon: Building2, hidden: !sidebarData?.hasOrganisationPermission || sidebarData?.isOrganisationHidden || !hasModulePermission('organisation') },
     { id: 'tasks', title: 'Aufgaben', href: '/todos', icon: CheckSquare, hidden: !hasModulePermission('aufgaben') },
     { id: 'documents', title: 'Dokumente', href: '/dateien', icon: Folder, hidden: !documentsEnabled || !hasModulePermission('dokumente') },
+    { id: 'contacts', title: 'Kontakte', href: '/kontakte', icon: Contact, hidden: !kontakteFlagAktiv || !hasModulePermission('kontakte') },
     { id: 'logout', title: 'Abmelden', icon: LogOut, onClick: handleLogout }
   ]
 
