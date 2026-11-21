@@ -25,10 +25,41 @@ const stripePromise = loadStripe(
 
 
 
+// Isolate useSearchParams() so the surrounding landing page renders immediately in SSR/static HTML without CLS
+function PriceIdRedirectHandler({
+  sessionUser,
+  userProfile,
+  isProcessingCheckout,
+  handleAuthFlow,
+}: {
+  sessionUser: ReturnType<typeof useSubscriptionUser>['user'];
+  userProfile: ReturnType<typeof useSubscriptionUser>['profile'];
+  isProcessingCheckout: boolean;
+  handleAuthFlow: ReturnType<typeof useSubscriptionCheckout>['handleAuthFlow'];
+}) {
+  const searchParams = useSearchParams();
+
+  // Handle price selection from URL after redirect back from login
+  useEffect(() => {
+    const priceId = searchParams.get('priceId');
+    if (priceId && sessionUser && userProfile && !isProcessingCheckout) {
+      // Clear the priceId from URL to prevent re-triggering on refresh
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete('priceId');
+      const searchStr = newParams.toString();
+      const newUrl = `${window.location.pathname}${searchStr ? '?' + searchStr : ''}`;
+      window.history.replaceState({}, '', newUrl);
+
+      handleAuthFlow(sessionUser, userProfile, priceId, window.location.pathname);
+    }
+  }, [searchParams, sessionUser, userProfile, isProcessingCheckout, handleAuthFlow]);
+
+  return null;
+}
+
 // Main content component that uses the auth modal context
 function LandingPageContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   // Use custom hooks
   const { user: sessionUser, profile: userProfile, isLoading: isLoadingUser } = useSubscriptionUser();
@@ -82,21 +113,6 @@ function LandingPageContent() {
     return () => observer.disconnect();
   }, []);
 
-  // Handle price selection from URL after redirect back from login
-  useEffect(() => {
-    const priceId = searchParams.get('priceId');
-    if (priceId && sessionUser && userProfile && !isProcessingCheckout) {
-      // Clear the priceId from URL to prevent re-triggering on refresh
-      const newParams = new URLSearchParams(searchParams.toString());
-      newParams.delete('priceId');
-      const searchStr = newParams.toString();
-      const newUrl = `${window.location.pathname}${searchStr ? '?' + searchStr : ''}`;
-      window.history.replaceState({}, '', newUrl);
-
-      handleAuthFlow(sessionUser, userProfile, priceId, window.location.pathname);
-    }
-  }, [searchParams, sessionUser, userProfile, isProcessingCheckout, handleAuthFlow]);
-
   const handleGetStarted = async () => {
     if (sessionUser) {
       router.push(ROUTES.HOME);
@@ -114,6 +130,12 @@ function LandingPageContent() {
     <>
       <Suspense fallback={null}>
         <EmailVerificationNotifier />
+        <PriceIdRedirectHandler
+          sessionUser={sessionUser}
+          userProfile={userProfile}
+          isProcessingCheckout={isProcessingCheckout}
+          handleAuthFlow={handleAuthFlow}
+        />
       </Suspense>
       <div className="min-h-screen overflow-x-hidden">
         <div id="hero">
@@ -161,9 +183,5 @@ function LandingPageContent() {
 
 // Main export component that provides the auth modal context
 export default function LandingPage() {
-  return (
-    <Suspense fallback={null}>
-      <LandingPageContent />
-    </Suspense>
-  );
+  return <LandingPageContent />;
 }
