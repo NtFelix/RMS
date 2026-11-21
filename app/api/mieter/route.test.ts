@@ -196,7 +196,7 @@ describe('/api/mieter', () => {
       return { from, leseBuilder };
     }
 
-    it('ändert den Namen über die RPC (name wird Nachname), verwirft "kaution" und liest ohne Altfeld zurück', async () => {
+    it('ändert den Namen über die RPC (name wird Nachname, Vorname wird geleert), verwirft "kaution" und liest ohne Altfeld zurück', async () => {
       const { leseBuilder } = mockClient({ data: null, error: null });
 
       const res = await PUT(jsonRequest(url, 'PUT', { name: 'Neuer Name', kaution: KAUTION_ALTFELD }));
@@ -204,7 +204,7 @@ describe('/api/mieter', () => {
       expect(res.status).toBe(200);
       expect(mockRpc).toHaveBeenCalledWith('mieter_aktualisieren', {
         p_mieter_id: 'm1',
-        p_person: { nachname: 'Neuer Name' },
+        p_person: { nachname: 'Neuer Name', vorname: null },
         p_mieter: {},
       });
       expect(leseBuilder.select).toHaveBeenCalledWith(MIETER_LESE_SELECT);

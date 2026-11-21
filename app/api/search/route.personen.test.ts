@@ -5,6 +5,7 @@ import { NextRequest } from 'next/server';
 import { GET } from './route';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { checkPermission } from '@/lib/permissions';
+import { getAccessibleWohnungIds } from '@/lib/object-scope';
 
 /**
  * GET /api/search, Kategorie "tenant" (GH-30): Name, E-Mail und Telefon stehen in "Personen". Die Suche findet Personen
@@ -13,6 +14,12 @@ import { checkPermission } from '@/lib/permissions';
 
 jest.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: jest.fn(),
+}));
+
+// Ohne Einschränkung (null) ist der Nutzer nicht auf Wohnungen beschränkt; einzelne Tests setzen eine Liste.
+jest.mock('@/lib/object-scope', () => ({
+  getAccessibleHaeuserIds: jest.fn(async () => null),
+  getAccessibleWohnungIds: jest.fn(async () => null),
 }));
 
 const PERSON_MATCH = { id: 'p1', anrede: 'frau', vorname: 'Erika', nachname: 'Beispiel', email: 'erika@example.invalid', telefon: '000 1' };
@@ -50,6 +57,7 @@ describe('GET /api/search (tenant): Personensuche (GH-30)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (checkPermission as jest.Mock).mockResolvedValue('allowed');
+    (getAccessibleWohnungIds as jest.Mock).mockResolvedValue(null);
     jest.spyOn(console, 'error').mockImplementation();
     jest.spyOn(console, 'warn').mockImplementation();
     jest.spyOn(console, 'log').mockImplementation();
@@ -145,5 +153,41 @@ describe('GET /api/search (tenant): Personensuche (GH-30)', () => {
 
     expect(res.status).toBe(200);
     expect(data.results.tenant.map((t: { id: string }) => t.id)).toEqual(['m1']);
+  });
+
+  it('kennzeichnet Bewerber mit is_applicant, Mieter nicht', async () => {
+    setup({
+      Personen: [{ id: 'p1' }],
+      Mieter: [{ id: 'm1', einzug: '2024-01-01', auszug: null, person: PERSON_MATCH, Wohnungen: [] }],
+      Bewerber: [{ id: 'b1', person: PERSON_MATCH, Wohnungen: [] }],
+    });
+
+    const res = await GET(new NextRequest('http://localhost/api/search?q=Erika&categories=tenant'));
+    const data = await res.json();
+    const nachId = Object.fromEntries(data.results.tenant.map((t: { id: string }) => [t.id, t]));
+
+    expect(nachId.b1).toEqual(expect.objectContaining({ is_applicant: true }));
+    expect(nachId.m1).toEqual(expect.objectContaining({ is_applicant: false }));
+  });
+
+  it('sortiert die Personen vor dem Limit nach Nachname und Vorname', async () => {
+    const { aufrufe } = setup({ Personen: [{ id: 'p1' }], Mieter: [], Bewerber: [] });
+
+    await GET(new NextRequest('http://localhost/api/search?q=Erika&categories=tenant'));
+
+    expect(aufrufeVon(aufrufe, 'Personen', 'order').map((a) => a.args[0])).toEqual(['nachname', 'vorname']);
+  });
+
+  it('lässt Bewerber ohne Wohnung im Scope eingeschränkter Nutzer zu und filtert gesetzte Wohnungen', async () => {
+    (getAccessibleWohnungIds as jest.Mock).mockResolvedValue(['w1']);
+    const { aufrufe } = setup({ Personen: [{ id: 'p1' }], Mieter: [], Bewerber: [] });
+
+    await GET(new NextRequest('http://localhost/api/search?q=Erika&categories=tenant'));
+
+    expect(aufrufeVon(aufrufe, 'Bewerber', 'or')).toEqual([
+      { table: 'Bewerber', method: 'or', args: ['wohnung_id.is.null,wohnung_id.in.(w1)'] },
+    ]);
+    expect(aufrufeVon(aufrufe, 'Bewerber', 'in').map((a) => a.args[0])).toEqual(['person_id']);
+    expect(aufrufeVon(aufrufe, 'Mieter', 'in').map((a) => a.args[0])).toEqual(['person_id', 'wohnung_id']);
   });
 });

@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     const supabase = await createSupabaseServerClient();
     // Personenfelder gehen an die RPC (Person wird neu angelegt); Mieterfelder nur mit Whitelist.
     // Das Altfeld "kaution" und Systemfelder werden verworfen.
-    const person = personEingabeAusBody(body);
+    const person = personEingabeAusBody(body, "anlegen");
     const mieter = mieterEingabeAusBody(body);
 
     if (typeof mieter.wohnung_id === "string" && !(await verifyWohnungInScope(mieter.wohnung_id))) {
@@ -149,7 +149,7 @@ export async function PUT(request: Request) {
         headers: NO_CACHE_HEADERS
       });
     }
-    const person = personEingabeAusBody(body);
+    const person = personEingabeAusBody(body, "aendern");
     const mieter = mieterEingabeAusBody(body);
     if (Object.keys(person).length === 0 && Object.keys(mieter).length === 0) {
       return NextResponse.json({ error: 'Keine änderbaren Felder angegeben.' }, {

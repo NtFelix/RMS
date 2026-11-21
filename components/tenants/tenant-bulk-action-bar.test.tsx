@@ -13,12 +13,15 @@ import userEvent from "@testing-library/user-event";
 import { TenantBulkActionBar } from "@/components/tenants/tenant-bulk-action-bar";
 import { toast } from "@/hooks/use-toast";
 import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
+import { bewerberLoeschenAction } from "@/app/bewerber-actions";
 import type { Tenant } from "@/types/Tenant";
 
 jest.mock("@/hooks/use-toast", () => ({ toast: jest.fn(), useToast: jest.fn() }));
 jest.mock("@/app/mieter-actions", () => ({ updateTenantApartment: jest.fn() }));
 
 jest.mock("@/lib/kautionen-loeschen", () => ({ starteLoeschenMitKautionen: jest.fn() }));
+
+jest.mock("@/app/bewerber-actions", () => ({ bewerberLoeschenAction: jest.fn() }));
 
 const startMock = starteLoeschenMitKautionen as jest.MockedFunction<typeof starteLoeschenMitKautionen>;
 const toastMock = toast as unknown as jest.Mock;
@@ -235,5 +238,58 @@ describe("TenantBulkActionBar: Löschen", () => {
     };
     expect(() => render(<TenantBulkActionBar {...props} />)).not.toThrow();
     expect(screen.getByRole("button", { name: /^Löschen \(1\)$/ })).toBeInTheDocument();
+  });
+});
+
+describe("TenantBulkActionBar: Bewerber-Modus (Tab Bewerber)", () => {
+  const loeschMock = bewerberLoeschenAction as jest.MockedFunction<typeof bewerberLoeschenAction>;
+
+  it("zeigt keine Aktion 'Wohnung zuweisen', aber den Export", () => {
+    renderBar({ modus: "bewerber" });
+
+    expect(screen.queryByRole("button", { name: /Wohnung zuweisen/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Exportieren/ })).toBeInTheDocument();
+  });
+
+  it("löscht die Bewerber je ID über bewerberLoeschenAction und nicht über die Mieter-Routen", async () => {
+    loeschMock.mockResolvedValue({ success: true });
+    const { onClearSelection } = renderBar({ modus: "bewerber" });
+
+    await loescheUndBestaetige();
+
+    expect(loeschMock.mock.calls.map((aufruf) => aufruf[0]).sort()).toEqual(["t-1", "t-2", "t-3"]);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(startMock).not.toHaveBeenCalled();
+    expect(onClearSelection).toHaveBeenCalled();
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "Erfolg", description: expect.stringContaining("Bewerber") }));
+  });
+
+  it("meldet die Gründe ohne technisches Präfix, wenn einzelne Bewerber nicht gelöscht werden", async () => {
+    loeschMock.mockImplementation(async (id: string) =>
+      id === "t-2"
+        ? { success: false, error: { message: "Zugriff auf diesen Bewerber verweigert." } }
+        : { success: true }
+    );
+    const { onUpdate } = renderBar({ modus: "bewerber" });
+
+    await loescheUndBestaetige();
+
+    expect(onUpdate).toHaveBeenCalled();
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Erfolg",
+      description: expect.stringContaining("Zugriff auf diesen Bewerber verweigert."),
+    }));
+  });
+
+  it("meldet einen Fehler, wenn kein Bewerber gelöscht werden konnte", async () => {
+    loeschMock.mockResolvedValue({ success: false, error: { message: "Keine Berechtigung" } });
+    renderBar({ modus: "bewerber" });
+
+    await loescheUndBestaetige();
+
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Fehler",
+      description: expect.stringMatching(/^Keine Bewerber konnten gelöscht werden\. .*Keine Berechtigung/),
+    }));
   });
 });

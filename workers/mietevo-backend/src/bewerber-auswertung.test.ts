@@ -73,6 +73,17 @@ describe('personFelderAusAuswertung', () => {
         });
         expect(personFelderAusAuswertung(undefined)).toEqual({});
     });
+
+    it('setzt bei nur einem Namensteil den anderen auf null (kein Doppeln des Namens)', () => {
+        expect(personFelderAusAuswertung({ firstName: 'Testa', lastName: null })).toEqual({
+            vorname: 'Testa',
+            nachname: null,
+        });
+        expect(personFelderAusAuswertung({ firstName: '', lastName: 'Beispiel' })).toEqual({
+            vorname: null,
+            nachname: 'Beispiel',
+        });
+    });
 });
 
 describe('speichereBewerberAuswertung', () => {

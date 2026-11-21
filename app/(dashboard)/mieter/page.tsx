@@ -92,10 +92,11 @@ async function MieterContent() {
   ]);
 
   // Name, E-Mail und Telefon: Der RPC liefert sie bereits als Felder; die Fallback-Abfrage liefert die eingebettete
-  // Person (Schlüssel `person`), daraus werden sie hier abgeleitet (GH-30). Jede Zeile ist ein Mieter (status 'mieter').
+  // Person (Schlüssel `person`), daraus werden sie hier abgeleitet (GH-30). Jede Zeile ist ein Mieter: Die Altspalte
+  // status (bis Migration M2 noch vorhanden) wird bewusst nicht übernommen.
   const mieterMitFeldern: Tenant[] = (rawMieter || []).map((m: any) => ({
     ...(m.person !== undefined ? mitPersonenfeldern(m) : m),
-    status: m.status ?? 'mieter',
+    status: 'mieter',
   }));
 
   // Post-fetch application-level filtering to guarantee scoping

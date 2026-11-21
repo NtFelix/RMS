@@ -81,8 +81,11 @@ function personenSuchBedingungen(pattern: string, words: string[], mitTelefon: b
   return bedingungen;
 }
 
-/** Ergebnis-Eintrag für einen Mieter oder Bewerber; Name, E-Mail und Telefon stammen aus der Person. */
-function zuTenantSucheintrag(zeile: TenantSuchZeile) {
+/**
+ * Ergebnis-Eintrag für einen Mieter oder Bewerber; Name, E-Mail und Telefon stammen aus der Person.
+ * `is_applicant` kennzeichnet Bewerber: Die Oberfläche öffnet sie nicht als Mieter (es gibt keine Mieter-Route dafür).
+ */
+function zuTenantSucheintrag(zeile: TenantSuchZeile, istBewerber: boolean) {
   const person = mitPersonenfeldern(zeile);
   const wohnung = Array.isArray(zeile.Wohnungen) ? zeile.Wohnungen[0] : zeile.Wohnungen;
   const haus = wohnung ? (Array.isArray(wohnung.Haeuser) ? wohnung.Haeuser[0] : wohnung.Haeuser) : undefined;
@@ -97,7 +100,8 @@ function zuTenantSucheintrag(zeile: TenantSuchZeile) {
     } : undefined,
     status: zeile.auszug ? 'moved_out' as const : 'active' as const,
     move_in_date: zeile.einzug || undefined,
-    move_out_date: zeile.auszug || undefined
+    move_out_date: zeile.auszug || undefined,
+    is_applicant: istBewerber
   };
 }
 
@@ -294,6 +298,8 @@ export async function GET(request: Request) {
                   .from('Personen')
                   .select('id')
                   .or(personenSuchBedingungen(searchPattern, words, !searchPattern.includes('@')).join(','))
+                  .order('nachname')
+                  .order('vorname')
                   .limit(PERSONEN_TREFFER_LIMIT);
 
                 if (personenError) {
@@ -328,7 +334,8 @@ export async function GET(request: Request) {
               }
               if (accessibleWohnungIds !== null) {
                 mieterQuery = mieterQuery.in('wohnung_id', accessibleWohnungIds);
-                bewerberQuery = bewerberQuery.in('wohnung_id', accessibleWohnungIds);
+                // Bewerber dürfen ohne Wohnung sein (RLS erlaubt das), deshalb auch "wohnung_id is null" zulassen.
+                bewerberQuery = bewerberQuery.or(`wohnung_id.is.null,wohnung_id.in.(${accessibleWohnungIds.join(',')})`);
               }
 
               const [mieterErgebnis, bewerberErgebnis] = await Promise.all([
@@ -352,7 +359,10 @@ export async function GET(request: Request) {
                 console.log(`Tenant search found ${mieterZeilen.length} tenants and ${bewerberZeilen.length} applicants`);
               }
 
-              const eintraege = [...mieterZeilen, ...bewerberZeilen].map(zuTenantSucheintrag);
+              const eintraege = [
+                ...mieterZeilen.map((zeile) => zuTenantSucheintrag(zeile, false)),
+                ...bewerberZeilen.map((zeile) => zuTenantSucheintrag(zeile, true)),
+              ];
               const sortierteEintraege = sortByRelevance(eintraege, query).slice(0, limit);
 
               return { type: 'tenant' as const, data: sortierteEintraege };

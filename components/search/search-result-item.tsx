@@ -275,8 +275,8 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
 
             {/* Status Badges */}
             {result.type === 'tenant' && result.metadata?.status && (
-              <Badge variant={result.metadata.status === 'active' ? 'outline' : 'secondary'} className={cn("text-[10px] h-5 px-1.5 font-normal", result.metadata.status === 'active' && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20")}>
-                {result.metadata.status === 'active' ? 'Aktiv' : 'Ausgezogen'}
+              <Badge variant={result.metadata.status === 'active' || result.metadata.status === 'applicant' ? 'outline' : 'secondary'} className={cn("text-[10px] h-5 px-1.5 font-normal", result.metadata.status === 'active' && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20")}>
+                {result.metadata.status === 'applicant' ? 'Bewerber' : result.metadata.status === 'active' ? 'Aktiv' : 'Ausgezogen'}
               </Badge>
             )}
             {result.type === 'apartment' && result.metadata?.status && (

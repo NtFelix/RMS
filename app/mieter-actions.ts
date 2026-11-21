@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { Mieter } from "../lib/data-fetching";
 import { MIETER_LESE_SELECT, bewerberEingabeAusMieterEingabe, fehlerAusRpc, type Roh } from "@/lib/mieter-schreibpfad";
 import { mitPersonenfeldern, personEingabeAusFormData, hatNamen, type Person, type PersonEingabe } from "@/lib/personen";
-import { formatFailureReasons, stripDbCodePrefix, summarizeSettledDeletes } from "@/lib/bulk-delete-summary";
+import { stripDbCodePrefix } from "@/lib/bulk-delete-summary";
 import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
@@ -35,16 +35,24 @@ async function aktualisiereBewerber(
     return { message: "Bewerber nicht gefunden." };
   }
 
+  // Ohne Treffer (0 Zeilen, z. B. durch RLS) ist nichts gespeichert: das ist ein Fehler, kein Erfolg.
   if (Object.keys(person).length > 0) {
-    const { error } = await supabase.from("Personen").update(person).eq("id", zeile.person_id);
-    if (error) return { message: "Die Person konnte nicht gespeichert werden." };
+    const { data: personGeaendert, error } = await supabase
+      .from("Personen")
+      .update(person)
+      .eq("id", zeile.person_id)
+      .select("id")
+      .maybeSingle();
+    if (error || !personGeaendert) return { message: "Die Person konnte nicht gespeichert werden." };
   }
 
-  const { error } = await supabase
+  const { data: bewerberGeaendert, error } = await supabase
     .from("Bewerber")
     .update({ wohnung_id: bewerber.wohnung_id ?? null, notiz: bewerber.notiz ?? null })
-    .eq("id", bewerberId);
-  if (error) return { message: "Der Bewerber konnte nicht gespeichert werden." };
+    .eq("id", bewerberId)
+    .select("id")
+    .maybeSingle();
+  if (error || !bewerberGeaendert) return { message: "Der Bewerber konnte nicht gespeichert werden." };
   return {};
 }
 
@@ -74,7 +82,10 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
   const wohnungIds = await getAccessibleWohnungIds();
   if (wohnungIds !== null) {
     const targetWohnungId = formData.get('wohnung_id') as string | null;
-    if (!targetWohnungId || !wohnungIds.includes(targetWohnungId)) {
+    // Bewerber dürfen ohne Wohnung sein (RLS erlaubt das): dann gibt es nichts zu prüfen. Eine gesetzte Wohnung
+    // muss im Scope liegen.
+    const ohneWohnungErlaubt = istBewerber && !targetWohnungId;
+    if (!ohneWohnungErlaubt && (!targetWohnungId || !wohnungIds.includes(targetWohnungId))) {
       return { success: false, error: { message: "Zugriff auf die angegebene Wohnung verweigert." } };
     }
     
@@ -84,7 +95,14 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
         .select("wohnung_id")
         .eq("id", id as string)
         .single();
-      if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
+      if (fetchError || !existingTenant) {
+        return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
+      }
+      const bisherigeWohnung = existingTenant.wohnung_id;
+      const bisherigeWohnungOk = bisherigeWohnung
+        ? wohnungIds.includes(bisherigeWohnung)
+        : istBewerber;
+      if (!bisherigeWohnungOk) {
         return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
       }
     }

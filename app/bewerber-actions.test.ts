@@ -203,6 +203,26 @@ describe('bewerber-actions', () => {
   });
 
   describe('bewerberAnnehmenAction', () => {
+    it('verweigert das Annehmen ohne Bearbeiten-Recht, auch mit Erstellen-Recht', async () => {
+      (hasPermission as jest.Mock).mockImplementation(async (_modul: string, aktion: string) => aktion !== 'bearbeiten');
+
+      const ergebnis = await bewerberAnnehmenAction('b-1', 'w-1', '2026-12-01');
+
+      expect(ergebnis).toEqual({ success: false, error: { message: 'Keine Berechtigung' } });
+      expect(mockRpc).not.toHaveBeenCalled();
+      (hasPermission as jest.Mock).mockResolvedValue(true);
+    });
+
+    it('verweigert das Annehmen ohne Erstellen-Recht', async () => {
+      (hasPermission as jest.Mock).mockImplementation(async (_modul: string, aktion: string) => aktion !== 'erstellen');
+
+      const ergebnis = await bewerberAnnehmenAction('b-1', 'w-1', '2026-12-01');
+
+      expect(ergebnis.success).toBe(false);
+      expect(mockRpc).not.toHaveBeenCalled();
+      (hasPermission as jest.Mock).mockResolvedValue(true);
+    });
+
     it('ruft bewerber_annehmen mit Bewerber, Wohnung und Einzugsdatum und gibt die neue Mieter-ID zurück', async () => {
       mockRpc.mockResolvedValue({ data: 'm-neu', error: null });
 

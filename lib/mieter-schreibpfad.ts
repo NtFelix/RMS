@@ -47,8 +47,13 @@ function textOderNull(wert: unknown): string | null {
  * Personenfelder aus einem Body (API) übernehmen. Akzeptiert die neuen Schlüssel (anrede, vorname, nachname, email,
  * telefon, strasse, plz, ort) und die bisherigen Namen: `name` wird zum Nachnamen, `telefonnummer` zu `telefon`.
  * Nur vorhandene Schlüssel werden übernommen (RPCs ändern nur übergebene Felder).
+ *
+ * Altfeld `name` (Regel für Personen-Stammdaten):
+ * - "anlegen": nachname = name, vorname wird weggelassen.
+ * - "aendern" ohne vorname und nachname im Body: nachname = name UND vorname = null. Sonst bliebe ein alter
+ *   Vorname stehen und es entstünde z. B. "Max Erika Musterfrau".
  */
-export function personEingabeAusBody(body: Roh): PersonEingabe {
+export function personEingabeAusBody(body: Roh, modus: "anlegen" | "aendern"): PersonEingabe {
   const eingabe: PersonEingabe = {};
   if (hat(body, "anrede")) {
     const anrede = body.anrede;
@@ -59,8 +64,10 @@ export function personEingabeAusBody(body: Roh): PersonEingabe {
   }
   if (hat(body, "telefon")) eingabe.telefon = textOderNull(body.telefon);
   else if (hat(body, "telefonnummer")) eingabe.telefon = textOderNull(body.telefonnummer);
-  // Altfeld `name`: der bisherige Anzeigename wird als Nachname übernommen (Vorname bleibt unberührt).
-  if (!hat(body, "nachname") && hat(body, "name")) eingabe.nachname = textOderNull(body.name);
+  if (!hat(body, "nachname") && hat(body, "name")) {
+    eingabe.nachname = textOderNull(body.name);
+    if (modus === "aendern" && !hat(body, "vorname")) eingabe.vorname = null;
+  }
   return eingabe;
 }
 

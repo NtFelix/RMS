@@ -64,7 +64,7 @@ export async function PATCH(
         if (!istEingabeObjekt(body)) {
             return NextResponse.json({ error: 'Ungültiger Request-Body.' }, { status: 400, headers: NO_CACHE_HEADERS });
         }
-        const person = personEingabeAusBody(body);
+        const person = personEingabeAusBody(body, "aendern");
         const mieter = mieterEingabeAusBody(body);
         if (Object.keys(person).length === 0 && Object.keys(mieter).length === 0) {
             return NextResponse.json({ error: 'Keine änderbaren Felder angegeben.' }, { status: 400, headers: NO_CACHE_HEADERS });
