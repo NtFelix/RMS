@@ -103,6 +103,6 @@ function listenEintragZuText(eintrag: JSONContent, kontext: VorlagenKontext, mar
   const fortsetzung = ' '.repeat(marke.length);
   return inhalt
     .split('\n')
-    .map((zeile, index) => (index === 0 ? `${marke}${zeile}` : `${fortsetzung}${zeile}`))
+    .map((zeile, index) => (index === 0 ? `${marke}${zeile}` : zeile === '' ? '' : `${fortsetzung}${zeile}`))
     .join('\n');
 }

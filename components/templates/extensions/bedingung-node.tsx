@@ -101,6 +101,10 @@ function BedingungNodeView({ node, updateAttributes, editor, getPos }: NodeViewP
             aria-label="Vergleichswert der Bedingung"
             disabled={!editierbar}
             onChange={(event) => updateAttributes({ wert: event.target.value })}
+            // Enter würde das umgebende Vorlagen-Formular absenden.
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.preventDefault();
+            }}
           />
         )}
         {editierbar && (

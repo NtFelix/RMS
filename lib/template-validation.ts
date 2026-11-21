@@ -215,15 +215,22 @@ export function validateMentionVariables(content: JSONContent): ValidationResult
     content.content.forEach(validateNode);
   }
 
-  // Bedingungsblöcke: unbekannte Variable, fehlender Operator oder fehlender Vergleichswert
-  // Nur Variablen, die beim Versand aufgeloest werden (sonst faellt der Block stillschweigend immer weg).
-  pruefeBedingungen(content, AUFLOESBARE_VARIABLEN).forEach(message => {
-    errors.push({
-      field: 'inhalt',
-      message
-    });
-  });
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
 
+/**
+ * Bedingungsblöcke prüfen: unbekannte Variable, fehlender Operator oder fehlender Vergleichswert.
+ * Nur Variablen, die beim Versand aufgelöst werden (sonst fällt der Block stillschweigend immer weg).
+ * Getrennt von validateMentionVariables, damit die Oberfläche die Meldungen mit eigenem Titel zeigt.
+ */
+export function validateBedingungen(content: JSONContent): ValidationResult {
+  const errors: ValidationError[] = pruefeBedingungen(content, AUFLOESBARE_VARIABLEN).map(message => ({
+    field: 'inhalt',
+    message
+  }));
   return {
     isValid: errors.length === 0,
     errors

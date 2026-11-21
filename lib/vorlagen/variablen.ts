@@ -61,12 +61,6 @@ function anredeKurz(mieter: MieterKontext): string {
 }
 
 /**
- * Löst eine Variable anhand ihrer Registry-ID auf.
- * Liefert `null`, wenn die ID unbekannt ist oder es keinen Mieter-/Vermieter-Kontext gibt (Ausgabe dann als [Label]).
- * Ein bekanntes, aber leeres Feld (z. B. keine E-Mail hinterlegt) ergibt einen leeren Text, damit im versendeten
- * Text kein Platzhalter steht; mit einem bedingten Block "ist leer" lässt sich darauf reagieren.
- */
-/**
  * Variablen, die loeseVariable beim Versand tatsaechlich aufloest. Bedingungen duerfen nur diese verwenden: eine
  * Bedingung auf eine nie aufgeloeste Variable wuerde ihren Block sonst stillschweigend immer weglassen.
  */
@@ -82,6 +76,12 @@ export const AUFLOESBARE_VARIABLEN: ReadonlySet<string> = new Set([
   'vermieter.name',
 ]);
 
+/**
+ * Löst eine Variable anhand ihrer Registry-ID auf.
+ * Liefert `null`, wenn die ID unbekannt ist oder es keinen Mieter-/Vermieter-Kontext gibt (Ausgabe dann als [Label]).
+ * Ein bekanntes, aber leeres Feld (z. B. keine E-Mail hinterlegt) ergibt einen leeren Text, damit im versendeten
+ * Text kein Platzhalter steht; mit einem bedingten Block "ist leer" lässt sich darauf reagieren.
+ */
 export function loeseVariable(id: string, kontext: VorlagenKontext): string | null {
   switch (id) {
     case 'mieter.name': {

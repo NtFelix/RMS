@@ -17,6 +17,8 @@ import { Template } from '@/types/template';
 import type { TenantMailTemplatesMieter } from '@/hooks/use-modal-store';
 import { vorlageZuText } from '@/lib/vorlagen/rendern';
 import type { VorlagenKontext } from '@/lib/vorlagen/variablen';
+import { MENTION_VARIABLES } from '@/lib/template-constants';
+import { BEDINGUNG_NODE_NAME, formatBedingungPraefix, type BedingungAttrs } from '@/lib/vorlagen/bedingungen';
 import {
   FileText,
   Search,
@@ -61,6 +63,13 @@ function TemplateCard({ template, mieter }: TemplateCardProps) {
       if (node.type === 'hardBreak' || node.type === 'lineBreak') {
         return ' ';
       }
+      if (node.type === BEDINGUNG_NODE_NAME) {
+        // Bedingter Block: Bedingung voranstellen, sonst wirkt der Text in der Karte unbedingt.
+        const attrs = (node.attrs ?? {}) as Partial<BedingungAttrs>;
+        const label = MENTION_VARIABLES.find(variable => variable.id === attrs.variable)?.label ?? attrs.variable ?? '';
+        const inhalt = node.content ? node.content.map(extractTextWithHighlights).join('') : '';
+        return formatBedingungPraefix(attrs, label) + inhalt;
+      }
       if (node.content && Array.isArray(node.content)) {
         return node.content.map(extractTextWithHighlights).join('');
       }
@@ -93,7 +102,8 @@ function TemplateCard({ template, mieter }: TemplateCardProps) {
             telefonnummer: mieter.telefonnummer,
           }
         : null,
-      vermieter: { name: vermieterName },
+      // Ohne Namen kein Kontext: dann erscheint [Vermieter Name] statt einer leeren Signatur.
+      vermieter: vermieterName ? { name: vermieterName } : null,
       heute: new Date(),
     };
 
@@ -161,7 +171,8 @@ function TemplateCard({ template, mieter }: TemplateCardProps) {
 
     if (clientInfo.isSafari) {
       // Safari sometimes has issues with standard encoding, try simpler approach
-      const simpleContent = emailContent.replace(/\n/g, '%0A');
+      // LF statt CRLF, aber vollständig kodiert: Mieterdaten können +, &, # oder % enthalten.
+      const simpleContent = encodeURIComponent(emailContent);
       mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${simpleContent}`;
     } else {
       mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodedContent}`;

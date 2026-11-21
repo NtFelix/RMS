@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/react';
-import { validateMentionVariables, isEmptyTipTapContent } from './template-validation';
+import { validateMentionVariables, validateBedingungen, isEmptyTipTapContent } from './template-validation';
 import { MENTION_VARIABLES } from './template-constants';
 
 const absatz = (...inhalt: JSONContent[]): JSONContent => ({ type: 'paragraph', content: inhalt });
@@ -53,7 +53,7 @@ describe('validateMentionVariables', () => {
       ],
     };
 
-    expect(validateMentionVariables(doc).isValid).toBe(true);
+    expect(validateBedingungen(doc).isValid).toBe(true);
   });
 
   it('meldet Bedingungen mit unbekannter Variable', () => {
@@ -68,10 +68,19 @@ describe('validateMentionVariables', () => {
       ],
     };
 
-    const ergebnis = validateMentionVariables(doc);
+    const ergebnis = validateBedingungen(doc);
     expect(ergebnis.isValid).toBe(false);
     expect(ergebnis.errors.map(e => e.field)).toEqual(['inhalt']);
     expect(ergebnis.errors[0].message).toContain('mieter.gibtsnicht');
+  });
+
+  it('validateMentionVariables meldet keine Bedingungsfehler (eigene Prüfung)', () => {
+    const doc: JSONContent = {
+      type: 'doc',
+      content: [{ type: 'bedingung', attrs: { variable: '', operator: 'ausgefuellt', wert: null }, content: [absatz({ type: 'text', text: 'Text' })] }],
+    };
+    expect(validateMentionVariables(doc).isValid).toBe(true);
+    expect(validateBedingungen(doc).isValid).toBe(false);
   });
 
   it('meldet gleich-Bedingungen ohne Vergleichswert', () => {
@@ -86,14 +95,14 @@ describe('validateMentionVariables', () => {
       ],
     };
 
-    const ergebnis = validateMentionVariables(doc);
+    const ergebnis = validateBedingungen(doc);
     expect(ergebnis.isValid).toBe(false);
     expect(ergebnis.errors.length).toBeGreaterThan(0);
   });
 
   describe('GH-30 Bedingungen und leere Inhalte', () => {
     it('meldet Bedingungen auf Variablen, die beim Versand nicht aufgelöst werden', () => {
-      const result = validateMentionVariables({
+      const result = validateBedingungen({
         type: 'doc',
         content: [{ type: 'bedingung', attrs: { variable: 'wohnung.adresse', operator: 'ausgefuellt', wert: null }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x' }] }] }],
       } as any);
@@ -101,7 +110,7 @@ describe('validateMentionVariables', () => {
     });
 
     it('akzeptiert Bedingungen auf aufloesbare Variablen', () => {
-      const result = validateMentionVariables({
+      const result = validateBedingungen({
         type: 'doc',
         content: [{ type: 'bedingung', attrs: { variable: 'mieter.anrede', operator: 'gleich', wert: 'Frau' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x' }] }] }],
       } as any);
