@@ -14,6 +14,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/components/auth/auth-provider';
 import { useTemplates } from '@/hooks/use-templates';
 import { Template } from '@/types/template';
+import type { TenantMailTemplatesMieter } from '@/hooks/use-modal-store';
+import { vorlageZuText } from '@/lib/vorlagen/rendern';
+import type { VorlagenKontext } from '@/lib/vorlagen/variablen';
 import {
   FileText,
   Search,
@@ -26,17 +29,15 @@ import {
 interface TenantMailTemplatesModalProps {
   isOpen: boolean;
   onClose: () => void;
-  tenantName?: string;
-  tenantEmail?: string;
+  mieter?: TenantMailTemplatesMieter | null;
 }
 
 interface TemplateCardProps {
   template: Template;
-  tenantName?: string;
-  tenantEmail?: string;
+  mieter?: TenantMailTemplatesMieter | null;
 }
 
-function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) {
+function TemplateCard({ template, mieter }: TemplateCardProps) {
   const { user } = useAuth();
   // Extract text with mention/variable highlighting from TipTap JSON content
   const getPreviewWithHighlights = (content: any): { text: string; hasVariables: boolean } => {
@@ -74,81 +75,29 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
 
   const { text: preview, hasVariables } = getPreviewWithHighlights(template.inhalt);
 
-  // Extract full content for email with proper line break handling
+  // Vollständiger Mailtext: Variablen per ID aufgelöst, Bedingungsblöcke ausgewertet
   const getFullEmailContent = (content: any): string => {
-    if (!content || !content.content) return '';
+    const vermieterName =
+      (user?.user_metadata?.first_name && user?.user_metadata?.last_name
+        ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
+        : user?.email) || null;
 
-    // Map of variable names to their resolver functions
-    const variableResolvers: Record<string, () => string> = {
-      'mieter.name': () => tenantName || '[Mieter Name]',
-      'datum.heute': () => new Date().toLocaleDateString('de-DE'),
-      'vermieter.name': () =>
-        (user?.user_metadata?.first_name && user?.user_metadata?.last_name
-          ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
-          : user?.email) || '[Vermieter Name]',
+    const kontext: VorlagenKontext = {
+      mieter: mieter
+        ? {
+            anrede: mieter.anrede,
+            vorname: mieter.vorname,
+            nachname: mieter.nachname,
+            name: mieter.name,
+            email: mieter.email,
+            telefonnummer: mieter.telefonnummer,
+          }
+        : null,
+      vermieter: { name: vermieterName },
+      heute: new Date(),
     };
 
-    const processNode = (node: any): string => {
-      // Handle text nodes
-      if (node.type === 'text') {
-        return node.text || '';
-      }
-
-      // Handle mention nodes
-      if (node.type === 'mention') {
-        const label = node.attrs?.label || node.attrs?.id || 'Variable';
-        const resolver = variableResolvers[label.toLowerCase()];
-        return resolver ? resolver() : `[${label}]`;
-      }
-
-      // Handle paragraph nodes - this is key for line breaks
-      if (node.type === 'paragraph') {
-        if (!node.content || !Array.isArray(node.content)) {
-          return '';
-        }
-        // Process all content within the paragraph
-        const paragraphText = node.content.map(processNode).join('');
-        return paragraphText; // Don't add line breaks here, we'll handle them at the document level
-      }
-
-      // Handle hard breaks
-      if (node.type === 'hardBreak') {
-        return '\n';
-      }
-
-      // Handle other node types that might have content
-      if (node.content && Array.isArray(node.content)) {
-        return node.content.map(processNode).join('');
-      }
-
-      return '';
-    };
-
-    // Process the document content - each paragraph should be separated by double line breaks
-    if (!content.content || !Array.isArray(content.content)) {
-      return '';
-    }
-
-    // Process each paragraph and collect them
-    const paragraphs: string[] = [];
-
-    content.content.forEach((node: any) => {
-      if (node.type === 'paragraph') {
-        const paragraphText = processNode(node);
-        if (paragraphText.trim()) {
-          paragraphs.push(paragraphText.trim());
-        }
-      } else {
-        // Handle other node types at document level
-        const nodeText = processNode(node);
-        if (nodeText.trim()) {
-          paragraphs.push(nodeText.trim());
-        }
-      }
-    });
-
-    // Join all paragraphs with double line breaks
-    return paragraphs.join('\n\n');
+    return content ? vorlageZuText(content, kontext) : '';
   };
 
   // Detect platform and mail client for optimal encoding
@@ -185,7 +134,7 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
   const handleTemplateClick = () => {
     const emailContent = getFullEmailContent(template.inhalt);
     const subject = template.titel;
-    const recipient = tenantEmail || '';
+    const recipient = mieter?.email || '';
 
     // Detect platform and client
     const clientInfo = detectPlatformAndClient();
@@ -298,9 +247,10 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
 export function TenantMailTemplatesModal({
   isOpen,
   onClose,
-  tenantName,
-  tenantEmail
+  mieter
 }: TenantMailTemplatesModalProps) {
+  const mieterName = mieter?.name;
+  const mieterEmail = mieter?.email;
   const [searchQuery, setSearchQuery] = useState('');
 
   const {
@@ -395,12 +345,12 @@ export function TenantMailTemplatesModal({
               <Mail className="h-4 w-4 text-primary" />
             </div>
             Mail-Vorlagen
-            {tenantName && (
+            {mieterName && (
               <span className="text-muted-foreground font-normal">
-                für {tenantName}
-                {tenantEmail && (
+                für {mieterName}
+                {mieterEmail && (
                   <span className="text-xs text-green-600 dark:text-green-400 ml-2">
-                    ({tenantEmail})
+                    ({mieterEmail})
                   </span>
                 )}
               </span>
@@ -408,9 +358,9 @@ export function TenantMailTemplatesModal({
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
             Verfügbare Mail-Vorlagen für die Kommunikation mit Mietern. Klicken Sie auf eine Vorlage, um Ihre Mail-App zu öffnen.
-            {tenantEmail && (
+            {mieterEmail && (
               <span className="block text-xs text-green-600 dark:text-green-400 mt-1">
-                E-Mails werden automatisch an {tenantEmail} adressiert.
+                E-Mails werden automatisch an {mieterEmail} adressiert.
               </span>
             )}
           </DialogDescription>
@@ -465,8 +415,7 @@ export function TenantMailTemplatesModal({
                   <TemplateCard
                     key={template.id}
                     template={template}
-                    tenantName={tenantName}
-                    tenantEmail={tenantEmail}
+                    mieter={mieter}
                   />
                 ))}
               </div>

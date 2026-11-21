@@ -1126,7 +1126,14 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               kaution: () => void oeffneKaution(
                 { id: tenantInitialData.id, name: tenantInitialData.name, wohnung_id: tenantInitialData.wohnung_id }
               ),
-              vorlagen: () => openTenantMailTemplatesModal(tenantInitialData.name, tenantInitialData.email || undefined),
+              vorlagen: () => openTenantMailTemplatesModal({
+                name: tenantInitialData.name,
+                email: tenantInitialData.email || null,
+                anrede: tenantInitialData.anrede ?? null,
+                vorname: tenantInitialData.vorname ?? null,
+                nachname: tenantInitialData.nachname ?? null,
+                telefonnummer: tenantInitialData.telefonnummer || null,
+              }),
               datenblatt: () => openApplicantScoreModal({
                 tenant: {
                   id: tenantInitialData.id,

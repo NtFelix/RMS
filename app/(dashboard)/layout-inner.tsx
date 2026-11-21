@@ -246,8 +246,7 @@ export default function DashboardInnerLayout({
         <TenantMailTemplatesModal
           isOpen={isTenantMailTemplatesModalOpen}
           onClose={closeTenantMailTemplatesModal}
-          tenantName={tenantMailTemplatesModalData?.tenantName}
-          tenantEmail={tenantMailTemplatesModalData?.tenantEmail}
+          mieter={tenantMailTemplatesModalData}
         />
         {/* Tenant Payment Edit Modal */}
         <TenantPaymentEditModal />

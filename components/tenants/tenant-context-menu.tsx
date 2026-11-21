@@ -130,7 +130,14 @@ export function TenantContextMenu({
   const handleTemplates = () => {
     // Open tenant mail templates modal with tenant name and email in the next tick
     setTimeout(() => {
-      openTenantMailTemplatesModal(tenant.name, tenant.email);
+      openTenantMailTemplatesModal({
+        name: tenant.name,
+        email: tenant.email ?? null,
+        anrede: tenant.anrede ?? null,
+        vorname: tenant.vorname ?? null,
+        nachname: tenant.nachname ?? null,
+        telefonnummer: tenant.telefonnummer ?? null,
+      });
     }, 0);
   };
 

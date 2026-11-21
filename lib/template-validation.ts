@@ -1,5 +1,6 @@
 import { TemplatePayload } from '@/types/template';
-import { TEMPLATE_CATEGORIES } from '@/lib/template-constants';
+import { MENTION_VARIABLES, TEMPLATE_CATEGORIES } from '@/lib/template-constants';
+import { pruefeBedingungen } from '@/lib/vorlagen/bedingungen';
 import { JSONContent } from '@tiptap/react';
 
 export interface ValidationError {
@@ -191,13 +192,8 @@ export function getTemplatePreview(content: JSONContent, maxLength: number = 150
  */
 export function validateMentionVariables(content: JSONContent): ValidationResult {
   const errors: ValidationError[] = [];
-  const validMentionIds = new Set([
-    'mieter.name', 'mieter.vorname', 'mieter.nachname', 'mieter.email', 'mieter.telefon',
-    'wohnung.adresse', 'wohnung.strasse', 'wohnung.hausnummer', 'wohnung.plz', 'wohnung.ort',
-    'wohnung.zimmer', 'wohnung.groesse', 'haus.name', 'haus.adresse',
-    'datum.heute', 'datum.monat', 'datum.jahr',
-    'vermieter.name', 'vermieter.adresse', 'vermieter.telefon', 'vermieter.email'
-  ]);
+  // Gültige IDs ergeben sich aus der Variablen-Registry, nicht aus einer zweiten Liste.
+  const validMentionIds = new Set(MENTION_VARIABLES.map(variable => variable.id));
 
   function validateNode(node: any): void {
     if (node.type === 'mention' && node.attrs?.id) {
@@ -217,6 +213,14 @@ export function validateMentionVariables(content: JSONContent): ValidationResult
   if (content.content) {
     content.content.forEach(validateNode);
   }
+
+  // Bedingungsblöcke: unbekannte Variable, fehlender Operator oder fehlender Vergleichswert
+  pruefeBedingungen(content, validMentionIds).forEach(message => {
+    errors.push({
+      field: 'inhalt',
+      message
+    });
+  });
 
   return {
     isValid: errors.length === 0,
