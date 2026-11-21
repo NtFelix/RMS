@@ -155,6 +155,28 @@ function zuZeile(eingabe: KontaktEingabe) {
   };
 }
 
+/** PostgREST liefert höchstens 1000 Zeilen je Anfrage (max_rows); größer wird nicht angefragt. */
+const SEITENGROESSE = 1000;
+
+type Seitenergebnis<T> = { data: T[] | null; error: { code?: string } | null };
+
+/**
+ * Lädt alle Zeilen seitenweise (stabil sortiert nach id), damit die Liste ab 1000 Personen nicht abgeschnitten wird.
+ * `seite(von, bis)` baut die Anfrage für einen Bereich; bricht beim ersten Fehler ab.
+ */
+async function ladeAlleSeiten<T>(
+  seite: (von: number, bis: number) => PromiseLike<Seitenergebnis<T>>
+): Promise<Seitenergebnis<T>> {
+  const alle: T[] = [];
+  for (let von = 0; ; von += SEITENGROESSE) {
+    const { data, error } = await seite(von, von + SEITENGROESSE - 1);
+    if (error) return { data: null, error };
+    const zeilen = data ?? [];
+    alle.push(...zeilen);
+    if (zeilen.length < SEITENGROESSE) return { data: alle, error: null };
+  }
+}
+
 /** Liefert alle für den Benutzer sichtbaren Personen mit ihren Rollen. */
 export async function ladeKontakteAction(): Promise<KontaktAktionsErgebnis<KontaktZeile[]>> {
   const auth = await holeAuth();
@@ -166,10 +188,16 @@ export async function ladeKontakteAction(): Promise<KontaktAktionsErgebnis<Konta
   const { supabase } = auth;
   try {
     const [personen, mieter, bewerber] = await Promise.all([
-      supabase.from("Personen").select(PERSON_SPALTEN),
+      ladeAlleSeiten<Person>((von, bis) =>
+        supabase.from("Personen").select(PERSON_SPALTEN).order("id").range(von, bis)
+      ),
       // Nur die Verknüpfung. Keine Namen oder Kontaktdaten von Mieter oder Bewerber lesen (Migration M2).
-      supabase.from("Mieter").select("person_id"),
-      supabase.from("Bewerber").select("person_id"),
+      ladeAlleSeiten<{ person_id: string | null }>((von, bis) =>
+        supabase.from("Mieter").select("person_id").order("id").range(von, bis)
+      ),
+      ladeAlleSeiten<{ person_id: string | null }>((von, bis) =>
+        supabase.from("Bewerber").select("person_id").order("id").range(von, bis)
+      ),
     ]);
 
     if (personen.error || mieter.error || bewerber.error) {
