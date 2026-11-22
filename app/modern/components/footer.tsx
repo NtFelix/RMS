@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { motion, useMotionValue, useSpring, AnimatePresence } from "framer-motion"
 import { ChevronDown, Mail } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME, SUPPORT_EMAIL, ROUTES, EXTERNAL_LINKS, LOGO_URL } from "@/lib/constants"
@@ -122,9 +123,11 @@ export default function Footer() {
             {/* Brand Section (spans 2 columns on desktop) */}
             <div className="lg:col-span-2 space-y-6">
               <div className="flex items-center gap-3">
-                <img 
+                <Image
                   src={LOGO_URL}
                   alt={`${BRAND_NAME} Mascot`}
+                  width={32}
+                  height={32}
                   className="w-8 h-8 object-contain select-none"
                 />
                 <h3 className="text-xl font-bold text-foreground tracking-tight">
