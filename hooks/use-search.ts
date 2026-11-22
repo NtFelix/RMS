@@ -115,7 +115,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
-          const initial = parsed.slice(0, MAX_RECENT_SEARCHES);
+          const initial = parsed
+            .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+            .slice(0, MAX_RECENT_SEARCHES);
           recentSearchesRef.current = initial;
           setRecentSearches(initial);
         }
@@ -421,6 +423,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     metricsRef.current.totalRequests++;
     const requestStartTime = Date.now();
 
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       const searchParams = new URLSearchParams({
         q: actualQuery,
@@ -429,7 +432,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       });
 
       // Add timeout to the fetch request
-      const timeoutId = setTimeout(() => {
+      timeoutId = setTimeout(() => {
         if (abortControllerRef.current) {
           abortControllerRef.current.abort();
         }
@@ -443,8 +446,6 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           'Cache-Control': 'no-cache', // Prevent stale responses during errors
         },
       });
-
-      clearTimeout(timeoutId);
 
       if (!response.ok) {
         let errorMessage: string;
@@ -736,6 +737,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
         });
       }
     } finally {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
       setIsLoading(false);
       abortControllerRef.current = null;
     }
