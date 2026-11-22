@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef } from 'react';
+import { useState, useEffect, Suspense, useRef, type MutableRefObject } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { loadStripe } from '@stripe/stripe-js';
@@ -25,19 +25,32 @@ const stripePromise = loadStripe(
 
 
 
-// Isolate useSearchParams() so the surrounding landing page renders immediately in SSR/static HTML without CLS
-function PriceIdRedirectHandler({
+// Isolate dynamic navigation hooks (useSearchParams, useRouter) so the surrounding landing page renders
+// immediately in SSR/static HTML without CLS or CLIENT_HOOK_DYNAMIC prerender errors
+function LandingRedirectsHandler({
   sessionUser,
   userProfile,
+  isLoadingUser,
   isProcessingCheckout,
   handleAuthFlow,
+  routerRef,
 }: {
   sessionUser: ReturnType<typeof useSubscriptionUser>['user'];
   userProfile: ReturnType<typeof useSubscriptionUser>['profile'];
+  isLoadingUser: boolean;
   isProcessingCheckout: boolean;
   handleAuthFlow: ReturnType<typeof useSubscriptionCheckout>['handleAuthFlow'];
+  routerRef: MutableRefObject<ReturnType<typeof useRouter> | null>;
 }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router, routerRef]);
+
+  // Handle redirects and errors
+  useAuthRedirects(sessionUser, isLoadingUser);
 
   // Handle price selection from URL after redirect back from login
   useEffect(() => {
@@ -59,14 +72,11 @@ function PriceIdRedirectHandler({
 
 // Main content component that uses the auth modal context
 function LandingPageContent() {
-  const router = useRouter();
+  const routerRef = useRef<ReturnType<typeof useRouter> | null>(null);
 
   // Use custom hooks
   const { user: sessionUser, profile: userProfile, isLoading: isLoadingUser } = useSubscriptionUser();
   const { isProcessingCheckout, handleAuthFlow } = useSubscriptionCheckout();
-
-  // Handle redirects and errors
-  useAuthRedirects(sessionUser, isLoadingUser);
 
   // Scroll-depth tracking
   const pageLoadTimeRef = useRef<number>(Date.now());
@@ -114,11 +124,11 @@ function LandingPageContent() {
   }, []);
 
   const handleGetStarted = async () => {
-    if (sessionUser) {
-      router.push(ROUTES.HOME);
+    const target = sessionUser ? ROUTES.HOME : '/auth/login';
+    if (routerRef.current) {
+      routerRef.current.push(target);
     } else {
-      // Redirect to login page as per user request
-      router.push('/auth/login');
+      window.location.assign(target);
     }
   };
 
@@ -130,11 +140,13 @@ function LandingPageContent() {
     <>
       <Suspense fallback={null}>
         <EmailVerificationNotifier />
-        <PriceIdRedirectHandler
+        <LandingRedirectsHandler
           sessionUser={sessionUser}
           userProfile={userProfile}
+          isLoadingUser={isLoadingUser}
           isProcessingCheckout={isProcessingCheckout}
           handleAuthFlow={handleAuthFlow}
+          routerRef={routerRef}
         />
       </Suspense>
       <div className="min-h-screen overflow-x-hidden">
