@@ -364,6 +364,16 @@ export function NavigationInterceptor({
     <div 
       onClick={interceptFolderClick}
       onKeyDown={(e) => {
+        const target = e.target as HTMLElement | null
+        if (
+          target &&
+          (target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.tagName === 'SELECT' ||
+            target.isContentEditable)
+        ) {
+          return
+        }
         if (e.key === 'Enter' || e.key === ' ') {
           interceptFolderClick(e as unknown as React.MouseEvent<HTMLDivElement>)
         }
