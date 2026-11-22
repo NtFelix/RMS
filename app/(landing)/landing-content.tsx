@@ -79,11 +79,12 @@ function LandingPageContent() {
   const { isProcessingCheckout, handleAuthFlow } = useSubscriptionCheckout();
 
   // Scroll-depth tracking
-  const pageLoadTimeRef = useRef<number>(Date.now());
+  const pageLoadTimeRef = useRef<number>(0);
   const trackedSectionsRef = useRef<Set<string>>(new Set());
 
   // Set up scroll-depth tracking
   useEffect(() => {
+    pageLoadTimeRef.current = Date.now();
     const sectionIdMap: Record<string, LandingSection> = {
       'hero': 'hero',
       'features': 'features',
