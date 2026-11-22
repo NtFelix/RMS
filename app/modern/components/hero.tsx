@@ -23,13 +23,14 @@ export default function Hero({ onGetStarted }: HeroProps) {
   const mouseY = useMotionValue(0)
 
   useEffect(() => {
+    if (!window.matchMedia("(pointer: fine)").matches) return
     const handleMouseMove = (e: MouseEvent) => {
       const { clientX, clientY } = e
       const { left, top } = containerRef.current?.getBoundingClientRect() || { left: 0, top: 0 }
       mouseX.set(clientX - left)
       mouseY.set(clientY - top)
     }
-    window.addEventListener("mousemove", handleMouseMove)
+    window.addEventListener("mousemove", handleMouseMove, { passive: true })
     return () => window.removeEventListener("mousemove", handleMouseMove)
   }, [mouseX, mouseY])
 
@@ -146,12 +147,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
       <div className="relative z-10 w-full max-w-[1400px] mx-auto flex flex-col items-center text-center">
 
         {/* Updated Trust Pill (Reverted Text) */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6 }}
-          className="mb-8"
-        >
+        <div className="mb-8">
           <div className="inline-flex items-center gap-3 px-1 py-1 pr-4 rounded-full bg-muted/50 border border-border/50 backdrop-blur-xl group hover:border-primary/30 transition-all cursor-default">
             <span className="flex items-center justify-center h-7 px-3 rounded-full bg-primary text-[10px] font-bold text-primary-foreground uppercase tracking-widest shadow-lg shadow-primary/25">
               Neu
@@ -161,7 +157,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
             </span>
             <ArrowRight size={14} className="text-muted-foreground group-hover:translate-x-1 group-hover:text-primary transition-all" />
           </div>
-        </motion.div>
+        </div>
 
         {/* Updated Main Title (Reverted Text) */}
         <motion.div style={{ opacity, scale }} className="mb-14 max-w-5xl px-2">
@@ -179,14 +175,9 @@ export default function Hero({ onGetStarted }: HeroProps) {
         </motion.div>
 
         {/* CTA */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="flex flex-col sm:flex-row items-center gap-6 mb-28"
-        >
+        <div className="flex flex-col sm:flex-row items-center gap-6 mb-28">
           <CallToAction variant="hero" onGetStarted={onGetStarted} />
-        </motion.div>
+        </div>
 
         {/* --- THE REALISTIC APP MOCKUP --- */}
         <motion.div
