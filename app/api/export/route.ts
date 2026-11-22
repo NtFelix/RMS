@@ -3,6 +3,7 @@ import { unstable_rethrow } from 'next/navigation';
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 import { apiPermissionErrorResponse } from '@/lib/api-permission-response';
+import { MIETER_PERSON_EMBED, mitPersonenfeldern, type Person } from '@/lib/personen';
 
 // Define the tables and columns to export based on the LATEST provided schema.
 // Exclude ALL ID columns (primary and foreign keys) as requested.
@@ -10,13 +11,24 @@ const tablesToExport = {
   Aufgaben: ['ist_erledigt', 'name', 'beschreibung', 'erstellungsdatum', 'aenderungsdatum'],
   Finanzen: ['name', 'datum', 'betrag', 'ist_einnahmen', 'notiz'],
   Haeuser: ['ort', 'name', 'strasse', 'groesse'],
-  Mieter: ['name', 'einzug', 'auszug', 'email', 'telefonnummer', 'notiz', 'nebenkosten', 'nebenkosten_datum'],
+  // nebenkosten_datum existiert in der Datenbank nicht (mehr); mit der Spalte scheiterte die Abfrage und Mieter fehlten im Export.
+  Mieter: ['name', 'einzug', 'auszug', 'email', 'telefonnummer', 'notiz', 'nebenkosten'],
   Nebenkosten: ['jahr', 'nebenkostenart', 'betrag', 'berechnungsart', 'wasserkosten', 'wasserverbrauch'],
   Rechnungen: ['name', 'betrag'],
   Zaehler_Ablesungen: ['ablese_datum', 'zaehlerstand', 'verbrauch', 'kommentar'],
   Wohnungen: ['groesse', 'name', 'miete'],
   // profiles table removed from export as requested due to sensitive data.
 };
+
+// GH-30: name, email und telefonnummer des Mieters stehen in der Tabelle "Personen" und werden über die eingebettete
+// Person gelesen (nicht mehr als Spalten von "Mieter"). Die Ausgabe-Schlüssel bleiben unverändert.
+const MIETER_DIREKT_GELESENE_SPALTEN = ['einzug', 'auszug', 'notiz', 'nebenkosten'];
+
+/** Bildet eine Mieter-Zeile mit eingebetteter Person auf die Ausgabespalten ab (Reihenfolge wie in `columns`). */
+function mieterZeileFuerExport(zeile: Record<string, unknown>, columns: string[]): Record<string, unknown> {
+  const mieter = mitPersonenfeldern(zeile as { person?: Person | Person[] | null }) as unknown as Record<string, unknown>;
+  return Object.fromEntries(columns.map((col) => [col, mieter[col] ?? null]));
+}
 
 export async function GET() {
   try {
@@ -66,7 +78,10 @@ export async function GET() {
           console.warn(`Skipping table ${tableName} as no columns are defined for export.`);
           return null;
         }
-        const selectStatement = columns.join(',');
+        const istMieter = tableName === 'Mieter';
+        const selectStatement = istMieter
+          ? `${MIETER_DIREKT_GELESENE_SPALTEN.join(',')}, ${MIETER_PERSON_EMBED}`
+          : columns.join(',');
         let query = supabase.from(tableName).select(selectStatement);
 
         // Apply filters based on table columns and active scope
@@ -96,12 +111,16 @@ export async function GET() {
           query = query.in('mieter_id', accessibleMieterIds);
         }
 
-        const { data, error } = await query;
+        const { data: rohdaten, error } = await query;
 
         if (error) {
           console.error(`Error fetching data for table ${tableName} (query: SELECT ${selectStatement}): ${error.message}. Code: ${error.code}. Details: ${error.details}. Hint: ${error.hint}`);
           return null;
         }
+
+        const data = istMieter && rohdaten
+          ? (rohdaten as unknown as Record<string, unknown>[]).map((zeile) => mieterZeileFuerExport(zeile, columns))
+          : rohdaten;
 
         // Ensure data is always an array of objects, even for empty table.
         const csvData = data && data.length > 0 ? data : columns.length > 0 ? [Object.fromEntries(columns.map(col => [col, '']))] : [];

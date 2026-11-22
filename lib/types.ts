@@ -2,6 +2,7 @@
 import { NebenkostenEntry } from "../types/Tenant";
 import type { LucideIcon } from "lucide-react";
 import type { Rechenbasis } from "@/utils/rechentage";
+import type { Anrede, Person } from "./personen";
 
 export type Wohnung = {
     id: string;
@@ -33,19 +34,42 @@ export type Haus = {
 export type Mieter = {
     id: string;
     wohnung_id: string | null;
+    /**
+     * Verknüpfte Person (Tabelle "Personen", GH-30). Name, E-Mail und Telefon stehen dort; die Felder unten sind
+     * daraus abgeleitet (`mitPersonenfeldern` in `lib/personen.ts`).
+     */
+    person_id?: string | null;
+    /** Eingebettete Person (Select-Schlüssel `person`); nur gesetzt, wenn die Abfrage sie eingebettet hat. */
+    person?: Person | null;
+    /** Abgeleitet aus der Person: Anzeigename "Vorname Nachname" (bisheriges Feld `name`). */
     name: string;
+    anrede?: Anrede;
+    vorname?: string | null;
+    nachname?: string | null;
     einzug: string | null;
     auszug: string | null;
+    /** Abgeleitet aus der Person (bisheriges Feld). */
     email: string | null;
+    /** Abgeleitet aus der Person (bisheriges Feld `telefonnummer`, Quelle `Personen.telefon`). */
     telefonnummer: string | null;
     notiz: string | null;
     nebenkosten: NebenkostenEntry[] | null;
     erstellt_von: string;
     /** Tenancy of the tenant (GH-17). Set only where the Abrechnung needs it (see `utils/abrechnung-mietverhaeltnis.ts`). */
     mietverhaeltnis_id?: string | null;
+    /**
+     * Contract area in m² of the tenancy that applied in the billing period (incl. the agreed share of common areas; flat share
+     * with single contracts). Set only by the Abrechnung loader; see `computeWgFactorsByTenant` for the effect.
+     */
+    vertragsflaeche?: number | null;
     Wohnungen?: {
         name: string;
         groesse: number;
+        /**
+         * Remaining area option of the apartment (`Wohnungen.restflaeche_verteilen`, GH-17). Set only by the Abrechnung loader,
+         * and only when contract areas are entered; see `analysiereWgVerteilung` for the effect.
+         */
+        restflaeche_verteilen?: boolean;
     } | null;
 };
 

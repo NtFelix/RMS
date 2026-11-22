@@ -1,7 +1,7 @@
 import type React from "react"
 import {
   BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare,
-  Folder, Mail, Search, Network, Bot,
+  Folder, Mail, Search, Network, Bot, Contact,
 } from "lucide-react"
 import { ROUTES } from "@/lib/constants"
 
@@ -58,6 +58,11 @@ export const sidebarNavGroups: SidebarNavGroupType[] = [
         href: "/mieter",
         icon: Users,
       },
+      {
+        title: "Kontakte",
+        href: "/kontakte",
+        icon: Contact,
+      },
     ]
   },
   {
@@ -106,6 +111,7 @@ export const SIDEBAR_MODULE_MAP: Record<string, string> = {
   '/haeuser': 'haeuser',
   '/wohnungen': 'wohnungen',
   '/mieter': 'mieter',
+  '/kontakte': 'kontakte',
   '/finanzen': 'finanzen',
   '/betriebskosten': 'betriebskosten',
   '/todos': 'aufgaben',
@@ -116,4 +122,4 @@ export const SIDEBAR_MODULE_MAP: Record<string, string> = {
 
 // Entries that only appear once their PostHog feature flag has loaded. The skeleton leaves them out, so they
 // show up afterwards without moving the rest of the sidebar's chrome.
-export const FEATURE_FLAGGED_NAV_HREFS: ReadonlySet<string> = new Set(['/dateien', '/mails', '/agenten'])
+export const FEATURE_FLAGGED_NAV_HREFS: ReadonlySet<string> = new Set(['/dateien', '/mails', '/agenten', '/kontakte'])

@@ -11,6 +11,7 @@ import { DashboardTenantContextMenu } from "@/components/dashboard/dashboard-ten
 import { formatNumber } from "@/utils/format"
 import { PAYMENT_TAGS } from "@/utils/constants"
 import { getCurrentMonthRange, getTodayISOString } from "@/utils/date-calculations"
+import { MIETER_PERSON_EMBED, mitPersonenfeldern, type Person } from "@/lib/personen"
 
 type TenantDataItem = {
   id: string
@@ -37,11 +38,11 @@ export function TenantDataTable() {
     const supabase = createClient()
 
     // Mieter und verknüpfte Wohnungen abrufen
-    const { data: mieterData, error: mieterError } = await supabase
+    const { data: mieterRoh, error: mieterError } = await supabase
       .from("Mieter")
       .select(`
         id,
-        name,
+        ${MIETER_PERSON_EMBED},
         einzug,
         auszug,
         Wohnungen:wohnung_id (
@@ -83,6 +84,13 @@ export function TenantDataTable() {
     })
 
     // Daten für die Tabelle aufbereiten
+    // Name aus der Person (Personen)
+    const mieterData = ((mieterRoh ?? []) as unknown as Array<{
+      id: string
+      Wohnungen: unknown
+      person?: Person | Person[] | null
+    }>).map(mitPersonenfeldern)
+
     const formattedData: TenantDataItem[] = mieterData
       .filter(mieter => mieter.Wohnungen) // Nur Mieter mit Wohnungen
       .map(mieter => {

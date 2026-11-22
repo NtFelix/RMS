@@ -93,10 +93,12 @@ describe("MieterPage - Kaution (GH-6)", () => {
 
     await renderPageProps();
 
-    const mieterSelect = selectCalls.find((columns) => columns.includes("bewerbung_score"));
+    // GH-30: name, email und telefonnummer kommen aus der eingebetteten Person, nicht mehr als Spalten von "Mieter"
+    const mieterSelect = selectCalls.find((columns) => columns.includes("person:Personen!fk_mieter_person"));
     expect(mieterSelect).toBeDefined();
     expect(mieterSelect).not.toMatch(/kaution/i);
     expect(mieterSelect).not.toMatch(/\*/);
+    expect(mieterSelect).not.toMatch(/bewerbung_|telefonnummer|\bstatus\b|\bname\b/);
   });
 
   it("keeps the deposit of the RPC row with the module right", async () => {
@@ -127,5 +129,22 @@ describe("MieterPage - Kaution (GH-6)", () => {
 
     expect(tenants).toHaveLength(1);
     expect(tenants[0].kaution).toBeNull();
+  });
+
+  it("sets the status of every mieter row to 'mieter', also when the legacy column still says 'bewerber'", async () => {
+    mockFetchWithRpcFallback.mockImplementation(async (_supabase: unknown, rpc: string) =>
+      rpc === "get_mieter_details_overview"
+        ? [
+            { id: "t1", name: "Test Mieter", wohnung_id: null, status: "bewerber" },
+            { id: "t2", name: "Test Mieter 2", wohnung_id: null },
+          ]
+        : []
+    );
+    allow({ ...MIETER_RECHTE });
+
+    const props = await renderPageProps();
+    const tenants = props.initialTenants as Array<{ id: string; status?: unknown }>;
+
+    expect(tenants.map((t) => t.status)).toEqual(["mieter", "mieter"]);
   });
 });

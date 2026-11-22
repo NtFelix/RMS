@@ -633,6 +633,45 @@ describe('useSearch', () => {
       expect(tenantResult.actions).toHaveLength(1);
     });
 
+    it('should mark applicants and offer no "Bearbeiten" action for them', async () => {
+      mockUseDebounce.mockImplementation((value) => value);
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          results: {
+            tenant: [{
+              id: 'b-1',
+              name: 'Erika Beispiel',
+              email: 'erika@example.invalid',
+              status: 'active',
+              is_applicant: true,
+            }],
+            house: [],
+            apartment: [],
+            finance: [],
+            task: []
+          },
+          totalCount: 1,
+          executionTime: 100
+        })
+      });
+
+      const { result } = renderHook(() => useSearch());
+
+      act(() => {
+        result.current.setQuery('Erika');
+      });
+
+      await waitFor(() => {
+        expect(result.current.results).toHaveLength(1);
+      }, { timeout: 3000 });
+
+      const bewerberResult = result.current.results[0];
+      expect(bewerberResult.metadata?.is_applicant).toBe(true);
+      expect(bewerberResult.metadata?.status).toBe('applicant');
+      expect(bewerberResult.actions?.map((a) => a.label)).toEqual(['Anzeigen']);
+    });
+
     it('should transform finance results correctly', async () => {
       mockUseDebounce.mockImplementation((value) => value);
       mockFetch.mockResolvedValue({

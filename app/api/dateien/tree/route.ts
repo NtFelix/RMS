@@ -7,6 +7,7 @@ import { checkPermission } from '@/lib/permissions'
 import { apiPermissionErrorResponse } from '@/lib/api-permission-response'
 import { PermissionCheckError, type Aktion, type Modul } from '@/lib/permissions-core'
 import { getActiveOrgId } from '@/lib/storage-access'
+import { MIETER_PERSON_EMBED, mitPersonenfeldern } from '@/lib/personen'
 import { OWN_PRIVATE_FOLDER_LABEL, STORAGE_ROOT_LABEL, SYSTEM_FOLDER_LABELS, ZONE_LABELS } from '@/lib/storage-navigation'
 import {
   assertPathAllowed,
@@ -279,8 +280,12 @@ async function loadFolderChildren(supabase: any, ctx: PathAccessContext, folderP
     // Tenants (names and folders) only for users with mieter:ansehen. The right is read lazily, only if the apartment
     // has tenants to show: a failing check must not take down the apartment documents and custom folders, which do
     // not need it. With tenants present, a failed check still ends in 503 (no tenant is listed without a confirmed right).
-    const { data: tenantRows } = await supabase.from('Mieter').select('id, name').eq('wohnung_id', apartmentId)
-    const hasTenants = (tenantRows ?? []).length > 0
+    const { data: tenantRowsRoh } = await supabase
+      .from('Mieter')
+      .select(`id, ${MIETER_PERSON_EMBED}`)
+      .eq('wohnung_id', apartmentId)
+    const tenantRows = (tenantRowsRoh ?? []).map(mitPersonenfeldern)
+    const hasTenants = tenantRows.length > 0
     const tenants: Array<{ id: string; name: string | null }> = hasTenants && (await rights.mieter()) ? tenantRows : []
     const tenantNodes: TreeNode[] = tenants.map((t) =>
       folderNode(sharedPath(orgId, houseId, apartmentId, t.id), t.name || t.id, t.name || undefined),

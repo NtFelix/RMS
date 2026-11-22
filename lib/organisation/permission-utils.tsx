@@ -1,10 +1,11 @@
 import React from "react";
-import { Home, Building, Users, Gauge, CreditCard, Calculator, FileText, CheckSquare, Layout, Shield, Eye, Plus, Pencil, Trash2, Settings, FileSpreadsheet, Database, Key, Landmark, type LucideIcon } from "lucide-react";
+import { Home, Building, Users, Contact, Gauge, CreditCard, Calculator, FileText, CheckSquare, Layout, Shield, Eye, Plus, Pencil, Trash2, Settings, FileSpreadsheet, Database, Key, Landmark, type LucideIcon } from "lucide-react";
 
 export const MODULE_CONFIG: Record<string, { label: string; icon: LucideIcon }> = {
   haeuser:        { label: "Häuser",        icon: Home },
   wohnungen:      { label: "Wohnungen",      icon: Building },
   mieter:         { label: "Mieter",         icon: Users },
+  kontakte:       { label: "Kontakte",       icon: Contact },
   zaehler:        { label: "Zähler",         icon: Gauge },
   finanzen:       { label: "Finanzen",       icon: CreditCard },
   betriebskosten: { label: "Betriebskosten", icon: Calculator },
