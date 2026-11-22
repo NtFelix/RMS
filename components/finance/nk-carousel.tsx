@@ -198,6 +198,9 @@ export function NKCarousel() {
                   </motion.div>
 
                   <motion.button
+                    type="button"
+                    aria-label={feature.title}
+                    aria-pressed={isActive}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
                     animate={{
@@ -311,6 +314,8 @@ export function NKCarousel() {
                   </motion.p>
 
                   <button
+                    type="button"
+                    aria-label="Details schließen"
                     onClick={() => setActiveId(null)}
                     className="absolute top-6 right-6 w-8 h-8 rounded-full bg-muted/50 hover:bg-muted flex items-center justify-center transition-all hover:scale-110 z-20"
                   >
@@ -324,7 +329,7 @@ export function NKCarousel() {
         </div>
 
         {!activeId && (
-          <div className="mt-12 text-xs uppercase tracking-widest text-muted-foreground/60 font-semibold">
+          <div className="mt-12 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
             Hovern zum Entdecken
           </div>
         )}
