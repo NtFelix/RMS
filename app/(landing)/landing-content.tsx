@@ -63,7 +63,6 @@ function LandingRedirectsHandler({
   return null;
 }
 
->>>>>>> origin/main
 // Main content component that uses the auth modal context
 function LandingPageContent() {
   const routerRef = useRef<ReturnType<typeof useRouter> | null>(null);
