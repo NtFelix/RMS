@@ -47,7 +47,7 @@ const mockFrom = jest.fn();
 beforeEach(() => {
   jest.clearAllMocks();
   mieterZeile = {
-    data: { id: MIETER_ID, mietverhaeltnis_id: MV_ID, wohnung_id: WOHNUNG_ID, einzug: "2020-01-01", status: "mieter", Wohnungen: { miete: 800 } },
+    data: { id: MIETER_ID, mietverhaeltnis_id: MV_ID, wohnung_id: WOHNUNG_ID, einzug: "2020-01-01", Wohnungen: { miete: 800 } },
     error: null,
   };
   mieterListe = { data: [], error: null };
@@ -73,9 +73,9 @@ describe("getMitmieterUebersichtAction", () => {
   it("separates fellow tenants of the same tenancy from tenancies the tenant could join", async () => {
     mieterListe = {
       data: [
-        { id: MIETER_ID, name: "Test Eins", status: "mieter", rolle: null, mietverhaeltnis_id: MV_ID, geloescht_am: null },
-        { id: MITMIETER_ID, name: "Test Zwei", status: "mieter", rolle: "mitmieter", mietverhaeltnis_id: MV_ID, geloescht_am: null },
-        { id: ANDERER_ID, name: "Test Drei", status: "mieter", rolle: null, mietverhaeltnis_id: ZIEL_MV_ID, geloescht_am: null },
+        { id: MIETER_ID, person: { vorname: "Test Eins", nachname: null }, rolle: null, mietverhaeltnis_id: MV_ID, geloescht_am: null },
+        { id: MITMIETER_ID, person: { vorname: "Test Zwei", nachname: null }, rolle: "mitmieter", mietverhaeltnis_id: MV_ID, geloescht_am: null },
+        { id: ANDERER_ID, person: { vorname: "Test Drei", nachname: null }, rolle: null, mietverhaeltnis_id: ZIEL_MV_ID, geloescht_am: null },
       ],
       error: null,
     };
@@ -93,9 +93,9 @@ describe("getMitmieterUebersichtAction", () => {
   it("leaves out tenants who have moved out and tenancies that have already ended", async () => {
     mieterListe = {
       data: [
-        { id: MITMIETER_ID, name: "Ausgezogen", status: "ehemalig", rolle: null, mietverhaeltnis_id: MV_ID, geloescht_am: null, auszug: "2020-01-31" },
-        { id: ANDERER_ID, name: "Test Drei", status: "mieter", rolle: null, mietverhaeltnis_id: ZIEL_MV_ID, geloescht_am: null, auszug: null },
-        { id: "99999999-9999-4999-8999-999999999999", name: "Test Vier", status: "mieter", rolle: null, mietverhaeltnis_id: NEU_MV_ID, geloescht_am: null, auszug: null },
+        { id: MITMIETER_ID, person: { vorname: "Ausgezogen", nachname: null }, rolle: null, mietverhaeltnis_id: MV_ID, geloescht_am: null, auszug: "2020-01-31" },
+        { id: ANDERER_ID, person: { vorname: "Test Drei", nachname: null }, rolle: null, mietverhaeltnis_id: ZIEL_MV_ID, geloescht_am: null, auszug: null },
+        { id: "99999999-9999-4999-8999-999999999999", person: { vorname: "Test Vier", nachname: null }, rolle: null, mietverhaeltnis_id: NEU_MV_ID, geloescht_am: null, auszug: null },
       ],
       error: null,
     };
@@ -109,19 +109,18 @@ describe("getMitmieterUebersichtAction", () => {
 
   it("maps a database error of the tenancy query", async () => {
     mieterListe = {
-      data: [{ id: ANDERER_ID, name: "Test Drei", status: "mieter", rolle: null, mietverhaeltnis_id: ZIEL_MV_ID, geloescht_am: null, auszug: null }],
+      data: [{ id: ANDERER_ID, person: { vorname: "Test Drei", nachname: null }, rolle: null, mietverhaeltnis_id: ZIEL_MV_ID, geloescht_am: null, auszug: null }],
       error: null,
     };
     mvListe = { data: null, error: { code: "42501", message: "x" } };
     expect(await getMitmieterUebersichtAction(MIETER_ID)).toMatchObject({ success: false, error: { code: "42501" } });
   });
 
-  it("ignores deleted tenants, applicants and tenants without a tenancy", async () => {
+  it("ignores deleted tenants and tenants without a tenancy", async () => {
     mieterListe = {
       data: [
-        { id: MITMIETER_ID, name: "Gelöscht", status: "mieter", rolle: null, mietverhaeltnis_id: MV_ID, geloescht_am: "2026-01-01T00:00:00Z" },
-        { id: ANDERER_ID, name: "Bewerber", status: "bewerber", rolle: null, mietverhaeltnis_id: null, geloescht_am: null },
-        { id: "99999999-9999-4999-8999-999999999999", name: "Ohne", status: "mieter", rolle: null, mietverhaeltnis_id: null, geloescht_am: null },
+        { id: MITMIETER_ID, person: { vorname: "Gelöscht", nachname: null }, rolle: null, mietverhaeltnis_id: MV_ID, geloescht_am: "2026-01-01T00:00:00Z" },
+        { id: "99999999-9999-4999-8999-999999999999", person: { vorname: "Ohne", nachname: null }, rolle: null, mietverhaeltnis_id: null, geloescht_am: null },
       ],
       error: null,
     };
@@ -227,8 +226,22 @@ describe("mieterTrennenAction", () => {
     expect(mockRpc).toHaveBeenCalledWith("mietverhaeltnis_mieter_trennen", { p_mieter_id: MIETER_ID, p_datum: "2026-09-01", p_miete: null });
   });
 
+  it("sends the areas of the new and the shared tenancy only when given", async () => {
+    await mieterTrennenAction({ mieterId: MIETER_ID, datum: "2026-09-01", flaecheNeu: 20, flaecheBisher: 50.25 });
+    expect(mockRpc).toHaveBeenCalledWith("mietverhaeltnis_mieter_trennen", {
+      p_mieter_id: MIETER_ID, p_datum: "2026-09-01", p_miete: null, p_flaeche_neu: 20, p_flaeche_bisher: 50.25,
+    });
+    mockRpc.mockClear();
+    await mieterTrennenAction({ mieterId: MIETER_ID, datum: "2026-09-01", flaecheNeu: 20, flaecheBisher: null });
+    expect(mockRpc).toHaveBeenCalledWith("mietverhaeltnis_mieter_trennen", { p_mieter_id: MIETER_ID, p_datum: "2026-09-01", p_miete: null, p_flaeche_neu: 20 });
+  });
+
   it.each([
     ["invalid ID", { mieterId: "x", datum: "2026-09-01" }],
+    ["new area 0", { mieterId: MIETER_ID, datum: "2026-09-01", flaecheNeu: 0 }],
+    ["shared area with three decimals", { mieterId: MIETER_ID, datum: "2026-09-01", flaecheBisher: 20.001 }],
+    ["new area above 100000", { mieterId: MIETER_ID, datum: "2026-09-01", flaecheNeu: 100000.01 }],
+    ["area as text", { mieterId: MIETER_ID, datum: "2026-09-01", flaecheBisher: "50" }],
     ["invalid date", { mieterId: MIETER_ID, datum: "01.09.2026" }],
     ["negative rent", { mieterId: MIETER_ID, datum: "2026-09-01", miete: -1 }],
     ["rent with three decimals", { mieterId: MIETER_ID, datum: "2026-09-01", miete: 10.999 }],

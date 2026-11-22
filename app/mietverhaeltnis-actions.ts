@@ -10,7 +10,8 @@
  * - Tenancy creation and rent entries (including changes of the rent) are written ONLY through RPCs
  *   (`mietverhaeltnis_anlegen`, `mietverhaeltnis_miete_setzen`, `mietverhaeltnis_miete_entfernen`). No `.insert()` or `.delete()` on the tenancy tables here.
  * - The ONLY direct write to a tenancy table is `vertragsdatenSpeichernAction`: a `.update()` on
- *   `"Mieter_Mietverhaeltnisse"` for six contract columns (RLS applies). Rent history is never written that way.
+ *   `"Mieter_Mietverhaeltnisse"` for seven contract columns (RLS applies). Rent history is never written that way.
+ *   `restflaecheVerteilenSetzenAction` writes one column of the apartment (`Wohnungen.restflaeche_verteilen`, RLS applies).
  * - The tenancy ID is never taken from the client: it is read from the tenant row on the server.
  * - Amounts are validated strictly and sent as exact decimal strings (two decimal places, no rounding).
  * - No personal data, amounts or IDs in logs: only the action name, the event and the error code.
@@ -27,11 +28,14 @@ import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ensureAuth } from "@/lib/auth-utils";
+import { MIETER_PERSON_EMBED, personAnzeigename, type Person } from "@/lib/personen";
 import { hasPermission } from "@/lib/permissions";
 import { getAccessibleWohnungIds } from "@/lib/object-scope";
 import { logAction } from "@/lib/logging-middleware";
 import { mapMietverhaeltnisError, mietverhaeltnisFehler, MIETVERHAELTNIS_FEHLER_FALLBACK_MESSAGE } from "@/lib/mietverhaeltnis-errors";
+import { flaechenHinweise, type VertragMitFlaeche } from "@/utils/vertragsflaeche-hinweise";
 import type {
+  FlaechenStand,
   MietEintrag,
   Mietverhaeltnis,
   MietverhaeltnisActionError,
@@ -77,6 +81,8 @@ export interface VertragsdatenSpeichernInput {
   kuendigungZum: string | null;
   kuendigungDurch: "mieter" | "vermieter" | null;
   notiz: string | null;
+  /** Contract area in m² incl. the share of common areas (flat share with single contracts), `null` for none. */
+  flaeche: number | null;
 }
 
 /** Move of a tenant with a tenancy into another apartment. The database ends the old tenancy the day before. */
@@ -108,6 +114,16 @@ export interface MieterTrennenInput {
   datum: string;
   /** Monthly rent of the own tenancy from the start date, same rules as `betrag` of `mieteSetzen`. Omitted or `null`: no entry. */
   miete?: number | null;
+  /** Contract area of the own tenancy in m² (same rules as `flaeche` of `vertragsdatenSpeichern`). Omitted or `null`: none. */
+  flaecheNeu?: number | null;
+  /** New contract area of the shared tenancy that continues for the others. Omitted or `null`: unchanged. */
+  flaecheBisher?: number | null;
+}
+
+/** Remaining area option of the apartment of a tenant (`Wohnungen.restflaeche_verteilen`). */
+export interface RestflaecheVerteilenSetzenInput {
+  mieterId: string;
+  wert: boolean;
 }
 
 /** Module right actions used here. */
@@ -115,7 +131,10 @@ type MieterAktion = "ansehen" | "bearbeiten" | "erstellen";
 
 type Step<T> = { ok: true; data: T } | { ok: false; error: MietverhaeltnisActionError };
 
-/** Tenant data the actions need: tenancy link, apartment rent and move-in date, applicant flag. */
+/**
+ * Tenant data the actions need: tenancy link, apartment rent and move-in date. Applicants are not in "Mieter"
+ * (they live in "Bewerber"), so a Mieter row is never an applicant.
+ */
 interface MieterDaten {
   mietverhaeltnisId: string | null;
   wohnungId: string | null;
@@ -136,13 +155,15 @@ const MAX_DATUM = "2100-12-31";
 const BETRAG_MAX = 99999999.99;
 const GRUND_MAX_LAENGE = 500;
 const NOTIZ_MAX_LAENGE = 2000;
+/** Upper limit of a contract area in m², as the CHECK in the database. */
+const FLAECHE_MAX = 100000;
 /** Change type of entries entered in the rent form (the database default). */
 const AENDERUNGSART = "vereinbarung";
 /** Start of the message `ensureAuth` throws for "not signed in" (`lib/auth-utils.ts`). */
 const NOT_SIGNED_IN_MESSAGE_PREFIX = "Nicht authentifiziert";
 
 const MIETVERHAELTNIS_SPALTEN =
-  "id, wohnung_id, vertragsbeginn, vertragsende, befristet_bis, kuendigung_eingang_am, kuendigung_zum, kuendigung_durch, vertrag_dokument_id, notiz, quelle";
+  "id, wohnung_id, vertragsbeginn, vertragsende, befristet_bis, kuendigung_eingang_am, kuendigung_zum, kuendigung_durch, flaeche, vertrag_dokument_id, notiz, quelle";
 
 function fail<T>(error: MietverhaeltnisActionError): Step<T> {
   return { ok: false, error };
@@ -212,6 +233,74 @@ function pruefeKuendigungDurch(value: unknown): "mieter" | "vermieter" | null | 
   return undefined;
 }
 
+/** Contract area in m²: `null` (no statement) or a number above 0 up to 100000 with at most two decimals, otherwise `undefined`. */
+function pruefeFlaeche(value: unknown): number | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0 || value > FLAECHE_MAX) return undefined;
+  const hundertstel = Math.round(value * 100);
+  if (Math.abs(value * 100 - hundertstel) > 1e-6) return undefined;
+  return hundertstel / 100;
+}
+
+/** A number from the database (`numeric` may come back as a string), `null` if missing or not finite. */
+function alsZahl(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const zahl = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(zahl) ? zahl : null;
+}
+
+/**
+ * Contract area notes of a tenancy (only tenancies of the apartment running at the same time count, see `flaechenHinweise`) and
+ * the remaining area option of the apartment. Read under RLS; any read problem simply gives no notes (never an error: the
+ * notes only explain the split of the Abrechnung).
+ */
+async function ladeFlaechenStand(supabase: SupabaseClient, wohnungId: string | null, mietverhaeltnisId: string): Promise<FlaechenStand> {
+  const leer: FlaechenStand = { hinweise: [], restflaecheVerteilen: null };
+  if (!wohnungId) return leer;
+  try {
+    const [wohnung, vertraege, mieter] = await Promise.all([
+      supabase.from("Wohnungen").select("groesse, restflaeche_verteilen").eq("id", wohnungId).maybeSingle(),
+      supabase.from("Mieter_Mietverhaeltnisse").select("id, flaeche, vertragsbeginn, vertragsende").eq("wohnung_id", wohnungId),
+      supabase.from("Mieter").select("mietverhaeltnis_id, auszug").eq("wohnung_id", wohnungId),
+    ]);
+    const wohnungRecord = asRecord(wohnung.data);
+    if (wohnung.error || !wohnungRecord || vertraege.error || !Array.isArray(vertraege.data)) return leer;
+    const restflaecheVerteilen = wohnungRecord.restflaeche_verteilen === true;
+    // The Abrechnung counts a tenancy by the move-in and move-out of its tenants: when all its tenants have moved out, the
+    // tenancy ends for the notes at the last move-out, even without a contract end. Without tenant rows (or if they cannot
+    // be read) the contract dates apply.
+    const auszugJeVertrag = new Map<string, string | null>();
+    if (!mieter.error && Array.isArray(mieter.data)) {
+      for (const zeile of mieter.data) {
+        const record = asRecord(zeile);
+        if (!record || typeof record.mietverhaeltnis_id !== "string") continue;
+        const auszug = typeof record.auszug === "string" ? record.auszug.slice(0, 10) : null;
+        const bisher = auszugJeVertrag.get(record.mietverhaeltnis_id);
+        // null = at least one tenant has not moved out
+        auszugJeVertrag.set(record.mietverhaeltnis_id, bisher === null || auszug === null ? null : bisher === undefined || auszug > bisher ? auszug : bisher);
+      }
+    }
+    const liste: VertragMitFlaeche[] = [];
+    for (const zeile of vertraege.data) {
+      const record = asRecord(zeile);
+      if (!record || typeof record.id !== "string" || typeof record.vertragsbeginn !== "string") continue;
+      const flaeche = alsZahl(record.flaeche);
+      const vertragsende = typeof record.vertragsende === "string" ? record.vertragsende.slice(0, 10) : null;
+      const letzterAuszug = auszugJeVertrag.get(record.id) ?? null;
+      liste.push({
+        id: record.id,
+        flaeche: flaeche !== null && flaeche > 0 ? flaeche : null,
+        beginn: record.vertragsbeginn.slice(0, 10),
+        ende: letzterAuszug !== null && (vertragsende === null || letzterAuszug < vertragsende) ? letzterAuszug : vertragsende,
+      });
+    }
+    return { hinweise: flaechenHinweise(mietverhaeltnisId, liste, alsZahl(wohnungRecord.groesse), restflaecheVerteilen), restflaecheVerteilen };
+  } catch (error) {
+    unstable_rethrow(error);
+    return leer;
+  }
+}
+
 /** Rows of `get_mietverhaeltnis_mieten` as typed entries. `null` if the shape is not as expected. */
 function parseMietenRows(data: unknown): MietEintrag[] | null {
   if (data === null || data === undefined) return [];
@@ -253,7 +342,7 @@ function parseWohnungsmiete(wohnungen: unknown): number | null {
 async function ladeMieter(supabase: SupabaseClient, mieterId: string): Promise<Step<MieterDaten>> {
   const { data, error } = await supabase
     .from("Mieter")
-    .select("id, mietverhaeltnis_id, wohnung_id, einzug, status, Wohnungen(miete)")
+    .select("id, mietverhaeltnis_id, wohnung_id, einzug, Wohnungen(miete)")
     .eq("id", mieterId)
     .maybeSingle();
   if (error) return fail(mapMietverhaeltnisError(error));
@@ -270,7 +359,7 @@ async function ladeMieter(supabase: SupabaseClient, mieterId: string): Promise<S
       wohnungId: typeof record.wohnung_id === "string" ? record.wohnung_id : null,
       wohnungsmiete: parseWohnungsmiete(record.Wohnungen),
       einzug: typeof record.einzug === "string" ? record.einzug : null,
-      istBewerber: record.status === "bewerber",
+      istBewerber: false,
     },
   };
 }
@@ -396,10 +485,10 @@ export async function getMietverhaeltnisUebersichtAction(
 
       const mieter = await ladeMieter(supabase, mieterId);
       if (!mieter.ok) return mieter;
-      const { mietverhaeltnisId, wohnungsmiete, einzug, istBewerber } = mieter.data;
+      const { mietverhaeltnisId, wohnungId, wohnungsmiete, einzug, istBewerber } = mieter.data;
       const basis = { wohnungsmiete, mieterEinzug: einzug, istBewerber };
       if (!mietverhaeltnisId) {
-        return { ok: true, data: { mietverhaeltnis: null, mieten: [], ...basis } };
+        return { ok: true, data: { mietverhaeltnis: null, mieten: [], ...basis, flaechen: null } };
       }
 
       const { data: mvData, error: mvError } = await supabase
@@ -411,13 +500,19 @@ export async function getMietverhaeltnisUebersichtAction(
       const mietverhaeltnis = asRecord(mvData) as Mietverhaeltnis | null;
       if (!mietverhaeltnis) return fail(mietverhaeltnisFehler("MV003"));
 
-      const historie = await ladeHistorie(supabase, mietverhaeltnisId);
+      // The area notes never fail and do not depend on the history: load them alongside
+      const [historie, stand, optionAenderbar] = await Promise.all([
+        ladeHistorie(supabase, mietverhaeltnisId),
+        ladeFlaechenStand(supabase, wohnungId, mietverhaeltnisId),
+        hasPermission("wohnungen", "bearbeiten"),
+      ]);
       if (!historie.ok) return historie;
 
       const erklaert = await ladeErklaertAm(supabase, mietverhaeltnisId, "getMietverhaeltnisUebersicht");
       const mieten = historie.data.map((eintrag) => ({ ...eintrag, erklaert_am: erklaert.get(eintrag.miete_id) ?? null }));
+      const flaechen: FlaechenStand = { ...stand, optionAenderbar };
 
-      return { ok: true, data: { mietverhaeltnis, mieten, ...basis } };
+      return { ok: true, data: { mietverhaeltnis, mieten, ...basis, flaechen } };
     },
   });
 }
@@ -533,12 +628,16 @@ export async function mieteEntfernenAction(input: MieteEntfernenInput): Promise<
 }
 
 /**
- * Writes the contract data of the tenancy: end, fixed term, termination (date, effective date, party) and note.
- * This is the ONLY direct write to a tenancy table (`.update()`, six columns, RLS applies). The tenancy ID is read
- * from the tenant row. No row back means RLS refused the write (`42501`).
+ * Writes the contract data of the tenancy: end, fixed term, termination (date, effective date, party), note and contract area.
+ * This is the ONLY direct write to a tenancy table (`.update()`, seven columns, RLS applies). After the save, `flaechen` gives
+ * the contract area notes of the tenancies running at the same time (areas above the apartment, vacancy of a single area,
+ * missing areas); they never refuse the save. The tenancy ID is read from the tenant row. No row back means RLS refused the
+ * write (`42501`).
  */
-export async function vertragsdatenSpeichernAction(input: VertragsdatenSpeichernInput): Promise<MietverhaeltnisActionResult> {
-  return runMietverhaeltnisAction<undefined>({
+export async function vertragsdatenSpeichernAction(
+  input: VertragsdatenSpeichernInput
+): Promise<MietverhaeltnisActionResult<{ flaechen: FlaechenStand }>> {
+  return runMietverhaeltnisAction<{ flaechen: FlaechenStand }>({
     actionName: "vertragsdatenSpeichern",
     aktionen: ["bearbeiten", "ansehen"],
     schreibend: true,
@@ -559,6 +658,9 @@ export async function vertragsdatenSpeichernAction(input: VertragsdatenSpeichern
       if (input?.notiz === undefined) return fail(mietverhaeltnisFehler("MV004"));
       const notiz = pruefeFreitext(input.notiz, NOTIZ_MAX_LAENGE);
       if (notiz === undefined) return fail(mietverhaeltnisFehler("MV004"));
+      // `undefined` (missing key) is invalid as for the dates: it never clears a stored area
+      const flaeche = pruefeFlaeche(input?.flaeche);
+      if (flaeche === undefined) return fail(mietverhaeltnisFehler("MV004"));
 
       const mieter = await ladeMieter(supabase, mieterId);
       if (!mieter.ok) return mieter;
@@ -574,13 +676,55 @@ export async function vertragsdatenSpeichernAction(input: VertragsdatenSpeichern
           kuendigung_zum: kuendigungZum,
           kuendigung_durch: kuendigungDurch,
           notiz,
+          flaeche,
         })
         .eq("id", mietverhaeltnisId)
         .select("id");
       if (error) return fail(mapMietverhaeltnisError(error));
       // No row back: RLS refused the update (or the tenancy is not visible)
       if (!Array.isArray(data) || data.length === 0) return fail(mietverhaeltnisFehler("42501"));
-      return { ok: true, data: undefined };
+      // Notes only matter when this tenancy has an area (the section reloads the overview with all notes anyway)
+      const flaechen: FlaechenStand = flaeche === null
+        ? { hinweise: [], restflaecheVerteilen: null }
+        : await ladeFlaechenStand(supabase, mieter.data.wohnungId, mietverhaeltnisId);
+      return { ok: true, data: { flaechen } };
+    },
+  });
+}
+
+/**
+ * Switches the remaining area option of the tenant's apartment (`Wohnungen.restflaeche_verteilen`, GH-17): on days with tenancies
+ * with and without contract area, the tenancies without area share the rest of the apartment instead of an equal split of the day.
+ * Needs the tenant rights to see and edit plus `wohnungen: bearbeiten` (the apartment is changed); RLS applies to the update.
+ * Whether such a mixed key is allowed is a legal question; the option is off by default.
+ */
+export async function restflaecheVerteilenSetzenAction(
+  input: RestflaecheVerteilenSetzenInput
+): Promise<MietverhaeltnisActionResult<{ flaechen: FlaechenStand }>> {
+  return runMietverhaeltnisAction<{ flaechen: FlaechenStand }>({
+    actionName: "restflaecheVerteilenSetzen",
+    aktionen: ["bearbeiten", "ansehen"],
+    schreibend: true,
+    zusaetzlichePfade: ["/wohnungen"],
+    run: async (supabase) => {
+      const mieterId = input?.mieterId;
+      if (!istUuid(mieterId) || typeof input?.wert !== "boolean") return fail(mietverhaeltnisFehler("MV004"));
+      if (!(await hasPermission("wohnungen", "bearbeiten"))) return fail(mietverhaeltnisFehler("42501"));
+
+      const mieter = await ladeMieter(supabase, mieterId);
+      if (!mieter.ok) return mieter;
+      const { wohnungId, mietverhaeltnisId } = mieter.data;
+      if (!wohnungId) return fail(mietverhaeltnisFehler("MV007"));
+      if (!mietverhaeltnisId) return fail(mietverhaeltnisFehler("MV003"));
+
+      const { data, error } = await supabase
+        .from("Wohnungen")
+        .update({ restflaeche_verteilen: input.wert })
+        .eq("id", wohnungId)
+        .select("id");
+      if (error) return fail(mapMietverhaeltnisError(error));
+      if (!Array.isArray(data) || data.length === 0) return fail(mietverhaeltnisFehler("42501"));
+      return { ok: true, data: { flaechen: await ladeFlaechenStand(supabase, wohnungId, mietverhaeltnisId) } };
     },
   });
 }
@@ -653,7 +797,7 @@ export async function getMitmieterUebersichtAction(mieterId: string): Promise<Mi
 
       const { data, error } = await supabase
         .from("Mieter")
-        .select("id, name, status, rolle, mietverhaeltnis_id, geloescht_am, auszug")
+        .select(`id, rolle, mietverhaeltnis_id, geloescht_am, auszug, ${MIETER_PERSON_EMBED}`)
         .eq("wohnung_id", wohnungId);
       if (error) return fail(mapMietverhaeltnisError(error));
       if (!Array.isArray(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));
@@ -665,10 +809,11 @@ export async function getMitmieterUebersichtAction(mieterId: string): Promise<Mi
         const record = asRecord(row);
         if (!record || !istUuid(record.id) || record.id === mieterId) continue;
         if (record.geloescht_am !== null && record.geloescht_am !== undefined) continue;
-        if (record.status === "bewerber") continue;
         // A tenant who has already moved out is neither a fellow tenant nor the tenant of a tenancy to join
         if (typeof record.auszug === "string" && record.auszug < heute) continue;
-        const name = typeof record.name === "string" ? record.name : "";
+        // Name from the person (Personen); Mieter rows are never applicants
+        const person = (Array.isArray(record.person) ? record.person[0] : record.person) as Person | null | undefined;
+        const name = personAnzeigename(person);
         const mvId = typeof record.mietverhaeltnis_id === "string" ? record.mietverhaeltnis_id : null;
         if (mvId === mietverhaeltnisId) {
           ergebnis.mitmieter.push({
@@ -743,7 +888,8 @@ export async function mieterZusammenfuehrenAction(
 
 /**
  * A tenant leaves a shared tenancy and gets an own tenancy in the same apartment (GH-17, phase 6). The shared
- * tenancy continues for the other tenants; deposits stay at the shared tenancy.
+ * tenancy continues for the other tenants; deposits stay at the shared tenancy. Optionally with the contract area of the new
+ * tenancy and a new area of the shared one (not versioned: it also applies to earlier periods when they are calculated again).
  */
 export async function mieterTrennenAction(
   input: MieterTrennenInput
@@ -764,14 +910,21 @@ export async function mieterTrennenAction(
         if (geprueft === null) return fail(mietverhaeltnisFehler("MV004"));
         betrag = Number(geprueft);
       }
+      // Areas are optional here: a missing key means none (new tenancy) or unchanged (shared tenancy)
+      const flaecheNeu = input?.flaecheNeu === undefined ? null : pruefeFlaeche(input.flaecheNeu);
+      const flaecheBisher = input?.flaecheBisher === undefined ? null : pruefeFlaeche(input.flaecheBisher);
+      if (flaecheNeu === undefined || flaecheBisher === undefined) return fail(mietverhaeltnisFehler("MV004"));
 
       const mieter = await ladeMieter(supabase, mieterId);
       if (!mieter.ok) return mieter;
 
+      // The area parameters are only sent when given, so a split without areas also works against a database without them
       const { data, error } = await supabase.rpc("mietverhaeltnis_mieter_trennen", {
         p_mieter_id: mieterId,
         p_datum: datum,
         p_miete: betrag,
+        ...(flaecheNeu !== null ? { p_flaeche_neu: flaecheNeu } : {}),
+        ...(flaecheBisher !== null ? { p_flaeche_bisher: flaecheBisher } : {}),
       });
       if (error) return fail(mapMietverhaeltnisError(error));
       if (!istUuid(data)) return fail(mietverhaeltnisFehler("UNBEKANNT"));

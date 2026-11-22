@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   Building2,
+  Contact,
   KeyRound,
   Users2,
   Gauge,
@@ -20,7 +21,7 @@ import {
 } from "lucide-react";
 
 interface ModuleConfig {
-  key: "haeuser" | "wohnungen" | "mieter" | "zaehler" | "finanzen" | "betriebskosten" | "dokumente" | "aufgaben" | "vorlagen" | "organisation" | "kautionen";
+  key: "haeuser" | "wohnungen" | "mieter" | "kontakte" | "zaehler" | "finanzen" | "betriebskosten" | "dokumente" | "aufgaben" | "vorlagen" | "organisation" | "kautionen";
   label: string;
   icon: LucideIcon;
   /**
@@ -34,6 +35,7 @@ const MODULES: readonly ModuleConfig[] = [
   { key: "haeuser",        label: "Häuser",        icon: Building2      },
   { key: "wohnungen",      label: "Wohnungen",      icon: KeyRound       },
   { key: "mieter",         label: "Mieter",         icon: Users2         },
+  { key: "kontakte",       label: "Kontakte",       icon: Contact        },
   { key: "zaehler",        label: "Zähler",         icon: Gauge          },
   { key: "finanzen",       label: "Finanzen",       icon: Coins          },
   { key: "betriebskosten", label: "Betriebskosten", icon: Calculator     },

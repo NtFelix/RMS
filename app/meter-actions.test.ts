@@ -153,7 +153,8 @@ describe('meter-actions', () => {
             let data: any[] = [];
             if (table === 'Wohnungen') data = [{ id: 'w1', haus_id: 'house1' }];
             if (table === 'Zaehler') data = [{ id: 'm1', wohnung_id: 'w1' }];
-            if (table === 'Mieter') data = [tenant];
+            // Fallback liest den Namen aus der Person (Personen), nicht mehr aus Mieter.name
+            if (table === 'Mieter') data = [{ id: tenant.id, wohnung_id: tenant.wohnung_id, einzug: tenant.einzug, auszug: tenant.auszug, person: { anrede: 'keine_angabe', vorname: 'Test', nachname: 'Mieter' } }];
             resolve({ data, error: null });
           }
         };

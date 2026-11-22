@@ -2,7 +2,18 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
-import { MIETER_SPALTEN_OHNE_KAUTION, pickMieterSchreibbareFelder } from "@/lib/mieter-columns";
+import {
+  MIETER_LESE_SELECT,
+  bewerberEingabeAusMieterEingabe,
+  fehlerAusRpc,
+  istEingabeObjekt,
+  mieterEingabeAusBody,
+  personEingabeAusBody,
+} from "@/lib/mieter-schreibpfad";
+import { mitPersonenfeldern, type Person } from "@/lib/personen";
+
+/** Zeile aus "Mieter" mit eingebetteter Person, vor dem Abbilden auf name/email/telefonnummer. */
+type MieterZeile = { person?: Person | Person[] | null };
 
 export async function GET() {
   try {
@@ -14,8 +25,8 @@ export async function GET() {
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     const accessibleWohnungIds = await getAccessibleWohnungIds();
 
-    // Explizite Spaltenliste ohne das Altfeld "kaution" (Kautionsdaten sind an das Modul "kautionen" gebunden).
-    let query = supabase.from('Mieter').select(MIETER_SPALTEN_OHNE_KAUTION);
+    // Explizite Spaltenliste ohne das Altfeld "kaution" und ohne Personenfelder (GH-30: Person eingebettet).
+    let query = supabase.from('Mieter').select(MIETER_LESE_SELECT);
     if (accessibleWohnungIds !== null) {
       query = query.in('wohnung_id', accessibleWohnungIds);
     }
@@ -28,7 +39,8 @@ export async function GET() {
         headers: NO_CACHE_HEADERS 
       });
     }
-    return NextResponse.json(data, { 
+    const zeilen = ((data ?? []) as unknown as MieterZeile[]).map((zeile) => mitPersonenfeldern(zeile));
+    return NextResponse.json(zeilen, { 
       status: 200,
       headers: NO_CACHE_HEADERS 
     });
@@ -49,32 +61,62 @@ export async function POST(request: Request) {
     const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
     await requireApiPermission('mieter', 'erstellen');
 
-    const supabase = await createSupabaseServerClient();
-    // Nur schreibbare Mieterspalten übernehmen; das Altfeld "kaution" wird verworfen.
-    const m = pickMieterSchreibbareFelder(await request.json());
-    if (!m) {
+    const body = await request.json();
+    if (!istEingabeObjekt(body)) {
       return NextResponse.json({ error: "Ungültiger Request-Body." }, {
         status: 400,
         headers: NO_CACHE_HEADERS
       });
     }
 
-    if (m.wohnung_id && !(await verifyWohnungInScope(m.wohnung_id as string))) {
+    const supabase = await createSupabaseServerClient();
+    // Personenfelder gehen an die RPC (Person wird neu angelegt); Mieterfelder nur mit Whitelist.
+    // Das Altfeld "kaution" und Systemfelder werden verworfen.
+    const person = personEingabeAusBody(body, "anlegen");
+    const mieter = mieterEingabeAusBody(body);
+
+    if (typeof mieter.wohnung_id === "string" && !(await verifyWohnungInScope(mieter.wohnung_id))) {
       return NextResponse.json({ error: "Permission denied" }, { 
         status: 403,
         headers: NO_CACHE_HEADERS 
       });
     }
 
-    const { data, error } = await supabase.from('Mieter').insert(m).select(MIETER_SPALTEN_OHNE_KAUTION);
+    // status "bewerber" legt einen Bewerber an (Tabelle "Bewerber"), sonst einen Mieter.
+    if (body.status === 'bewerber') {
+      const { data, error } = await supabase.rpc('bewerber_anlegen', {
+        p_person: person,
+        p_bewerber: bewerberEingabeAusMieterEingabe(mieter),
+      });
+      if (error) {
+        console.error('POST /api/mieter bewerber_anlegen error:', error.code);
+        const fehler = fehlerAusRpc(error);
+        return NextResponse.json({ error: fehler.message, code: error.code }, { status: fehler.status, headers: NO_CACHE_HEADERS });
+      }
+      return NextResponse.json(data, { status: 201, headers: NO_CACHE_HEADERS });
+    }
+
+    const { data, error } = await supabase.rpc('mieter_anlegen', { p_person: person, p_mieter: mieter });
     if (error) {
-      console.error('POST /api/mieter error:', error);
-      return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { 
-        status: 400,
+      console.error('POST /api/mieter error:', error.code);
+      const fehler = fehlerAusRpc(error);
+      return NextResponse.json({ error: fehler.message, code: error.code }, { 
+        status: fehler.status,
         headers: NO_CACHE_HEADERS 
       });
     }
-    return NextResponse.json(data[0], { 
+
+    const mieterId = (data as { mieter_id?: string } | null)?.mieter_id;
+    const { data: zeile, error: leseFehler } = await supabase
+      .from('Mieter')
+      .select(MIETER_LESE_SELECT)
+      .eq('id', mieterId as string)
+      .single();
+    if (leseFehler || !zeile) {
+      console.error('POST /api/mieter read-back error:', leseFehler?.code);
+      return NextResponse.json({ error: 'Mieter wurde angelegt, konnte aber nicht gelesen werden.' }, { status: 500, headers: NO_CACHE_HEADERS });
+    }
+    return NextResponse.json(mitPersonenfeldern(zeile as unknown as MieterZeile), { 
       status: 201,
       headers: NO_CACHE_HEADERS 
     });
@@ -100,21 +142,23 @@ export async function PUT(request: Request) {
       headers: NO_CACHE_HEADERS 
     });
 
-    const supabase = await createSupabaseServerClient();
-    // Nur schreibbare Mieterspalten übernehmen; das Altfeld "kaution" wird verworfen.
-    const m = pickMieterSchreibbareFelder(await request.json());
-    if (!m) {
+    const body = await request.json();
+    if (!istEingabeObjekt(body)) {
       return NextResponse.json({ error: 'Ungültiger Request-Body.' }, {
         status: 400,
         headers: NO_CACHE_HEADERS
       });
     }
-    if (Object.keys(m).length === 0) {
+    const person = personEingabeAusBody(body, "aendern");
+    const mieter = mieterEingabeAusBody(body);
+    if (Object.keys(person).length === 0 && Object.keys(mieter).length === 0) {
       return NextResponse.json({ error: 'Keine änderbaren Felder angegeben.' }, {
         status: 400,
         headers: NO_CACHE_HEADERS
       });
     }
+
+    const supabase = await createSupabaseServerClient();
 
     // Check scope of existing tenant
     const { data: currentTenant, error: checkError } = await supabase
@@ -131,22 +175,38 @@ export async function PUT(request: Request) {
     }
 
     // Check scope of new apartment target
-    if (m.wohnung_id && !(await verifyWohnungInScope(m.wohnung_id as string))) {
+    if (typeof mieter.wohnung_id === 'string' && !(await verifyWohnungInScope(mieter.wohnung_id))) {
       return NextResponse.json({ error: "Permission denied" }, { 
         status: 403,
         headers: NO_CACHE_HEADERS 
       });
     }
 
-    const { data, error } = await supabase.from('Mieter').update(m).match({ id }).select(MIETER_SPALTEN_OHNE_KAUTION);
+    const { error } = await supabase.rpc('mieter_aktualisieren', {
+      p_mieter_id: id,
+      p_person: person,
+      p_mieter: mieter,
+    });
     if (error) {
-      console.error('PUT /api/mieter error:', error);
-      return NextResponse.json({ error: error.message }, { 
-        status: 500,
+      console.error('PUT /api/mieter error:', error.code);
+      const fehler = fehlerAusRpc(error);
+      return NextResponse.json({ error: fehler.message }, { 
+        status: fehler.status,
         headers: NO_CACHE_HEADERS 
       });
     }
-    return NextResponse.json(data[0], { 
+
+    const { data: zeile, error: leseFehler } = await supabase
+      .from('Mieter')
+      .select(MIETER_LESE_SELECT)
+      .eq('id', id)
+      .single();
+    if (leseFehler || !zeile) {
+      // Die Änderung ist bereits gespeichert (RPC erfolgreich); nur das Nachladen scheiterte.
+      console.error('PUT /api/mieter read-back error:', leseFehler?.code);
+      return NextResponse.json({ id, warning: 'Mieter wurde gespeichert, konnte aber nicht gelesen werden.' }, { status: 200, headers: NO_CACHE_HEADERS });
+    }
+    return NextResponse.json(mitPersonenfeldern(zeile as unknown as MieterZeile), { 
       status: 200,
       headers: NO_CACHE_HEADERS 
     });

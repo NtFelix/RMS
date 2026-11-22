@@ -7,6 +7,7 @@ import { ConfirmationDialogVariant } from '@/components/ui/confirmation-dialog';
 import { TenantBentoItem } from '@/types/tenant-payment';
 import { AIDocumentationContext } from '@/types/ai';
 import type { KautionListenEintrag, KautionLoeschauswirkung } from '@/types/Kaution';
+import type { Anrede } from '@/lib/personen';
 
 interface ConfirmationModalConfig {
   title: string;
@@ -122,6 +123,16 @@ interface ApplicantScoreModalData {
     bewerbung_metadaten?: any;
     bewerbung_mail_id?: string;
   };
+}
+
+/** Mieter-Daten für die Mail-Vorlagen (Felder der Personen-Stammdaten, GH-30). */
+export interface TenantMailTemplatesMieter {
+  name: string;
+  email?: string | null;
+  anrede?: Anrede | null;
+  vorname?: string | null;
+  nachname?: string | null;
+  telefonnummer?: string | null;
 }
 
 export interface ModalState {
@@ -353,11 +364,8 @@ export interface ModalState {
 
   // Tenant Mail Templates Modal State
   isTenantMailTemplatesModalOpen: boolean;
-  tenantMailTemplatesModalData?: {
-    tenantName?: string;
-    tenantEmail?: string;
-  };
-  openTenantMailTemplatesModal: (tenantName?: string, tenantEmail?: string) => void;
+  tenantMailTemplatesModalData?: TenantMailTemplatesMieter;
+  openTenantMailTemplatesModal: (mieter: TenantMailTemplatesMieter) => void;
   closeTenantMailTemplatesModal: () => void;
 
   // Wasser_Zaehler Modal State
@@ -971,11 +979,15 @@ export const useModalStore = create<ModalState>((set, get) => {
     setTemplateEditorModalDirty: (isDirty) => set({ isTemplateEditorModalDirty: isDirty }),
 
     // Tenant Mail Templates Modal
-    openTenantMailTemplatesModal: (tenantName, tenantEmail) => set({
+    openTenantMailTemplatesModal: (mieter) => set({
       isTenantMailTemplatesModalOpen: true,
       tenantMailTemplatesModalData: {
-        tenantName,
-        tenantEmail,
+        name: mieter.name,
+        email: mieter.email ?? null,
+        anrede: mieter.anrede ?? null,
+        vorname: mieter.vorname ?? null,
+        nachname: mieter.nachname ?? null,
+        telefonnummer: mieter.telefonnummer ?? null,
       },
     }),
     closeTenantMailTemplatesModal: () => set(initialTenantMailTemplatesModalState),

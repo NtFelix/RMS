@@ -4,8 +4,10 @@ import { useState, useEffect } from "react"
 import { TenantEditModal } from "@/components/tenants/tenant-edit-modal"
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant"; // Import Tenant and NebenkostenEntry
+import type { PersonenFelder } from "@/lib/personen";
 
-interface Mieter extends Tenant {} // Extend the Tenant interface
+// Extend the Tenant interface um die Stammdaten der Person (GH-30); name/email/telefonnummer bleiben erhalten.
+interface Mieter extends Tenant, Partial<Pick<PersonenFelder, "anrede" | "vorname" | "nachname">> {}
 
 interface TenantDialogWrapperProps {
   wohnungen: { id: string; name: string }[]
@@ -60,6 +62,9 @@ export function TenantDialogWrapper({
         id: tenantToEdit.id,
         wohnung_id: tenantToEdit.wohnung_id || "",
         name: tenantToEdit.name,
+        anrede: tenantToEdit.anrede,
+        vorname: tenantToEdit.vorname ?? undefined,
+        nachname: tenantToEdit.nachname ?? undefined,
         einzug: tenantToEdit.einzug || "",
         auszug: tenantToEdit.auszug || "",
         email: tenantToEdit.email || "",

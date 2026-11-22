@@ -55,7 +55,7 @@ describe('GET /api/tenants-data (Fallback)', () => {
     const selectArg: string = mieterBuilder.select.mock.calls[0][0];
     expect(selectArg).not.toMatch(/\*|kaution/i);
     expect(selectArg).toContain('Wohnungen');
-    expect(selectArg).toContain('telefonnummer');
+    expect(selectArg).toContain('person:Personen!fk_mieter_person(');
   });
 
   it('verwendet bei eingeschränktem Objektzugriff ebenfalls die explizite Spaltenliste (ohne RPC)', async () => {

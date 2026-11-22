@@ -228,6 +228,7 @@ export function TenantMieteSection({ mieterId, wohnungen = [], onUmzug }: Tenant
             key={`vertrag-${ladeZaehler}`}
             mieterId={mieterId}
             mietverhaeltnis={mietverhaeltnis}
+            flaechen={uebersicht.flaechen}
             onGespeichert={() => void laden(true)}
           />
 

@@ -8,6 +8,9 @@ import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { MENTION_VARIABLES } from '@/lib/template-constants';
 import { filterMentionVariables } from '@/lib/mention-utils';
 import { MentionList } from './mention-list';
+import { BedingungNode } from './extensions/bedingung-node';
+import { useVorlagenBedingungenFlag } from '@/hooks/use-vorlagen-bedingungen-flag';
+import { BEDINGUNG_NODE_NAME } from '@/lib/vorlagen/bedingungen';
 import { Button } from '@/components/ui/button';
 import {
   Bold,
@@ -21,7 +24,8 @@ import {
   Heading1,
   Heading2,
   Code,
-  AtSign
+  AtSign,
+  GitBranch
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TemplateEditorProps } from '@/types/template';
@@ -47,6 +51,7 @@ function ToolbarButton({ onClick, isActive, disabled, title, icon }: ToolbarButt
         <TooltipTrigger asChild>
           <button
             type="button"
+            aria-label={title}
             onClick={onClick}
             disabled={disabled}
             className={cn(
@@ -86,6 +91,7 @@ export function TemplateEditor({
   readOnly = false,
 }: TemplateEditorProps) {
   const lastContentRef = useRef<string>('');
+  const bedingungenAktiv = useVorlagenBedingungenFlag();
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedFilter = useMemo(() => 
@@ -192,6 +198,8 @@ export function TemplateEditor({
           },
         },
       }),
+      // Immer registriert: gespeicherte Vorlagen mit bedingtem Block öffnen auch bei ausgeschaltetem Flag.
+      BedingungNode,
     ],
     content: content || '',
     editable: !readOnly,
@@ -276,6 +284,18 @@ export function TemplateEditor({
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
               isActive={editor.isActive('blockquote')}
             />
+
+            {bedingungenAktiv && (
+              <>
+                <div className="w-px h-6 bg-border mx-2" />
+                <ToolbarButton
+                  title="Bedingter Block"
+                  icon={<GitBranch size={18} />}
+                  onClick={() => editor.chain().focus().insertBedingung().run()}
+                  isActive={editor.isActive(BEDINGUNG_NODE_NAME)}
+                />
+              </>
+            )}
             
             <div className="w-px h-6 bg-border mx-2" />
 

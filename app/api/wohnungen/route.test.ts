@@ -96,8 +96,8 @@ describe('GET /api/wohnungen', () => {
     ];
     // a1: aktueller Mieter (kein Auszug), a2: Mieter ist ausgezogen (Auszug in der Vergangenheit) -> frei
     const mieterRows = [
-      { id: 'm1', wohnung_id: 'a1', name: 'Erika Beispiel', einzug: '2020-01-01', auszug: null },
-      { id: 'm2', wohnung_id: 'a2', name: 'Max Muster', einzug: '2015-01-01', auszug: '2016-01-01' },
+      { id: 'm1', wohnung_id: 'a1', person: { anrede: 'keine_angabe', vorname: 'Erika', nachname: 'Beispiel', email: null, telefon: null, strasse: null, plz: null, ort: null }, einzug: '2020-01-01', auszug: null },
+      { id: 'm2', wohnung_id: 'a2', person: { anrede: 'keine_angabe', vorname: 'Max', nachname: 'Muster', email: null, telefon: null, strasse: null, plz: null, ort: null }, einzug: '2015-01-01', auszug: '2016-01-01' },
     ];
 
     /** Der Mieter-Builder liefert nur die Spalten, die tatsaechlich selektiert wurden (wie PostgREST). */
@@ -105,7 +105,8 @@ describe('GET /api/wohnungen', () => {
       const wohnungen = createBuilder({ data: wohnungenRows, error: null });
       const mieter = createBuilder({ data: [], error: null });
       mieter.select.mockImplementation((columns: string) => {
-        const wanted = columns.split(',').map(c => c.trim());
+        // Der Embed "person:Personen!fk_mieter_person(...)" zählt als eine Spalte "person"
+        const wanted = columns.replace(/person:Personen!\w+\([^)]*\)/g, 'person').split(',').map(c => c.trim());
         const rows = rowsOfMieter.map(row =>
           Object.fromEntries(Object.entries(row).filter(([key]) => wanted.includes(key)))
         );
@@ -134,7 +135,7 @@ describe('GET /api/wohnungen', () => {
       const body = await res.json();
 
       expect(res.status).toBe(200);
-      expect(mieter.select).toHaveBeenCalledWith('id, wohnung_id, auszug, einzug, name');
+      expect(mieter.select).toHaveBeenCalledWith('id, wohnung_id, auszug, einzug, person:Personen!fk_mieter_person(id, anrede, vorname, nachname, email, telefon)');
       expect(body[0]).toEqual(expect.objectContaining({
         id: 'a1',
         status: 'vermietet',
@@ -148,8 +149,8 @@ describe('GET /api/wohnungen', () => {
     it('zeigt eine Wohnung als vermietet, auch wenn die Zeile des ausgezogenen Mieters zuerst kommt', async () => {
       mockRights('allowed');
       setup([
-        { id: 'm0', wohnung_id: 'a1', name: 'Max Muster', einzug: '2015-01-01', auszug: '2016-01-01' },
-        { id: 'm1', wohnung_id: 'a1', name: 'Erika Beispiel', einzug: '2020-01-01', auszug: null },
+        { id: 'm0', wohnung_id: 'a1', person: { anrede: 'keine_angabe', vorname: 'Max', nachname: 'Muster', email: null, telefon: null, strasse: null, plz: null, ort: null }, einzug: '2015-01-01', auszug: '2016-01-01' },
+        { id: 'm1', wohnung_id: 'a1', person: { anrede: 'keine_angabe', vorname: 'Erika', nachname: 'Beispiel', email: null, telefon: null, strasse: null, plz: null, ort: null }, einzug: '2020-01-01', auszug: null },
       ]);
 
       const body = await (await GET()).json();
@@ -219,7 +220,7 @@ describe('GET /api/wohnungen', () => {
 
       expect(res.status).toBe(200);
       expect(mieterChecks()).toHaveLength(2);
-      expect(mieter.select).toHaveBeenCalledWith('id, wohnung_id, auszug, einzug, name');
+      expect(mieter.select).toHaveBeenCalledWith('id, wohnung_id, auszug, einzug, person:Personen!fk_mieter_person(id, anrede, vorname, nachname, email, telefon)');
       expect(body[0].tenant).toEqual({ id: 'm1', name: 'Erika Beispiel', einzug: '2020-01-01', auszug: null });
       for (const apt of body) {
         expect(apt).not.toHaveProperty('tenantAccess');

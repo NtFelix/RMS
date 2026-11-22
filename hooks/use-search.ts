@@ -481,14 +481,12 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       // Convert tenants
 
       data.results.tenant.forEach(tenant => {
-        const actions: SearchResultAction[] = [
-          {
-            label: 'Bearbeiten',
-            icon: Edit,
-            action: () => { }, // Will be handled by command menu
-            variant: 'default'
-          }
-        ];
+        // Bewerber (is_applicant) liegen nicht in der Mieter-Tabelle: kein "Bearbeiten" (würde /api/mieter/{id} aufrufen),
+        // sondern nur der Sprung zum Bewerber-Tab der Mieter-Seite.
+        const istBewerber = tenant.is_applicant === true;
+        const actions: SearchResultAction[] = istBewerber
+          ? [{ label: 'Anzeigen', icon: User, action: () => { }, variant: 'default' }]
+          : [{ label: 'Bearbeiten', icon: Edit, action: () => { }, variant: 'default' }];
 
         searchResults.push({
           id: tenant.id,
@@ -497,7 +495,8 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           subtitle: tenant.email,
           context: tenant.apartment ? `${tenant.apartment.name} - ${tenant.apartment.house_name}` : undefined,
           metadata: {
-            status: tenant.status,
+            is_applicant: istBewerber,
+            status: istBewerber ? 'applicant' : tenant.status,
             move_in_date: tenant.move_in_date,
             move_out_date: tenant.move_out_date,
             email: tenant.email,

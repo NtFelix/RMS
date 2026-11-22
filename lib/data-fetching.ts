@@ -3,6 +3,7 @@ import { isTestEnv } from "./test-utils";
 import { after } from "next/server";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 import { MIETER_SPALTEN_OHNE_KAUTION } from "./mieter-columns";
+import { mitPersonenfeldern, type Person } from "./personen";
 
 // Re-export all types from the types file for backward compatibility
 // Client components should import from "@/lib/types" directly to avoid server imports
@@ -85,6 +86,9 @@ export async function fetchWohnungen(supabaseClient?: SupabaseClient) {
   return data as Wohnung[];
 }
 
+/** Mieter-Zeile aus der Abfrage, mit eingebetteter Person (Schlüssel `person`, GH-30). */
+type MieterZeileRoh = { person?: Person | Person[] | null } & Record<string, unknown>;
+
 export async function fetchMieter(supabaseClient?: SupabaseClient) {
   const { getAccessibleWohnungIds } = await import("./object-scope");
   const supabasePromise = supabaseClient ? Promise.resolve(supabaseClient) : createSupabaseServerClient();
@@ -108,7 +112,8 @@ export async function fetchMieter(supabaseClient?: SupabaseClient) {
 
   // postgrest-js leitet aus der expliziten Spaltenliste eine Zeilenform ab, die nicht exakt zu `Mieter` passt
   // (eingebettete Relation als Array); der Laufzeitwert entspricht weiterhin `Mieter`.
-  return data as unknown as Mieter[];
+  // Name, E-Mail und Telefon kommen aus der eingebetteten Person (GH-30) und werden hier abgeleitet.
+  return (data as unknown as MieterZeileRoh[]).map(mitPersonenfeldern) as unknown as Mieter[];
 }
 
 export async function fetchAufgaben(supabaseClient?: SupabaseClient) {
@@ -556,7 +561,8 @@ export async function fetchMeterReadingsByHausAndDateRange(
       console.error('Error fetching Zaehler_Ablesungen for Haus %s in date range %s to %s:', hausId, startdatum, enddatum, readingsError);
     }
 
-    const mieterList = (relevantMieter as unknown as Mieter[]) || [];
+    // Name, E-Mail und Telefon aus der eingebetteten Person ableiten (GH-30).
+    const mieterList = ((relevantMieter as unknown as MieterZeileRoh[]) || []).map(mitPersonenfeldern) as unknown as Mieter[];
     let existingReadings: ZaehlerAblesung[] = [];
 
     if (!readingsError && readingsWithRelations) {

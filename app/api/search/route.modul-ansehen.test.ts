@@ -19,7 +19,10 @@ const ALL_CATEGORIES = 'tenant,house,apartment,finance,task';
 
 /** Synthetische Zeile je Tabelle */
 const tableRows: Record<string, unknown[]> = {
-  Mieter: [{ id: 'm1', name: 'Erika Beispiel', email: null, telefonnummer: null, einzug: '2020-01-01', auszug: null, Wohnungen: [] }],
+  // Name, E-Mail und Telefon stehen in der eingebetteten Person (GH-30)
+  Mieter: [{ id: 'm1', einzug: '2020-01-01', auszug: null, person: { id: 'p1', anrede: 'frau', vorname: 'Erika', nachname: 'Beispiel', email: null, telefon: null }, Wohnungen: [] }],
+  Personen: [{ id: 'p1' }],
+  Bewerber: [],
   Haeuser: [{ id: 'h1', name: 'Musterhaus', strasse: 'Beispielweg 1', plz: 12345, ort: 'Beispielstadt', Wohnungen: [] }],
   Wohnungen: [{ id: 'w1', name: 'Musterwohnung', groesse: 50, miete: 500, Haeuser: { name: 'Musterhaus' }, Mieter: [] }],
   Finanzen: [{ id: 'f1', name: 'Musterzahlung', betrag: 10, datum: '2024-01-01', ist_einnahmen: true, notiz: null, Wohnungen: null }],
@@ -33,7 +36,7 @@ function setup() {
     if (table === 'Wohnungen') wohnungenCalls += 1;
     const rows = table === 'Wohnungen' && wohnungenCalls > 1 ? [] : (tableRows[table] ?? []);
     const builder: Record<string, unknown> = {};
-    for (const method of ['select', 'or', 'order', 'limit', 'not', 'eq', 'in', 'ilike']) {
+    for (const method of ['select', 'or', 'order', 'limit', 'not', 'eq', 'neq', 'in', 'ilike']) {
       builder[method] = jest.fn(() => builder);
     }
     builder.then = (resolve: (v: unknown) => unknown) => Promise.resolve({ data: rows, error: null }).then(resolve);

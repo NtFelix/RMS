@@ -127,6 +127,7 @@ describe('DashboardSidebar Navigation', () => {
       '/haeuser',
       '/wohnungen',
       '/mieter',
+      '/kontakte',
       '/finanzen',
       '/betriebskosten',
       '/todos',

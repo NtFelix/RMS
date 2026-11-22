@@ -438,7 +438,7 @@ export function CommandMenu() {
     // Navigate to the appropriate page based on result type
     switch (result.type) {
       case 'tenant':
-        router.push('/mieter')
+        router.push(result.metadata?.is_applicant ? '/mieter?tab=bewerber' : '/mieter')
         break
       case 'house':
         router.push('/haeuser')
@@ -467,7 +467,10 @@ export function CommandMenu() {
     // Handle actions based on result type and action label
     switch (result.type) {
       case 'tenant':
-        if (action.label === 'Bearbeiten') {
+        if (result.metadata?.is_applicant) {
+          // Bewerber werden nicht über /api/mieter/{id} bearbeitet, sondern auf der Mieter-Seite im Bewerber-Tab gezeigt.
+          router.push('/mieter?tab=bewerber')
+        } else if (action.label === 'Bearbeiten') {
           handleEditTenant(result.id, result)
         } else if (action.label === 'Anzeigen') {
           router.push('/mieter')

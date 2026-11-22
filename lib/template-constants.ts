@@ -145,6 +145,22 @@ export const MENTION_VARIABLES: MentionVariable[] = [
     keywords: ['telefon', 'phone', 'nummer', 'kontakt', 'handy', 'mobil'],
     icon: 'Phone'
   },
+  {
+    id: 'mieter.anrede',
+    label: 'Mieter.Anrede',
+    description: 'Frau oder Herr',
+    category: 'mieter',
+    keywords: ['anrede', 'frau', 'herr', 'titel', 'anredeform', 'salutation', 'mr', 'mrs'],
+    icon: 'User'
+  },
+  {
+    id: 'mieter.anrede_voll',
+    label: 'Mieter.AnredeVoll',
+    description: 'Komplette Briefanrede, z. B. „Sehr geehrte Frau Muster“ oder „Guten Tag Max Muster“',
+    category: 'mieter',
+    keywords: ['anrede', 'anrede voll', 'briefanrede', 'anrede komplett', 'begrüßung', 'sehr geehrte', 'guten tag', 'brief', 'anfang'],
+    icon: 'User'
+  },
 
   // Wohnung (Apartment) variables
   {

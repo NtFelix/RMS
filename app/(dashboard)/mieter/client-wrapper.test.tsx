@@ -4,6 +4,7 @@ import MieterClientView from './client-wrapper';
 import { useModalStore } from '@/hooks/use-modal-store';
 import type { Tenant } from '@/types/Tenant';
 import type { Wohnung } from '@/types/Wohnung';
+import type { BewerberListenEintrag } from '@/app/bewerber-actions';
 
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store');
@@ -52,7 +53,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 // Aktiver Tab der Seite (Standard "mieter"); die Übersichtskarten werden über den Tab "overview" erreicht.
-let mockCurrentTab: 'mieter' | 'overview' = 'mieter';
+let mockCurrentTab: 'mieter' | 'overview' | 'bewerber' = 'mieter';
 jest.mock('@/hooks/use-tab-params', () => ({
   useTabParams: () => [mockCurrentTab, jest.fn()],
 }));
@@ -71,6 +72,17 @@ const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalSt
 const mockOeffneKaution = jest.fn();
 jest.mock('@/hooks/use-kaution-oeffnen', () => ({
   useKautionOeffnen: () => mockOeffneKaution,
+}));
+
+// Bewerber (GH-30): kommen über bewerberLadenAction, nicht aus den Mieter-Zeilen. Der Bewerber-Tab hängt am Flag.
+const mockBewerberLaden = jest.fn();
+jest.mock('@/app/bewerber-actions', () => ({
+  bewerberLadenAction: (...args: unknown[]) => mockBewerberLaden(...args),
+  bewerberAlleLoeschenAction: jest.fn(),
+}));
+let mockApplicantsTab = false;
+jest.mock('posthog-js/react', () => ({
+  useFeatureFlagEnabled: (name: string) => (name === 'applicants-tab' ? mockApplicantsTab : false),
 }));
 
 describe('MieterClientView - Layout Changes', () => {
@@ -566,5 +578,62 @@ describe('MieterClientView - Mieter in der Liste löschen (GH-6)', () => {
 
     await waitFor(() => expect(mockRefresh).toHaveBeenCalledTimes(1));
     expect(global.fetch).toHaveBeenCalledWith('/api/mieter/bulk-delete', expect.objectContaining({ method: 'POST' }));
+  });
+});
+
+// Bewerber (GH-30): Mieter-Liste und Bewerber-Liste kommen aus getrennten Quellen.
+describe('MieterClientView - Bewerber (GH-30)', () => {
+  const bewerberListe = [
+    {
+      id: 'b-1',
+      name: 'Bewerberin Probe',
+      status: 'bewerber',
+      bewerber_status: 'neu',
+      bewerbung_score: 85,
+    },
+  ] as unknown as BewerberListenEintrag[];
+
+  const mieterListe: Tenant[] = [
+    { id: 'm-1', name: 'Mieter Probe', wohnung_id: 'w1', einzug: '2023-01-01', nebenkosten: [] },
+  ];
+
+  const props = {
+    initialTenants: mieterListe,
+    initialWohnungen: [] as Wohnung[],
+    serverAction: jest.fn(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCurrentTab = 'mieter';
+    mockApplicantsTab = true;
+    mockBewerberLaden.mockResolvedValue({ success: true, data: bewerberListe });
+    mockUseModalStore.mockReturnValue({
+      openTenantModal: jest.fn(),
+      openApplicantScoreModal: jest.fn(),
+      openTenantMailTemplatesModal: jest.fn(),
+      openMailPreviewModal: jest.fn(),
+    } as any);
+  });
+
+  afterEach(() => {
+    mockApplicantsTab = false;
+  });
+
+  it('lädt die Bewerber über bewerberLadenAction und zeigt sie im Bewerber-Tab', async () => {
+    mockCurrentTab = 'bewerber';
+    render(<MieterClientView {...props} />);
+
+    expect(await screen.findByText('Bewerberin Probe')).toBeInTheDocument();
+    expect(mockBewerberLaden).toHaveBeenCalled();
+    expect(screen.queryByText('Mieter Probe')).not.toBeInTheDocument();
+  });
+
+  it('zeigt im Mieter-Tab nur Mieter, nicht die Bewerber', async () => {
+    render(<MieterClientView {...props} />);
+
+    expect(screen.getByText('Mieter Probe')).toBeInTheDocument();
+    await waitFor(() => expect(mockBewerberLaden).toHaveBeenCalled());
+    expect(screen.queryByText('Bewerberin Probe')).not.toBeInTheDocument();
   });
 });

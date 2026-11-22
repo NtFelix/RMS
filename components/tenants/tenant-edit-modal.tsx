@@ -61,6 +61,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { deleteTenantAction } from "@/app/mieter-actions"
+import { bewerberLoeschenAction } from "@/app/bewerber-actions"
+import { ANREDE_OPTIONEN, hatNamen, personAnzeigename, type Anrede } from "@/lib/personen"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 
 interface Mieter extends Tenant {}
@@ -69,6 +72,9 @@ interface Wohnung {
   id: string
   name: string
 }
+
+/** Stammdaten der Person (GH-30). Die bisherigen Felder name/email/telefonnummer kommen weiterhin aus der Liste. */
+type PersonFormFelder = { anrede: Anrede; vorname: string; nachname: string }
 
 interface TenantEditModalProps {
   serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>
@@ -287,12 +293,14 @@ function ContactFields({
   formData,
   handleDateChange,
   onFieldChange,
+  handleAnredeChange,
   isSubmitting,
   isApplicant,
 }: {
-  formData: { einzug: string; auszug: string; email: string; telefonnummer: string }
+  formData: { einzug: string; auszug: string; email: string; telefonnummer: string; anrede: Anrede }
   handleDateChange: (name: 'einzug' | 'auszug', date: Date | undefined) => void
   onFieldChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
+  handleAnredeChange: (value: Anrede) => void
   isSubmitting: boolean
   isApplicant: boolean
 }) {
@@ -303,6 +311,30 @@ function ContactFields({
       </div>
 
       <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
+        <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+          <PropertyHeader
+            icon={Users}
+            label="Anrede"
+            htmlFor="anrede"
+            infoText="Anrede für Briefe und Mails. Ohne Angabe wird neutral angesprochen."
+          />
+          <Select value={formData.anrede} onValueChange={(wert) => handleAnredeChange(wert as Anrede)} disabled={isSubmitting}>
+            <SelectTrigger
+              id="anrede"
+              aria-label="Anrede"
+              className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 w-auto min-w-[10rem] justify-start"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ANREDE_OPTIONEN.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <input type="hidden" name="anrede" value={formData.anrede} />
+        </div>
+
         <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
           <PropertyHeader
             icon={Calendar}
@@ -387,6 +419,7 @@ function FormFields({
   formData,
   onFieldChange,
   handleDateChange,
+  handleAnredeChange,
   handleComboboxChange,
   isSubmitting,
   isLoadingWohnungen,
@@ -400,9 +433,10 @@ function FormFields({
   textareaRef,
   initResize,
 }: {
-  formData: { name: string; wohnung_id: string; einzug: string; auszug: string; email: string; telefonnummer: string; notiz: string; status: TenantStatus }
+  formData: { vorname: string; nachname: string; anrede: Anrede; wohnung_id: string; einzug: string; auszug: string; email: string; telefonnummer: string; notiz: string; status: TenantStatus }
   onFieldChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
   handleDateChange: (name: 'einzug' | 'auszug', date: Date | undefined) => void
+  handleAnredeChange: (value: Anrede) => void
   handleComboboxChange: (value: string | null) => void
   isSubmitting: boolean
   isLoadingWohnungen: boolean
@@ -434,21 +468,30 @@ function FormFields({
               ? (isApplicant ? "Bewerber bearbeiten" : "Mieter bearbeiten")
               : (isApplicant ? "Bewerber hinzufügen" : "Mieter hinzufügen")}
           </SheetTitle>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            value={formData.name}
-            onChange={onFieldChange}
-            placeholder={tenantInitialData?.id
-              ? (isApplicant ? "Unbenannter Bewerber" : "Unbenannter Mieter")
-              : (isApplicant ? "Bewerber hinzufügen" : "Mieter hinzufügen")}
-            disabled={isSubmitting}
-            aria-label={tenantInitialData?.id
-              ? (isApplicant ? "Name des Bewerbers" : "Name des Mieters")
-              : (isApplicant ? "Name des neuen Bewerbers" : "Name des neuen Mieters")}
-            className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
-          />
+          <div className="flex flex-col gap-1 sm:flex-row sm:gap-4">
+            <input
+              type="text"
+              id="vorname"
+              name="vorname"
+              value={formData.vorname}
+              onChange={onFieldChange}
+              placeholder="Vorname"
+              disabled={isSubmitting}
+              aria-label={isApplicant ? "Vorname des Bewerbers" : "Vorname des Mieters"}
+              className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
+            />
+            <input
+              type="text"
+              id="nachname"
+              name="nachname"
+              value={formData.nachname}
+              onChange={onFieldChange}
+              placeholder="Nachname"
+              disabled={isSubmitting}
+              aria-label={isApplicant ? "Nachname des Bewerbers" : "Nachname des Mieters"}
+              className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
+            />
+          </div>
           <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
             {tenantInitialData?.id
               ? (isApplicant ? "Bearbeiten Sie die Informationen für diesen Bewerber." : "Bearbeiten Sie die Informationen für diesen Mieter.")
@@ -493,6 +536,7 @@ function FormFields({
           formData={formData}
           handleDateChange={handleDateChange}
           onFieldChange={onFieldChange}
+          handleAnredeChange={handleAnredeChange}
           isSubmitting={isSubmitting}
           isApplicant={isApplicant}
         />
@@ -605,6 +649,24 @@ function FormActions({
 
 const generateId = () => crypto.randomUUID()
 
+/**
+ * Startwerte der Personenfelder. Altdaten ohne Vor-/Nachnamen: der bisherige Anzeigename (`name`) wird Nachname.
+ */
+/**
+ * true, wenn die Ausgangsdaten die Personenfelder enthalten. Fehlen sie (z. B. Aufrufer, die nur `name` kennen),
+ * darf das Formular Anrede, Vor- und Nachname nicht ungefragt zurueckschreiben.
+ */
+function personNamenBekannt(initial: any): boolean {
+  return Boolean(initial) && (initial.anrede != null || initial.vorname != null || initial.nachname != null)
+}
+
+function personFormFelderAusInitialData(initial: any): PersonFormFelder {
+  const vorname: string = initial?.vorname ?? ""
+  const nachname: string = initial?.nachname ?? (vorname ? "" : (initial?.name ?? ""))
+  const anrede: Anrede = (initial?.anrede === "frau" || initial?.anrede === "herr") ? initial.anrede : "keine_angabe"
+  return { anrede, vorname, nachname }
+}
+
 export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const router = useRouter()
 
@@ -650,7 +712,9 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
   const [formData, setFormData] = useState({
     wohnung_id: "",
-    name: "",
+    anrede: "keine_angabe" as Anrede,
+    vorname: "",
+    nachname: "",
     einzug: "",
     auszug: "",
     email: "",
@@ -759,7 +823,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     if (isTenantModalOpen) {
       setFormData({
         wohnung_id: tenantInitialData?.wohnung_id || "",
-        name: tenantInitialData?.name || "",
+        ...personFormFelderAusInitialData(tenantInitialData),
         einzug: tenantInitialData?.einzug || "",
         auszug: tenantInitialData?.auszug || "",
         email: tenantInitialData?.email || "",
@@ -787,6 +851,11 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    if (!isTenantModalDirty) setTenantModalDirty(true)
+  }
+
+  const handleAnredeChange = (value: Anrede) => {
+    setFormData(prev => ({ ...prev, anrede: value }))
     if (!isTenantModalDirty) setTenantModalDirty(true)
   }
 
@@ -904,7 +973,8 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     if (!tenantInitialData || isPending) return
     try {
       setIsDeleting(true)
-      const result = await deleteTenantAction(tenantInitialData.id)
+      // Bewerber liegen in der Tabelle "Bewerber" (GH-30), Mieter in "Mieter".
+      const result = isApplicant ? await bewerberLoeschenAction(tenantInitialData.id) : await deleteTenantAction(tenantInitialData.id)
 
       if (result.success) {
         toast({
@@ -944,6 +1014,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (isPending) return
+
+    // Vor- oder Nachname ist Pflicht (wie in der Datenbank); die Prüfung ist hier nur für eine klare Meldung.
+    if (!hatNamen(formData)) {
+      toast({ title: "Validierungsfehler", description: "Bitte geben Sie einen Vor- oder Nachnamen an.", variant: "destructive" })
+      return
+    }
 
     let currentNkErrors: Record<string, { amount?: string; date?: string }> = {}
     let hasValidationErrors = false
@@ -994,11 +1070,22 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
       currentFormData.set('status', formData.status)
 
+      // Beim Bearbeiten ohne bekannte Personenfelder: unveraenderte Namensfelder nicht senden (sonst wuerden
+      // Anrede und Vorname geleert und der ganze Name in den Nachnamen geschrieben).
+      if (tenantInitialData?.id && !personNamenBekannt(tenantInitialData)) {
+        const ausgang = personFormFelderAusInitialData(tenantInitialData)
+        if (formData.anrede === ausgang.anrede && formData.vorname === ausgang.vorname && formData.nachname === ausgang.nachname) {
+          currentFormData.delete('anrede')
+          currentFormData.delete('vorname')
+          currentFormData.delete('nachname')
+        }
+      }
+
       if (tenantInitialData?.id) {
         currentFormData.set('id', tenantInitialData.id)
       }
 
-      const tenantNameForToast = formData.name
+      const tenantNameForToast = personAnzeigename(formData)
       const result = await serverAction(currentFormData)
 
       if (result.success) {
@@ -1058,7 +1145,14 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               kaution: () => void oeffneKaution(
                 { id: tenantInitialData.id, name: tenantInitialData.name, wohnung_id: tenantInitialData.wohnung_id }
               ),
-              vorlagen: () => openTenantMailTemplatesModal(tenantInitialData.name, tenantInitialData.email || undefined),
+              vorlagen: () => openTenantMailTemplatesModal({
+                name: tenantInitialData.name,
+                email: tenantInitialData.email || null,
+                anrede: tenantInitialData.anrede ?? null,
+                vorname: tenantInitialData.vorname ?? null,
+                nachname: tenantInitialData.nachname ?? null,
+                telefonnummer: tenantInitialData.telefonnummer || null,
+              }),
               datenblatt: () => openApplicantScoreModal({
                 tenant: {
                   id: tenantInitialData.id,
@@ -1081,6 +1175,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               formData={formData}
               onFieldChange={handleChange}
               handleDateChange={handleDateChange}
+              handleAnredeChange={handleAnredeChange}
               handleComboboxChange={handleComboboxChange}
               isSubmitting={isSubmitting}
               isLoadingWohnungen={false}
@@ -1117,7 +1212,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         <DeleteTenantDialog
           open={deleteDialogOpen}
           onOpenChange={setDeleteDialogOpen}
-          tenantName={tenantInitialData?.name || formData.name}
+          tenantName={tenantInitialData?.name || personAnzeigename(formData)}
           isDeleting={isDeleting}
           onDelete={() => handleDelete()}
           isApplicant={isApplicant}

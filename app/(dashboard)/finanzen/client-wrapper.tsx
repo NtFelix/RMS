@@ -293,13 +293,10 @@ export default function FinanzenClientWrapper({
     };
 
     const metrics = tenantPaymentsData.reduce((acc, t) => {
-      // 1. Exclude applicants
-      if (t.status === "bewerber") return acc;
-      
-      // 2. Must have a valid apartment assigned
+      // 1. Must have a valid apartment assigned (applicants are not in the tenant data: they live in "Bewerber")
       if (!t.wohnung_id && !t.Wohnungen?.id) return acc;
       
-      // 3. Must have an expected rent or has paid something
+      // 2. Must have an expected rent or has paid something
       const expectedRent = Number(t.Wohnungen?.miete) || 0;
       if (expectedRent <= 0 && (Number(t.actualRent) || 0) <= 0) return acc;
       
