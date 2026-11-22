@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef } from 'react';
+import { useState, useEffect, Suspense, useRef, type MutableRefObject } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { loadStripe } from '@stripe/stripe-js';
@@ -25,24 +25,66 @@ const stripePromise = loadStripe(
 
 
 
+// Isolate dynamic navigation hooks (useSearchParams, useRouter) so the surrounding landing page renders
+// immediately in SSR/static HTML without CLS or CLIENT_HOOK_DYNAMIC prerender errors
+function LandingRedirectsHandler({
+  sessionUser,
+  userProfile,
+  isLoadingUser,
+  isProcessingCheckout,
+  handleAuthFlow,
+  routerRef,
+}: {
+  sessionUser: ReturnType<typeof useSubscriptionUser>['user'];
+  userProfile: ReturnType<typeof useSubscriptionUser>['profile'];
+  isLoadingUser: boolean;
+  isProcessingCheckout: boolean;
+  handleAuthFlow: ReturnType<typeof useSubscriptionCheckout>['handleAuthFlow'];
+  routerRef: MutableRefObject<ReturnType<typeof useRouter> | null>;
+}) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router, routerRef]);
+
+  // Handle redirects and errors
+  useAuthRedirects(sessionUser, isLoadingUser);
+
+  // Handle price selection from URL after redirect back from login
+  useEffect(() => {
+    const priceId = searchParams.get('priceId');
+    if (priceId && sessionUser && userProfile && !isProcessingCheckout) {
+      // Clear the priceId from URL to prevent re-triggering on refresh
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete('priceId');
+      const searchStr = newParams.toString();
+      const newUrl = `${window.location.pathname}${searchStr ? '?' + searchStr : ''}`;
+      window.history.replaceState({}, '', newUrl);
+
+      handleAuthFlow(sessionUser, userProfile, priceId, window.location.pathname);
+    }
+  }, [searchParams, sessionUser, userProfile, isProcessingCheckout, handleAuthFlow]);
+
+  return null;
+}
+
 // Main content component that uses the auth modal context
 function LandingPageContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const routerRef = useRef<ReturnType<typeof useRouter> | null>(null);
 
   // Use custom hooks
   const { user: sessionUser, profile: userProfile, isLoading: isLoadingUser } = useSubscriptionUser();
   const { isProcessingCheckout, handleAuthFlow } = useSubscriptionCheckout();
 
-  // Handle redirects and errors
-  useAuthRedirects(sessionUser, isLoadingUser);
-
   // Scroll-depth tracking
-  const pageLoadTimeRef = useRef<number>(Date.now());
+  const pageLoadTimeRef = useRef<number>(0);
   const trackedSectionsRef = useRef<Set<string>>(new Set());
 
   // Set up scroll-depth tracking
   useEffect(() => {
+    pageLoadTimeRef.current = Date.now();
     const sectionIdMap: Record<string, LandingSection> = {
       'hero': 'hero',
       'features': 'features',
@@ -82,27 +124,12 @@ function LandingPageContent() {
     return () => observer.disconnect();
   }, []);
 
-  // Handle price selection from URL after redirect back from login
-  useEffect(() => {
-    const priceId = searchParams.get('priceId');
-    if (priceId && sessionUser && userProfile && !isProcessingCheckout) {
-      // Clear the priceId from URL to prevent re-triggering on refresh
-      const newParams = new URLSearchParams(searchParams.toString());
-      newParams.delete('priceId');
-      const searchStr = newParams.toString();
-      const newUrl = `${window.location.pathname}${searchStr ? '?' + searchStr : ''}`;
-      window.history.replaceState({}, '', newUrl);
-
-      handleAuthFlow(sessionUser, userProfile, priceId, window.location.pathname);
-    }
-  }, [searchParams, sessionUser, userProfile, isProcessingCheckout, handleAuthFlow]);
-
   const handleGetStarted = async () => {
-    if (sessionUser) {
-      router.push(ROUTES.HOME);
+    const target = sessionUser ? ROUTES.HOME : '/auth/login';
+    if (routerRef.current) {
+      routerRef.current.push(target);
     } else {
-      // Redirect to login page as per user request
-      router.push('/auth/login');
+      window.location.assign(target);
     }
   };
 
@@ -114,6 +141,14 @@ function LandingPageContent() {
     <>
       <Suspense fallback={null}>
         <EmailVerificationNotifier />
+        <LandingRedirectsHandler
+          sessionUser={sessionUser}
+          userProfile={userProfile}
+          isLoadingUser={isLoadingUser}
+          isProcessingCheckout={isProcessingCheckout}
+          handleAuthFlow={handleAuthFlow}
+          routerRef={routerRef}
+        />
       </Suspense>
       <div className="min-h-screen overflow-x-hidden">
         <div id="hero">
@@ -161,9 +196,5 @@ function LandingPageContent() {
 
 // Main export component that provides the auth modal context
 export default function LandingPage() {
-  return (
-    <Suspense fallback={null}>
-      <LandingPageContent />
-    </Suspense>
-  );
+  return <LandingPageContent />;
 }
