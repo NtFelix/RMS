@@ -16,8 +16,9 @@ export const DASHBOARD_RAIL_ITEM_CLASS = "flex size-10 shrink-0 items-center jus
 export const DASHBOARD_RAIL_NAV_ITEM_CLASS =
   "group flex shrink-0 flex-col items-center justify-center outline-none sm:w-[76px] sm:gap-1 sm:px-0.5 sm:py-1"
 
+// Square tile with a small fixed radius (the theme's rounded-lg is 16px and would turn it into a pill)
 export const DASHBOARD_RAIL_NAV_TILE_CLASS =
-  "flex size-10 items-center justify-center rounded-xl sm:h-9 sm:w-12 sm:rounded-lg group-focus-visible:ring-2 group-focus-visible:ring-ring"
+  "flex size-10 items-center justify-center rounded-[10px] group-focus-visible:ring-2 group-focus-visible:ring-ring"
 
 export const DASHBOARD_RAIL_NAV_LABEL_CLASS = "w-full truncate text-center text-[10.5px] leading-tight tracking-tight max-sm:sr-only"
 
