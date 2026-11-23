@@ -1,6 +1,6 @@
 "use client"
 
-import { forwardRef } from "react"
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -27,14 +27,62 @@ export function SelectionPill({
   if (count === 0) return null
 
   return (
+    <SelectionPillFrame count={count} noun={noun} onClear={onClear} className={className}>
+      {children}
+    </SelectionPillFrame>
+  )
+}
+
+function SelectionPillFrame({
+  count,
+  noun,
+  onClear,
+  children,
+  className,
+}: {
+  count: number
+  noun: [string, string]
+  onClear: () => void
+  children: React.ReactNode
+  className?: string
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [fade, setFade] = useState({ left: false, right: false })
+
+  // Auf schmalen Viewports scrollen die Aktionen seitlich; die Ränder blenden aus, solange es dort mehr gibt
+  const updateFade = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const left = el.scrollLeft > 1
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
+    setFade((prev) => (prev.left === left && prev.right === right ? prev : { left, right }))
+  }, [])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    updateFade()
+    if (typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(updateFade)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [updateFade])
+
+  const mask =
+    fade.left || fade.right
+      ? `linear-gradient(to right, ${fade.left ? "transparent, black 16px" : "black"}, ${fade.right ? "black calc(100% - 16px), transparent" : "black"})`
+      : undefined
+
+  return (
     <div className={cn("pointer-events-none sticky bottom-0 z-20 mt-auto flex justify-center px-4 pb-4", className)}>
       <div
         role="toolbar"
         aria-label="Aktionen für die Auswahl"
-        className="pointer-events-auto flex max-w-full items-center gap-1 rounded-full border border-border-subtle bg-popover p-1.5 pl-4 text-popover-foreground shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200"
+        className="pointer-events-auto flex min-w-0 max-w-full items-center gap-1 rounded-full border border-border-subtle bg-popover p-1.5 pl-4 text-popover-foreground shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200"
       >
-        <span className="whitespace-nowrap text-sm font-medium tabular-nums" aria-live="polite">
-          {count} {count === 1 ? noun[0] : noun[1]} ausgewählt
+        <span className="shrink-0 whitespace-nowrap text-sm font-medium tabular-nums" aria-live="polite">
+          {count}
+          <span className="max-sm:hidden"> {count === 1 ? noun[0] : noun[1]}</span> ausgewählt
         </span>
         <button
           type="button"
@@ -45,7 +93,14 @@ export function SelectionPill({
           <X className="size-4" />
         </button>
         <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
-        {children}
+        <div
+          ref={scrollRef}
+          onScroll={updateFade}
+          style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined}
+          className="flex min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain rounded-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {children}
+        </div>
       </div>
     </div>
   )
@@ -57,7 +112,7 @@ type SelectionPillActionProps = {
   children: React.ReactNode
 } & React.ButtonHTMLAttributes<HTMLButtonElement>
 
-/** Action inside the SelectionPill; the label collapses to the icon below `sm`. */
+/** Action inside the SelectionPill; on narrow viewports the actions scroll sideways instead of overflowing. */
 export const SelectionPillAction = forwardRef<HTMLButtonElement, SelectionPillActionProps>(function SelectionPillAction(
   { icon: Icon, variant = "default", children, className, ...rest },
   ref,
@@ -69,16 +124,13 @@ export const SelectionPillAction = forwardRef<HTMLButtonElement, SelectionPillAc
       className={cn(
         "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
-        "max-sm:w-8 max-sm:justify-center max-sm:px-0",
-        variant === "destructive"
-          ? "text-destructive hover:bg-destructive/10"
-          : "text-foreground hover:bg-muted",
+        variant === "destructive" ? "text-destructive hover:bg-destructive/10" : "text-foreground hover:bg-muted",
         className,
       )}
       {...rest}
     >
       {Icon && <Icon className="size-4 shrink-0" aria-hidden="true" />}
-      <span className="max-sm:sr-only">{children}</span>
+      <span className="whitespace-nowrap">{children}</span>
     </button>
   )
 })

@@ -410,11 +410,14 @@ function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectH
           className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
           onClick={(event) => event.stopPropagation()}
         >
-          <Checkbox
-            aria-label={`Haus ${house.name} auswählen`}
-            checked={selectedHouses.has(house.id)}
-            onCheckedChange={(checked) => onSelectHouse(house.id, checked)}
-          />
+          {/* Flex statt inline-block: sonst sitzt die Checkbox auf der Textgrundlinie, ein paar Pixel über der Zeilenmitte */}
+          <div className="flex items-center">
+            <Checkbox
+              aria-label={`Haus ${house.name} auswählen`}
+              checked={selectedHouses.has(house.id)}
+              onCheckedChange={(checked) => onSelectHouse(house.id, checked)}
+            />
+          </div>
         </TableCell>
         <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{house.name}</TableCell>
         <TableCell className={`py-4 dark:text-[#f3f4f6]`}><HouseAddressCell house={house} /></TableCell>

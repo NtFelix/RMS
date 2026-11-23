@@ -15,9 +15,11 @@ describe("SelectionPill", () => {
 
   it("names the selection in singular and plural", () => {
     const { rerender } = render(<SelectionPill count={1} noun={["Haus", "Häuser"]} onClear={jest.fn()}>{null}</SelectionPill>)
-    expect(screen.getByText("1 Haus ausgewählt")).toBeInTheDocument()
+    // Das Nomen ist unter sm ausgeblendet ("1 ausgewählt"), steht aber im DOM
+    const toolbar = () => screen.getByRole("toolbar", { name: "Aktionen für die Auswahl" })
+    expect(toolbar()).toHaveTextContent("1 Haus ausgewählt")
     rerender(<SelectionPill count={3} noun={["Haus", "Häuser"]} onClear={jest.fn()}>{null}</SelectionPill>)
-    expect(screen.getByText("3 Häuser ausgewählt")).toBeInTheDocument()
+    expect(toolbar()).toHaveTextContent("3 Häuser ausgewählt")
   })
 
   it("clears the selection and runs actions", async () => {
