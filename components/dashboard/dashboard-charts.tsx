@@ -565,8 +565,9 @@ export function TenantsDonutChart({ tenants }: TenantsDonutChartProps) {
     if (!hasKautionData) {
       const statusCounts: Record<string, number> = {};
       tenants.forEach(t => {
+        // Bewerber stehen nicht in "Mieter" (eigene Tabelle "Bewerber"), daher nur aktive Mieter und Ehemalige
         const status = t.status || "mieter";
-        const label = status === "mieter" ? "Aktive Mieter" : status === "bewerber" ? "Bewerber" : "Ehemalige";
+        const label = status === "mieter" ? "Aktive Mieter" : "Ehemalige";
         statusCounts[label] = (statusCounts[label] || 0) + 1;
       });
 

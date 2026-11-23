@@ -5,7 +5,8 @@ import { PATCH } from './route';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 /**
- * Leak-Schließung Altfeld "Mieter.kaution" (GH-6) für PATCH /api/mieter/bulk-update.
+ * Leak-Schließung Altfeld "Mieter.kaution" (GH-6) und Personen-Stammdaten (GH-30) für PATCH /api/mieter/bulk-update.
+ * Jeder Mieter wird über die RPC mieter_aktualisieren geändert.
  */
 
 jest.mock('@/lib/supabase-server', () => ({
@@ -37,58 +38,89 @@ const KAUTION_ALTFELD = { amount: 1500, paymentDate: '2025-01-01', status: 'Erha
 
 describe('PATCH /api/mieter/bulk-update', () => {
   let consoleErrorSpy: jest.SpyInstance;
+  let mockRpc: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockRpc = jest.fn().mockResolvedValue({ data: null, error: null });
   });
 
   afterEach(() => {
     consoleErrorSpy.mockRestore();
   });
 
-  function mockClient(updateResult: Result) {
+  function mockClient(rpcResult?: (id: string) => Result) {
     const checkBuilder = createBuilder({ data: [{ wohnung_id: null }], error: null });
-    const updateBuilder = createBuilder(updateResult);
-    const from = jest.fn().mockReturnValueOnce(checkBuilder).mockReturnValueOnce(updateBuilder);
-    (createSupabaseServerClient as jest.Mock).mockResolvedValue({ from });
-    return { from, updateBuilder };
+    const from = jest.fn().mockReturnValueOnce(checkBuilder);
+    mockRpc.mockImplementation(async (_name: string, args: { p_mieter_id: string }) => {
+      const ergebnis = rpcResult?.(args.p_mieter_id) ?? { data: null, error: null };
+      return ergebnis;
+    });
+    (createSupabaseServerClient as jest.Mock).mockResolvedValue({ from, rpc: mockRpc });
+    return { from };
   }
 
-  it('verwirft "kaution" in den Updates und liest nur IDs zurück (keine Mieterzeilen)', async () => {
-    const { updateBuilder } = mockClient({ data: [{ id: 'm1' }, { id: 'm2' }], error: null });
+  it('verwirft "kaution" in den Updates und ändert jeden Mieter über die RPC', async () => {
+    const { from } = mockClient();
 
     const res = await PATCH(jsonRequest({ ids: ['m1', 'm2'], updates: { wohnung_id: 'w1', kaution: KAUTION_ALTFELD } }));
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ successCount: 2 });
-    expect(updateBuilder.update).toHaveBeenCalledWith({ wohnung_id: 'w1' });
-    expect(updateBuilder.select).toHaveBeenCalledWith('id');
+    expect(from).toHaveBeenCalledWith('Mieter');
+    expect(mockRpc).toHaveBeenCalledTimes(2);
+    expect(mockRpc).toHaveBeenCalledWith('mieter_aktualisieren', { p_mieter_id: 'm1', p_person: {}, p_mieter: { wohnung_id: 'w1' } });
+    expect(mockRpc).toHaveBeenCalledWith('mieter_aktualisieren', { p_mieter_id: 'm2', p_person: {}, p_mieter: { wohnung_id: 'w1' } });
+  });
+
+  it('übernimmt Personenfelder mit name -> nachname und telefonnummer -> telefon', async () => {
+    mockClient();
+
+    await PATCH(jsonRequest({ ids: ['m1'], updates: { telefonnummer: '0301' } }));
+
+    expect(mockRpc).toHaveBeenCalledWith('mieter_aktualisieren', { p_mieter_id: 'm1', p_person: { telefon: '0301' }, p_mieter: {} });
   });
 
   it('lehnt die Anfrage ab (400), wenn nur das Altfeld "kaution" aktualisiert werden soll', async () => {
-    const { from } = mockClient({ data: [], error: null });
+    const { from } = mockClient();
 
     const res = await PATCH(jsonRequest({ ids: ['m1'], updates: { kaution: KAUTION_ALTFELD } }));
 
     expect(res.status).toBe(400);
     expect(from).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
   it('übersetzt den Wohnungswechsel-Fehler (23503, fk_mieter_mietverhaeltnis) in eine verständliche Meldung', async () => {
-    mockClient({
+    mockClient(() => ({
       data: null,
       error: { message: 'update violates foreign key constraint "fk_mieter_mietverhaeltnis"', code: '23503' },
-    });
+    }));
 
     const res = await PATCH(jsonRequest({ ids: ['m1'], updates: { wohnung_id: 'w2' } }));
 
-    expect(res.status).toBe(500);
-    expect(await res.json()).toEqual({ error: 'Die Wohnung kann hier nicht geändert werden, weil der Mieter zu einem Mietverhältnis gehört. Nutzen Sie im Abschnitt Mietverhältnis den Punkt „Umzug in eine andere Wohnung“.' });
+    // Nichts geändert: Status der Ablehnung (400), nicht 500
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: 'Die Wohnung kann hier nicht geändert werden, weil der Mieter zu einem Mietverhältnis gehört. Nutzen Sie im Abschnitt Mietverhältnis den Punkt „Umzug in eine andere Wohnung“.',
+      successCount: 0,
+      errorCount: 1,
+    });
+  });
+
+  it('meldet einen Teilerfolg mit der Anzahl der geänderten Mieter', async () => {
+    mockClient((id) => (id === 'm2' ? { data: null, error: { code: 'PE003', message: 'PERSON_NICHT_GEFUNDEN: Mieter nicht gefunden.' } } : { data: null, error: null }));
+
+    const res = await PATCH(jsonRequest({ ids: ['m1', 'm2'], updates: { notiz: 'Neu' } }));
+
+    // Teilerfolg: 200 mit Zählern, damit die Oberfläche neu lädt
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ error: 'Mieter nicht gefunden.', successCount: 1, errorCount: 1 });
   });
 
   it('lehnt fehlende Updates ab (400) statt mit einem Serverfehler zu antworten', async () => {
-    const { from } = mockClient({ data: [], error: null });
+    const { from } = mockClient();
 
     const res = await PATCH(jsonRequest({ ids: ['m1'] }));
 

@@ -11,14 +11,14 @@ import {
   deleteRechnungenByNebenkostenId,
   createRechnungenBatch,
   getAbrechnungModalDataAction,
-  createAbrechnungCalculationAction,
-  createAbrechnungCalculationOptimizedAction
+  createAbrechnungCalculationAction
 } from './betriebskosten-actions';
 import { metrics, type MeterProvider } from '@opentelemetry/api';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { safeRpcCall } from '@/lib/error-handling';
 import { revalidatePath } from 'next/cache';
 import { logAction } from '@/lib/logging-middleware';
+import { logger } from '@/utils/logger';
 
 // Mock dependencies
 jest.mock('@/lib/supabase-server', () => ({
@@ -736,19 +736,6 @@ describe('Abrechnung actions — nach Rechnung', () => {
       'createAbrechnungCalculationAction',
       createAbrechnungCalculationAction,
       { nebenkosten_data: nebenkosten, tenants, rechnungen, meters: [], readings: [] }
-    ],
-    [
-      'createAbrechnungCalculationOptimizedAction',
-      createAbrechnungCalculationOptimizedAction,
-      {
-        // Copy: the optimized action writes gesamtFlaeche onto nebenkosten_data
-        nebenkosten_data: { ...nebenkosten },
-        tenants_with_occupancy: tenants,
-        rechnungen,
-        wasserzaehler_meters: [],
-        wasserzaehler_readings: [],
-        house_metrics: { totalArea: 100 }
-      }
     ]
   ])('%s bills each tenant their own Einzelbetrag', async (_name, action, rpcData) => {
     mockSupabaseWithTables({});
@@ -758,5 +745,28 @@ describe('Abrechnung actions — nach Rechnung', () => {
 
     expect(result.success).toBe(true);
     expect(sharesByTenant(result)).toEqual({ a: 100, b: 200 });
+  });
+
+  it('protokolliert fehlende Vorauszahlungsdaten nur mit IDs, nicht mit Mieternamen', async () => {
+    mockSupabaseWithTables({});
+    (safeRpcCall as jest.Mock).mockResolvedValue({
+      success: true,
+      data: [{ nebenkosten_data: nebenkosten, tenants, rechnungen, meters: [], readings: [] }],
+    });
+
+    const result = await createAbrechnungCalculationAction('nk1', { prepaymentMode: 'scheduled' });
+
+    expect(result.success).toBe(true);
+    expect(result.message).toContain('Fehlende Vorauszahlungsdaten');
+    const warnAufrufe = (logger.warn as jest.Mock).mock.calls.filter(
+      ([nachricht]) => typeof nachricht === 'string' && nachricht.startsWith('Prepayment schedule data missing')
+    );
+    expect(warnAufrufe).toHaveLength(1);
+    const kontext = warnAufrufe[0][1] as { affectedTenants: Array<Record<string, unknown>> };
+    expect(kontext.affectedTenants.map((t) => t.tenantId).sort()).toEqual(['a', 'b']);
+    for (const eintrag of kontext.affectedTenants) {
+      expect(eintrag).not.toHaveProperty('tenantName');
+    }
+    expect(JSON.stringify(warnAufrufe)).not.toMatch(/tenantName/);
   });
 });

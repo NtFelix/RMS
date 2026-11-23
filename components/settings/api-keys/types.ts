@@ -29,6 +29,8 @@ export const AVAILABLE_MODULES = [
   { id: "haeuser", label: "Häuser" },
   { id: "wohnungen", label: "Wohnungen" },
   { id: "mieter", label: "Mieter" },
+  // Nicht standardmäßig vergeben: API-Schlüssel erhalten das Modul nur, wenn es ausdrücklich angefragt bzw. genehmigt wird.
+  { id: "kontakte", label: "Kontakte" },
   { id: "finanzen", label: "Finanzen" },
   { id: "aufgaben", label: "Aufgaben" },
   { id: "zaehler", label: "Zähler" },

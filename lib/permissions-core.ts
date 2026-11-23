@@ -2,6 +2,8 @@ export type Modul =
   | 'haeuser'
   | 'wohnungen'
   | 'mieter'
+  // Kontakte (GH-30): Personenverzeichnis. Externe Kontexte (OAuth/MCP) sperrt die Datenbank (check_permission).
+  | 'kontakte'
   | 'zaehler'
   | 'finanzen'
   | 'betriebskosten'

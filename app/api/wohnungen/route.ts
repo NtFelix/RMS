@@ -9,6 +9,7 @@ import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 import { normalizeApartmentLimit } from '@/lib/utils/subscription';
 import { getTodayISOString, isTenantActive } from '@/utils/date-calculations';
 import { pickCurrentTenantPerApartment } from '@/lib/tenant-access';
+import { MIETER_PERSON_EMBED, mitPersonenfeldern, type Person } from '@/lib/personen';
 
 
 export async function POST(request: Request) {
@@ -206,9 +207,9 @@ export async function GET() {
     const canViewTenants = tenantAccess.canViewTenants;
 
     // Get tenants to determine occupation status
-    // (two literal selects: the typed client cannot parse a column list that is chosen at runtime)
+    // (two selects: the typed client cannot parse a column list that is chosen at runtime)
     let tenantsQuery = canViewTenants
-      ? supabase.from('Mieter').select('id, wohnung_id, auszug, einzug, name')
+      ? supabase.from('Mieter').select(`id, wohnung_id, auszug, einzug, ${MIETER_PERSON_EMBED}`)
       : supabase.from('Mieter').select('wohnung_id, auszug, einzug');
 
     if (accessibleIds !== null && apartments) {
@@ -217,14 +218,14 @@ export async function GET() {
     }
 
     const { data: tenantRows, error: tenantsError } = await tenantsQuery;
-    // Widened: `id` and `name` are only there with mieter:ansehen (see the two selects above)
-    const tenants = tenantRows as Array<{
+    // Widened: `id` and the person are only there with mieter:ansehen (see the two selects above)
+    const tenants = tenantRows ? (tenantRows as Array<{
       wohnung_id: string | null;
       auszug: string | null;
       einzug: string | null;
       id?: string;
-      name?: string;
-    }> | null;
+      person?: Person | Person[] | null;
+    }>).map(mitPersonenfeldern) : null;
 
     if (tenantsError) {
       console.error("Supabase Select Error (Mieter):", tenantsError);

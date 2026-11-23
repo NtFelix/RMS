@@ -4,20 +4,65 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { Mieter } from "../lib/data-fetching";
-import { TenantStatus } from "@/types/Tenant";
-import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
-import { formatFailureReasons, stripDbCodePrefix, summarizeSettledDeletes } from "@/lib/bulk-delete-summary";
+import { MIETER_LESE_SELECT, bewerberEingabeAusMieterEingabe, fehlerAusRpc, type Roh } from "@/lib/mieter-schreibpfad";
+import { mitPersonenfeldern, personEingabeAusFormData, hatNamen, type Person, type PersonEingabe } from "@/lib/personen";
+import { stripDbCodePrefix } from "@/lib/bulk-delete-summary";
 import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
 import { posthogLogger } from '@/lib/posthog-logger';
 import { ermittleWohnungswechselFehler } from '@/lib/mietverhaeltnis-errors';
 
+/** Server-Client wie in ensureAuth geliefert. */
+type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+/**
+ * Bewerber bearbeiten: Bewerber und Person liegen getrennt. Beide Tabellen sind per RLS lesbar und änderbar
+ * (Modul mieter bzw. kontakte); der Schreibzugriff ist nicht über eine RPC gekapselt.
+ */
+async function aktualisiereBewerber(
+  supabase: Supabase,
+  bewerberId: string,
+  person: PersonEingabe,
+  bewerber: Roh
+): Promise<{ message?: string }> {
+  const { data: zeile, error: leseFehler } = await supabase
+    .from("Bewerber")
+    .select("person_id")
+    .eq("id", bewerberId)
+    .single();
+  if (leseFehler || !zeile?.person_id) {
+    return { message: "Bewerber nicht gefunden." };
+  }
+
+  // Zuerst der Bewerber: dort greifen Wohnungs-Scope und Rechte (RLS). Scheitert er, bleibt die Person unverändert.
+  // Ohne Treffer (0 Zeilen, z. B. durch RLS) ist nichts gespeichert: das ist ein Fehler, kein Erfolg.
+  const { data: bewerberGeaendert, error } = await supabase
+    .from("Bewerber")
+    .update({ wohnung_id: bewerber.wohnung_id ?? null, notiz: bewerber.notiz ?? null })
+    .eq("id", bewerberId)
+    .select("id")
+    .maybeSingle();
+  if (error || !bewerberGeaendert) return { message: "Der Bewerber konnte nicht gespeichert werden." };
+
+  if (Object.keys(person).length > 0) {
+    const { data: personGeaendert, error: personFehler } = await supabase
+      .from("Personen")
+      .update(person)
+      .eq("id", zeile.person_id)
+      .select("id")
+      .maybeSingle();
+    if (personFehler || !personGeaendert) return { message: "Die Person konnte nicht gespeichert werden." };
+  }
+  return {};
+}
+
 export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const id = formData.get('id');
   const actionName = id ? 'updateTenant' : 'createTenant';
-  const tenantName = formData.get('name') as string;
-  
+  // Bewerber sind seit GH-30 eigene Datensätze ("Bewerber" + "Personen"); das Formular kennzeichnet sie mit status.
+  const istBewerber = formData.get('status') === 'bewerber';
+
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
@@ -31,39 +76,46 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
   const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
   
   if (!(await hasPermission('mieter', id ? 'bearbeiten' : 'erstellen'))) {
-    logAction(actionName, 'error', { tenant_name: tenantName, error_message: "Keine Berechtigung" });
+    logAction(actionName, 'error', { error_message: "Keine Berechtigung" });
     return { success: false, error: { message: "Keine Berechtigung" } };
   }
   
   const wohnungIds = await getAccessibleWohnungIds();
   if (wohnungIds !== null) {
     const targetWohnungId = formData.get('wohnung_id') as string | null;
-    if (!targetWohnungId || !wohnungIds.includes(targetWohnungId)) {
+    // Bewerber dürfen ohne Wohnung sein (RLS erlaubt das): dann gibt es nichts zu prüfen. Eine gesetzte Wohnung
+    // muss im Scope liegen.
+    const ohneWohnungErlaubt = istBewerber && !targetWohnungId;
+    if (!ohneWohnungErlaubt && (!targetWohnungId || !wohnungIds.includes(targetWohnungId))) {
       return { success: false, error: { message: "Zugriff auf die angegebene Wohnung verweigert." } };
     }
     
     if (id) {
       const { data: existingTenant, error: fetchError } = await supabase
-        .from("Mieter")
+        .from(istBewerber ? "Bewerber" : "Mieter")
         .select("wohnung_id")
         .eq("id", id as string)
         .single();
-      if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
+      if (fetchError || !existingTenant) {
+        return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
+      }
+      const bisherigeWohnung = existingTenant.wohnung_id;
+      const bisherigeWohnungOk = bisherigeWohnung
+        ? wohnungIds.includes(bisherigeWohnung)
+        : istBewerber;
+      if (!bisherigeWohnungOk) {
         return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
       }
     }
   }
 
   try {
-    const payload: any = {
+    const personEingabe = personEingabeAusFormData(formData);
+    const mieterEingabe: Roh = {
       wohnung_id: formData.get('wohnung_id') || null,
-      name: formData.get('name'),
       einzug: formData.get('einzug') || null,
       auszug: formData.get('auszug') || null,
-      email: formData.get('email') || null,
-      telefonnummer: formData.get('telefonnummer') || null,
       notiz: formData.get('notiz') || null,
-      status: (formData.get('status') as TenantStatus) || 'mieter',
       nebenkosten: (() => {
         const nebenkostenRaw = formData.get('nebenkosten');
         if (nebenkostenRaw && typeof nebenkostenRaw === 'string' && nebenkostenRaw.length > 0) {
@@ -82,21 +134,47 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     let finalTenantId = id as string | null;
 
     if (id) {
-      const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string);
-      if (error) {
-        return { success: false, error: { message: ermittleWohnungswechselFehler(error) ?? error.message } };
+      if (istBewerber) {
+        const ergebnis = await aktualisiereBewerber(supabase, id as string, personEingabe, mieterEingabe);
+        if (ergebnis.message) {
+          return { success: false, error: { message: ergebnis.message } };
+        }
+      } else {
+        const { error } = await supabase.rpc('mieter_aktualisieren', {
+          p_mieter_id: id as string,
+          p_person: personEingabe,
+          p_mieter: mieterEingabe,
+        });
+        if (error) {
+          return { success: false, error: { message: fehlerAusRpc(error).message } };
+        }
       }
     } else {
-      const { data: newTenant, error } = await supabase.from('Mieter').insert(payload).select('id').single();
-      if (error) {
-        return { success: false, error: { message: error.message } };
+      if (!hatNamen(personEingabe)) {
+        return { success: false, error: { message: "Bitte geben Sie einen Vor- oder Nachnamen an." } };
       }
-      if (newTenant) {
-        finalTenantId = newTenant.id;
+      if (istBewerber) {
+        const { data, error } = await supabase.rpc('bewerber_anlegen', {
+          p_person: personEingabe,
+          p_bewerber: bewerberEingabeAusMieterEingabe(mieterEingabe),
+        });
+        if (error) {
+          return { success: false, error: { message: fehlerAusRpc(error).message } };
+        }
+        finalTenantId = (data as { bewerber_id?: string } | null)?.bewerber_id ?? null;
+      } else {
+        const { data, error } = await supabase.rpc('mieter_anlegen', {
+          p_person: personEingabe,
+          p_mieter: mieterEingabe,
+        });
+        if (error) {
+          return { success: false, error: { message: fehlerAusRpc(error).message } };
+        }
+        finalTenantId = (data as { mieter_id?: string } | null)?.mieter_id ?? null;
       }
     }
     revalidatePath('/mieter');
-    logAction(actionName, 'success', { tenant_name: tenantName, operation: id ? 'update' : 'create' });
+    logAction(actionName, 'success', { operation: id ? 'update' : 'create' });
 
     try {
       const posthog = getPostHogServer();
@@ -108,11 +186,10 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
           event: eventName,
           properties: {
             tenant_id: finalTenantId || 'unknown',
-            tenant_name: tenantName,
-            has_property: !!payload.wohnung_id,
-            property_id: payload.wohnung_id,
-            has_email: !!payload.email,
-            status: payload.status,
+            has_property: !!mieterEingabe.wohnung_id,
+            property_id: mieterEingabe.wohnung_id,
+            has_email: !!personEingabe.email,
+            status: istBewerber ? 'bewerber' : 'mieter',
             source: 'server_action'
           }
         });
@@ -129,7 +206,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     return { success: true };
   } catch (e: unknown) {
     const errorMessage = e instanceof Error ? e.message : "Ein unbekannter Fehler ist aufgetreten.";
-    logAction(actionName, 'error', { tenant_name: tenantName, error_message: errorMessage });
+    logAction(actionName, 'error', { error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
 }
@@ -270,7 +347,7 @@ export async function getMieterByHausIdAction(
     // Including Wohnungen details as per the original fetchMieter and potential needs
     let query = supabase
       .from("Mieter")
-      .select(`${MIETER_SPALTEN_OHNE_KAUTION}, Wohnungen(name, groesse, miete)`) // bewusst ohne das Altfeld `kaution` (GH-6)
+      .select(`${MIETER_LESE_SELECT}, Wohnungen(name, groesse, miete)`) // ohne Altfeld `kaution` (GH-6) und ohne Personenfelder (GH-30)
       .in("wohnung_id", wohnungIds);
 
     // If date range is provided, filter tenants based on overlap with billing period
@@ -290,9 +367,11 @@ export async function getMieterByHausIdAction(
 
     // If mieterData is null (though no error), it means no tenants found for those wohnung_ids.
     // This is also a successful query with no results.
-    // postgrest-js leitet aus der expliziten Spaltenliste eine Zeilenform ab, die nicht exakt zu `Mieter` passt
-    // (eingebettete Relation als Array); der Laufzeitwert entspricht weiterhin `Mieter`.
-    return { success: true, data: (mieterData || []) as unknown as Mieter[] };
+    // Die Person kommt eingebettet (Schlüssel `person`); mitPersonenfeldern bildet die bisherigen Felder
+    // name, email und telefonnummer ab. postgrest-js leitet aus der Spaltenliste eine Zeilenform ab, die nicht
+    // exakt zu `Mieter` passt; der Laufzeitwert entspricht weiterhin `Mieter`.
+    const zeilen = (mieterData || []) as unknown as Array<{ person?: Person | Person[] | null }>;
+    return { success: true, data: zeilen.map((zeile) => mitPersonenfeldern(zeile)) as unknown as Mieter[] };
 
   } catch (e: unknown) {
     const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
@@ -361,64 +440,3 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
   }
 }
 
-export async function deleteAllApplicantsAction(): Promise<{ success: boolean; error?: { message: string } }> {
-  try {
-    let user, supabase;
-    try {
-      ({ user, supabase } = await ensureAuth());
-    } catch (authError: unknown) {
-      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
-      return { success: false, error: { message: errorMessage } };
-    }
-
-    // Permission & scope checks
-    const { hasPermission } = await import("@/lib/permissions");
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-    
-    if (!(await hasPermission('mieter', 'loeschen'))) {
-      return { success: false, error: { message: "Keine Berechtigung" } };
-    }
-    
-    const wohnungIds = await getAccessibleWohnungIds();
-    let fetchQuery = supabase.from('Mieter').select('id').eq('status', 'bewerber');
-    if (wohnungIds !== null) {
-      fetchQuery = fetchQuery.in('wohnung_id', wohnungIds);
-    }
-
-    const { data: applicants, error: fetchError } = await fetchQuery;
-
-    if (fetchError) {
-      console.error('Error fetching applicants for deletion:', fetchError);
-      return { success: false, error: { message: fetchError.message } };
-    }
-
-    if (applicants && applicants.length > 0) {
-      const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
-      // Jeden Bewerber einzeln löschen und alle Ergebnisse abwarten: Die Datenbank kann einzelne Löschungen ablehnen
-      // (z. B. fehlender Objektzugriff). Eine Kaution, auch mit Buchungen, wandert mit dem Bewerber in den Papierkorb (ohne Übersicht).
-      // Die Gründe stehen ohne technisches Präfix in der Meldung.
-      const results = await Promise.allSettled(applicants.map(applicant => softDeleteEntryAction("Mieter", applicant.id)));
-      const { successCount, errorCount, reasons } = summarizeSettledDeletes(results);
-      if (errorCount > 0) {
-        // Bereits gelöschte Bewerber bleiben gelöscht (Papierkorb); `softDeleteEntryAction` hat dafür je Erfolg
-        // `/mieter` revalidiert, die Liste wird also auch bei einem Teilerfolg neu geladen.
-        const summary = successCount === 0
-          ? 'Es konnten keine Bewerber gelöscht werden.'
-          : `${errorCount} von ${applicants.length} Bewerbern ${errorCount === 1 ? 'konnte' : 'konnten'} nicht gelöscht werden.`;
-        const reasonText = formatFailureReasons(reasons);
-        return { success: false, error: { message: reasonText ? `${summary} ${reasonText}` : summary } };
-      }
-    }
-
-    revalidatePath('/mieter');
-    return { success: true };
-  } catch (error: unknown) {
-    console.error('Unexpected error deleting all applicants:', error);
-    return {
-      success: false,
-      error: {
-        message: error instanceof Error ? error.message : 'An unknown error occurred'
-      }
-    };
-  }
-}

@@ -38,6 +38,8 @@ export interface TenantSearchResult {
   status: 'active' | 'moved_out';
   move_in_date?: string;
   move_out_date?: string;
+  /** true für einen Bewerber (Tabelle "Bewerber"), false oder fehlend für einen Mieter. */
+  is_applicant?: boolean;
 }
 
 export interface HouseSearchResult {

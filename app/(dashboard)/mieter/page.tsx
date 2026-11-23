@@ -9,6 +9,7 @@ import { canViewKautionen as ladeCanViewKautionen } from "@/lib/server/kautionen
 import { redirect } from "next/navigation";
 
 import type { Tenant } from "@/types/Tenant";
+import { MIETER_PERSON_EMBED, mitPersonenfeldern } from "@/lib/personen";
 import type { Wohnung } from "@/types/Wohnung";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 
@@ -71,8 +72,9 @@ async function MieterContent() {
       {},
       async () => {
         // Fallback-Select bewusst OHNE das Altfeld `kaution`: Sonst würde ein RPC-Fehler das Modulrecht `kautionen`
-        // umgehen und eingefrorene Altwerte anzeigen (GH-6).
-        let q = supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
+        // umgehen und eingefrorene Altwerte anzeigen (GH-6). Name, E-Mail und Telefon kommen aus der eingebetteten
+        // Person (GH-30); Bewerber werden hier nicht geladen (eigene Tabelle "Bewerber").
+        let q = supabase.from('Mieter').select(`id,wohnung_id,person_id,einzug,auszug,nebenkosten,notiz,${MIETER_PERSON_EMBED}`);
         if (accessibleIds !== null && accessibleIds.length > 0) {
           const { data: whgIds } = await supabase.from('Wohnungen').select('id').in('haus_id', accessibleIds);
           const ids = whgIds?.map(w => w.id) ?? [];
@@ -89,14 +91,22 @@ async function MieterContent() {
     )
   ]);
 
+  // Name, E-Mail und Telefon: Der RPC liefert sie bereits als Felder; die Fallback-Abfrage liefert die eingebettete
+  // Person (Schlüssel `person`), daraus werden sie hier abgeleitet (GH-30). Jede Zeile ist ein Mieter: Die Altspalte
+  // status (bis Migration M2 noch vorhanden) wird bewusst nicht übernommen.
+  const mieterMitFeldern: Tenant[] = (rawMieter || []).map((m: any) => ({
+    ...(m.person !== undefined ? mitPersonenfeldern(m) : m),
+    status: 'mieter',
+  }));
+
   // Post-fetch application-level filtering to guarantee scoping
-  let filteredMieter = rawMieter || [];
+  let filteredMieter: any[] = mieterMitFeldern;
   let filteredWohnungen = rawWohnungen || [];
 
   if (accessibleIds !== null) {
     const { data: whgIds } = await supabase.from('Wohnungen').select('id').in('haus_id', accessibleIds);
     const ids = new Set(whgIds?.map(w => w.id) ?? []);
-    filteredMieter = (rawMieter || []).filter((m: any) => !m.wohnung_id || ids.has(m.wohnung_id));
+    filteredMieter = mieterMitFeldern.filter((m: any) => !m.wohnung_id || ids.has(m.wohnung_id));
     filteredWohnungen = (rawWohnungen || []).filter((w: any) => ids.has(w.id));
   }
 
