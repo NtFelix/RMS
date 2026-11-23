@@ -11,20 +11,11 @@ jest.mock('@/lib/kautionen-loeschen', () => ({
   // Standard: keine gebuchte Kaution betroffen -> die übliche Frage wird gezeigt
   starteLoeschenMitKautionen: jest.fn(async (_tabelle, _ids, handlers) => handlers.einfach()),
 }));
-jest.mock('@/components/houses/house-filters', () => ({
-  HouseFilters: ({ onFilterChange, onSearchChange }: any) => (
-    <div data-testid="house-filters">
-      <button onClick={() => onFilterChange('all')} data-testid="filter-all">All</button>
-      <button onClick={() => onFilterChange('full')} data-testid="filter-full">Full</button>
-      <button onClick={() => onFilterChange('vacant')} data-testid="filter-vacant">Vacant</button>
-      <input 
-        data-testid="search-input" 
-        onChange={(e) => onSearchChange(e.target.value)} 
-        placeholder="Search houses..."
-      />
-    </div>
-  ),
-}));
+// Der echte Hook liest die URL über den (hier statischen) useSearchParams-Mock und würde den Tab sofort zurücksetzen
+jest.mock('@/hooks/use-tab-params', () => {
+  const { useState } = jest.requireActual('react');
+  return { useTabParams: (defaultValue: string) => useState(defaultValue) };
+});
 
 jest.mock('@/components/tables/house-table', () => ({
   HouseTable: ({ filter, searchQuery, onEdit, initialHouses, reloadRef, onSelectionChange }: any) => (
@@ -81,11 +72,17 @@ describe('HaeuserClientView', () => {
   });
 
   describe('Rendering', () => {
-    it('renders page title and summary cards', () => {
+    it('renders the view switch as buttons with the houses view active', () => {
       render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
-      // Check for summary cards
-      expect(screen.getByText('Häuser')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Häuser' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: 'Übersicht' })).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('renders the KPIs in the rail', () => {
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
+
+      expect(screen.getByText('Häuser gesamt')).toBeInTheDocument();
       expect(screen.getByText('Wohnungen gesamt')).toBeInTheDocument();
       expect(screen.getByText('Freie Wohnungen')).toBeInTheDocument();
     });
@@ -97,10 +94,22 @@ describe('HaeuserClientView', () => {
       expect(addButton).toBeInTheDocument();
     });
 
-    it('renders house filters component', () => {
+    it('renders the filter entries with counts', () => {
       render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
-      expect(screen.getByTestId('house-filters')).toBeInTheDocument();
+      expect(screen.getByTestId('filter-all')).toHaveTextContent('Alle Häuser');
+      expect(screen.getByTestId('filter-all')).toHaveTextContent('2');
+      expect(screen.getByTestId('filter-full')).toHaveTextContent('Voll belegt');
+      expect(screen.getByTestId('filter-full')).toHaveTextContent('1');
+      expect(screen.getByTestId('filter-vacant')).toHaveTextContent('Mit freien Wohnungen');
+      expect(screen.getByTestId('filter-vacant')).toHaveTextContent('1');
+    });
+
+    it('renders the breadcrumb and the search input in the top bar', () => {
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
+
+      expect(screen.getByText('Objekte')).toBeInTheDocument();
+      expect(screen.getByTestId('search-input')).toHaveAttribute('placeholder', 'Häuser suchen…');
     });
 
     it('renders house table component', () => {
@@ -109,10 +118,10 @@ describe('HaeuserClientView', () => {
       expect(screen.getByTestId('house-table')).toBeInTheDocument();
     });
 
-    it('renders card with correct title', () => {
+    it('does not render the old card heading', () => {
       render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
-      expect(screen.getByText('Hausverwaltung')).toBeInTheDocument();
+      expect(screen.queryByText('Hausverwaltung')).not.toBeInTheDocument();
     });
 
     it('passes enriched houses to table component', () => {
@@ -141,6 +150,8 @@ describe('HaeuserClientView', () => {
       await user.click(fullFilterButton);
 
       expect(screen.getByTestId('filter-value')).toHaveTextContent('full');
+      expect(fullFilterButton).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('filter-all')).toHaveAttribute('aria-pressed', 'false');
     });
 
     it('can switch between different filters', async () => {
@@ -274,7 +285,7 @@ describe('HaeuserClientView', () => {
     });
   });
 
-  describe('Layout and styling', () => {
+  describe('Layout', () => {
     it('has correct layout structure', () => {
       const { container } = render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
@@ -282,36 +293,29 @@ describe('HaeuserClientView', () => {
       expect(mainContainer).toHaveClass('flex', 'flex-col');
     });
 
-    it('has responsive header layout', () => {
-      const { container } = render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
-
-      // Check for the container with flex layout
-      const headerContainer = container.querySelector('.flex');
-      expect(headerContainer).toBeInTheDocument();
-    });
-
-    it('has correct title styling', () => {
+    it('renders the table directly without a card wrapper', () => {
       render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
-      // The title "Häuser gesamt" appears in a StatCard
-      const title = screen.getByText('Häuser gesamt');
-      expect(title).toHaveClass('text-sm', 'font-medium');
+      const table = screen.getByTestId('house-table');
+      expect(table.parentElement?.className).not.toMatch(/shadow-/);
     });
+  });
 
-    it('has correct main card title', () => {
+  describe('View switch', () => {
+    it('switches to the overview and hides filters and search', async () => {
+      const user = userEvent.setup();
       render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
-      // Check for the main card title "Hausverwaltung"
-      const cardTitle = screen.getByText('Hausverwaltung');
-      expect(cardTitle).toHaveClass('text-2xl', 'font-semibold', 'leading-none', 'tracking-tight');
-    });
+      await user.click(screen.getByRole('button', { name: 'Übersicht' }));
 
-    it('has correct card styling', () => {
-      const { container } = render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
-
-      // Look for card with rounded border and shadow
-      const card = container.querySelector('[class*="rounded-"][class*="shadow-"]');
-      expect(card).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Übersicht' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.queryByTestId('house-table')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('filter-all')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('search-input')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Haus hinzufügen/i })).toBeInTheDocument();
+      // KPIs bleiben in der Rail sichtbar, die Übersicht zeigt ihre eigenen Kennzahlen
+      expect(screen.getByText('Häuser gesamt')).toBeInTheDocument();
+      expect(screen.getByText('Ø Hausgröße')).toBeInTheDocument();
     });
   });
 
@@ -320,7 +324,7 @@ describe('HaeuserClientView', () => {
       render(<HaeuserClientView enrichedHaeuser={[]} />);
 
       expect(screen.getByTestId('houses-count')).toHaveTextContent('0');
-      expect(screen.getByText('Häuser')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Häuser' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Haus hinzufügen/i })).toBeInTheDocument();
     });
 

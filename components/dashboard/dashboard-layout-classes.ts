@@ -1,14 +1,22 @@
-// Class strings shared by DashboardLayout and DashboardLayoutSkeleton. The skeleton is the Suspense
+// Class strings shared by DashboardLayout, PrimaryRail and DashboardLayoutSkeleton. The skeleton is the Suspense
 // fallback of the dashboard layout and the hydration fallback of DashboardLayout, so it must keep the
 // geometry of the real shell; sharing the strings keeps the two from drifting apart.
+//
+// Shell: `surface-outer` background, icon rail without a container on the left, and one rounded container
+// (secondary rail + main area) next to it. The viewport does not scroll, only the parts inside the container do.
 
-export const DASHBOARD_ROOT_CLASS = "flex min-h-screen bg-background w-full max-w-full"
+export const DASHBOARD_ROOT_CLASS = "flex h-dvh w-full max-w-full overflow-hidden bg-surface-outer"
 
-export const DASHBOARD_SIDEBAR_CLASS =
-  "desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift overflow-hidden h-screen sticky top-0"
+export const DASHBOARD_RAIL_CLASS = "flex h-full w-[60px] shrink-0 flex-col items-center py-2.5"
 
-export const DASHBOARD_MAIN_CLASS =
-  "flex flex-1 flex-col min-h-0 overflow-hidden main-content-responsive responsive-transition py-3 pr-3 pl-0"
+export const DASHBOARD_RAIL_ITEM_CLASS = "flex size-10 shrink-0 items-center justify-center rounded-xl"
 
-export const DASHBOARD_CARD_CLASS =
-  "flex-1 border shadow-xs bg-white dark:bg-[#181818] relative overflow-y-auto overflow-x-hidden rounded-[2rem] md:rounded-[2.5rem] responsive-transition prevent-layout-shift mobile-smooth-scroll mb-0"
+export const DASHBOARD_RAIL_SEPARATOR_CLASS = "my-2 h-px w-6 shrink-0 bg-border-subtle"
+
+// Spacing between the container and the viewport edge (none on the left, the rail provides it).
+export const DASHBOARD_FRAME_CLASS = "min-w-0 flex-1 py-2 pr-2"
+
+export const DASHBOARD_CONTAINER_CLASS =
+  "relative flex h-full overflow-hidden rounded-2xl border border-border-subtle bg-surface-container shadow-sm"
+
+export const DASHBOARD_MAIN_CLASS = "mobile-smooth-scroll relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden"

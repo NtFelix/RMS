@@ -1,24 +1,23 @@
 "use client"
 
 import type React from "react"
-import { useSyncExternalStore } from "react"
-import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
+import { useEffect, useSyncExternalStore } from "react"
+import { usePathname } from "next/navigation"
+import dynamic from "next/dynamic"
 import { DashboardLayoutSkeleton } from "@/components/dashboard/dashboard-layout-skeleton"
 import {
-  DASHBOARD_CARD_CLASS,
+  DASHBOARD_CONTAINER_CLASS,
+  DASHBOARD_FRAME_CLASS,
   DASHBOARD_MAIN_CLASS,
   DASHBOARD_ROOT_CLASS,
-  DASHBOARD_SIDEBAR_CLASS,
 } from "@/components/dashboard/dashboard-layout-classes"
-import MobileBottomNavigation from "@/components/common/mobile-bottom-navigation"
+import { PrimaryRail } from "@/components/dashboard/shell/primary-rail"
+import { SecondaryRailProvider, useSecondaryRail } from "@/components/dashboard/shell"
 import { cn } from "@/lib/utils"
 import type { SidebarUserData } from "@/lib/server/user-data"
-import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { TaskDndProvider } from "@/components/tasks/task-dnd-provider"
-import dynamic from "next/dynamic"
 import { useAIChatStore } from "@/hooks/use-ai-chat-store"
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { TABLET_BREAKPOINT } from "@/lib/constants"
 
 const emptySubscribe = () => () => {}
 
@@ -36,11 +35,8 @@ export function DashboardLayout({
 }) {
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false)
   const isMobile = useMediaQuery("(max-width: 767px)")
-  const isTabletCollapsed = useMediaQuery(TABLET_BREAKPOINT)
-  const { preference } = useSidebarStore()
   const { isOpen, displayMode } = useAIChatStore()
   const isPushMode = mounted && isOpen && displayMode === 'push' && !isMobile
-  const isCollapsed = isTabletCollapsed || preference === 'collapsed'
 
   // Render the CSS-only skeleton during hydration to prevent mismatches (same markup as the Suspense fallback)
   if (!mounted) {
@@ -49,35 +45,72 @@ export function DashboardLayout({
 
   return (
     <TaskDndProvider>
-      <div className={DASHBOARD_ROOT_CLASS}>
-        {/* Desktop sidebar */}
-        <div
-          className={DASHBOARD_SIDEBAR_CLASS}
-          style={{
-            width: isCollapsed ? "4.5rem" : "16rem"
-          }}
-        >
-          <DashboardSidebar sidebarData={sidebarData} />
-        </div>
+      <SecondaryRailProvider>
+        <div className={DASHBOARD_ROOT_CLASS}>
+          <PrimaryRail sidebarData={sidebarData} />
 
-        <main className={cn(
-          DASHBOARD_MAIN_CLASS,
-          // JavaScript-enhanced responsive padding
-          isMobile ? "pb-20 pt-3 px-3" : "py-3 pr-3 pl-0",
-          // Push mode: shift content by adding right margin matching sidebar width
-          isPushMode && "md:mr-[450px]"
-        )}>
           <div className={cn(
-            DASHBOARD_CARD_CLASS,
-            isMobile && "pb-20"
+            DASHBOARD_FRAME_CLASS,
+            // Push mode: shift content by adding right margin matching sidebar width
+            isPushMode && "md:mr-[450px]"
           )}>
-            {children}
+            <ShellContainer>{children}</ShellContainer>
           </div>
-        </main>
 
-        {mounted && isMobile && <MobileBottomNavigation sidebarData={sidebarData} />}
-        <SupportLauncher />
-      </div>
+          <SupportLauncher />
+        </div>
+      </SecondaryRailProvider>
     </TaskDndProvider>
+  )
+}
+
+// Rounded container with the contextual secondary rail (host of the portals of SecondaryRail) and the main area.
+// Below `lg` the host is a drawer over the main area; it is the same element, so portaled content never remounts.
+function ShellContainer({ children }: { children: React.ReactNode }) {
+  const { setHostNode, hasRail, drawerOpen, setDrawerOpen } = useSecondaryRail()
+  const pathname = usePathname()
+
+  useEffect(() => {
+    setDrawerOpen(false)
+  }, [pathname, setDrawerOpen])
+
+  useEffect(() => {
+    if (!drawerOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDrawerOpen(false)
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [drawerOpen, setDrawerOpen])
+
+  return (
+    <div className={DASHBOARD_CONTAINER_CLASS}>
+      <aside
+        ref={setHostNode}
+        aria-label="Kontextnavigation"
+        className={cn(
+          "flex-col border-r border-border-subtle bg-surface-container",
+          hasRail ? "flex" : "hidden",
+          // >= lg: fixed column next to main
+          "lg:w-[248px] lg:shrink-0",
+          // < lg: drawer over the main area; invisible while closed so it cannot take focus
+          "max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:z-30 max-lg:w-[248px] max-lg:max-w-[85%] max-lg:shadow-xl",
+          "max-lg:transition-[transform,visibility] max-lg:duration-200 max-lg:ease-in-out",
+          drawerOpen ? "max-lg:translate-x-0" : "max-lg:invisible max-lg:-translate-x-full",
+        )}
+      />
+
+      {hasRail && drawerOpen && (
+        <button
+          type="button"
+          aria-label="Navigation schließen"
+          tabIndex={-1}
+          className="absolute inset-0 z-20 cursor-default bg-background/60 backdrop-blur-xs lg:hidden"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
+
+      <main className={DASHBOARD_MAIN_CLASS}>{children}</main>
+    </div>
   )
 }

@@ -4,24 +4,22 @@ import { useState, useRef, useCallback, useMemo, useReducer } from "react";
 import { useTabParams } from "@/hooks/use-tab-params";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
-import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
 import { PlusCircle, Building, Home, Key, X, Download, Trash2, Loader2, Building2, BarChart3, Wallet, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { STAT_CARD_ROW_CLASS } from "@/components/skeletons/stat-cards-skeleton";
 import { StatCard } from "@/components/common/stat-card";
 import { HouseTable, House } from "@/components/tables/house-table";
 import { formatPlzOrt } from "@/lib/address";
 import { useModalStore } from "@/hooks/use-modal-store";
+import { SecondaryRail, RailSection, RailNavItem, RailStats, RailStat, PageTopBar } from "@/components/dashboard/shell";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { HousesDonutChart } from "@/components/dashboard/dashboard-charts";
 import { cn } from "@/lib/utils";
-import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
 import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 
@@ -84,22 +82,6 @@ function bulkReducer(state: BulkState, action: BulkAction): BulkState {
     default:
       return state;
   }
-}
-
-const HOUSE_TABS = [
-  { value: "houses" as Tab, label: "Häuser", icon: Building2 },
-  { value: "overview" as Tab, label: "Übersicht", icon: BarChart3 },
-];
-
-function TabToggle({ currentTab, onTabChange }: { currentTab: Tab; onTabChange: (tab: Tab) => void }) {
-  return (
-    <AnimatedPillToggle
-      tabs={HOUSE_TABS}
-      activeTab={currentTab}
-      onTabChange={onTabChange}
-      layoutId="active-haeuser-tab-pill"
-    />
-  );
 }
 
 function BulkActionBar({
@@ -176,88 +158,32 @@ function BulkActionBar({
   );
 }
 
-function SummaryStats({ summary }: { summary: {
-  totalHouses: number;
-  totalApartments: number;
-  freeApartments: number;
-} }) {
+// Gemeinsame Aktion der Top-Bar: Haus hinzufügen (Onboarding-Schritt, Berechtigungs-Tooltip)
+function AddHouseButton({ onAdd, canCreate }: { onAdd: () => void; canCreate: boolean }) {
   return (
-    <div className={`${STAT_CARD_ROW_CLASS} animate-in fade-in duration-300`}>
-      <StatCard
-        title="Häuser gesamt"
-        value={summary.totalHouses}
-        icon={<Building className="size-4 text-muted-foreground" />}
-        className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
-      />
-      <StatCard
-        title="Wohnungen gesamt"
-        value={summary.totalApartments}
-        icon={<Home className="size-4 text-muted-foreground" />}
-        className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
-      />
-      <StatCard
-        title="Freie Wohnungen"
-        value={summary.freeApartments}
-        icon={<Key className="size-4 text-muted-foreground" />}
-        className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
-      />
-    </div>
-  );
-}
-
-function HouseFilters({
-  filter,
-  onFilterChange,
-  searchQuery,
-  onSearchChange,
-  onSearchClear,
-}: {
-  filter: string;
-  onFilterChange: (f: string) => void;
-  searchQuery: string;
-  onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSearchClear: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-4 mt-4 sm:mt-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" data-testid="house-filters">
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {[
-            { value: "all", shortLabel: "Alle", fullLabel: "Alle Häuser" },
-            { value: "full", shortLabel: "Belegt", fullLabel: "Voll belegt" },
-            { value: "vacant", shortLabel: "Frei", fullLabel: "Mit freien Wohnungen" },
-          ].map(({ value, shortLabel, fullLabel }) => (
-            <ResponsiveFilterButton
-              key={value}
-              data-testid={`filter-${value}`}
-              shortLabel={shortLabel}
-              fullLabel={fullLabel}
-              isActive={filter === value}
-              onClick={() => onFilterChange(value)}
-            />
-          ))}
-        </div>
-        <SearchInput
-          data-testid="search-input"
-          placeholder="Suchen..."
-          className="rounded-full"
-          mode="table"
-          value={searchQuery}
-          onChange={onSearchChange}
-          onClear={onSearchClear}
-        />
-      </div>
-    </div>
+    <ResponsiveButtonWithTooltip
+      id="create-object-btn"
+      onClick={() => {
+        useOnboardingStore.getState().completeStep('create-house-start');
+        onAdd();
+      }}
+      icon={<PlusCircle className="size-4" />}
+      aria-label="Haus hinzufügen"
+      className="max-sm:size-9 max-sm:px-0"
+      disabled={!canCreate}
+      tooltip="Keine Berechtigung zum Erstellen"
+      showTooltip={!canCreate}
+    >
+      Haus hinzufügen
+    </ResponsiveButtonWithTooltip>
   );
 }
 
 function HousesTab({
-  summary,
-  filter,
-  onFilterChange,
   searchQuery,
   onSearchChange,
   onSearchClear,
+  filter,
   selectedHouses,
   onClearSelection,
   onBulkExport,
@@ -269,12 +195,10 @@ function HousesTab({
   tableReloadRef,
   onSelectionChange,
 }: {
-  summary: { totalHouses: number; totalApartments: number; freeApartments: number };
-  filter: string;
-  onFilterChange: (f: string) => void;
   searchQuery: string;
   onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSearchClear: () => void;
+  filter: string;
   selectedHouses: Set<string>;
   onClearSelection: () => void;
   onBulkExport: () => void;
@@ -288,66 +212,45 @@ function HousesTab({
 }) {
   return (
     <>
-      <SummaryStats summary={summary} />
-      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] animate-in fade-in duration-300">
-        <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle>Hausverwaltung</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Häuser</p>
-            </div>
-            <div className="mt-0 sm:mt-1">
-              <ResponsiveButtonWithTooltip
-                id="create-object-btn"
-                onClick={() => {
-                  useOnboardingStore.getState().completeStep('create-house-start');
-                  onAdd();
-                }}
-                icon={<PlusCircle className="size-4" />}
-                shortText="Hinzufügen"
-                disabled={!flags.canCreate}
-                tooltip="Keine Berechtigung zum Erstellen"
-                showTooltip={!flags.canCreate}
-              >
-                Haus hinzufügen
-              </ResponsiveButtonWithTooltip>
-            </div>
-          </div>
-        </CardHeader>
-        <div className="px-6">
-          <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
-        </div>
-        <CardContent className="flex flex-col gap-6">
-          <HouseFilters
-            filter={filter}
-            onFilterChange={onFilterChange}
-            searchQuery={searchQuery}
-            onSearchChange={onSearchChange}
-            onSearchClear={onSearchClear}
+      <PageTopBar
+        breadcrumbs={[{ label: "Objekte" }, { label: "Häuser" }]}
+        search={
+          <SearchInput
+            data-testid="search-input"
+            placeholder="Häuser suchen…"
+            className="rounded-full"
+            wrapperClassName="w-full sm:w-56"
+            mode="table"
+            value={searchQuery}
+            onChange={onSearchChange}
+            onClear={onSearchClear}
           />
-          {selectedHouses.size > 0 && (
-            <BulkActionBar
-              selectedCount={selectedHouses.size}
-              onClearSelection={onClearSelection}
-              onExport={onBulkExport}
-              onDelete={onBulkDeleteClick}
-              isDeleting={flags.isBulkDeleting}
-              canDelete={flags.canDelete}
-            />
-          )}
-          <HouseTable
-            filter={filter}
-            searchQuery={searchQuery}
-            reloadRef={tableReloadRef}
-            onEdit={onEdit}
-            initialHouses={enrichedHaeuser}
-            selectedHouses={selectedHouses}
-            onSelectionChange={onSelectionChange}
-            canEdit={flags.canEdit}
+        }
+        actions={<AddHouseButton onAdd={onAdd} canCreate={flags.canCreate} />}
+      />
+      <div className="flex flex-col gap-4 p-4 sm:p-6 animate-in fade-in duration-300">
+        {selectedHouses.size > 0 && (
+          <BulkActionBar
+            selectedCount={selectedHouses.size}
+            onClearSelection={onClearSelection}
+            onExport={onBulkExport}
+            onDelete={onBulkDeleteClick}
+            isDeleting={flags.isBulkDeleting}
             canDelete={flags.canDelete}
           />
-        </CardContent>
-      </Card>
+        )}
+        <HouseTable
+          filter={filter}
+          searchQuery={searchQuery}
+          reloadRef={tableReloadRef}
+          onEdit={onEdit}
+          initialHouses={enrichedHaeuser}
+          selectedHouses={selectedHouses}
+          onSelectionChange={onSelectionChange}
+          canEdit={flags.canEdit}
+          canDelete={flags.canDelete}
+        />
+      </div>
     </>
   );
 }
@@ -365,19 +268,7 @@ function OverviewTab({
 }) {
   return (
     <div className="flex flex-col gap-6 sm:gap-8 animate-in fade-in duration-300">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Häuser gesamt"
-          value={summary.totalHouses}
-          icon={<Building className="size-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
-        />
-        <StatCard
-          title="Wohnungen gesamt"
-          value={summary.totalApartments}
-          icon={<Home className="size-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard
           title="Ø Hausgröße"
           value={summary.avgSize}
@@ -666,6 +557,12 @@ function EfficiencyCard({ efficiencyMetrics }: { efficiencyMetrics: {
   );
 }
 
+const HOUSE_FILTERS = [
+  { value: "all" as const, label: "Alle Häuser" },
+  { value: "full" as const, label: "Voll belegt" },
+  { value: "vacant" as const, label: "Mit freien Wohnungen" },
+];
+
 const VALID_HAEUSER_TABS = ["houses", "overview"] as const;
 
 export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, canEdit = true, canDelete = true }: HaeuserClientViewProps) {
@@ -919,18 +816,75 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
     });
   }, [selectedHouses, handleBulkDelete]);
 
+  // Zähler der Filter-Einträge: dasselbe Prädikat wie in HouseTable
+  const filterCounts = useMemo(() => ({
+    all: enrichedHaeuser.length,
+    full: enrichedHaeuser.filter((h) => h.freeApartments === 0).length,
+    vacant: enrichedHaeuser.filter((h) => (h.freeApartments ?? 0) > 0).length,
+  }), [enrichedHaeuser]);
+
+  const addAction = <AddHouseButton onAdd={handleAdd} canCreate={canCreate} />;
+
   return (
-    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
-      <TabToggle currentTab={currentTab} onTabChange={setCurrentTab} />
+    <div className="flex flex-col min-h-full">
+      <SecondaryRail title="Häuser">
+        <RailSection label="Ansichten">
+          <RailNavItem
+            icon={Building2}
+            label="Häuser"
+            active={currentTab === "houses"}
+            onClick={() => setCurrentTab("houses")}
+          />
+          <RailNavItem
+            icon={BarChart3}
+            label="Übersicht"
+            active={currentTab === "overview"}
+            onClick={() => setCurrentTab("overview")}
+          />
+        </RailSection>
+
+        <RailSection label="Kennzahlen">
+          <RailStats>
+            <RailStat
+              label="Häuser gesamt"
+              value={summary.totalHouses}
+              icon={<Building className="size-4 text-muted-foreground" />}
+            />
+            <RailStat
+              label="Wohnungen gesamt"
+              value={summary.totalApartments}
+              icon={<Home className="size-4 text-muted-foreground" />}
+            />
+            <RailStat
+              label="Freie Wohnungen"
+              value={summary.freeApartments}
+              icon={<Key className="size-4 text-muted-foreground" />}
+            />
+          </RailStats>
+        </RailSection>
+
+        {currentTab === "houses" && (
+          <RailSection label="Filter">
+            {HOUSE_FILTERS.map(({ value, label }) => (
+              <RailNavItem
+                key={value}
+                data-testid={`filter-${value}`}
+                label={label}
+                active={filter === value}
+                count={filterCounts[value]}
+                onClick={() => setFilter(value)}
+              />
+            ))}
+          </RailSection>
+        )}
+      </SecondaryRail>
 
       {currentTab === "houses" ? (
         <HousesTab
-          summary={summary}
-          filter={filter}
-          onFilterChange={setFilter}
           searchQuery={searchQuery}
           onSearchChange={(e) => setSearchQuery(e.target.value)}
           onSearchClear={() => setSearchQuery("")}
+          filter={filter}
           selectedHouses={selectedHouses}
           onSelectionChange={(selected) => dispatchBulk({ type: "SET_SELECTED", payload: selected })}
           onClearSelection={() => dispatchBulk({ type: "SET_SELECTED", payload: new Set() })}
@@ -943,12 +897,20 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
           tableReloadRef={tableReloadRef}
         />
       ) : (
-        <OverviewTab
-          enrichedHaeuser={enrichedHaeuser}
-          summary={summary}
-          financialMetrics={financialMetrics}
-          efficiencyMetrics={efficiencyMetrics}
-        />
+        <>
+          <PageTopBar
+            breadcrumbs={[{ label: "Objekte" }, { label: "Häuser" }, { label: "Übersicht" }]}
+            actions={addAction}
+          />
+          <div className="flex flex-col gap-4 p-4 sm:p-6">
+            <OverviewTab
+              enrichedHaeuser={enrichedHaeuser}
+              summary={summary}
+              financialMetrics={financialMetrics}
+              efficiencyMetrics={efficiencyMetrics}
+            />
+          </div>
+        </>
       )}
 
       <AlertDialog open={showBulkDeleteConfirm} onOpenChange={(open) => dispatchBulk({ type: "TOGGLE_BULK_DELETE_CONFIRM", payload: open })}>

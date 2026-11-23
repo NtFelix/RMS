@@ -2,10 +2,11 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { DashboardLayoutSkeleton } from './dashboard-layout-skeleton';
 import {
-  DASHBOARD_CARD_CLASS,
+  DASHBOARD_CONTAINER_CLASS,
+  DASHBOARD_FRAME_CLASS,
   DASHBOARD_MAIN_CLASS,
+  DASHBOARD_RAIL_CLASS,
   DASHBOARD_ROOT_CLASS,
-  DASHBOARD_SIDEBAR_CLASS,
 } from './dashboard-layout-classes';
 
 // The skeleton is the Suspense fallback of the dashboard layout and the hydration fallback of DashboardLayout:
@@ -17,37 +18,38 @@ describe('DashboardLayoutSkeleton', () => {
     expect(screen.getByRole('status', { name: 'Wird geladen' })).toHaveAttribute('aria-busy', 'true');
   });
 
-  it('uses the class strings of the loaded shell for root, sidebar, main area and content card', () => {
+  it('uses the class strings of the loaded shell for root, icon rail, frame, container and main area', () => {
     const { container } = render(<DashboardLayoutSkeleton />);
     const root = container.firstElementChild as HTMLElement;
 
     expect(root).toHaveClass(...DASHBOARD_ROOT_CLASS.split(' '));
-    expect(root.children[0]).toHaveClass(...DASHBOARD_SIDEBAR_CLASS.split(' '));
+    expect(root.children[0]).toHaveClass(...DASHBOARD_RAIL_CLASS.split(' '));
+    expect(root.children[1]).toHaveClass(...DASHBOARD_FRAME_CLASS.split(' '));
+    expect(root.children[1].firstElementChild).toHaveClass(...DASHBOARD_CONTAINER_CLASS.split(' '));
     expect(root.querySelector('main')).toHaveClass(...DASHBOARD_MAIN_CLASS.split(' '));
-    expect(root.querySelector('main')?.firstElementChild).toHaveClass(...DASHBOARD_CARD_CLASS.split(' '));
   });
 
-  it('switches desktop and mobile navigation with CSS only, so the prerendered HTML needs no JavaScript', () => {
+  it('keeps the icon rail on every viewport (no bottom navigation placeholder, no responsive switching)', () => {
     const { container } = render(<DashboardLayoutSkeleton />);
 
-    expect(container.querySelector('.desktop-sidebar-responsive')).toBeInTheDocument();
-    expect(container.querySelector('nav.mobile-nav-responsive')).toBeInTheDocument();
+    expect(container.querySelector('nav')).not.toBeInTheDocument();
+    expect(container.querySelector('.desktop-sidebar-responsive, .mobile-nav-responsive')).not.toBeInTheDocument();
+    expect(container.querySelector('aside')).not.toHaveClass('hidden');
   });
 
-  it('shows the real entries of the default shell, without the feature-flagged ones', () => {
+  it('shows the real entries of the default shell as icons, without the feature-flagged ones', () => {
     render(<DashboardLayoutSkeleton />);
 
     ['Dashboard', 'Suche', 'Organisationen', 'Häuser', 'Wohnungen', 'Mieter', 'Finanzen', 'Betriebskosten', 'Aufgaben'].forEach(
       (title) => expect(screen.getByText(title)).toBeInTheDocument(),
     );
-    ['Dokumente', 'E-Mails', 'KI-Agenten'].forEach((title) => expect(screen.queryByText(title)).not.toBeInTheDocument());
+    ['Dokumente', 'E-Mails', 'KI-Agenten', 'Kontakte'].forEach((title) => expect(screen.queryByText(title)).not.toBeInTheDocument());
   });
 
-  it('collapses to icons at the tablet breakpoint with CSS only', () => {
+  it('separates the navigation groups', () => {
     const { container } = render(<DashboardLayoutSkeleton />);
-    const sidebar = container.firstElementChild?.children[0] as HTMLElement;
 
-    expect(sidebar).toHaveClass('w-64', 'max-lg:w-[4.5rem]');
-    expect(screen.getByText('Mieter')).toHaveClass('max-lg:hidden');
+    // Allgemein | Objekte | Finanzen | Tools: three separators
+    expect(container.querySelectorAll('aside .h-px')).toHaveLength(3);
   });
 });

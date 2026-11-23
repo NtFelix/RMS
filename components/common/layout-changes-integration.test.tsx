@@ -113,9 +113,10 @@ describe('Layout Changes Integration Tests', () => {
       const props = { enrichedHaeuser: [] };
       const { container } = render(<HaeuserClientView {...props} />);
 
-      // Should have card-based layout
-      expect(screen.getByText('Hausverwaltung')).toBeInTheDocument();
+      // Rail-Layout: Breadcrumb und Aktion in der Top-Bar statt Card-Kopf
+      expect(screen.getByRole('banner')).toHaveTextContent('Häuser');
       expect(screen.getByRole('button', { name: /Haus hinzufügen/i })).toBeInTheDocument();
+      expect(screen.queryByText('Hausverwaltung')).not.toBeInTheDocument();
     });
 
     it('Mieter page has correct inline header-button layout', async () => {
@@ -330,9 +331,8 @@ describe('Layout Changes Integration Tests', () => {
       const props = { enrichedHaeuser: [] };
       render(<HaeuserClientView {...props} />);
 
-      // Should have proper heading structure
-      const title = screen.getByText('Hausverwaltung');
-      expect(title).toBeInTheDocument();
+      // Seitentitel als Überschrift in der Rail
+      expect(screen.getByRole('heading', { name: 'Häuser' })).toBeInTheDocument();
     });
   });
 

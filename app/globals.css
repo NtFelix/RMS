@@ -67,6 +67,11 @@
   --color-modal-close-hover: hsl(var(--primary) / 0.15);
   --color-hover-bg: hsl(var(--hover-bg));
 
+  /* Dashboard shell: outer background, nested container and its inner dividers */
+  --color-surface-outer: hsl(var(--surface-outer));
+  --color-surface-container: hsl(var(--surface-container));
+  --color-border-subtle: hsl(var(--border-subtle));
+
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
 
@@ -788,6 +793,9 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 210 29% 24%;
     --hover-bg: 220 13% 91%;
+    --surface-outer: 240 5% 96%;
+    --surface-container: 0 0% 100%;
+    --border-subtle: 220 8% 92%;
     --radius: 1rem;
 
     --digit-dur: 500ms;
@@ -851,6 +859,10 @@
     --ring: 220 39% 25%;
     /* #2D4A6B - darker blue ring */
     --hover-bg: 220 11% 20%;
+    --surface-outer: 0 0% 7%;
+    --surface-container: 0 0% 9.4%;
+    /* #181818, like the former content card */
+    --border-subtle: 0 0% 17%;
 
     /* Custom variables for specific use cases */
     --btn-bg: 215 25% 19%;
