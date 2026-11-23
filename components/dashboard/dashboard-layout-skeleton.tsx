@@ -12,6 +12,7 @@ import {
   DASHBOARD_RAIL_ITEM_CLASS,
   DASHBOARD_RAIL_NAV_ITEM_CLASS,
   DASHBOARD_RAIL_NAV_LABEL_CLASS,
+  DASHBOARD_RAIL_NAV_TILE_CLASS,
   DASHBOARD_ROOT_CLASS,
 } from "@/components/dashboard/dashboard-layout-classes"
 
@@ -44,7 +45,9 @@ export function DashboardLayoutSkeleton() {
           <div className="flex flex-col items-center gap-0.5">
             {NAV_ITEMS.map((item) => (
               <div key={item.href} className={`${DASHBOARD_RAIL_NAV_ITEM_CLASS} text-muted-foreground`}>
-                <item.icon className="size-5 shrink-0" aria-hidden="true" />
+                <span className={DASHBOARD_RAIL_NAV_TILE_CLASS}>
+                  <item.icon className="size-5 shrink-0" aria-hidden="true" />
+                </span>
                 <span className={`${DASHBOARD_RAIL_NAV_LABEL_CLASS} font-medium`}>{item.title}</span>
               </div>
             ))}

@@ -85,10 +85,12 @@ describe('PrimaryRail', () => {
 
     expect(haeuser).toHaveAttribute('aria-current', 'page')
     expect(haeuser).toHaveAttribute('data-active', 'true')
-    expect(haeuser).toHaveClass('bg-primary/10', 'text-primary')
+    // Die Farbe sitzt auf der Kachel um das Icon, nicht auf dem ganzen Eintrag
+    const tile = (link: HTMLElement) => link.querySelector('[data-slot="rail-tile"]')
+    expect(tile(haeuser)).toHaveClass('bg-primary/10', 'text-primary')
     expect(mieter).not.toHaveAttribute('aria-current')
     expect(mieter).toHaveAttribute('data-active', 'false')
-    expect(mieter).not.toHaveClass('bg-primary/10')
+    expect(tile(mieter)).not.toHaveClass('bg-primary/10')
   })
 
   it('also highlights an entry for its sub routes', () => {

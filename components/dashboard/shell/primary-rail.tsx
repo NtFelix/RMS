@@ -13,6 +13,7 @@ import {
   DASHBOARD_RAIL_ITEM_CLASS,
   DASHBOARD_RAIL_NAV_ITEM_CLASS,
   DASHBOARD_RAIL_NAV_LABEL_CLASS,
+  DASHBOARD_RAIL_NAV_TILE_CLASS,
 } from "@/components/dashboard/dashboard-layout-classes"
 import {
   NOTIFICATIONS_POPOVER_CLASS,
@@ -36,6 +37,8 @@ import type { SidebarUserData } from "@/lib/server/user-data"
 
 const ACTIVE_ITEM_CLASS = "bg-primary/10 text-primary dark:bg-primary/40 dark:text-primary-foreground"
 const INACTIVE_ITEM_CLASS = "text-muted-foreground hover:bg-primary/5 hover:text-foreground dark:hover:bg-accent/15"
+// Navigation tile: the colours sit on the tile around the icon, the hover is triggered by the whole entry (label too)
+const INACTIVE_TILE_CLASS = "text-muted-foreground group-hover:bg-foreground/[0.07] group-hover:text-foreground"
 
 /** Global navigation as a narrow icon rail without container: organisation, navigation groups, utilities. */
 export function PrimaryRail({ sidebarData }: { sidebarData: SidebarUserData }) {
@@ -100,16 +103,30 @@ function RailLink({
       aria-current={isActive ? "page" : undefined}
       data-active={isActive}
       onClick={(e) => handleNavItemClick(e, item.href, openCommandMenu)}
-      className={cn(
-        DASHBOARD_RAIL_NAV_ITEM_CLASS,
-        // Colour changes are animated for the hover only: a transition on the active state made the previous entry
-        // fade out (and the new one fade in) after a navigation, which looked like both being active for a moment.
-        "cursor-pointer active:scale-95 data-[active=false]:hover:transition-colors data-[active=false]:hover:duration-200",
-        isActive ? ACTIVE_ITEM_CLASS : INACTIVE_ITEM_CLASS,
-      )}
+      className={cn(DASHBOARD_RAIL_NAV_ITEM_CLASS, "cursor-pointer active:scale-95")}
     >
-      <item.icon className="size-5 shrink-0" aria-hidden="true" />
-      <span className={cn(DASHBOARD_RAIL_NAV_LABEL_CLASS, isActive ? "font-semibold" : "font-medium")}>{item.title}</span>
+      <span
+        data-slot="rail-tile"
+        className={cn(
+          DASHBOARD_RAIL_NAV_TILE_CLASS,
+          // Colour changes are animated for the hover only: a transition on the active state made the previous entry
+          // fade out (and the new one fade in) after a navigation, which looked like both being active for a moment.
+          !isActive && "transition-colors duration-200",
+          isActive ? ACTIVE_ITEM_CLASS : INACTIVE_TILE_CLASS,
+        )}
+      >
+        <item.icon className="size-5 shrink-0" aria-hidden="true" />
+      </span>
+      <span
+        className={cn(
+          DASHBOARD_RAIL_NAV_LABEL_CLASS,
+          isActive
+            ? "font-semibold text-foreground"
+            : "font-medium text-muted-foreground transition-colors duration-200 group-hover:text-foreground",
+        )}
+      >
+        {item.title}
+      </span>
     </Link>
   )
 }
