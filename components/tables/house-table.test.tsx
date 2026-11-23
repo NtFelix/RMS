@@ -446,6 +446,55 @@ describe('HouseTable', () => {
     });
   });
 
+  describe('Address cell', () => {
+    const houseWithAddress: House = {
+      id: 'a1',
+      name: 'Musterhaus',
+      strasse: 'Musterweg 1',
+      plz: 12345,
+      ort: 'Musterstadt',
+      totalApartments: 3,
+      freeApartments: 1,
+    };
+
+    it('shows only the city in one line, full address in the card', async () => {
+      const user = userEvent.setup();
+      render(<HouseTable filter="all" searchQuery="" onEdit={mockOnEdit} initialHouses={[houseWithAddress]} />);
+
+      const trigger = screen.getByRole('button', { name: 'Musterstadt' });
+      expect(screen.queryByText('12345 Musterstadt')).not.toBeInTheDocument();
+
+      await user.click(trigger);
+
+      expect(await screen.findByText('Musterweg 1')).toBeInTheDocument();
+      expect(screen.getByText('12345 Musterstadt')).toBeInTheDocument();
+      expect(screen.getByText('3 Wohnungen · 1 frei')).toBeInTheDocument();
+    });
+
+    it('does not open the row editor when the city is clicked', async () => {
+      const user = userEvent.setup();
+      render(<HouseTable filter="all" searchQuery="" onEdit={mockOnEdit} initialHouses={[houseWithAddress]} />);
+
+      await user.click(screen.getByRole('button', { name: 'Musterstadt' }));
+      await user.click(await screen.findByRole('button', { name: /Kopieren/ }));
+
+      expect(mockOnEdit).not.toHaveBeenCalled();
+    });
+
+    it('strips a PLZ that is already part of ort', () => {
+      render(
+        <HouseTable
+          filter="all"
+          searchQuery=""
+          onEdit={mockOnEdit}
+          initialHouses={[{ ...houseWithAddress, plz: null, ort: '12345 Musterstadt' }]}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: 'Musterstadt' })).toBeInTheDocument();
+    });
+  });
+
   describe('Row interactions', () => {
     it('calls onEdit when row is clicked', async () => {
       const user = userEvent.setup();

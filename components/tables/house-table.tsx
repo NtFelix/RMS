@@ -19,9 +19,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, Home, MapPin, Ruler, Euro, TrendingUp, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, Home, MapPin, Ruler, Euro, TrendingUp, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil, Copy } from "lucide-react"
 import { ActionMenu } from "@/components/ui/action-menu"
-import { formatPlzOrt } from "@/lib/address"
+import { formatPlzOrt, padPlz } from "@/lib/address"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary"
 
 export interface House {
@@ -197,6 +198,74 @@ function escapeCsvValue(value: string | null | undefined): string {
   return stringValue
 }
 
+/** Ort einzeilig (nur Stadt); die vollständige Adresse steht in einer Hover-Card, auf Touch-Geräten per Tipp. */
+function HouseAddressCell({ house }: { house: House }) {
+  const [open, setOpen] = useState(false)
+  const plz = padPlz(house.plz)
+  const city = (house.ort ?? '').trim().replace(/^\d{4,5}\s+/, '')
+  const plzOrt = formatPlzOrt(house.plz, house.ort)
+  const street = house.strasse?.trim()
+  if (!city && !plz) return <>-</>
+
+  const copyAddress = async () => {
+    try {
+      await navigator.clipboard.writeText([street, plzOrt].filter(Boolean).join(', '))
+      toast({ title: 'Adresse kopiert', variant: 'success' })
+    } catch {
+      toast({ title: 'Adresse konnte nicht kopiert werden', variant: 'destructive' })
+    }
+  }
+
+  const free = house.freeApartments ?? 0
+  const total = house.totalApartments ?? 0
+
+  return (
+    <HoverCard open={open} onOpenChange={setOpen} openDelay={250} closeDelay={100}>
+      <HoverCardTrigger asChild>
+        <button
+          type="button"
+          className="whitespace-nowrap rounded-sm underline decoration-muted-foreground/40 decoration-dotted underline-offset-4 transition-colors hover:decoration-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={(e) => {
+            // Nicht das Bearbeiten der Zeile auslösen; auf Touch-Geräten öffnet der Tipp die Karte
+            e.stopPropagation()
+            setOpen((v) => !v)
+          }}
+        >
+          {city || plzOrt}
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent
+        align="start"
+        className="w-64 rounded-xl p-0"
+        // Klicks in der (portalisierten) Karte bubbeln sonst bis zur Tabellenzeile
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-2.5 p-3">
+          <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="font-medium leading-snug">{house.name}</p>
+            {street && <p className="text-muted-foreground">{street}</p>}
+            {plzOrt && <p className="text-muted-foreground">{plzOrt}</p>}
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-border-subtle px-3 py-2 text-xs text-muted-foreground">
+          <span>
+            {total === 0 ? 'Keine Wohnungen' : `${total} ${total === 1 ? 'Wohnung' : 'Wohnungen'} · ${free} frei`}
+          </span>
+          <button
+            type="button"
+            onClick={copyAddress}
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <Copy className="size-3.5" aria-hidden="true" />
+            Kopieren
+          </button>
+        </div>
+      </HoverCardContent>
+    </HoverCard>
+  )
+}
+
 function SortIcon({ currentSortKey, sortKey, sortDirection }: { currentSortKey: SortKey; sortKey: SortKey; sortDirection: SortDirection }) {
   // Inaktive Spalten zeigen den Sortier-Hinweis nur beim Hover, die aktive Sortierung bleibt sichtbar
   if (currentSortKey !== sortKey) {
@@ -348,7 +417,7 @@ function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectH
           />
         </TableCell>
         <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{house.name}</TableCell>
-        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatPlzOrt(house.plz, house.ort) || '-'}</TableCell>
+        <TableCell className={`py-4 dark:text-[#f3f4f6]`}><HouseAddressCell house={house} /></TableCell>
         <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.size ? `${house.size} m²` : "-"}</TableCell>
         <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.rent ? `${house.rent} €` : "-"}</TableCell>
         <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.pricePerSqm ? `${house.pricePerSqm} €/m²` : "-"}</TableCell>
