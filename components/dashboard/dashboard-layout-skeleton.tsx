@@ -10,7 +10,8 @@ import {
   DASHBOARD_MAIN_CLASS,
   DASHBOARD_RAIL_CLASS,
   DASHBOARD_RAIL_ITEM_CLASS,
-  DASHBOARD_RAIL_SEPARATOR_CLASS,
+  DASHBOARD_RAIL_NAV_ITEM_CLASS,
+  DASHBOARD_RAIL_NAV_LABEL_CLASS,
   DASHBOARD_ROOT_CLASS,
 } from "@/components/dashboard/dashboard-layout-classes"
 
@@ -24,9 +25,9 @@ import {
 // Wohnungen, Mieter, Finanzen, Betriebskosten, Aufgaben); which entries a user sees is not known up front.
 // The entries are the real ones (icon and label), so the swap to the loaded rail changes nothing the user can
 // see except the highlighted entry and the user area.
-const NAV_GROUPS = sidebarNavGroups
-  .map((group) => ({ ...group, items: group.items.filter((item) => !FEATURE_FLAGGED_NAV_HREFS.has(item.href)) }))
-  .filter((group) => group.items.length > 0)
+const NAV_ITEMS = sidebarNavGroups
+  .flatMap((group) => group.items)
+  .filter((item) => !FEATURE_FLAGGED_NAV_HREFS.has(item.href))
 
 export function DashboardLayoutSkeleton() {
   return (
@@ -40,17 +41,14 @@ export function DashboardLayoutSkeleton() {
         </div>
 
         <div className="mt-2 flex min-h-0 w-full flex-1 flex-col items-center overflow-hidden">
-          {NAV_GROUPS.map((group, index) => (
-            <div key={group.label} className="flex flex-col items-center gap-1">
-              {index > 0 && <div className={DASHBOARD_RAIL_SEPARATOR_CLASS} />}
-              {group.items.map((item) => (
-                <div key={item.href} className={`${DASHBOARD_RAIL_ITEM_CLASS} text-muted-foreground`}>
-                  <item.icon className="size-5 shrink-0" />
-                  <span className="sr-only">{item.title}</span>
-                </div>
-              ))}
-            </div>
-          ))}
+          <div className="flex flex-col items-center gap-0.5">
+            {NAV_ITEMS.map((item) => (
+              <div key={item.href} className={`${DASHBOARD_RAIL_NAV_ITEM_CLASS} text-muted-foreground`}>
+                <item.icon className="size-5 shrink-0" aria-hidden="true" />
+                <span className={`${DASHBOARD_RAIL_NAV_LABEL_CLASS} font-medium`}>{item.title}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* User menu: avatar */}

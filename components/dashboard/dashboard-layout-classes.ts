@@ -7,11 +7,16 @@
 
 export const DASHBOARD_ROOT_CLASS = "flex h-dvh w-full max-w-full overflow-hidden bg-surface-outer"
 
-export const DASHBOARD_RAIL_CLASS = "flex h-full w-[60px] shrink-0 flex-col items-center py-2.5"
+export const DASHBOARD_RAIL_CLASS = "flex h-full w-[60px] shrink-0 flex-col items-center py-2.5 sm:w-[84px]"
 
 export const DASHBOARD_RAIL_ITEM_CLASS = "flex size-10 shrink-0 items-center justify-center rounded-xl"
 
-export const DASHBOARD_RAIL_SEPARATOR_CLASS = "my-2 h-px w-6 shrink-0 bg-border-subtle"
+// Navigation entry: icon with a small label below; the active entry is a rounded tile around both. On phones the
+// rail stays narrow (icon only, label for screen readers) so the work area keeps its width.
+export const DASHBOARD_RAIL_NAV_ITEM_CLASS =
+  "flex size-10 shrink-0 flex-col items-center justify-center rounded-xl sm:size-auto sm:w-[76px] sm:gap-1 sm:px-0.5 sm:pb-1.5 sm:pt-2"
+
+export const DASHBOARD_RAIL_NAV_LABEL_CLASS = "w-full truncate text-center text-[10.5px] leading-tight tracking-tight max-sm:sr-only"
 
 // Spacing between the container and the viewport edge (none on the left, the rail provides it).
 export const DASHBOARD_FRAME_CLASS = "min-w-0 flex-1 py-2 pr-2"

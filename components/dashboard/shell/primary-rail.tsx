@@ -11,7 +11,8 @@ import type { SidebarNavItemType } from "@/components/dashboard/sidebar-nav-conf
 import {
   DASHBOARD_RAIL_CLASS,
   DASHBOARD_RAIL_ITEM_CLASS,
-  DASHBOARD_RAIL_SEPARATOR_CLASS,
+  DASHBOARD_RAIL_NAV_ITEM_CLASS,
+  DASHBOARD_RAIL_NAV_LABEL_CLASS,
 } from "@/components/dashboard/dashboard-layout-classes"
 import {
   NOTIFICATIONS_POPOVER_CLASS,
@@ -58,10 +59,11 @@ export function PrimaryRail({ sidebarData }: { sidebarData: SidebarUserData }) {
           aria-label="Hauptnavigation"
           className="mt-2 flex min-h-0 w-full flex-1 flex-col items-center overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {navGroups.map((group, index) => (
-            <div key={group.label} role="group" aria-label={group.label} className="flex flex-col items-center gap-1">
-              {index > 0 && <div role="separator" className={DASHBOARD_RAIL_SEPARATOR_CLASS} />}
-              {group.items.map((item) => (
+          {/* Eine durchgehende Liste ohne Gruppen; die Beschriftung unter dem Icon ersetzt Tooltips und Gruppentitel */}
+          <div className="flex flex-col items-center gap-0.5">
+            {navGroups
+              .flatMap((group) => group.items)
+              .map((item) => (
                 <RailLink
                   key={item.href}
                   item={item}
@@ -69,8 +71,7 @@ export function PrimaryRail({ sidebarData }: { sidebarData: SidebarUserData }) {
                   openCommandMenu={setCommandMenuOpen}
                 />
               ))}
-            </div>
-          ))}
+          </div>
         </nav>
 
         <div className="flex w-full shrink-0 flex-col items-center gap-1 pt-2">
@@ -92,30 +93,24 @@ function RailLink({
   openCommandMenu: (open: boolean) => void
 }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Link
-          href={item.href}
-          id={getNavItemId(item.href)}
-          aria-label={item.title}
-          aria-current={isActive ? "page" : undefined}
-          data-active={isActive}
-          onClick={(e) => handleNavItemClick(e, item.href, openCommandMenu)}
-          className={cn(
-            DASHBOARD_RAIL_ITEM_CLASS,
-            // Colour changes are animated for the hover only: a transition on the active state made the previous entry
-            // fade out (and the new one fade in) after a navigation, which looked like both being active for a moment.
-            "cursor-pointer active:scale-95 data-[active=false]:hover:transition-colors data-[active=false]:hover:duration-200",
-            isActive ? ACTIVE_ITEM_CLASS : INACTIVE_ITEM_CLASS,
-          )}
-        >
-          <item.icon className="size-5 shrink-0" />
-        </Link>
-      </TooltipTrigger>
-      <TooltipContent side="right" className="font-medium">
-        {item.title}
-      </TooltipContent>
-    </Tooltip>
+    <Link
+      href={item.href}
+      id={getNavItemId(item.href)}
+      title={item.title}
+      aria-current={isActive ? "page" : undefined}
+      data-active={isActive}
+      onClick={(e) => handleNavItemClick(e, item.href, openCommandMenu)}
+      className={cn(
+        DASHBOARD_RAIL_NAV_ITEM_CLASS,
+        // Colour changes are animated for the hover only: a transition on the active state made the previous entry
+        // fade out (and the new one fade in) after a navigation, which looked like both being active for a moment.
+        "cursor-pointer active:scale-95 data-[active=false]:hover:transition-colors data-[active=false]:hover:duration-200",
+        isActive ? ACTIVE_ITEM_CLASS : INACTIVE_ITEM_CLASS,
+      )}
+    >
+      <item.icon className="size-5 shrink-0" aria-hidden="true" />
+      <span className={cn(DASHBOARD_RAIL_NAV_LABEL_CLASS, isActive ? "font-semibold" : "font-medium")}>{item.title}</span>
+    </Link>
   )
 }
 

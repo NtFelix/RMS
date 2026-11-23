@@ -53,7 +53,7 @@ describe('PrimaryRail', () => {
     jest.clearAllMocks()
   })
 
-  it('renders the navigation entries in the order of the groups, separated by group', () => {
+  it('renders all navigation entries as one list with visible labels, without groups', () => {
     const { container } = render(<PrimaryRail sidebarData={sidebarData} />)
 
     const hrefs = Array.from(container.querySelectorAll('nav a')).map((a) => a.getAttribute('href'))
@@ -63,10 +63,10 @@ describe('PrimaryRail', () => {
       '/finanzen', '/betriebskosten',
       '/todos', '/dateien', '/mails', '/agenten',
     ])
-    expect(screen.getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual([
-      'Allgemein', 'Objekte', 'Finanzen', 'Tools',
-    ])
-    expect(screen.getAllByRole('separator')).toHaveLength(3)
+    expect(screen.queryAllByRole('group')).toHaveLength(0)
+    expect(screen.queryAllByRole('separator')).toHaveLength(0)
+    // Die Beschriftung steht sichtbar unter dem Icon und ist der zugängliche Name
+    expect(screen.getByRole('link', { name: 'Betriebskosten' })).toHaveTextContent('Betriebskosten')
   })
 
   it('keeps the ids the onboarding tour looks for', () => {
@@ -98,7 +98,7 @@ describe('PrimaryRail', () => {
     expect(container.querySelector('a[href="/haeuser"]')).toHaveAttribute('aria-current', 'page')
   })
 
-  it('hides entries without module permission and empty groups', () => {
+  it('hides entries without module permission', () => {
     const { container } = render(
       <PrimaryRail
         sidebarData={{ ...sidebarData, isOrganisationHidden: true, modulePermissions: new Set(['haeuser']) }}
@@ -106,9 +106,8 @@ describe('PrimaryRail', () => {
     )
 
     const hrefs = Array.from(container.querySelectorAll('nav a')).map((a) => a.getAttribute('href'))
-    // E-Mails has no module and stays; Finanzen has none of its entries left and is dropped
+    // E-Mails has no module and stays
     expect(hrefs).toEqual(['/dashboard', '/suche', '/haeuser', '/mails'])
-    expect(screen.getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(['Allgemein', 'Objekte', 'Tools'])
   })
 
   it('opens the command menu instead of navigating for "Suche"', () => {

@@ -46,10 +46,10 @@ describe('DashboardLayoutSkeleton', () => {
     ['Dokumente', 'E-Mails', 'KI-Agenten', 'Kontakte'].forEach((title) => expect(screen.queryByText(title)).not.toBeInTheDocument());
   });
 
-  it('separates the navigation groups', () => {
+  it('shows the navigation as one labelled list without group separators', () => {
     const { container } = render(<DashboardLayoutSkeleton />);
 
-    // Allgemein | Objekte | Finanzen | Tools: three separators
-    expect(container.querySelectorAll('aside .h-px')).toHaveLength(3);
+    expect(container.querySelectorAll('aside .h-px')).toHaveLength(0);
+    expect(container.querySelector('aside')).toHaveTextContent('Betriebskosten');
   });
 });
