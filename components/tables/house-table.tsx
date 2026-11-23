@@ -198,13 +198,14 @@ function escapeCsvValue(value: string | null | undefined): string {
 }
 
 function SortIcon({ currentSortKey, sortKey, sortDirection }: { currentSortKey: SortKey; sortKey: SortKey; sortDirection: SortDirection }) {
+  // Inaktive Spalten zeigen den Sortier-Hinweis nur beim Hover, die aktive Sortierung bleibt sichtbar
   if (currentSortKey !== sortKey) {
-    return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+    return <ChevronsUpDown className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/header:opacity-100 group-focus-within/header:opacity-100" />
   }
   return sortDirection === "asc" ? (
-    <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
+    <ArrowUp className="size-3.5 text-foreground" />
   ) : (
-    <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
+    <ArrowDown className="size-3.5 text-foreground" />
   )
 }
 
@@ -219,15 +220,18 @@ function TableHeaderCell({ sortKey, currentSortKey, sortDirection, children, cla
   onSort: (key: SortKey) => void;
 }) {
   return (
-    <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
+    <TableHead
+      className={`${className} group/header h-10 whitespace-nowrap text-[13px] font-semibold text-foreground hover:bg-transparent dark:hover:bg-transparent`}
+      aria-sort={sortable && currentSortKey === sortKey ? (sortDirection === "asc" ? "ascending" : "descending") : undefined}
+    >
       <div
         onClick={() => sortable && onSort(sortKey)}
         onKeyUp={(e) => { if (sortable && (e.key === 'Enter' || e.key === ' ')) onSort(sortKey) }}
         role={sortable ? 'button' : undefined}
         tabIndex={sortable ? 0 : undefined}
-        className={`flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] ${sortable ? 'cursor-pointer' : ''}`}
+        className={`-ml-1.5 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring ${sortable ? 'cursor-pointer transition-colors hover:bg-muted' : ''}`}
       >
-        <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+        <Icon className="size-3.5 text-muted-foreground" />
         {children}
         {sortable && <SortIcon currentSortKey={currentSortKey} sortKey={sortKey} sortDirection={sortDirection} />}
       </div>
@@ -446,8 +450,9 @@ function HouseTableContent({
       <div className="inline-block min-w-full align-middle">
         <Table className="min-w-full">
           <TableHeader>
-            <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
-              <TableHead className="w-12 pl-0 pr-0 -ml-2">
+            {/* Kopfzeile ohne Hintergrund: fette Beschriftung und eine kräftigere Linie trennen sie von den Daten */}
+            <TableRow className="border-b border-foreground/15 hover:bg-transparent dark:hover:bg-transparent">
+              <TableHead className="h-10 w-12 pl-0 pr-0 -ml-2 hover:bg-transparent dark:hover:bg-transparent">
                 <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
                   <Checkbox
                     aria-label="Alle Häuser auswählen"
@@ -457,13 +462,13 @@ function HouseTableContent({
                   />
                 </div>
               </TableHead>
-              <TableHeaderCell sortKey="name" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[250px] dark:text-[#f3f4f6]" icon={Home} onSort={handleSort}>Häuser</TableHeaderCell>
-              <TableHeaderCell sortKey="ort" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={MapPin} onSort={handleSort}>Ort</TableHeaderCell>
-              <TableHeaderCell sortKey="size" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={Ruler} onSort={handleSort}>Größe</TableHeaderCell>
-              <TableHeaderCell sortKey="rent" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={Euro} onSort={handleSort}>Miete</TableHeaderCell>
-              <TableHeaderCell sortKey="pricePerSqm" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={TrendingUp} onSort={handleSort}>Miete pro m²</TableHeaderCell>
-              <TableHeaderCell sortKey="status" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={CheckCircle2} onSort={handleSort}>Status</TableHeaderCell>
-              <TableHeaderCell sortKey="name" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false} onSort={handleSort}>Aktionen</TableHeaderCell>
+              <TableHeaderCell sortKey="name" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[250px]" icon={Home} onSort={handleSort}>Häuser</TableHeaderCell>
+              <TableHeaderCell sortKey="ort" currentSortKey={sortKey} sortDirection={sortDirection} icon={MapPin} onSort={handleSort}>Ort</TableHeaderCell>
+              <TableHeaderCell sortKey="size" currentSortKey={sortKey} sortDirection={sortDirection} icon={Ruler} onSort={handleSort}>Größe</TableHeaderCell>
+              <TableHeaderCell sortKey="rent" currentSortKey={sortKey} sortDirection={sortDirection} icon={Euro} onSort={handleSort}>Miete</TableHeaderCell>
+              <TableHeaderCell sortKey="pricePerSqm" currentSortKey={sortKey} sortDirection={sortDirection} icon={TrendingUp} onSort={handleSort}>Miete pro m²</TableHeaderCell>
+              <TableHeaderCell sortKey="status" currentSortKey={sortKey} sortDirection={sortDirection} icon={CheckCircle2} onSort={handleSort}>Status</TableHeaderCell>
+              <TableHeaderCell sortKey="name" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[80px] pr-2" icon={Pencil} sortable={false} onSort={handleSort}>Aktionen</TableHeaderCell>
             </TableRow>
           </TableHeader>
           <TableBody>
