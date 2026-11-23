@@ -11,3 +11,4 @@ export {
   ToolbarPrimaryButton,
 } from "./toolbar"
 export type { ToolbarFilterGroup, SortDirection } from "./toolbar"
+export { SelectionPill, SelectionPillAction } from "./selection-pill"

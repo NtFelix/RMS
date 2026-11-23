@@ -619,6 +619,31 @@ describe('HaeuserClientView', () => {
     });
   });
 
+  describe('Selection pill', () => {
+    it('appears at the bottom once a row is selected and clears the selection', async () => {
+      const user = userEvent.setup();
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
+
+      expect(screen.queryByRole('toolbar', { name: 'Aktionen für die Auswahl' })).not.toBeInTheDocument();
+      await user.click(screen.getByTestId('select-1'));
+
+      const pill = screen.getByRole('toolbar', { name: 'Aktionen für die Auswahl' });
+      expect(pill).toHaveTextContent('1 Haus ausgewählt');
+      expect(screen.getByRole('button', { name: 'Exportieren' })).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Auswahl aufheben' }));
+      expect(screen.queryByRole('toolbar', { name: 'Aktionen für die Auswahl' })).not.toBeInTheDocument();
+    });
+
+    it('disables deleting without permission', async () => {
+      const user = userEvent.setup();
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} canDelete={false} />);
+
+      await user.click(screen.getByTestId('select-1'));
+      expect(screen.getByRole('button', { name: /Löschen \(1\)/ })).toBeDisabled();
+    });
+  });
+
   describe('Bulk delete with Kautionen overview', () => {
     const mockFetch = global.fetch as jest.Mock;
 

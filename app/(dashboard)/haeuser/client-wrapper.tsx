@@ -4,10 +4,8 @@ import { useState, useRef, useCallback, useMemo, useReducer } from "react";
 import { useTabParams } from "@/hooks/use-tab-params";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, Building, Home, Key, X, Download, Trash2, Loader2, Building2, BarChart3, Wallet, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus, Building, Home, Key, Download, Trash2, Loader2, Building2, BarChart3, Wallet, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { StatCard } from "@/components/common/stat-card";
 import { HouseTable, House, type SortKey, type SortDirection } from "@/components/tables/house-table";
 import { formatPlzOrt } from "@/lib/address";
@@ -23,6 +21,8 @@ import {
   ToolbarSortMenu,
   ToolbarSearch,
   ToolbarPrimaryButton,
+  SelectionPill,
+  SelectionPillAction,
 } from "@/components/dashboard/shell";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
@@ -94,81 +94,6 @@ function bulkReducer(state: BulkState, action: BulkAction): BulkState {
   }
 }
 
-function BulkActionBar({
-  selectedCount,
-  onClearSelection,
-  onExport,
-  onDelete,
-  isDeleting,
-  canDelete,
-}: {
-  selectedCount: number;
-  onClearSelection: () => void;
-  onExport: () => void;
-  onDelete: () => void;
-  isDeleting: boolean;
-  canDelete: boolean;
-}) {
-  return (
-    <div className="p-3 sm:p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between animate-in slide-in-from-top-2 duration-200">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Checkbox
-            checked={true}
-            onCheckedChange={onClearSelection}
-            className="data-[state=checked]:bg-primary"
-          />
-          <span className="font-medium text-sm">
-            {selectedCount} <span className="hidden sm:inline">{selectedCount === 1 ? 'Haus' : 'Häuser'}</span> ausgewählt
-          </span>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClearSelection}
-          className="h-8 px-2 hover:bg-primary/20"
-        >
-          <X className="size-4" />
-        </Button>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onExport}
-          className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm"
-        >
-          <Download className="size-4" />
-          <span className="hidden sm:inline">Exportieren</span>
-          <span className="sm:hidden">Export</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onDelete}
-          disabled={isDeleting || !canDelete}
-          className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-        >
-          {isDeleting ? (
-            <>
-              <Loader2 className="size-4 animate-spin" />
-              <span className="hidden sm:inline">Löschen...</span>
-              <span className="sm:hidden">...</span>
-            </>
-          ) : (
-            <>
-              <Trash2 className="size-4" />
-              <span className="hidden sm:inline">Löschen ({selectedCount})</span>
-              <span className="sm:hidden">{selectedCount}</span>
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// Gemeinsame Aktion der Top-Bar: Haus hinzufügen (Onboarding-Schritt, Berechtigungs-Tooltip)
 function AddHouseButton({ onAdd, canCreate }: { onAdd: () => void; canCreate: boolean }) {
   const button = (
     <ToolbarPrimaryButton
@@ -314,16 +239,6 @@ function HousesTab({
         actions={<AddHouseButton onAdd={onAdd} canCreate={flags.canCreate} />}
       />
       <div className="flex flex-col gap-4 p-4 sm:p-6 animate-in fade-in duration-300">
-        {selectedHouses.size > 0 && (
-          <BulkActionBar
-            selectedCount={selectedHouses.size}
-            onClearSelection={onClearSelection}
-            onExport={onBulkExport}
-            onDelete={onBulkDeleteClick}
-            isDeleting={flags.isBulkDeleting}
-            canDelete={flags.canDelete}
-          />
-        )}
         <HouseTable
           filter={filter}
           searchQuery={searchQuery}
@@ -340,6 +255,21 @@ function HousesTab({
           canDelete={flags.canDelete}
         />
       </div>
+      <SelectionPill count={selectedHouses.size} noun={["Haus", "Häuser"]} onClear={onClearSelection}>
+        <SelectionPillAction icon={Download} onClick={onBulkExport}>
+          Exportieren
+        </SelectionPillAction>
+        <SelectionPillAction
+          icon={flags.isBulkDeleting ? Loader2 : Trash2}
+          variant="destructive"
+          onClick={onBulkDeleteClick}
+          disabled={flags.isBulkDeleting || !flags.canDelete}
+          aria-label={`Löschen (${selectedHouses.size})`}
+          className={flags.isBulkDeleting ? "[&_svg]:animate-spin" : undefined}
+        >
+          {flags.isBulkDeleting ? "Löschen…" : "Löschen"}
+        </SelectionPillAction>
+      </SelectionPill>
     </>
   );
 }
