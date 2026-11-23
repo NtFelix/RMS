@@ -1,8 +1,9 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import HaeuserClientView from './client-wrapper';
 import { House } from '@/components/tables/house-table';
 import { useModalStore } from '@/hooks/use-modal-store';
+import { useOnboardingStore } from '@/hooks/use-onboarding-store';
 import { starteLoeschenMitKautionen } from '@/lib/kautionen-loeschen';
 
 // Mock dependencies
@@ -18,24 +19,43 @@ jest.mock('@/hooks/use-tab-params', () => {
 });
 
 jest.mock('@/components/tables/house-table', () => ({
-  HouseTable: ({ filter, searchQuery, onEdit, initialHouses, reloadRef, onSelectionChange }: any) => (
-    <div data-testid="house-table">
-      <div data-testid="filter-value">{filter}</div>
-      <div data-testid="search-value">{searchQuery}</div>
-      <div data-testid="houses-count">{initialHouses?.length || 0}</div>
-      {initialHouses?.map((house: House) => (
-        <div key={house.id} data-testid={`house-${house.id}`}>
-          <span>{house.name}</span>
-          <button onClick={() => onEdit(house)} data-testid={`edit-${house.id}`}>Edit</button>
-        </div>
-      ))}
-      <button onClick={() => onSelectionChange?.(new Set(['1']))} data-testid="select-1">Select</button>
-      <button onClick={() => reloadRef?.current?.()} data-testid="reload-table">Reload</button>
-    </div>
-  ),
+  // Städte-Filter und Sortierung (Name/Ort) werden hier nachgebildet, damit die Verdrahtung sichtbar wird
+  HouseTable: ({ filter, searchQuery, cityFilter, sortKey, sortDirection, onSortChange, onEdit, initialHouses, reloadRef, onSelectionChange }: any) => {
+    const visible = (initialHouses ?? [])
+      .filter((h: House) => !cityFilter?.length || cityFilter.includes(h.ort))
+      .sort((a: House, b: House) => {
+        const key = sortKey === 'ort' ? 'ort' : 'name'
+        const cmp = String(a[key]).localeCompare(String(b[key]))
+        return sortDirection === 'desc' ? -cmp : cmp
+      })
+    return (
+      <div data-testid="house-table">
+        <div data-testid="filter-value">{filter}</div>
+        <div data-testid="search-value">{searchQuery}</div>
+        <div data-testid="city-filter-value">{(cityFilter ?? []).join(',')}</div>
+        <div data-testid="sort-value">{`${sortKey}:${sortDirection}`}</div>
+        <div data-testid="houses-count">{visible.length}</div>
+        <button onClick={() => onSortChange?.('rent', 'desc')} data-testid="header-sort">Header sort</button>
+        {visible.map((house: House) => (
+          <div key={house.id} data-testid={`house-${house.id}`}>
+            <span>{house.name}</span>
+            <button onClick={() => onEdit(house)} data-testid={`edit-${house.id}`}>Edit</button>
+          </div>
+        ))}
+        <button onClick={() => onSelectionChange?.(new Set(['1']))} data-testid="select-1">Select</button>
+        <button onClick={() => reloadRef?.current?.()} data-testid="reload-table">Reload</button>
+      </div>
+    )
+  },
 }));
 
 const mockStart = starteLoeschenMitKautionen as jest.Mock;
+
+// Die Suche ist ein Icon in der Top-Bar, das sich beim Klick zum Eingabefeld öffnet
+const openSearch = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(screen.getByRole('button', { name: 'Suchen' }));
+  return screen.getByTestId('search-input');
+};
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 
 describe('HaeuserClientView', () => {
@@ -105,10 +125,16 @@ describe('HaeuserClientView', () => {
       expect(screen.getByTestId('filter-vacant')).toHaveTextContent('1');
     });
 
-    it('renders the breadcrumb and the search input in the top bar', () => {
+    it('renders the breadcrumb and the toolbar controls in the top bar', async () => {
+      const user = userEvent.setup();
       render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
       expect(screen.getByText('Objekte')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Sortiert nach Name/ })).toBeInTheDocument();
+      // Die Suche ist ein Icon, das sich zum Feld öffnet
+      expect(screen.queryByTestId('search-input')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Suchen' }));
       expect(screen.getByTestId('search-input')).toHaveAttribute('placeholder', 'Häuser suchen…');
     });
 
@@ -170,6 +196,144 @@ describe('HaeuserClientView', () => {
     });
   });
 
+  describe('Toolbar filter menu', () => {
+    const openFilterMenu = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByRole('button', { name: 'Filter' }));
+      return screen.findByRole('menu');
+    };
+
+    it('lists Belegung and the unique cities with counts, sorted alphabetically', async () => {
+      const user = userEvent.setup();
+      const houses: House[] = [
+        ...mockHouses,
+        { id: '3', name: 'Haus Gamma', ort: 'Berlin', totalApartments: 1, freeApartments: 0 },
+        { id: '4', name: 'Haus Delta', ort: 'Ärgste Stadt', totalApartments: 1, freeApartments: 0 },
+        { id: '5', name: 'Haus Epsilon', ort: '', totalApartments: 1, freeApartments: 0 },
+      ];
+      render(<HaeuserClientView enrichedHaeuser={houses} />);
+
+      const menu = await openFilterMenu(user);
+      const items = within(menu).getAllByRole('menuitemcheckbox').map((i) => i.textContent);
+
+      expect(within(menu).getByText('Belegung')).toBeInTheDocument();
+      expect(items).toEqual(['Voll belegt4', 'Mit freien Wohnungen1', 'Ärgste Stadt1', 'Berlin2', 'München1']);
+    });
+
+    it('narrows the table to the selected city and shows the active filter count', async () => {
+      const user = userEvent.setup();
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
+
+      const menu = await openFilterMenu(user);
+      await user.click(within(menu).getByRole('menuitemcheckbox', { name: /München/ }));
+
+      expect(screen.getByTestId('city-filter-value')).toHaveTextContent('München');
+      expect(screen.queryByTestId('house-1')).not.toBeInTheDocument();
+      expect(screen.getByTestId('house-2')).toBeInTheDocument();
+
+      // Menü schließen: der Trigger zeigt die Zahl aktiver Gruppen
+      await user.keyboard('{Escape}');
+      expect(screen.getByRole('button', { name: 'Filter' })).toHaveTextContent('1');
+    });
+
+    it('supports several cities at once', async () => {
+      const user = userEvent.setup();
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
+
+      const menu = await openFilterMenu(user);
+      await user.click(within(menu).getByRole('menuitemcheckbox', { name: /München/ }));
+      await user.click(within(menu).getByRole('menuitemcheckbox', { name: /Berlin/ }));
+
+      expect(screen.getByTestId('city-filter-value')).toHaveTextContent('München,Berlin');
+      expect(screen.getByTestId('houses-count')).toHaveTextContent('2');
+    });
+
+    it('shares the Belegung state with the rail quick views', async () => {
+      const user = userEvent.setup();
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
+
+      const menu = await openFilterMenu(user);
+      await user.click(within(menu).getByRole('menuitemcheckbox', { name: /Voll belegt/ }));
+
+      expect(screen.getByTestId('filter-value')).toHaveTextContent('full');
+      expect(screen.getByTestId('filter-full')).toHaveAttribute('aria-pressed', 'true');
+
+      // Wieder abwählen = kein Filter
+      await user.click(within(menu).getByRole('menuitemcheckbox', { name: /Voll belegt/ }));
+      expect(screen.getByTestId('filter-value')).toHaveTextContent('all');
+      expect(screen.getByTestId('filter-all')).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('reflects a rail quick view in the menu', async () => {
+      const user = userEvent.setup();
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
+
+      await user.click(screen.getByTestId('filter-vacant'));
+      const menu = await openFilterMenu(user);
+
+      expect(within(menu).getByRole('menuitemcheckbox', { name: /Mit freien Wohnungen/ })).toBeChecked();
+      expect(within(menu).getByRole('menuitemcheckbox', { name: /Voll belegt/ })).not.toBeChecked();
+    });
+
+    it('resets Belegung and Ort', async () => {
+      const user = userEvent.setup();
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
+
+      const menu = await openFilterMenu(user);
+      await user.click(within(menu).getByRole('menuitemcheckbox', { name: /Voll belegt/ }));
+      await user.click(within(menu).getByRole('menuitemcheckbox', { name: /Berlin/ }));
+      await user.click(within(menu).getByRole('menuitem', { name: 'Filter zurücksetzen' }));
+
+      expect(screen.getByTestId('filter-value')).toHaveTextContent('all');
+      expect(screen.getByTestId('city-filter-value')).toHaveTextContent('');
+      expect(screen.getByTestId('houses-count')).toHaveTextContent('2');
+    });
+  });
+
+  describe('Toolbar sort menu', () => {
+    const openSortMenu = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByRole('button', { name: /Sortiert nach/ }));
+      return screen.findByRole('menu');
+    };
+
+    const houseOrder = () => screen.getAllByTestId(/^house-\d+$/).map((el) => el.textContent?.replace('Edit', ''));
+
+    it('starts with name ascending and offers all six sort keys', async () => {
+      const user = userEvent.setup();
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
+
+      expect(screen.getByTestId('sort-value')).toHaveTextContent('name:asc');
+      const menu = await openSortMenu(user);
+      const labels = within(menu).getAllByRole('menuitemradio').map((i) => i.textContent);
+      expect(labels).toEqual(['Name', 'Ort', 'Größe', 'Miete', 'Miete pro m²', 'Status', 'Aufsteigend', 'Absteigend']);
+    });
+
+    it('changes the sort key and the order', async () => {
+      const user = userEvent.setup();
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
+      expect(houseOrder()).toEqual(['Haus Alpha', 'Haus Beta']);
+
+      const menu = await openSortMenu(user);
+      await user.click(within(menu).getByRole('menuitemradio', { name: 'Ort' }));
+      expect(screen.getByTestId('sort-value')).toHaveTextContent('ort:asc');
+      expect(houseOrder()).toEqual(['Haus Alpha', 'Haus Beta']);
+
+      await user.click(screen.getByRole('button', { name: /Sortiert nach Ort/ }));
+      await user.click(within(await screen.findByRole('menu')).getByRole('menuitemradio', { name: 'Absteigend' }));
+      expect(screen.getByTestId('sort-value')).toHaveTextContent('ort:desc');
+      expect(houseOrder()).toEqual(['Haus Beta', 'Haus Alpha']);
+    });
+
+    it('takes over a sort change coming from the table header', async () => {
+      const user = userEvent.setup();
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
+
+      await user.click(screen.getByTestId('header-sort'));
+
+      expect(screen.getByTestId('sort-value')).toHaveTextContent('rent:desc');
+      expect(screen.getByRole('button', { name: /Sortiert nach Miete$/ })).toBeInTheDocument();
+    });
+  });
+
   describe('Search functionality', () => {
     it('initializes with empty search query', () => {
       render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
@@ -181,7 +345,7 @@ describe('HaeuserClientView', () => {
       const user = userEvent.setup();
       render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
-      const searchInput = screen.getByTestId('search-input');
+      const searchInput = await openSearch(user);
       await user.type(searchInput, 'Berlin');
 
       expect(screen.getByTestId('search-value')).toHaveTextContent('Berlin');
@@ -191,11 +355,11 @@ describe('HaeuserClientView', () => {
       const user = userEvent.setup();
       render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
-      const searchInput = screen.getByTestId('search-input');
+      const searchInput = await openSearch(user);
       await user.type(searchInput, 'test');
       expect(screen.getByTestId('search-value')).toHaveTextContent('test');
 
-      await user.clear(searchInput);
+      await user.click(screen.getByRole('button', { name: 'Suche leeren' }));
       expect(screen.getByTestId('search-value')).toHaveTextContent('');
     });
   });
@@ -209,6 +373,37 @@ describe('HaeuserClientView', () => {
       await user.click(addButton);
 
       expect(mockOpenHouseModal).toHaveBeenCalledWith(undefined, expect.any(Function));
+    });
+
+    it('labels the button "Neues Haus" and completes the onboarding step', async () => {
+      const user = userEvent.setup();
+      const completeStep = jest.fn();
+      const getStateSpy = jest
+        .spyOn(useOnboardingStore, 'getState')
+        .mockReturnValue({ completeStep } as unknown as ReturnType<typeof useOnboardingStore.getState>);
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
+
+      const addButton = screen.getByRole('button', { name: 'Haus hinzufügen' });
+      expect(addButton).toHaveTextContent('Neues Haus');
+      expect(addButton).toHaveAttribute('id', 'create-object-btn');
+      await user.click(addButton);
+
+      expect(completeStep).toHaveBeenCalledWith('create-house-start');
+      expect(mockOpenHouseModal).toHaveBeenCalledWith(undefined, expect.any(Function));
+      getStateSpy.mockRestore();
+    });
+
+    it('is disabled without permission, shows the tooltip and does not open the modal', async () => {
+      const user = userEvent.setup();
+      render(<HaeuserClientView enrichedHaeuser={mockHouses} canCreate={false} />);
+
+      const addButton = screen.getByRole('button', { name: 'Haus hinzufügen' });
+      expect(addButton).toBeDisabled();
+      await user.click(addButton);
+      expect(mockOpenHouseModal).not.toHaveBeenCalled();
+
+      await user.hover(addButton.parentElement as HTMLElement);
+      expect((await screen.findAllByText('Keine Berechtigung zum Erstellen')).length).toBeGreaterThan(0);
     });
 
     it('passes refresh callback to openHouseModal', async () => {
@@ -312,6 +507,8 @@ describe('HaeuserClientView', () => {
       expect(screen.queryByTestId('house-table')).not.toBeInTheDocument();
       expect(screen.queryByTestId('filter-all')).not.toBeInTheDocument();
       expect(screen.queryByTestId('search-input')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Filter' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Suchen' })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Haus hinzufügen/i })).toBeInTheDocument();
       // KPIs bleiben in der Rail sichtbar, die Übersicht zeigt ihre eigenen Kennzahlen
       expect(screen.getByText('Häuser gesamt')).toBeInTheDocument();
@@ -349,7 +546,7 @@ describe('HaeuserClientView', () => {
       await user.click(fullFilterButton);
 
       // Set search
-      const searchInput = screen.getByTestId('search-input');
+      const searchInput = await openSearch(user);
       await user.type(searchInput, 'Berlin');
 
       // Both should be maintained
@@ -377,7 +574,7 @@ describe('HaeuserClientView', () => {
       expect(screen.getByTestId('filter-value')).toHaveTextContent('vacant');
 
       // Search
-      const searchInput = screen.getByTestId('search-input');
+      const searchInput = await openSearch(user);
       await user.type(searchInput, 'test');
       expect(screen.getByTestId('search-value')).toHaveTextContent('test');
     });

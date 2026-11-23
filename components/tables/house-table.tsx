@@ -38,12 +38,18 @@ export interface House {
   freeApartments?: number
 }
 
-type SortKey = keyof Omit<House, 'totalApartments' | 'freeApartments'> | 'status'
-type SortDirection = "asc" | "desc"
+export type SortKey = keyof Omit<House, 'totalApartments' | 'freeApartments'> | 'status'
+export type SortDirection = "asc" | "desc"
 
 interface HouseTableProps {
   filter: string
   searchQuery: string
+  /** Nur Häuser aus diesen Orten anzeigen (leer = alle). */
+  cityFilter?: string[]
+  /** Kontrollierte Sortierung: alle drei Props gemeinsam setzen, sonst sortiert die Tabelle selbst. */
+  sortKey?: SortKey
+  sortDirection?: SortDirection
+  onSortChange?: (key: SortKey, direction: SortDirection) => void
   reloadRef?: MutableRefObject<(() => void) | null>
   onEdit: (house: House) => void
   initialHouses?: House[]
@@ -493,9 +499,13 @@ function HouseTableContent({
   );
 }
 
-function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange }: {
+function useHouseTable({ filter, searchQuery, cityFilter, sortKey: controlledSortKey, sortDirection: controlledSortDirection, onSortChange, reloadRef, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange }: {
   filter?: string;
   searchQuery?: string;
+  cityFilter?: string[];
+  sortKey?: SortKey;
+  sortDirection?: SortDirection;
+  onSortChange?: (key: SortKey, direction: SortDirection) => void;
   reloadRef?: React.MutableRefObject<(() => void) | null>;
   initialHouses?: House[];
   selectedHouses?: Set<string>;
@@ -503,7 +513,10 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
 }) {
   const router = useRouter()
   const [houses, setHouses] = useState<House[]>(initialHouses ?? [])
-  const [{ sortKey, sortDirection }, dispatchSort] = useReducer(sortReducer, { sortKey: "name" as SortKey, sortDirection: "asc" as SortDirection })
+  const [internalSort, dispatchSort] = useReducer(sortReducer, { sortKey: "name" as SortKey, sortDirection: "asc" as SortDirection })
+  const isSortControlled = controlledSortKey !== undefined && controlledSortDirection !== undefined && !!onSortChange
+  const sortKey = isSortControlled ? controlledSortKey : internalSort.sortKey
+  const sortDirection = isSortControlled ? controlledSortDirection : internalSort.sortDirection
   const [internalSelectedHouses, setInternalSelectedHouses] = useState<Set<string>>(new Set())
   const [dialogState, dispatchDialog] = useReducer(dialogReducer, initialDialogState)
   const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(null as never)
@@ -552,6 +565,10 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
       result = result.filter((house) => (house.freeApartments ?? 0) > 0)
     }
 
+    if (cityFilter && cityFilter.length > 0) {
+      result = result.filter((house) => !!house.ort && cityFilter.includes(house.ort))
+    }
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       result = result.filter(
@@ -595,7 +612,7 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
     }
 
     return result
-  }, [houses, filter, searchQuery, sortKey, sortDirection])
+  }, [houses, filter, searchQuery, cityFilter, sortKey, sortDirection])
 
   const visibleHouseIds = useMemo(() => sortedAndFilteredData.map((house) => house.id), [sortedAndFilteredData])
 
@@ -625,6 +642,11 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
   }
 
   const handleSort = (key: SortKey) => {
+    if (isSortControlled) {
+      // Gleiche Umschalt-Logik wie sortReducer
+      onSortChange(key, key === sortKey ? (sortDirection === "asc" ? "desc" : "asc") : "asc")
+      return
+    }
     dispatchSort({ type: "TOGGLE", payload: key })
   }
 
@@ -767,7 +789,7 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
   }
 }
 
-export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange, canEdit = true, canDelete = true }: HouseTableProps) {
+export function HouseTable({ filter, searchQuery, cityFilter, sortKey: sortKeyProp, sortDirection: sortDirectionProp, onSortChange, reloadRef, onEdit, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange, canEdit = true, canDelete = true }: HouseTableProps) {
   const {
     selectedHouses,
     setSelectedHouses,
@@ -785,7 +807,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
     dialogState,
     dispatchDialog,
     contextMenuRefs,
-  } = useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange })
+  } = useHouseTable({ filter, searchQuery, cityFilter, sortKey: sortKeyProp, sortDirection: sortDirectionProp, onSortChange, reloadRef, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange })
 
   return (
     <div className="rounded-lg">

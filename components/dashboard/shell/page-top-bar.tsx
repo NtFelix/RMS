@@ -20,15 +20,20 @@ export interface PageBreadcrumb {
   href?: string
 }
 
-/** Slim bar on top of the work area: breadcrumb on the left, search and primary actions on the right. */
+/**
+ * Slim bar on top of the work area: breadcrumb on the left, table tools (filter, sort, search) and the primary
+ * action on the right. Height and right inset follow the container radius, so the action in the corner is
+ * concentric to it (see --spacing-shell-bar in globals.css).
+ */
 export function PageTopBar({
   breadcrumbs,
-  search,
+  tools,
   actions,
   className,
 }: {
   breadcrumbs: PageBreadcrumb[]
-  search?: React.ReactNode
+  /** Toolbar controls (ToolbarFilterMenu, ToolbarSortMenu, ToolbarSearch …). */
+  tools?: React.ReactNode
   actions?: React.ReactNode
   className?: string
 }) {
@@ -37,7 +42,7 @@ export function PageTopBar({
   return (
     <header
       className={cn(
-        "sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b border-border-subtle bg-surface-container px-4 lg:px-6",
+        "sticky top-0 z-10 box-content flex h-shell-bar shrink-0 items-center gap-2 border-b border-border-subtle bg-surface-container pl-4 pr-shell-bar-inset",
         className,
       )}
     >
@@ -45,7 +50,7 @@ export function PageTopBar({
         <Button
           variant="ghost"
           size="icon"
-          className="-ml-2 size-8 shrink-0 lg:hidden"
+          className="-ml-2 size-8 shrink-0 rounded-full lg:hidden"
           aria-label="Navigation öffnen"
           aria-expanded={drawerOpen}
           onClick={() => setDrawerOpen(!drawerOpen)}
@@ -54,8 +59,8 @@ export function PageTopBar({
         </Button>
       )}
 
-      {/* Below sm the search takes the space; the rail drawer names the page */}
-      <Breadcrumb className={cn("min-w-0", search && "max-sm:hidden")}>
+      {/* Below sm the tools take the space; the rail drawer names the page */}
+      <Breadcrumb className={cn("min-w-0", tools && "max-sm:hidden")}>
         <BreadcrumbList className="flex-nowrap gap-1.5 sm:gap-1.5">
           {breadcrumbs.map((crumb, index) => {
             const isLast = index === breadcrumbs.length - 1
@@ -80,7 +85,7 @@ export function PageTopBar({
       </Breadcrumb>
 
       <div className="ml-auto flex min-w-0 items-center justify-end gap-2 max-sm:flex-1">
-        {search}
+        {tools && <div className="flex min-w-0 items-center justify-end gap-0.5 max-sm:flex-1">{tools}</div>}
         {actions}
       </div>
     </header>

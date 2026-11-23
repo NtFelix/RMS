@@ -29,7 +29,7 @@ export function SecondaryRail({
   useLayoutEffect(() => registerRail?.(), [registerRail])
 
   const header = (title || action) && (
-    <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border-subtle px-4">
+    <div className="box-content flex h-shell-bar shrink-0 items-center justify-between gap-2 border-b border-border-subtle pl-4 pr-shell-bar-inset">
       {title && <h2 className="truncate text-[15px] font-semibold tracking-tight">{title}</h2>}
       {action}
     </div>

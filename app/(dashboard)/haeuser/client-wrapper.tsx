@@ -3,17 +3,27 @@
 import { useState, useRef, useCallback, useMemo, useReducer } from "react";
 import { useTabParams } from "@/hooks/use-tab-params";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
-import { PlusCircle, Building, Home, Key, X, Download, Trash2, Loader2, Building2, BarChart3, Wallet, MapPin } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Plus, Building, Home, Key, X, Download, Trash2, Loader2, Building2, BarChart3, Wallet, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatCard } from "@/components/common/stat-card";
-import { HouseTable, House } from "@/components/tables/house-table";
+import { HouseTable, House, type SortKey, type SortDirection } from "@/components/tables/house-table";
 import { formatPlzOrt } from "@/lib/address";
 import { useModalStore } from "@/hooks/use-modal-store";
-import { SecondaryRail, RailSection, RailNavItem, RailStats, RailStat, PageTopBar } from "@/components/dashboard/shell";
+import {
+  SecondaryRail,
+  RailSection,
+  RailNavItem,
+  RailStats,
+  RailStat,
+  PageTopBar,
+  ToolbarFilterMenu,
+  ToolbarSortMenu,
+  ToolbarSearch,
+  ToolbarPrimaryButton,
+} from "@/components/dashboard/shell";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -160,30 +170,58 @@ function BulkActionBar({
 
 // Gemeinsame Aktion der Top-Bar: Haus hinzufügen (Onboarding-Schritt, Berechtigungs-Tooltip)
 function AddHouseButton({ onAdd, canCreate }: { onAdd: () => void; canCreate: boolean }) {
-  return (
-    <ResponsiveButtonWithTooltip
+  const button = (
+    <ToolbarPrimaryButton
       id="create-object-btn"
+      icon={Plus}
+      aria-label="Haus hinzufügen"
+      disabled={!canCreate}
       onClick={() => {
         useOnboardingStore.getState().completeStep('create-house-start');
         onAdd();
       }}
-      icon={<PlusCircle className="size-4" />}
-      aria-label="Haus hinzufügen"
-      className="max-sm:size-9 max-sm:px-0"
-      disabled={!canCreate}
-      tooltip="Keine Berechtigung zum Erstellen"
-      showTooltip={!canCreate}
     >
-      Haus hinzufügen
-    </ResponsiveButtonWithTooltip>
+      Neues Haus
+    </ToolbarPrimaryButton>
+  );
+
+  if (canCreate) return button;
+
+  // Disabled Buttons feuern keine Pointer-Events: Tooltip hängt am umgebenden span
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-block cursor-not-allowed">{button}</span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="center" sideOffset={5}>
+          Keine Berechtigung zum Erstellen
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "name", label: "Name" },
+  { value: "ort", label: "Ort" },
+  { value: "size", label: "Größe" },
+  { value: "rent", label: "Miete" },
+  { value: "pricePerSqm", label: "Miete pro m²" },
+  { value: "status", label: "Status" },
+];
 
 function HousesTab({
   searchQuery,
   onSearchChange,
-  onSearchClear,
   filter,
+  onFilterChange,
+  filterCounts,
+  cityFilter,
+  onCityFilterChange,
+  sortKey,
+  sortDirection,
+  onSortChange,
   selectedHouses,
   onClearSelection,
   onBulkExport,
@@ -196,9 +234,15 @@ function HousesTab({
   onSelectionChange,
 }: {
   searchQuery: string;
-  onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSearchClear: () => void;
+  onSearchChange: (value: string) => void;
   filter: string;
+  onFilterChange: (filter: string) => void;
+  filterCounts: { full: number; vacant: number };
+  cityFilter: string[];
+  onCityFilterChange: (cities: string[]) => void;
+  sortKey: SortKey;
+  sortDirection: SortDirection;
+  onSortChange: (key: SortKey, direction: SortDirection) => void;
   selectedHouses: Set<string>;
   onClearSelection: () => void;
   onBulkExport: () => void;
@@ -210,21 +254,62 @@ function HousesTab({
   tableReloadRef: React.MutableRefObject<(() => void) | null>;
   onSelectionChange: (selected: Set<string>) => void;
 }) {
+  // Orte mit Anzahl Häuser, alphabetisch
+  const cityOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    enrichedHaeuser.forEach((h) => {
+      if (h.ort) counts.set(h.ort, (counts.get(h.ort) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, "de-DE"))
+      .map(([value, count]) => ({ value, label: value, count }));
+  }, [enrichedHaeuser]);
+
   return (
     <>
       <PageTopBar
         breadcrumbs={[{ label: "Objekte" }, { label: "Häuser" }]}
-        search={
-          <SearchInput
-            data-testid="search-input"
-            placeholder="Häuser suchen…"
-            className="rounded-full"
-            wrapperClassName="w-full sm:w-56"
-            mode="table"
-            value={searchQuery}
-            onChange={onSearchChange}
-            onClear={onSearchClear}
-          />
+        tools={
+          <>
+            <ToolbarFilterMenu
+              groups={[
+                {
+                  id: "belegung",
+                  label: "Belegung",
+                  options: [
+                    { value: "full", label: "Voll belegt", count: filterCounts.full },
+                    { value: "vacant", label: "Mit freien Wohnungen", count: filterCounts.vacant },
+                  ],
+                  selected: filter === "all" ? [] : [filter],
+                  onChange: (selected) => onFilterChange(selected[0] ?? "all"),
+                },
+                {
+                  id: "ort",
+                  label: "Ort",
+                  options: cityOptions,
+                  selected: cityFilter,
+                  multiple: true,
+                  onChange: onCityFilterChange,
+                },
+              ]}
+              onReset={() => {
+                onFilterChange("all");
+                onCityFilterChange([]);
+              }}
+            />
+            <ToolbarSortMenu
+              options={SORT_OPTIONS}
+              sortKey={sortKey}
+              direction={sortDirection}
+              onChange={(key, direction) => onSortChange(key as SortKey, direction)}
+            />
+            <ToolbarSearch
+              data-testid="search-input"
+              placeholder="Häuser suchen…"
+              value={searchQuery}
+              onChange={onSearchChange}
+            />
+          </>
         }
         actions={<AddHouseButton onAdd={onAdd} canCreate={flags.canCreate} />}
       />
@@ -242,6 +327,10 @@ function HousesTab({
         <HouseTable
           filter={filter}
           searchQuery={searchQuery}
+          cityFilter={cityFilter}
+          sortKey={sortKey}
+          sortDirection={sortDirection}
+          onSortChange={onSortChange}
           reloadRef={tableReloadRef}
           onEdit={onEdit}
           initialHouses={enrichedHaeuser}
@@ -570,6 +659,9 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
   const [currentTab, setCurrentTab] = useTabParams<Tab>("houses", VALID_HAEUSER_TABS);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [cityFilter, setCityFilter] = useState<string[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [{ selectedHouses, showBulkDeleteConfirm, isBulkDeleting }, dispatchBulk] = useReducer(bulkReducer, {
     selectedHouses: new Set<string>(),
     showBulkDeleteConfirm: false,
@@ -882,9 +974,18 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
       {currentTab === "houses" ? (
         <HousesTab
           searchQuery={searchQuery}
-          onSearchChange={(e) => setSearchQuery(e.target.value)}
-          onSearchClear={() => setSearchQuery("")}
+          onSearchChange={setSearchQuery}
           filter={filter}
+          onFilterChange={setFilter}
+          filterCounts={filterCounts}
+          cityFilter={cityFilter}
+          onCityFilterChange={setCityFilter}
+          sortKey={sortKey}
+          sortDirection={sortDirection}
+          onSortChange={(key, direction) => {
+            setSortKey(key);
+            setSortDirection(direction);
+          }}
           selectedHouses={selectedHouses}
           onSelectionChange={(selected) => dispatchBulk({ type: "SET_SELECTED", payload: selected })}
           onClearSelection={() => dispatchBulk({ type: "SET_SELECTED", payload: new Set() })}

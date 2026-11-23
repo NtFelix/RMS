@@ -724,6 +724,96 @@ describe('HouseTable', () => {
     });
   });
 
+  describe('City filter', () => {
+    const dataNames = () => screen.getAllByRole('row').slice(1).map((row) => row.textContent ?? '')
+
+    it('shows only houses from the selected cities', () => {
+      render(
+        <HouseTable filter="all" searchQuery="" cityFilter={['Berlin', 'Hamburg']} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      expect(screen.getByText('Haus Alpha')).toBeInTheDocument();
+      expect(screen.getByText('Haus Gamma')).toBeInTheDocument();
+      expect(screen.queryByText('Haus Beta')).not.toBeInTheDocument();
+    });
+
+    it('shows all houses for an empty list', () => {
+      render(
+        <HouseTable filter="all" searchQuery="" cityFilter={[]} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      expect(dataNames()).toHaveLength(3);
+    });
+
+    it('combines with filter and search', () => {
+      render(
+        <HouseTable filter="vacant" searchQuery="alpha" cityFilter={['Berlin', 'München']} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      expect(screen.getByText('Haus Alpha')).toBeInTheDocument();
+      expect(screen.queryByText('Haus Beta')).not.toBeInTheDocument();
+    });
+
+    it('shows nothing when the search hit lies outside the selected cities', () => {
+      render(
+        <HouseTable filter="all" searchQuery="alpha" cityFilter={['München']} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      expect(screen.queryByText('Haus Alpha')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Controlled sorting', () => {
+    const orderedNames = () =>
+      screen.getAllByRole('row').slice(1).map((row) => /Haus (Alpha|Beta|Gamma)/.exec(row.textContent ?? '')?.[1])
+
+    it('uses the given sort key and direction', () => {
+      render(
+        <HouseTable filter="all" searchQuery="" sortKey="ort" sortDirection="desc" onSortChange={jest.fn()} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      // München, Hamburg, Berlin
+      expect(orderedNames()).toEqual(['Beta', 'Gamma', 'Alpha']);
+    });
+
+    it('reports a header click on the same key as flipped direction without sorting itself', async () => {
+      const user = userEvent.setup();
+      const onSortChange = jest.fn();
+      render(
+        <HouseTable filter="all" searchQuery="" sortKey="name" sortDirection="asc" onSortChange={onSortChange} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      await user.click(screen.getByText('Häuser').closest('div')!);
+
+      expect(onSortChange).toHaveBeenCalledWith('name', 'desc');
+      expect(orderedNames()).toEqual(['Alpha', 'Beta', 'Gamma']);
+    });
+
+    it('reports a header click on a new key as ascending', async () => {
+      const user = userEvent.setup();
+      const onSortChange = jest.fn();
+      render(
+        <HouseTable filter="all" searchQuery="" sortKey="name" sortDirection="desc" onSortChange={onSortChange} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      await user.click(screen.getByText('Ort').closest('div')!);
+
+      expect(onSortChange).toHaveBeenCalledWith('ort', 'asc');
+    });
+
+    it('follows changed props', () => {
+      const { rerender } = render(
+        <HouseTable filter="all" searchQuery="" sortKey="name" sortDirection="asc" onSortChange={jest.fn()} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+      rerender(
+        <HouseTable filter="all" searchQuery="" sortKey="size" sortDirection="asc" onSortChange={jest.fn()} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      // 100, 150, 200
+      expect(orderedNames()).toEqual(['Gamma', 'Alpha', 'Beta']);
+    });
+  });
+
   // Löschen mehrerer Häuser (GH-6, Kautionsmanagement): Ein Haus kann abgelehnt werden, wenn ein Mieter darin eine
   // hinterlegte Kaution hat. Die Route meldet den Teilerfolg mit den Gründen, die Meldung nennt sie.
   describe('Bulk delete', () => {

@@ -120,7 +120,7 @@ describe('PageTopBar', () => {
   const breadcrumbs = [{ label: 'Objekte', href: '/objekte' }, { label: 'Häuser' }]
 
   it('renders the breadcrumb with the last entry as current page and the slots', () => {
-    render(<PageTopBar breadcrumbs={breadcrumbs} search={<input aria-label="Suche" />} actions={<button>Neu</button>} />)
+    render(<PageTopBar breadcrumbs={breadcrumbs} tools={<input aria-label="Suche" />} actions={<button>Neu</button>} />)
 
     expect(screen.getByRole('link', { name: 'Objekte' })).toHaveAttribute('href', '/objekte')
     expect(screen.getByText('Häuser')).toHaveAttribute('aria-current', 'page')

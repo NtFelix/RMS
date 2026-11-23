@@ -138,7 +138,7 @@ describe('Responsive Layout Tests', () => {
 
       // Auf dem Handy nur das Icon, der Name bleibt über aria-label erhalten
       const addButton = screen.getByRole('button', { name: /Haus hinzufügen/i });
-      expect(addButton).toHaveClass('sm:w-auto', 'max-sm:size-9');
+      expect(addButton).toHaveClass('max-sm:w-8', 'max-sm:px-0');
     });
 
     it('Mieter page adapts to mobile layout', () => {
@@ -252,8 +252,8 @@ describe('Responsive Layout Tests', () => {
       render(<HaeuserClientView {...props} />);
 
       const addButton = screen.getByRole('button', { name: /Haus hinzufügen/i });
-      // Button should have auto width on tablet (sm: breakpoint)
-      expect(addButton).toHaveClass('sm:w-auto');
+      // Ab dem sm-Breakpoint wird die Pill-Breite vom Label bestimmt, nur darunter ist sie auf das Icon begrenzt
+      expect(addButton).toHaveClass('px-3.5', 'max-sm:w-8');
     });
   });
 
@@ -446,7 +446,7 @@ describe('Responsive Layout Tests', () => {
       const { rerender } = render(<HaeuserClientView {...props} />);
       let addButton = screen.getByRole('button', { name: /Haus hinzufügen/i });
       expect(addButton).toBeInTheDocument();
-      expect(addButton).toHaveClass('sm:w-auto');
+      expect(addButton).toHaveClass('max-sm:w-8');
 
       // Test on tablet
       setViewportSize(768, 1024);
