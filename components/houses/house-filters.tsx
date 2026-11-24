@@ -2,8 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Search } from "lucide-react"
+import { SearchInput } from "@/components/ui/search-input"
 
 interface HouseFiltersProps {
   onFilterChange: (filter: string) => void
@@ -44,15 +43,11 @@ export function HouseFilters({ onFilterChange, onSearchChange }: HouseFiltersPro
             Platz
           </Button>
         </div>
-        <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Haus suchen..."
-            className="pl-10"
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
-        </div>
+        <SearchInput
+          placeholder="Haus suchen..."
+          onChange={(e) => onSearchChange(e.target.value)}
+          wrapperClassName="w-full sm:w-auto sm:min-w-[300px]"
+        />
       </div>
     </div>
   )
