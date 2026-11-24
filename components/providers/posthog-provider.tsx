@@ -3,7 +3,7 @@
 import posthog from 'posthog-js'
 import { PostHogProvider as PHProvider } from 'posthog-js/react'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect, Suspense, useState, useReducer } from 'react'
+import { useEffect, Suspense, useReducer } from 'react'
 import posthogProxyConfig from '@/lib/posthog-proxy'
 import { syncSupportIdentity } from '@/lib/posthog-support'
 
@@ -122,17 +122,18 @@ async function initializePostHog(nonce?: string) {
 
   // Also covers returning visitors whose opt-in is already persisted (branch above not entered)
   setTracingHeaders(consent === 'all' && !posthog.has_opted_out_capturing?.());
+  window.dispatchEvent(new CustomEvent('posthog-initialized'));
 }
 
 // Global initialization removed to support nonce passing from server
 
-function PostHogPageView({ isInitialized }: { isInitialized: boolean }) {
+function PostHogPageView() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const getParam = searchParams ? searchParams.get.bind(searchParams) : null
   const [consentTrigger, triggerConsent] = useReducer((s) => s + 1, 0)
 
-  // Listen for consent-granted event to trigger tracking immediately
+  // Listen for consent-granted and posthog-initialized events to trigger tracking immediately
   useEffect(() => {
     const handleConsentGranted = () => {
       setTracingHeaders(Boolean(posthog.has_opted_in_capturing?.()));
@@ -140,16 +141,22 @@ function PostHogPageView({ isInitialized }: { isInitialized: boolean }) {
       triggerConsent();
     };
 
+    const handleInitialized = () => {
+      triggerConsent();
+    };
+
     window.addEventListener('posthog-consent-granted', handleConsentGranted);
+    window.addEventListener('posthog-initialized', handleInitialized);
     return () => {
       window.removeEventListener('posthog-consent-granted', handleConsentGranted);
+      window.removeEventListener('posthog-initialized', handleInitialized);
     };
   }, []);
 
   // Handle user identification based on auth state - ONLY if user has consented
   useEffect(() => {
     const handleUserIdentification = async () => {
-      if (!isInitialized || !posthog.__loaded) return;
+      if (!posthog.__loaded) return;
 
       // GDPR: Only identify users if they have consented to tracking
       if (!posthog.has_opted_in_capturing?.()) {
@@ -183,7 +190,7 @@ function PostHogPageView({ isInitialized }: { isInitialized: boolean }) {
     };
 
     handleUserIdentification();
-  }, [isInitialized, pathname, consentTrigger]);
+  }, [pathname, consentTrigger]);
 
   // Track pageviews and pageleaves
   useEffect(() => {
@@ -192,7 +199,7 @@ function PostHogPageView({ isInitialized }: { isInitialized: boolean }) {
     const trackPageview = async () => {
       // is_capturing() also covers visitors without consent: with cookieless_mode
       // "on_reject" they are tracked anonymously, so their pageviews count too.
-      if (!isInitialized || !posthog.__loaded || !pathname || !posthog.is_capturing?.()) return;
+      if (!posthog.__loaded || !pathname || !posthog.is_capturing?.()) return;
 
       let url = window.origin + pathname;
       if (searchParams.toString()) {
@@ -222,7 +229,7 @@ function PostHogPageView({ isInitialized }: { isInitialized: boolean }) {
     trackPageview();
 
     return () => {
-      if (isInitialized && posthog.__loaded && pathname && posthog.is_capturing?.()) {
+      if (posthog.__loaded && pathname && posthog.is_capturing?.()) {
         let url = window.origin + pathname;
         if (searchParams.toString()) {
           url = url + `?${searchParams.toString()}`;
@@ -234,11 +241,11 @@ function PostHogPageView({ isInitialized }: { isInitialized: boolean }) {
         });
       }
     };
-  }, [isInitialized, pathname, searchParams, consentTrigger]);
+  }, [pathname, searchParams, consentTrigger]);
 
   // Handle login tracking from auth callback
   useEffect(() => {
-    if (!getParam || !isInitialized || !posthog.__loaded) return
+    if (!getParam || !posthog.__loaded) return
     
     const loginSuccess = getParam('login_success')
     const provider = getParam('provider')
@@ -270,37 +277,21 @@ function PostHogPageView({ isInitialized }: { isInitialized: boolean }) {
       newUrl.searchParams.delete('provider')
       window.history.replaceState({}, '', newUrl.toString())
     }
-  }, [isInitialized, searchParams, consentTrigger])
+  }, [searchParams, consentTrigger])
 
   return null
 }
 
 export function PostHogProvider({ children, nonce }: { children: React.ReactNode, nonce?: string }) {
-  const [isInitialized, setIsInitialized] = useState(() => Boolean(posthog.__loaded));
-
   useEffect(() => {
-    let cancelled = false;
-
-    const checkPostHogReady = async () => {
-      if (!posthog.__loaded) {
-        await initializePostHog(nonce);
-      }
-      if (!cancelled && posthog.__loaded) {
-        setIsInitialized(true);
-      }
-    };
-
-    checkPostHogReady();
-
-    return () => {
-      cancelled = true;
-    };
+    if (posthog.__loaded) return;
+    void initializePostHog(nonce);
   }, [nonce]);
 
   return (
     <PHProvider client={posthog}>
       <Suspense fallback={null}>
-        <PostHogPageView isInitialized={isInitialized} />
+        <PostHogPageView />
       </Suspense>
       {children}
     </PHProvider>
