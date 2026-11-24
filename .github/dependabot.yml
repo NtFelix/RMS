@@ -6,6 +6,8 @@ updates:
   # Enable version updates for npm dependencies
   - package-ecosystem: "npm"
     directory: "/"
+    cooldown:
+      default-days: 7
     schedule:
       interval: "weekly"
       day: "monday"
@@ -55,6 +57,8 @@ updates:
   # Enable version updates for Docker images
   - package-ecosystem: "docker"
     directory: "/"
+    cooldown:
+      default-days: 7
     schedule:
       interval: "weekly"
       day: "monday"

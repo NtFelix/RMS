@@ -31,7 +31,7 @@ function createBuilder(result: Result) {
 
 function setupClient() {
   const mieterBuilder = createBuilder({
-    data: [{ id: 'mieter-1', name: 'Erika Beispiel', wohnung_id: 'wohnung-1', einzug: '2023-01-01', auszug: null, Wohnungen: { id: 'wohnung-1', miete: 500 } }],
+    data: [{ id: 'mieter-1', person: { id: 'person-1', anrede: 'frau', vorname: 'Erika', nachname: 'Beispiel', email: null, telefon: null }, wohnung_id: 'wohnung-1', einzug: '2023-01-01', auszug: null, Wohnungen: { id: 'wohnung-1', miete: 500 } }],
     error: null,
   });
   const finanzenBuilder = createBuilder({ data: [], error: null });

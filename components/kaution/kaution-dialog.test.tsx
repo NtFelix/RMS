@@ -19,10 +19,11 @@ import {
   createKautionAction,
   deleteKautionAction,
   getKautionDetailsAction,
+  kautionUebernehmenAction,
   storniereKautionBewegungAction,
   updateKautionVereinbarungAction,
 } from "@/app/kautionen-actions";
-import type { KautionBewegung, KautionDetails, KautionRate, KautionRechte, KautionVorschlag } from "@/types/Kaution";
+import type { KautionBewegung, KautionDetails, KautionListenEintrag, KautionRate, KautionRechte, KautionVorschlag } from "@/types/Kaution";
 import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import { standardKautionFlagKonfig, type KautionFunktion } from "@/lib/kautionen-flag";
 import { KAUTION_FRIST_STUFE_TEXTE } from "@/lib/kautionen-constants";
@@ -48,6 +49,7 @@ jest.mock("@/app/kautionen-actions", () => ({
   deleteKautionAction: jest.fn(),
   getKautionBelegUrlAction: jest.fn(),
   entferneKautionBelegAction: jest.fn(),
+  kautionUebernehmenAction: jest.fn(),
 }));
 
 const TENANT_ID = "11111111-1111-4111-8111-111111111111";
@@ -235,7 +237,7 @@ describe("KautionDialog: Zustände", () => {
     // Titel und Beschreibung enthalten keine personenbezogenen Daten (der Name steht nur als Untertitel).
     const titel = screen.getByRole("heading", { name: "Kaution" });
     expect(titel).not.toHaveTextContent("Mustermann");
-    expect(getDetailsMock).toHaveBeenCalledWith(TENANT_ID);
+    expect(getDetailsMock).toHaveBeenCalledWith(TENANT_ID, undefined);
   });
 
   it("zeigt bei einem Ladefehler die Meldung und lädt per Knopf erneut", async () => {
@@ -1680,5 +1682,163 @@ describe("KautionDialog: Funktionsflag 'dokumente' (Belege)", () => {
 
     expect(await screen.findByRole("button", { name: "Beleg hochladen" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /Buchung \(Pflicht\)/ })).toBeInTheDocument();
+  });
+});
+
+describe("KautionDialog: Frühere Kautionen (Umzug)", () => {
+  raeumeNachJedemTestAuf();
+
+  const uebernehmenMock = kautionUebernehmenAction as jest.Mock;
+  const FRUEHERE_ID_1 = "66666666-6666-4666-8666-666666666661";
+  const FRUEHERE_ID_2 = "66666666-6666-4666-8666-666666666662";
+
+  function baueFruehere(): KautionListenEintrag[] {
+    return [
+      {
+        kautionId: FRUEHERE_ID_1,
+        mietverhaeltnisId: "77777777-7777-4777-8777-777777777771",
+        kautionsart: "barkaution",
+        sollBetrag: 1200,
+        kontostand: 1200,
+        istAktuell: false,
+        vertragsbeginn: "2023-02-01",
+        vertragsende: "2024-12-31",
+      },
+      {
+        kautionId: FRUEHERE_ID_2,
+        mietverhaeltnisId: null,
+        kautionsart: "buergschaft",
+        sollBetrag: 3000,
+        kontostand: 0,
+        istAktuell: false,
+        vertragsbeginn: null,
+        vertragsende: null,
+      },
+    ];
+  }
+
+  /** Tenant without a deposit at the current tenancy, with earlier deposits (`fruehere`). */
+  function mockLadeMitFruehere(fruehere: KautionListenEintrag[] | undefined, rechte: KautionRechte = ALLE_RECHTE) {
+    getDetailsMock.mockResolvedValue({
+      success: true,
+      data: { details: null, rechte, vorschlag: { miete: 500, vorschlag_betrag: 1500, basis: "Testbasis" }, ...(fruehere ? { fruehere } : {}) },
+    });
+  }
+
+  it("zeigt den Block 'Frühere Kautionen' mit Kurzinfos oberhalb des Anlegen-Formulars", async () => {
+    mockLadeMitFruehere(baueFruehere());
+    render(<KautionDialog />);
+
+    expect(await screen.findByRole("heading", { name: "Frühere Kautionen" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Sie können eine frühere Kaution für das aktuelle Mietverhältnis übernehmen oder unten eine neue anlegen.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Soll-Betrag 1.200,00 € · Kontostand 1.200,00 €")).toBeInTheDocument();
+    expect(screen.getByText("Mietverhältnis: 01.02.2023 – 31.12.2024")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Übernehmen" })).toHaveLength(2);
+
+    const block = screen.getByRole("heading", { name: "Frühere Kautionen" });
+    const formular = screen.getByRole("button", { name: "Kaution anlegen" });
+    expect(block.compareDocumentPosition(formular) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("übernimmt die gewählte Kaution per Action, zeigt die Meldung und lädt die Kaution neu", async () => {
+    mockLadeMitFruehere(baueFruehere());
+    uebernehmenMock.mockResolvedValue({ success: true, data: { kautionId: FRUEHERE_ID_1 } });
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    render(<KautionDialog />);
+    await screen.findByRole("heading", { name: "Frühere Kautionen" });
+
+    mockLadeErgebnis(baueDetails());
+    await user.click(screen.getAllByRole("button", { name: "Übernehmen" })[0]);
+
+    await waitFor(() => expect(uebernehmenMock).toHaveBeenCalledTimes(1));
+    expect(uebernehmenMock).toHaveBeenCalledWith(TENANT_ID, FRUEHERE_ID_1);
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "Die Kaution wurde übernommen.", variant: "success" }));
+    expect(await screen.findByRole("tab", { name: "Übersicht" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Frühere Kautionen" })).not.toBeInTheDocument();
+    expect(getDetailsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("sperrt die Knöpfe, solange die Übernahme läuft, und sendet keinen zweiten Aufruf", async () => {
+    mockLadeMitFruehere(baueFruehere());
+    uebernehmenMock.mockReturnValue(new Promise(() => undefined)); // antwortet nie
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    render(<KautionDialog />);
+    await screen.findByRole("heading", { name: "Frühere Kautionen" });
+
+    await user.click(screen.getAllByRole("button", { name: "Übernehmen" })[1]);
+
+    expect(await screen.findByRole("button", { name: "Wird übernommen..." })).toBeDisabled();
+    for (const knopf of screen.getAllByRole("button", { name: /Übernehmen|Wird übernommen/ })) {
+      expect(knopf).toBeDisabled();
+    }
+    expect(uebernehmenMock).toHaveBeenCalledTimes(1);
+    expect(uebernehmenMock).toHaveBeenCalledWith(TENANT_ID, FRUEHERE_ID_2);
+  });
+
+  it("zeigt eine Meldung am Block, wenn der Dialog sie nicht selbst behandelt (Formularfehler)", async () => {
+    mockLadeMitFruehere(baueFruehere());
+    uebernehmenMock.mockResolvedValue({
+      success: false,
+      error: { code: "KA011", message: "Der Ratenplan lässt diese Übernahme nicht zu (Testdaten).", verhalten: "formular" },
+    });
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    render(<KautionDialog />);
+    await screen.findByRole("heading", { name: "Frühere Kautionen" });
+
+    await user.click(screen.getAllByRole("button", { name: "Übernehmen" })[0]);
+
+    expect(await screen.findByText("Der Ratenplan lässt diese Übernahme nicht zu (Testdaten).")).toBeInTheDocument();
+    expect(getDetailsMock).toHaveBeenCalledTimes(1); // no reload: the form keeps its state
+    expect(screen.getByRole("heading", { name: "Frühere Kautionen" })).toBeInTheDocument();
+  });
+
+  it("meldet einen Fehler als Toast und lädt neu, wenn der Dialog ihn behandelt (KA008)", async () => {
+    mockLadeMitFruehere(baueFruehere());
+    uebernehmenMock.mockResolvedValue({ success: false, error: { code: "KA008", message: "Doppelt (Testdaten)." } });
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    render(<KautionDialog />);
+    await screen.findByRole("heading", { name: "Frühere Kautionen" });
+
+    await user.click(screen.getAllByRole("button", { name: "Übernehmen" })[0]);
+
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ variant: "destructive" })));
+    await waitFor(() => expect(getDetailsMock).toHaveBeenCalledTimes(2));
+  });
+
+  it("zeigt keinen Block, wenn es keine früheren Kautionen gibt (Formular bleibt)", async () => {
+    mockLadeMitFruehere([]);
+    render(<KautionDialog />);
+
+    expect(await screen.findByRole("button", { name: "Kaution anlegen" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Frühere Kautionen" })).not.toBeInTheDocument();
+  });
+
+  it("behandelt fehlende Angabe 'fruehere' (ältere Antwort) wie eine leere Liste", async () => {
+    mockLadeMitFruehere(undefined);
+    render(<KautionDialog />);
+
+    expect(await screen.findByRole("button", { name: "Kaution anlegen" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Frühere Kautionen" })).not.toBeInTheDocument();
+  });
+
+  it("zeigt die Knöpfe ohne Recht 'bearbeiten' (auch mit 'erstellen') deaktiviert mit Hinweis", async () => {
+    mockLadeMitFruehere(baueFruehere(), { ansehen: true, erstellen: true, bearbeiten: false, loeschen: false });
+    render(<KautionDialog />);
+
+    expect(await screen.findByText("Für das Übernehmen einer Kaution fehlt Ihnen die Berechtigung.")).toBeInTheDocument();
+    for (const knopf of screen.getAllByRole("button", { name: "Übernehmen" })) {
+      expect(knopf).toBeDisabled();
+    }
+  });
+
+  it("übergibt die kautionId aus dem Store an die Ladeaktion (gewählte Kaution)", async () => {
+    mockLadeErgebnis(baueDetails());
+    mockStore({ kautionInitialData: { tenant: { id: TENANT_ID, name: "Erika Mustermann" }, kautionId: FRUEHERE_ID_2 } });
+    render(<KautionDialog />);
+
+    expect(await screen.findByRole("tab", { name: "Übersicht" })).toBeInTheDocument();
+    expect(getDetailsMock).toHaveBeenCalledWith(TENANT_ID, FRUEHERE_ID_2);
   });
 });

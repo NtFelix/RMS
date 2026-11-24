@@ -5,7 +5,8 @@ import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, MeterReadingFormData, Mieter, Zaehler, ZaehlerAblesung, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchMeterReadingsByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new meter types
 import { roundToNearest5 } from "@/lib/utils";
-import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
+import { MIETER_PERSON_EMBED, mitPersonenfeldern } from "@/lib/personen";
+import { gruppiereNachMietverhaeltnisImZeitraum } from "@/lib/abrechnung-mietverhaeltnis-laden";
 import { logAction } from '@/lib/logging-middleware';
 import { withTiming } from '@/lib/posthog-metrics';
 import { type SupabaseClient } from "@supabase/supabase-js";
@@ -464,7 +465,6 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
 
   // Rechnungen belong to the Betriebskosten flow, so revalidate its page
   revalidatePath("/betriebskosten");
-
 
 
   try {
@@ -1727,11 +1727,11 @@ async function getMeterModalDataActionImpl(
         }
 
         // Get tenants who lived in the house during the billing period
-        const { data: tenants, error: tenantsError } = await supabase
+        const { data: tenantsRoh, error: tenantsError } = await supabase
           .from("Mieter")
           .select(`
             id,
-            name,
+            ${MIETER_PERSON_EMBED},
             einzug,
             auszug,
             wohnung_id,
@@ -1753,6 +1753,8 @@ async function getMeterModalDataActionImpl(
           });
           return { success: false, message: "Fehler beim Laden der Mieterdaten." };
         }
+        // name, email and telefonnummer come from the person (Personen)
+        const tenants = tenantsRoh?.map(mitPersonenfeldern);
 
         // Get current and previous readings from new table structure
         const apartmentIds = tenants?.map(t => t.wohnung_id).filter(Boolean) || [];
@@ -2080,7 +2082,37 @@ async function resolveActualPaymentsData(
  * @see {@link docs/database-functions.md#get_abrechnung_modal_data} Database function documentation
  * @see {@link components/abrechnung-modal.tsx} Modal component that consumes this data
  */
+/**
+ * Modal data of an Abrechnung. Tenants who shared a tenancy in the billing period (GH-17, phase 6) are merged into one
+ * tenant, so every consumer (modal, PDF, server calculation) settles them once. The tenancy of the period counts, not the
+ * current one (a later merge never changes an earlier year). Today every person has an own tenancy: nothing changes.
+ */
 async function getAbrechnungModalDataActionImpl(
+  nebenkostenId: string
+): Promise<OptimizedActionResponse<AbrechnungModalData>> {
+  const result = await ladeAbrechnungModalData(nebenkostenId);
+  if (!result.success || !result.data) return result;
+  try {
+    // The user was checked by ladeAbrechnungModalData; a plain server client (cookies, RLS of the user) avoids a second auth round trip.
+    const supabase = await createSupabaseServerClient();
+    const nebenkostenDaten = result.data.nebenkosten_data as { startdatum?: unknown; enddatum?: unknown } | null | undefined;
+    const angepasst = await gruppiereNachMietverhaeltnisImZeitraum(
+      supabase,
+      { tenants: result.data.tenants as any[], rechnungen: result.data.rechnungen as any[] },
+      { startdatum: nebenkostenDaten?.startdatum, enddatum: nebenkostenDaten?.enddatum },
+      code => logger.warn('Gruppierung nach Mietverhältnis nicht angewendet (je Mieter abgerechnet)', { code, nebenkostenId })
+    );
+    return {
+      ...result,
+      data: { ...result.data, tenants: angepasst.tenants as any[], rechnungen: angepasst.rechnungen as any[] }
+    };
+  } catch {
+    logger.warn('Gruppierung nach Mietverhältnis nicht angewendet (je Mieter abgerechnet)', { code: 'CLIENT', nebenkostenId });
+    return result;
+  }
+}
+
+async function ladeAbrechnungModalData(
   nebenkostenId: string
 ): Promise<OptimizedActionResponse<AbrechnungModalData>> {
   if (!nebenkostenId || nebenkostenId.trim() === '') {
@@ -2223,7 +2255,6 @@ async function getAbrechnungModalDataActionImpl(
     }
 
 
-
   } catch (error: unknown) {
     logger.error('Unexpected error in getAbrechnungModalDataAction', error instanceof Error ? error : new Error(String(error)), {
       nebenkostenId,
@@ -2314,12 +2345,15 @@ async function getAbrechnungModalDataFallback(
 
   // Fetch tenants overlapping the billing period for the same house, and ALL apartments of
   // the house (incl. vacant ones) for the apartment count and area fallback
-  const [{ data: tenants, error: tenantsError }, houseApartments] = await Promise.all([
+  const [{ data: tenantsRoh, error: tenantsError }, houseApartments] = await Promise.all([
     supabase
       .from("Mieter")
-      // Explizite Spaltenliste ohne das Altfeld "kaution": die Mieter gehen mit dem Modal-Datensatz an den Browser.
+      // Explizite Spaltenliste ohne das Altfeld "kaution" und ohne name/email/telefonnummer/status (Personen):
+      // die Mieter gehen mit dem Modal-Datensatz an den Browser.
       .select(`
-        ${MIETER_SPALTEN_OHNE_KAUTION},
+        id, organisation_id, wohnung_id, einzug, auszug, notiz, nebenkosten,
+        erstellt_am, erstellt_von, geaendert_am, geaendert_von, geloescht_am, geloescht_von,
+        ${MIETER_PERSON_EMBED},
         Wohnungen!inner (
           name,
           groesse,
@@ -2333,6 +2367,8 @@ async function getAbrechnungModalDataFallback(
     fetchHouseApartments(supabase, nebenkostenData.haeuser_id)
   ]);
   const houseTotals = houseApartments && sumHouseApartments(houseApartments);
+  // name, email and telefonnummer come from the person (Personen)
+  const tenants = tenantsRoh?.map(mitPersonenfeldern);
 
   if (tenantsError) {
     logger.error('Failed to fetch tenants in fallback', tenantsError || undefined, {
@@ -2531,9 +2567,9 @@ function detectMissingPrepaymentSchedules(
   logger.warn(`Prepayment schedule data missing for some tenants${logContext ? ` (${logContext})` : ''}`, {
     userId,
     nebenkostenId,
+    // Datenschutz: nur IDs ins Log, keine Namen (die Namen stehen nur in der Meldung an die Oberfläche).
     affectedTenants: affected.map(t => ({
       tenantId: t.tenantId,
-      tenantName: t.tenantName,
       missingMonths: t.prepayments.missingScheduleMonths
     }))
   });
@@ -2755,287 +2791,11 @@ async function createAbrechnungCalculationActionImpl(
   }
 }
 
-/**
- * Ultra-optimized server action for abrechnung creation using enhanced database function
- * 
- * **Maximum Performance**: This function uses the `get_abrechnung_calculation_data` database 
- * function which pre-calculates occupancy percentages, house metrics, and other complex 
- * calculations at the database level, reducing processing time from 10-15s to 2-3s.
- * 
- * **Key Optimizations**:
- * - Single database function call with all necessary data
- * - Pre-calculated occupancy percentages for all tenants
- * - Server-side house metrics calculation
- * - Optimized tenant filtering by date overlap
- * - Comprehensive error handling with fallback mechanisms
- * 
- * **Database Function**: Uses `get_abrechnung_calculation_data` for maximum efficiency
- * 
- * **Expected Performance**: 
- * - Reduces calculation time from 10-15s to 2-3s
- * - Handles 50+ tenants without timeout
- * - Eliminates client-server round trips
- * - Provides atomic data consistency
- * 
- * @param {string} nebenkostenId - UUID of the Nebenkosten entry
- * @param {AbrechnungCalculationOptions} options - Calculation options
- * @returns {Promise<OptimizedActionResponse<AbrechnungCalculationResult>>} Complete calculation results
- */
-async function createAbrechnungCalculationOptimizedActionImpl(
-  nebenkostenId: string,
-  options: {
-    includeRecommendations?: boolean;
-    validateWaterReadings?: boolean;
-    calculateMonthlyBreakdown?: boolean;
-    prepaymentMode?: 'scheduled' | 'actual';
-  } = {}
-): Promise<OptimizedActionResponse<AbrechnungCalculationResult>> {
-  if (!nebenkostenId || nebenkostenId.trim() === '') {
-    logger.warn('Invalid nebenkosten ID provided to createAbrechnungCalculationOptimizedAction', {
-      nebenkostenId,
-      operation: 'createAbrechnungCalculationOptimizedAction'
-    });
-    return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
-  }
-
-  let user, supabase;
-  try {
-    ({ user, supabase } = await ensureAuth());
-  } catch (authError: unknown) {
-    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
-    logger.warn('Unauthenticated access attempt to createAbrechnungCalculationOptimizedAction', {
-      nebenkostenId,
-      operation: 'createAbrechnungCalculationOptimizedAction',
-      error_message: errorMessage
-    });
-    return { success: false, message: errorMessage };
-  }
-
-  // Permission & scope checks
-  const { hasPermission } = await import("@/lib/permissions");
-  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
-  
-  if (!(await hasPermission('betriebskosten', 'erstellen'))) {
-    return { success: false, message: "Keine Berechtigung" };
-  }
-  
-  const haeuserIds = await getAccessibleHaeuserIds();
-  if (haeuserIds !== null) {
-    const { data: nk, error: fetchError } = await supabase
-      .from("Nebenkosten")
-      .select("haeuser_id")
-      .eq("id", nebenkostenId)
-      .single();
-    if (fetchError || !nk || !nk.haeuser_id || !haeuserIds.includes(nk.haeuser_id)) {
-      return { success: false, message: "Zugriff verweigert." };
-    }
-  }
-
-  try {
-
-    logger.info('Starting optimized Abrechnung calculation process', {
-      userId: user.id,
-      nebenkostenId,
-      options,
-      operation: 'createAbrechnungCalculationOptimizedAction'
-    });
-
-    // Use the enhanced database function for maximum performance
-    const result = await withRetry(
-      () => safeRpcCall<any[]>(
-        supabase,
-        'get_abrechnung_calculation_data',
-        { nebenkosten_id: nebenkostenId }
-      ),
-      {
-        maxRetries: 3,
-        baseDelayMs: 1000,
-        retryCondition: (result) => !result.success && (result.message?.includes('timeout') ?? false)
-      }
-    );
-
-    if (!result.success) {
-      logger.error('Failed to fetch optimized Abrechnung calculation data', undefined, {
-        userId: user.id,
-        nebenkostenId,
-        errorMessage: result.message,
-        performanceMetrics: result.performanceMetrics
-      });
-
-      // Fallback to the standard calculation method
-      logger.info('Falling back to standard calculation method', {
-        userId: user.id,
-        nebenkostenId
-      });
-
-      return await createAbrechnungCalculationActionImpl(nebenkostenId, options);
-    }
-
-    // Extract data from database function result
-    const dbResult = result.data?.[0];
-    if (!dbResult) {
-      logger.error('Enhanced database function returned empty result', undefined, {
-        userId: user.id,
-        nebenkostenId
-      });
-      return { success: false, message: "Keine Daten für diese Abrechnung gefunden." };
-    }
-
-    // Parse the structured data from the database function
-    const nebenkosten_data = dbResult.nebenkosten_data as Nebenkosten;
-    const tenants_with_occupancy = dbResult.tenants_with_occupancy || [];
-
-    // Workaround for vorauszahlungs_art removed - database function now includes it.
-    const rechnungen = dbResult.rechnungen || [];
-    const wasserzaehler_readings = dbResult.wasserzaehler_readings || [];
-    const wasserzaehler_meters = dbResult.wasserzaehler_meters || [];
-    const house_metrics = dbResult.house_metrics || {};
-    const calculation_metadata = dbResult.calculation_metadata || {};
-
-    // Ensure gesamtFlaeche is set on nebenkosten_data for calculations to use
-    if (nebenkosten_data && house_metrics) {
-      nebenkosten_data.gesamtFlaeche = house_metrics.totalArea;
-      nebenkosten_data.anzahlWohnungen = house_metrics.apartmentCount;
-    }
-
-    // Validate that we have the necessary data
-    if (!tenants_with_occupancy || tenants_with_occupancy.length === 0) {
-      return {
-        success: false,
-        message: "Keine Mieter für diese Abrechnungsperiode gefunden."
-      };
-    }
-
-    // Import calculation utilities for final processing
-    const {
-      calculateCompleteTenantResult
-    } = await import('@/utils/abrechnung-calculations');
-
-    // Fetch actual payments if mode is 'actual' or 'ist'
-    let actualPayments: any[] = [];
-    const dbPrepaymentMode = (nebenkosten_data as any).vorauszahlungs_art;
-    const effectivePrepaymentMode = options.prepaymentMode ||
-      (dbPrepaymentMode === 'ist' ? 'actual' : 'scheduled');
-
-    // Resolve actual payments using shared helper
-    actualPayments = await resolveActualPaymentsData(
-      supabase,
-      nebenkosten_data,
-      tenants_with_occupancy,
-      options,
-      nebenkostenId
-    );
-
-    // Process each tenant using pre-calculated occupancy data; WG factors are shared by all tenants
-    const tenantCalculations: TenantCalculationResult[] = [];
-    const { computeWgFactorsByTenant } = await import('@/utils/wg-cost-calculations');
-    const wgFactors = nebenkosten_data.startdatum && nebenkosten_data.enddatum
-      ? computeWgFactorsByTenant(tenants_with_occupancy, nebenkosten_data.startdatum, nebenkosten_data.enddatum, nebenkosten_data.rechenbasis)
-      : undefined;
-
-    for (const tenant of tenants_with_occupancy) {
-      try {
-        // Use meter/reading data fetched from the RPC (wasserzaehler_meters, wasserzaehler_readings).
-        // calculateCompleteTenantResult re-calculates occupancy for consistency.
-        const tenantCalculation = calculateCompleteTenantResult(
-          tenant,
-          nebenkosten_data,
-          tenants_with_occupancy,
-          wasserzaehler_meters as any[], // meters from RPC
-          wasserzaehler_readings as any[], // readings from RPC
-          actualPayments,
-          effectivePrepaymentMode,
-          rechnungen,
-          wgFactors
-        );
-
-        tenantCalculations.push(tenantCalculation);
-
-      } catch (error: unknown) {
-        logger.error(`Failed to calculate costs for tenant ${tenant.id} in optimized function`, error instanceof Error ? error : new Error(String(error)), {
-          userId: user.id,
-          nebenkostenId,
-          tenantId: tenant.id
-        });
-
-        // Continue with other tenants, but log the error
-        continue;
-      }
-    }
-
-    if (tenantCalculations.length === 0) {
-      return {
-        success: false,
-        message: "Keine Berechnungen konnten durchgeführt werden."
-      };
-    }
-
-    // Calculate summary statistics
-    const summary = {
-      totalTenants: tenantCalculations.length,
-      totalOperatingCosts: tenantCalculations.reduce((sum, t) => sum + t.operatingCosts.totalCost, 0),
-      totalMeterCosts: tenantCalculations.reduce((sum, t) => sum + t.meterCosts.totalCost, 0),
-      totalPrepayments: tenantCalculations.reduce((sum, t) => sum + t.prepayments.totalPrepayments, 0),
-      totalSettlements: tenantCalculations.reduce((sum, t) => sum + t.finalSettlement, 0),
-      averageSettlement: tenantCalculations.reduce((sum, t) => sum + t.finalSettlement, 0) / tenantCalculations.length,
-      tenantsWithRefund: tenantCalculations.filter(t => t.finalSettlement < 0).length,
-      tenantsWithAdditionalPayment: tenantCalculations.filter(t => t.finalSettlement > 0).length
-    };
-
-    const calculationResult: AbrechnungCalculationResult = {
-      nebenkostenId,
-      calculationDate: new Date().toISOString(),
-      billingPeriod: {
-        startDate: nebenkosten_data.startdatum,
-        endDate: nebenkosten_data.enddatum
-      },
-      propertyInfo: {
-        houseName: nebenkosten_data.Haeuser?.name || 'Unbekannt',
-        totalArea: house_metrics.totalArea || 0,
-        apartmentCount: house_metrics.apartmentCount || 0
-      },
-      tenantCalculations,
-      summary,
-      calculationOptions: options
-    };
-
-    // Detect tenants with missing prepayment schedule data and surface them as warnings
-    const calculationWarningOpt = detectMissingPrepaymentSchedules(tenantCalculations, user.id, nebenkostenId, 'optimized path');
-
-    logger.info('Successfully completed optimized Abrechnung calculations', {
-      userId: user.id,
-      nebenkostenId,
-      tenantCount: tenantCalculations.length,
-      totalSettlements: summary.totalSettlements,
-      averageSettlement: summary.averageSettlement,
-      executionTime: result.performanceMetrics?.executionTime,
-      optimizationLevel: 'enhanced'
-    });
-
-    return { success: true, data: calculationResult, message: calculationWarningOpt };
-
-  } catch (error: unknown) {
-    logger.error('Unexpected error in createAbrechnungCalculationOptimizedAction', error instanceof Error ? error : new Error(String(error)), {
-      nebenkostenId,
-      operation: 'createAbrechnungCalculationOptimizedAction'
-    });
-
-    const userMessage = generateUserFriendlyErrorMessage(
-      error,
-      'Optimierte Berechnung der Abrechnung'
-    );
-
-    return {
-      success: false,
-      message: userMessage
-    };
-  }
-}
 
 // --- Timed server actions -------------------------------------------------------------------
 // Public entry points for the heaviest actions; each records `server_action.duration` in PostHog
-// Metrics. Actions that delegate to another one (e.g. the Optimized calculation's fallback) call
-// its Impl directly, so one user call records exactly one sample.
+// Metrics. Actions that delegate to another one call its Impl directly, so one user call records
+// exactly one sample.
 // Exports stay async function declarations: a "use server" file may only export async functions.
 const timedGetNebenkostenDetailsAction = withTiming('getNebenkostenDetailsAction', getNebenkostenDetailsActionImpl);
 export async function getNebenkostenDetailsAction(...args: Parameters<typeof getNebenkostenDetailsActionImpl>) {
@@ -3060,10 +2820,5 @@ export async function getAbrechnungModalDataAction(...args: Parameters<typeof ge
 const timedCreateAbrechnungCalculationAction = withTiming('createAbrechnungCalculationAction', createAbrechnungCalculationActionImpl);
 export async function createAbrechnungCalculationAction(...args: Parameters<typeof createAbrechnungCalculationActionImpl>) {
   return timedCreateAbrechnungCalculationAction(...args);
-}
-
-const timedCreateAbrechnungCalculationOptimizedAction = withTiming('createAbrechnungCalculationOptimizedAction', createAbrechnungCalculationOptimizedActionImpl);
-export async function createAbrechnungCalculationOptimizedAction(...args: Parameters<typeof createAbrechnungCalculationOptimizedActionImpl>) {
-  return timedCreateAbrechnungCalculationOptimizedAction(...args);
 }
 

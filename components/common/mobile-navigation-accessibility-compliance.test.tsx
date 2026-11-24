@@ -177,7 +177,7 @@ describe('MobileBottomNavigation - Accessibility Compliance', () => {
 
         // Check menu items
         const menuItems = screen.getAllByRole('menuitem')
-        expect(menuItems).toHaveLength(8) // All dropdown items should be visible
+        expect(menuItems).toHaveLength(9) // All dropdown items should be visible (inkl. Kontakte, GH-30)
 
         menuItems.forEach(item => {
           expect(item).toHaveAttribute('role', 'menuitem')

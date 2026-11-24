@@ -26,7 +26,7 @@ export async function GET(
             .single();
 
         if (error) {
-            console.error(`GET /api/haeuser/${id} error:`, error);
+            console.error('GET /api/haeuser/%s error:', id, error);
             if (error.code === 'PGRST116') {
                 return NextResponse.json({ error: 'Haus nicht gefunden.' }, { 
                     status: 404,
@@ -79,7 +79,7 @@ export async function PATCH(
             .select();
 
         if (error) {
-            console.error(`PATCH /api/haeuser/${id} error:`, error);
+            console.error('PATCH /api/haeuser/%s error:', id, error);
             return NextResponse.json({ error: error.message }, { 
                 status: 400,
                 headers: NO_CACHE_HEADERS
@@ -134,7 +134,7 @@ export async function DELETE(
         });
 
         if (error) {
-            console.error(`DELETE /api/haeuser/${id} error:`, error);
+            console.error('DELETE /api/haeuser/%s error:', id, error);
             return NextResponse.json({ error: error.message }, { 
                 status: 500,
                 headers: NO_CACHE_HEADERS

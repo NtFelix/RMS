@@ -1,8 +1,17 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
-import { MIETER_SPALTEN_OHNE_KAUTION, pickMieterSchreibbareFelder } from "@/lib/mieter-columns";
-import { ermittleWohnungswechselFehler } from "@/lib/mietverhaeltnis-errors";
+import {
+    MIETER_LESE_SELECT,
+    fehlerAusRpc,
+    istEingabeObjekt,
+    mieterEingabeAusBody,
+    personEingabeAusBody,
+} from "@/lib/mieter-schreibpfad";
+import { mitPersonenfeldern, type Person } from "@/lib/personen";
+
+/** Zeile aus "Mieter" mit eingebetteter Person, vor dem Abbilden auf name/email/telefonnummer. */
+type MieterZeile = { person?: Person | Person[] | null };
 
 // GET specific tenant by ID
 export async function GET(
@@ -15,13 +24,13 @@ export async function GET(
         const supabase = await createSupabaseServerClient();
         const { data, error } = await supabase
             .from('Mieter')
-            // Explizite Spaltenliste ohne das Altfeld "kaution" (Kautionsdaten sind an das Modul "kautionen" gebunden).
-            .select(`${MIETER_SPALTEN_OHNE_KAUTION}, Wohnungen(id, name)`)
+            // Explizite Spaltenliste ohne das Altfeld "kaution" und ohne Personenfelder (GH-30: Person eingebettet).
+            .select(`${MIETER_LESE_SELECT}, Wohnungen(id, name)`)
             .eq('id', id)
             .single();
 
         if (error) {
-            console.error(`GET /api/mieter/${id} error:`, error);
+            console.error('GET /api/mieter/%s error:', id, error);
             if (error.code === 'PGRST116') {
                 return NextResponse.json({ error: 'Mieter nicht gefunden.' }, { status: 404, headers: NO_CACHE_HEADERS });
             }
@@ -33,7 +42,7 @@ export async function GET(
             return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
         }
 
-        return NextResponse.json(data, { status: 200, headers: NO_CACHE_HEADERS });
+        return NextResponse.json(mitPersonenfeldern(data as unknown as MieterZeile), { status: 200, headers: NO_CACHE_HEADERS });
     } catch (e) {
         console.error('Server error GET /api/mieter/[id]:', e);
         return NextResponse.json({ error: 'Serverfehler bei Mieter-Abfrage.' }, { status: 500, headers: NO_CACHE_HEADERS });
@@ -50,12 +59,14 @@ export async function PATCH(
         const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
         await requireApiPermission('mieter', 'bearbeiten');
 
-        // Nur schreibbare Mieterspalten übernehmen; das Altfeld "kaution" wird verworfen.
-        const body = pickMieterSchreibbareFelder(await request.json());
-        if (!body) {
+        // Personenfelder und Mieterfelder getrennt übernehmen; das Altfeld "kaution" wird verworfen.
+        const body = await request.json();
+        if (!istEingabeObjekt(body)) {
             return NextResponse.json({ error: 'Ungültiger Request-Body.' }, { status: 400, headers: NO_CACHE_HEADERS });
         }
-        if (Object.keys(body).length === 0) {
+        const person = personEingabeAusBody(body, "aendern");
+        const mieter = mieterEingabeAusBody(body);
+        if (Object.keys(person).length === 0 && Object.keys(mieter).length === 0) {
             return NextResponse.json({ error: 'Keine änderbaren Felder angegeben.' }, { status: 400, headers: NO_CACHE_HEADERS });
         }
         const supabase = await createSupabaseServerClient();
@@ -72,26 +83,33 @@ export async function PATCH(
         }
 
         // Check scope of new apartment if changing
-        if (body.wohnung_id && !(await verifyWohnungInScope(body.wohnung_id as string))) {
+        if (typeof mieter.wohnung_id === 'string' && !(await verifyWohnungInScope(mieter.wohnung_id))) {
             return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
         }
 
-        const { data, error } = await supabase
-            .from('Mieter')
-            .update(body)
-            .eq('id', id)
-            .select(MIETER_SPALTEN_OHNE_KAUTION);
-
+        const { error } = await supabase.rpc('mieter_aktualisieren', {
+            p_mieter_id: id,
+            p_person: person,
+            p_mieter: mieter,
+        });
         if (error) {
-            console.error(`PATCH /api/mieter/${id} error:`, error);
-            return NextResponse.json({ error: ermittleWohnungswechselFehler(error) ?? error.message }, { status: 400, headers: NO_CACHE_HEADERS });
+            console.error('PATCH /api/mieter/%s error:', id, error.code);
+            const fehler = fehlerAusRpc(error);
+            return NextResponse.json({ error: fehler.message }, { status: fehler.status, headers: NO_CACHE_HEADERS });
         }
 
-        if (!data || data.length === 0) {
-            return NextResponse.json({ error: 'Mieter nicht gefunden.' }, { status: 404, headers: NO_CACHE_HEADERS });
+        const { data, error: leseFehler } = await supabase
+            .from('Mieter')
+            .select(MIETER_LESE_SELECT)
+            .eq('id', id)
+            .single();
+        if (leseFehler || !data) {
+            // Die Änderung ist bereits gespeichert (RPC erfolgreich); nur das Nachladen scheiterte.
+            console.error('PUT /api/mieter/[id] read-back error:', leseFehler?.code);
+            return NextResponse.json({ id, warning: 'Mieter wurde gespeichert, konnte aber nicht gelesen werden.' }, { status: 200, headers: NO_CACHE_HEADERS });
         }
 
-        return NextResponse.json(data[0], { status: 200, headers: NO_CACHE_HEADERS });
+        return NextResponse.json(mitPersonenfeldern(data as unknown as MieterZeile), { status: 200, headers: NO_CACHE_HEADERS });
     } catch (e) {
         console.error('Server error PATCH /api/mieter/[id]:', e);
         const status = (e as Error).message === 'Permission denied' ? 403 : 500
@@ -131,7 +149,7 @@ export async function DELETE(
         });
 
         if (error) {
-            console.error(`DELETE /api/mieter/${id} error:`, error);
+            console.error('DELETE /api/mieter/%s error:', id, error);
             return NextResponse.json({ error: error.message }, { status: 500, headers: NO_CACHE_HEADERS });
         }
 

@@ -11,7 +11,7 @@ import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { KautionDialog } from "@/components/kaution/kaution-dialog";
 import { useModalStore } from "@/hooks/use-modal-store";
-import { getKautionDetailsAction } from "@/app/kautionen-actions";
+import { getKautionAbrechnungAction, getKautionDetailsAction } from "@/app/kautionen-actions";
 import { useKautionFlag } from "@/hooks/use-kaution-flag";
 import { standardKautionFlagKonfig, type KautionFunktion } from "@/lib/kautionen-flag";
 import type { KautionDetails, KautionRechte } from "@/types/Kaution";
@@ -172,6 +172,17 @@ function raeumeNachJedemTestAuf() {
 
 describe("KautionDialog: Tab Abrechnung", () => {
   raeumeNachJedemTestAuf();
+
+  it("lässt die Berechnung für die angezeigte Kaution rechnen (kautionId der Kaution im Dialog)", async () => {
+    setzeFunktionen({ abrechnung: true });
+    (getKautionAbrechnungAction as jest.Mock).mockResolvedValue({ success: true, data: null });
+    const user = await oeffne(barDetails(), "abrechnung");
+
+    await user.click(screen.getByRole("button", { name: "Berechnen" }));
+
+    await screen.findByText("Für diese Kaution ist keine Abrechnung verfügbar.");
+    expect(getKautionAbrechnungAction).toHaveBeenCalledWith(expect.objectContaining({ tenantId: TENANT_ID, kautionId: KAUTION_ID }));
+  });
 
   it("zeigt den Tab Abrechnung bei einem Bankkonto mit der Funktion abrechnung", async () => {
     setzeFunktionen({ abrechnung: true });

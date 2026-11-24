@@ -4,6 +4,7 @@ import { unstable_rethrow } from "next/navigation";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from "@/lib/object-scope";
 import { formatPlzOrt } from "@/lib/address";
+import { BEWERBER_PERSON_EMBED, BEWERBER_PERSON_EMBED_INNER, MIETER_PERSON_EMBED, MIETER_PERSON_EMBED_INNER, mitPersonenfeldern, type Person } from "@/lib/personen";
 import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 import type { Modul } from "@/lib/permissions-core";
 import type {
@@ -12,21 +13,19 @@ import type {
 } from "@/types/search"
 
 // Database record interfaces
-interface DbTenant {
+
+/** Zeile aus "Mieter" bzw. "Bewerber" für die Personensuche (GH-30): Name, E-Mail und Telefon stehen in der Person. */
+interface TenantSuchZeile {
   id: string;
+  einzug?: string | null;
+  auszug?: string | null;
+  person?: Person | Person[] | null;
+  Wohnungen?: SuchWohnung | SuchWohnung[] | null;
+}
+
+interface SuchWohnung {
   name: string;
-  email: string | null;
-  telefonnummer: string | null;
-  einzug: string | null;
-  auszug: string | null;
-  Wohnungen?: {
-    name: string;
-    Haeuser?: {
-      name: string;
-      [key: string]: any;
-    }[];
-    [key: string]: any;
-  }[];
+  Haeuser?: { name: string } | { name: string }[] | null;
 }
 
 interface DbApartment {
@@ -55,6 +54,58 @@ const SEARCH_CATEGORY_MODULE: Record<string, Modul> = {
   finance: 'finanzen',
   task: 'aufgaben',
 };
+
+// Obergrenzen der Personensuche (GH-30): Treffer an "Personen" und Kandidaten an Mieter/Bewerber vor der Sortierung
+const SUCHE_KANDIDATEN_LIMIT = 100;
+
+/**
+ * Suchbedingungen für "Personen" (PostgREST-or). Vorname, Nachname, E-Mail und (ohne "@") Telefon werden per ILIKE
+ * geprüft; bei genau zwei Wörtern zusätzlich "Vorname Nachname" und "Nachname Vorname".
+ * Kommas und Klammern werden aus den Wörtern entfernt, weil sie die or-Syntax zerlegen würden.
+ */
+function personenSuchBedingungen(rohPattern: string, words: string[], mitTelefon: boolean): string[] {
+  // Komma, Klammern und Anführungszeichen trennen bzw. gruppieren Bedingungen im PostgREST-or(); im Suchtext entfernen
+  // (z. B. "Müller, Hans"), sonst scheitert die ganze Abfrage.
+  const pattern = rohPattern.replace(/[(),"]/g, '');
+  const bedingungen = [
+    `vorname.ilike.${pattern}`,
+    `nachname.ilike.${pattern}`,
+    `email.ilike.${pattern}`,
+  ];
+  if (mitTelefon) bedingungen.push(`telefon.ilike.${pattern}`);
+  if (words.length === 2) {
+    const [erstes, zweites] = words.map((wort) => wort.replace(/[(),]/g, ''));
+    bedingungen.push(
+      `and(vorname.ilike.%${erstes}%,nachname.ilike.%${zweites}%)`,
+      `and(nachname.ilike.%${erstes}%,vorname.ilike.%${zweites}%)`
+    );
+  }
+  return bedingungen;
+}
+
+/**
+ * Ergebnis-Eintrag für einen Mieter oder Bewerber; Name, E-Mail und Telefon stammen aus der Person.
+ * `is_applicant` kennzeichnet Bewerber: Die Oberfläche öffnet sie nicht als Mieter (es gibt keine Mieter-Route dafür).
+ */
+function zuTenantSucheintrag(zeile: TenantSuchZeile, istBewerber: boolean) {
+  const person = mitPersonenfeldern(zeile);
+  const wohnung = Array.isArray(zeile.Wohnungen) ? zeile.Wohnungen[0] : zeile.Wohnungen;
+  const haus = wohnung ? (Array.isArray(wohnung.Haeuser) ? wohnung.Haeuser[0] : wohnung.Haeuser) : undefined;
+  return {
+    id: zeile.id,
+    name: person.name,
+    email: person.email || undefined,
+    phone: person.telefonnummer || undefined,
+    apartment: wohnung ? {
+      name: wohnung.name || '',
+      house_name: haus?.name || ''
+    } : undefined,
+    status: zeile.auszug ? 'moved_out' as const : 'active' as const,
+    move_in_date: zeile.einzug || undefined,
+    move_out_date: zeile.auszug || undefined,
+    is_applicant: istBewerber
+  };
+}
 
 // In-memory cache for search patterns with expiration
 const searchPatternCache = new Map<string, { pattern: string; exact: string; fuzzy?: string; words?: string[]; timestamp: number }>();
@@ -213,7 +264,8 @@ export async function GET(request: Request) {
     const canViewTenantsOfApartments = grantedModules.has('mieter');
     // Without mieter:ansehen only `auszug` (for the status rented / free) is read from Mieter: no name, no move-in
     // date of a tenant is even loaded for the apartment results
-    const apartmentMieterColumns = canViewTenantsOfApartments ? 'name, einzug, auszug' : 'auszug';
+    // GH-30: der Name steht in der eingebetteten Person von "Mieter" (nicht mehr in der Spalte name).
+    const apartmentMieterColumns = canViewTenantsOfApartments ? `einzug, auszug, ${MIETER_PERSON_EMBED}` : 'auszug';
     
     // Handle special "*" query for showing all results
     const isShowAllQuery = query.trim() === '*';
@@ -232,126 +284,84 @@ export async function GET(request: Request) {
     // Use Promise.allSettled for parallel execution with error isolation
     const searchPromises = [];
     
-    // Search tenants (Mieter) - Enhanced with fuzzy matching and multi-word search
+    // Search tenants (Mieter) und Bewerber (GH-30): Name, E-Mail und Telefon stehen in "Personen". Die Suche findet
+    // passende Personen und ordnet sie über Mieter.person_id bzw. Bewerber.person_id den Mietern und Bewerbern zu.
     if (categories.includes('tenant')) {
       if (!canSearchCategory('tenant') || (accessibleWohnungIds !== null && accessibleWohnungIds.length === 0)) {
         searchPromises.push(Promise.resolve({ type: 'tenant' as const, data: [] }));
       } else {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Adding tenant search promise');
-        }
         searchPromises.push(
           (async () => {
             try {
-              let queryBuilder = supabase
+              // Mieter und Bewerber direkt über ihre Person filtern (Inner-Join auf "Personen"): so zählen nur Personen mit
+              // einer dieser Rollen, und die Grenze gilt für die Ergebnisse selbst, nicht für beliebige Kontakte.
+              // Bei "*" entfällt die Einschränkung. Bewerber, die bereits angenommen sind, sind als Mieter erfasst.
+              const bedingungen = isShowAllQuery
+                ? null
+                : personenSuchBedingungen(searchPattern, words, !searchPattern.includes('@')).join(',');
+              let mieterQuery = supabase
                 .from('Mieter')
                 .select(`
-                  id, name, email, telefonnummer, einzug, auszug,
+                  id, wohnung_id, einzug, auszug, ${bedingungen ? MIETER_PERSON_EMBED_INNER : MIETER_PERSON_EMBED},
                   Wohnungen!left(name, Haeuser!left(name))
                 `);
-
+              let bewerberQuery = supabase
+                .from('Bewerber')
+                .select(`
+                  id, wohnung_id, ${bedingungen ? BEWERBER_PERSON_EMBED_INNER : BEWERBER_PERSON_EMBED},
+                  Wohnungen!left(name, Haeuser!left(name))
+                `)
+                .neq('status', 'angenommen');
+              if (bedingungen) {
+                mieterQuery = mieterQuery.or(bedingungen, { referencedTable: 'person' });
+                bewerberQuery = bewerberQuery.or(bedingungen, { referencedTable: 'person' });
+              }
+              // Stabile Reihenfolge vor der Grenze (sonst wäre bei "*" eine zufällige Auswahl sichtbar)
+              mieterQuery = mieterQuery.order('person(nachname)').order('person(vorname)').order('id');
+              bewerberQuery = bewerberQuery.order('person(nachname)').order('person(vorname)').order('id');
               if (accessibleWohnungIds !== null) {
-                queryBuilder = queryBuilder.in('wohnung_id', accessibleWohnungIds);
+                mieterQuery = mieterQuery.in('wohnung_id', accessibleWohnungIds);
+                // Bewerber dürfen ohne Wohnung sein (RLS erlaubt das), deshalb auch "wohnung_id is null" zulassen.
+                bewerberQuery = bewerberQuery.or(`wohnung_id.is.null,wohnung_id.in.(${accessibleWohnungIds.join(',')})`);
               }
 
-              // Build search conditions for better matching
-              let queryBuilderWithConditions;
-              let searchConditions: string[] = [];
-              
-              if (isShowAllQuery) {
-                // Show all tenants when using "*" query
-                queryBuilderWithConditions = queryBuilder;
-              } else {
-                searchConditions = [
-                  `name.ilike.${searchPattern}`
-                ];
+              const [mieterErgebnis, bewerberErgebnis] = await Promise.all([
+                mieterQuery.limit(SUCHE_KANDIDATEN_LIMIT),
+                bewerberQuery.limit(SUCHE_KANDIDATEN_LIMIT),
+              ]);
 
-                // Add email search (always)
-                searchConditions.push(`email.ilike.${searchPattern}`);
-                
-                // Add phone number search only for non-email patterns
-                if (!searchPattern.includes('@')) {
-                  searchConditions.push(`telefonnummer.ilike.${searchPattern}`);
-                }
-                
-                queryBuilderWithConditions = queryBuilder.or(searchConditions.join(','));
+              if (mieterErgebnis.error) {
+                console.error('Tenant search error:', mieterErgebnis.error);
+                return { type: 'tenant' as const, data: [] };
+              }
+              if (bewerberErgebnis.error) {
+                console.error('Applicant search error:', bewerberErgebnis.error);
               }
 
-            // Debug logging in development only
-            if (process.env.NODE_ENV === 'development') {
-              // Test if we can get any tenants at all (development only)
-              const { data: allTenants, error: countError } = await supabase
-                .from('Mieter')
-                .select('id, name')
-                .limit(1);
-                
-              console.log('Total tenants in database:', allTenants?.length || 0);
-              if (countError) {
-                console.error('Count error:', countError);
-              }
-            }
+              const mieterZeilen = (mieterErgebnis.data ?? []) as TenantSuchZeile[];
+              const bewerberZeilen = bewerberErgebnis.error ? [] : ((bewerberErgebnis.data ?? []) as TenantSuchZeile[]);
 
-            const { data, error } = await queryBuilderWithConditions
-              .order('name')
-              .limit(limit);
-
-            if (error) {
-              console.error('Tenant search error:', error);
-              if (!isShowAllQuery) {
-                console.error('Tenant search query conditions:', searchConditions);
+              // Keine Personennamen in Logs: nur Anzahlen
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`Tenant search found ${mieterZeilen.length} tenants and ${bewerberZeilen.length} applicants`);
               }
+
+              const eintraege = [
+                ...mieterZeilen.map((zeile) => zuTenantSucheintrag(zeile, false)),
+                ...bewerberZeilen.map((zeile) => zuTenantSucheintrag(zeile, true)),
+              ];
+              const sortierteEintraege = sortByRelevance(eintraege, query).slice(0, limit);
+
+              return { type: 'tenant' as const, data: sortierteEintraege };
+            } catch (error) {
+              console.error('Error searching tenants:', error);
               return { type: 'tenant' as const, data: [] };
             }
-            
-            if (!data) return { type: 'tenant', data: [] };
-            
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`Tenant search found ${data.length} results for query "${query}"`);
-              if (data.length > 0) {
-                console.log('Sample tenant result:', {
-                  id: data[0].id,
-                  name: data[0].name,
-                  email: data[0].email,
-                  telefonnummer: data[0].telefonnummer
-                });
-              }
-            }
-            
-            const sortedTenants = sortByRelevance(data, query);
-            
-            const tenantResults = sortedTenants.map((tenant: DbTenant) => {
-              // Get the first apartment if available
-              const apartment = tenant.Wohnungen?.[0] ? {
-                name: tenant.Wohnungen[0].name || '',
-                house_name: tenant.Wohnungen[0].Haeuser?.[0]?.name || ''
-              } : undefined;
-
-              return {
-                id: tenant.id,
-                name: tenant.name,
-                email: tenant.email || undefined,
-                phone: tenant.telefonnummer || undefined,
-                apartment,
-                status: tenant.auszug ? 'moved_out' : 'active',
-                move_in_date: tenant.einzug || undefined,
-                move_out_date: tenant.auszug || undefined
-              };
-            });
-            
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`Returning ${tenantResults.length} tenant results:`, tenantResults.map(t => ({ id: t.id, name: t.name, email: t.email })));
-            }
-            
-            return { type: 'tenant' as const, data: tenantResults };
-          } catch (error) {
-            console.error('Error searching tenants:', error);
-            return { type: 'tenant' as const, data: [] };
-          }
-        })()
-      );
+          })()
+        );
+      }
     }
-  }
-    
+
     // Search houses (Haeuser) - Enhanced with better address matching
     if (categories.includes('house')) {
       if (!canSearchCategory('house') || (accessibleHaeuserIds !== null && accessibleHaeuserIds.length === 0)) {
@@ -449,7 +459,7 @@ export async function GET(request: Request) {
             });
             
             if (process.env.NODE_ENV === 'development') {
-              console.log(`Returning ${houseResults.length} house results:`, houseResults.map(h => ({ id: h.id, name: h.name, address: h.address })));
+              console.log('Returning %d house results:', houseResults.length, houseResults.map(h => ({ id: h.id, name: h.name, address: h.address })));
             }
             
             return { type: 'house', data: houseResults };
@@ -557,6 +567,7 @@ export async function GET(request: Request) {
               const apartmentResults = sortedApartments.map((apartment: any) => {
                 const mieterArray = Array.isArray(apartment.Mieter) ? apartment.Mieter : (apartment.Mieter ? [apartment.Mieter] : []);
                 const currentTenant = mieterArray.find((m: any) => !m.auszug);
+                const currentTenantPerson = currentTenant ? mitPersonenfeldern(currentTenant) : undefined;
                 
                 return {
                   id: apartment.id,
@@ -569,7 +580,7 @@ export async function GET(request: Request) {
                   // "no access" (not "no tenant")
                   ...(canViewTenantsOfApartments ? {} : { tenant_access: false as const }),
                   current_tenant: canViewTenantsOfApartments && currentTenant ? {
-                    name: currentTenant.name,
+                    name: currentTenantPerson?.name ?? '',
                     move_in_date: currentTenant.einzug || ''
                   } : undefined
                 };

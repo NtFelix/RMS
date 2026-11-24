@@ -4,6 +4,7 @@ import MieterClientView from './client-wrapper';
 import { useModalStore } from '@/hooks/use-modal-store';
 import type { Tenant } from '@/types/Tenant';
 import type { Wohnung } from '@/types/Wohnung';
+import type { BewerberListenEintrag } from '@/app/bewerber-actions';
 
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store');
@@ -52,7 +53,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 // Aktiver Tab der Seite (Standard "mieter"); die Übersichtskarten werden über den Tab "overview" erreicht.
-let mockCurrentTab: 'mieter' | 'overview' = 'mieter';
+let mockCurrentTab: 'mieter' | 'overview' | 'bewerber' = 'mieter';
 jest.mock('@/hooks/use-tab-params', () => ({
   useTabParams: () => [mockCurrentTab, jest.fn()],
 }));
@@ -67,9 +68,25 @@ jest.mock('@/components/dashboard/dashboard-charts-wrapper', () => ({
 
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 
+// Der Kautionseintrag öffnet über den Hook (Auswahl bei mehreren Kautionen); hier wird nur der Aufruf geprüft.
+const mockOeffneKaution = jest.fn();
+jest.mock('@/hooks/use-kaution-oeffnen', () => ({
+  useKautionOeffnen: () => mockOeffneKaution,
+}));
+
+// Bewerber (GH-30): kommen über bewerberLadenAction, nicht aus den Mieter-Zeilen. Der Bewerber-Tab hängt am Flag.
+const mockBewerberLaden = jest.fn();
+jest.mock('@/app/bewerber-actions', () => ({
+  bewerberLadenAction: (...args: unknown[]) => mockBewerberLaden(...args),
+  bewerberAlleLoeschenAction: jest.fn(),
+}));
+let mockApplicantsTab = false;
+jest.mock('posthog-js/react', () => ({
+  useFeatureFlagEnabled: (name: string) => (name === 'applicants-tab' ? mockApplicantsTab : false),
+}));
+
 describe('MieterClientView - Layout Changes', () => {
   const mockOpenTenantModal = jest.fn();
-  const mockOpenKautionModal = jest.fn();
   const mockSetCanViewKautionen = jest.fn();
   const mockServerAction = jest.fn();
 
@@ -132,7 +149,6 @@ describe('MieterClientView - Layout Changes', () => {
     mockKautionFlagGeladen = true;
     mockUseModalStore.mockReturnValue({
       openTenantModal: mockOpenTenantModal,
-      openKautionModal: mockOpenKautionModal,
       setCanViewKautionen: mockSetCanViewKautionen,
     } as any);
   });
@@ -501,8 +517,8 @@ describe('MieterClientView - Layout Changes', () => {
 
       await user.click(screen.getByText('Kautions Mieter'));
 
-      expect(mockOpenKautionModal).toHaveBeenCalledTimes(1);
-      const args = mockOpenKautionModal.mock.calls[0];
+      expect(mockOeffneKaution).toHaveBeenCalledTimes(1);
+      const args = mockOeffneKaution.mock.calls[0];
       expect(args).toHaveLength(1);
       expect(args[0]).toMatchObject({ id: 't-deposit', name: 'Kautions Mieter' });
     });
@@ -518,14 +534,14 @@ describe('MieterClientView - Layout Changes', () => {
       zeile.focus();
       expect(zeile).toHaveFocus();
       await user.keyboard('{Enter}');
-      expect(mockOpenKautionModal).toHaveBeenCalledTimes(1);
+      expect(mockOeffneKaution).toHaveBeenCalledTimes(1);
 
       await user.keyboard(' ');
-      expect(mockOpenKautionModal).toHaveBeenCalledTimes(2);
-      expect(mockOpenKautionModal.mock.calls[1][0]).toMatchObject({ id: 't-deposit' });
+      expect(mockOeffneKaution).toHaveBeenCalledTimes(2);
+      expect(mockOeffneKaution.mock.calls[1][0]).toMatchObject({ id: 't-deposit' });
 
       await user.keyboard('a'); // other keys do nothing
-      expect(mockOpenKautionModal).toHaveBeenCalledTimes(2);
+      expect(mockOeffneKaution).toHaveBeenCalledTimes(2);
     });
   });
 });
@@ -562,5 +578,62 @@ describe('MieterClientView - Mieter in der Liste löschen (GH-6)', () => {
 
     await waitFor(() => expect(mockRefresh).toHaveBeenCalledTimes(1));
     expect(global.fetch).toHaveBeenCalledWith('/api/mieter/bulk-delete', expect.objectContaining({ method: 'POST' }));
+  });
+});
+
+// Bewerber (GH-30): Mieter-Liste und Bewerber-Liste kommen aus getrennten Quellen.
+describe('MieterClientView - Bewerber (GH-30)', () => {
+  const bewerberListe = [
+    {
+      id: 'b-1',
+      name: 'Bewerberin Probe',
+      status: 'bewerber',
+      bewerber_status: 'neu',
+      bewerbung_score: 85,
+    },
+  ] as unknown as BewerberListenEintrag[];
+
+  const mieterListe: Tenant[] = [
+    { id: 'm-1', name: 'Mieter Probe', wohnung_id: 'w1', einzug: '2023-01-01', nebenkosten: [] },
+  ];
+
+  const props = {
+    initialTenants: mieterListe,
+    initialWohnungen: [] as Wohnung[],
+    serverAction: jest.fn(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCurrentTab = 'mieter';
+    mockApplicantsTab = true;
+    mockBewerberLaden.mockResolvedValue({ success: true, data: bewerberListe });
+    mockUseModalStore.mockReturnValue({
+      openTenantModal: jest.fn(),
+      openApplicantScoreModal: jest.fn(),
+      openTenantMailTemplatesModal: jest.fn(),
+      openMailPreviewModal: jest.fn(),
+    } as any);
+  });
+
+  afterEach(() => {
+    mockApplicantsTab = false;
+  });
+
+  it('lädt die Bewerber über bewerberLadenAction und zeigt sie im Bewerber-Tab', async () => {
+    mockCurrentTab = 'bewerber';
+    render(<MieterClientView {...props} />);
+
+    expect(await screen.findByText('Bewerberin Probe')).toBeInTheDocument();
+    expect(mockBewerberLaden).toHaveBeenCalled();
+    expect(screen.queryByText('Mieter Probe')).not.toBeInTheDocument();
+  });
+
+  it('zeigt im Mieter-Tab nur Mieter, nicht die Bewerber', async () => {
+    render(<MieterClientView {...props} />);
+
+    expect(screen.getByText('Mieter Probe')).toBeInTheDocument();
+    await waitFor(() => expect(mockBewerberLaden).toHaveBeenCalled());
+    expect(screen.queryByText('Bewerberin Probe')).not.toBeInTheDocument();
   });
 });

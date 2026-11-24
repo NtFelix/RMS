@@ -13,7 +13,15 @@ jest.mock('./test-utils', () => ({
 // Tests for fetchNebenkostenList and getHausGesamtFlaeche removed - functions replaced by optimized versions
 // fetchNebenkostenListOptimized in betriebskosten-actions.ts uses get_nebenkosten_with_metrics database function
 
-import { getCurrentWohnungenCount, fetchUserProfile } from './data-fetching';
+import { after } from 'next/server';
+
+jest.mock('next/server', () => ({
+  after: jest.fn(() => {
+    throw new Error('after() must not be called from fetchWithRpcFallback');
+  }),
+}));
+
+import { getCurrentWohnungenCount, fetchUserProfile, fetchWithRpcFallback } from './data-fetching';
 
 describe('getCurrentWohnungenCount', () => {
   const mockSupabaseClient = {
@@ -181,5 +189,56 @@ describe('fetchUserProfile', () => {
 
     expect(profile).toBeNull();
     expect(mockSupabaseClient.from).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchWithRpcFallback', () => {
+  let consoleWarnSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('returns RPC data without invoking next/server after()', async () => {
+    const mockSupabase = {
+      rpc: jest.fn().mockResolvedValueOnce({ data: { haeuserCount: 3 }, error: null }),
+    };
+    const fallbackFn = jest.fn();
+
+    const result = await fetchWithRpcFallback(
+      mockSupabase as never,
+      'get_dashboard_summary',
+      {},
+      fallbackFn,
+      'dashboard_summary'
+    );
+
+    expect(result).toEqual({ haeuserCount: 3 });
+    expect(fallbackFn).not.toHaveBeenCalled();
+    expect(after).not.toHaveBeenCalled();
+  });
+
+  it('executes fallback when RPC fails without invoking next/server after()', async () => {
+    const mockSupabase = {
+      rpc: jest.fn().mockResolvedValueOnce({ data: null, error: new Error('RPC unavailable') }),
+    };
+    const fallbackFn = jest.fn().mockResolvedValueOnce({ haeuserCount: 1 });
+
+    const result = await fetchWithRpcFallback(
+      mockSupabase as never,
+      'get_dashboard_summary',
+      {},
+      fallbackFn,
+      'dashboard_summary'
+    );
+
+    expect(result).toEqual({ haeuserCount: 1 });
+    expect(fallbackFn).toHaveBeenCalledTimes(1);
+    expect(after).not.toHaveBeenCalled();
   });
 });

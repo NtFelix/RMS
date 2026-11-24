@@ -157,18 +157,28 @@ export function ArchiveBrowserModal({ isOpen, onClose }: ArchiveBrowserModalProp
   const handleBulkRestore = async () => {
     const filesToRestore = filteredAndSortedFiles.filter(file => selectedFiles.has(file.id))
 
-    for (const file of filesToRestore) {
-      try {
-        await restoreFile(file, file.originalPath || undefined)
-      } catch (error) {
-        console.error(`Failed to restore ${file.name}:`, error)
-      }
-    }
+    const results = await Promise.all(
+      filesToRestore.map(async (file) => {
+        try {
+          await restoreFile(file, file.originalPath || undefined)
+          return true
+        } catch (error) {
+          console.error('Failed to restore %s:', file.name, error)
+          return false
+        }
+      })
+    )
+
+    const succeededCount = results.filter(Boolean).length
+    const failedCount = results.length - succeededCount
 
     setSelectedFiles(new Set())
     toast({
-      title: "Dateien wiederhergestellt",
-      description: `${filesToRestore.length} Dateien wurden wiederhergestellt.`,
+      title: failedCount > 0 ? "Teilweise wiederhergestellt" : "Dateien wiederhergestellt",
+      description: failedCount > 0
+        ? `${succeededCount} von ${filesToRestore.length} Dateien wurden wiederhergestellt (${failedCount} fehlgeschlagen).`
+        : `${succeededCount} Dateien wurden wiederhergestellt.`,
+      ...(failedCount > 0 ? { variant: "destructive" as const } : {}),
     })
   }
 
@@ -179,18 +189,28 @@ export function ArchiveBrowserModal({ isOpen, onClose }: ArchiveBrowserModalProp
       return
     }
 
-    for (const file of filesToDelete) {
-      try {
-        await permanentlyDeleteFile(file)
-      } catch (error) {
-        console.error(`Failed to delete ${file.name}:`, error)
-      }
-    }
+    const results = await Promise.all(
+      filesToDelete.map(async (file) => {
+        try {
+          await permanentlyDeleteFile(file)
+          return true
+        } catch (error) {
+          console.error('Failed to delete %s:', file.name, error)
+          return false
+        }
+      })
+    )
+
+    const succeededCount = results.filter(Boolean).length
+    const failedCount = results.length - succeededCount
 
     setSelectedFiles(new Set())
     toast({
-      title: "Dateien gelöscht",
-      description: `${filesToDelete.length} Dateien wurden dauerhaft gelöscht.`,
+      title: failedCount > 0 ? "Teilweise gelöscht" : "Dateien gelöscht",
+      description: failedCount > 0
+        ? `${succeededCount} von ${filesToDelete.length} Dateien wurden dauerhaft gelöscht (${failedCount} fehlgeschlagen).`
+        : `${succeededCount} Dateien wurden dauerhaft gelöscht.`,
+      ...(failedCount > 0 ? { variant: "destructive" as const } : {}),
     })
   }
 
@@ -245,6 +265,7 @@ export function ArchiveBrowserModal({ isOpen, onClose }: ArchiveBrowserModalProp
                 setSortOrder(order as 'asc' | 'desc')
               }}
               className="px-3 py-2 border rounded-md text-sm"
+              aria-label="Archivierte Dateien sortieren"
             >
               <option value="date-desc">Neueste zuerst</option>
               <option value="date-asc">Älteste zuerst</option>
@@ -336,6 +357,7 @@ export function ArchiveBrowserModal({ isOpen, onClose }: ArchiveBrowserModalProp
                       checked={selectedFiles.has(file.id)}
                       onChange={() => toggleFileSelection(file.id)}
                       className="rounded"
+                      aria-label={`Datei ${file.name.split('/').pop() || file.name} auswählen`}
                     />
 
                     <File className="h-4 w-4 text-muted-foreground shrink-0" />

@@ -339,12 +339,12 @@ jobs:
       statuses: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0 # Required for diffing branches
 
       - name: React Doctor
-        uses: millionco/react-doctor@v2
+        uses: millionco/react-doctor@695e46eee203a5d1855020191aa7e9c010a1250e # v2
         with:
           scope: changed
 
@@ -771,7 +771,7 @@ jobs:
           scanners: vuln,secret
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         if: always()
         with:
           sarif_file: trivy-results.sarif

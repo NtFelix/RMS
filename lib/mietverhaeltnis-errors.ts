@@ -40,7 +40,7 @@ const MESSAGES = new Map<MietverhaeltnisFehlerCode, string>([
   ["MV010", "Der Eintrag ist mit einem Dokument verknüpft und kann nicht entfernt werden."],
   ["MV011", "Das Dokument wurde nicht gefunden oder Sie haben keinen Zugriff darauf."],
   ["MV012", "Der Mieter gehört bereits zu einem Mietverhältnis."],
-  ["MV013", "Das Mietverhältnis hat weitere Mieter. Ein Umzug ist dafür noch nicht möglich."],
+  ["MV013", "Das Mietverhältnis hat weitere Mieter. Bitte trennen Sie zuerst den Mieter vom gemeinsamen Mietverhältnis."],
   ["42501", "Für diese Aktion fehlt die Berechtigung (Modul Mieter)."],
   ["23503", "Der Datensatz ist verknüpft und kann nicht geändert werden."],
   ["UNBEKANNT", MIETVERHAELTNIS_FEHLER_FALLBACK_MESSAGE],

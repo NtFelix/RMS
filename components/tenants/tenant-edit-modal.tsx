@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
+import { useKautionOeffnen } from "@/hooks/use-kaution-oeffnen"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { cn } from "@/lib/utils"
 import { Tenant, NebenkostenEntry, TenantStatus } from "@/types/Tenant"
@@ -60,6 +61,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { deleteTenantAction } from "@/app/mieter-actions"
+import { bewerberLoeschenAction } from "@/app/bewerber-actions"
+import { ANREDE_OPTIONEN, hatNamen, personAnzeigename, type Anrede } from "@/lib/personen"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 
 interface Mieter extends Tenant {}
@@ -68,6 +72,9 @@ interface Wohnung {
   id: string
   name: string
 }
+
+/** Stammdaten der Person (GH-30). Die bisherigen Felder name/email/telefonnummer kommen weiterhin aus der Liste. */
+type PersonFormFelder = { anrede: Anrede; vorname: string; nachname: string }
 
 interface TenantEditModalProps {
   serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>
@@ -102,7 +109,7 @@ function ResizeHandle({
       )}
     >
       <div className={cn(
-        "absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 transition-all duration-150 ease-in-out",
+        "absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 transition-colors duration-150 ease-in-out",
         isResizing ? "bg-primary" : "bg-transparent group-hover/resize-handle:bg-primary/40"
       )} />
     </button>
@@ -231,7 +238,7 @@ function NebenkostenSection({
                       placeholder="Betrag (€)"
                       value={entry.amount}
                       onChange={(e) => handleNebenkostenChange(entry.id, 'amount', e.target.value)}
-                      className={`bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent ${nebenkostenValidationErrors[entry.id]?.amount ? 'text-red-500' : ''}`}
+                      className={`bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent ${nebenkostenValidationErrors[entry.id]?.amount ? 'text-red-500' : ''}`}
                       disabled={isSubmitting}
                     />
                     {nebenkostenValidationErrors[entry.id]?.amount && (
@@ -243,7 +250,7 @@ function NebenkostenSection({
                       value={entry.date}
                       onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
                       placeholder="Datum (TT.MM.JJJJ)"
-                      className={`bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 ${nebenkostenValidationErrors[entry.id]?.date ? 'text-red-500' : ''}`}
+                      className={`bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 ${nebenkostenValidationErrors[entry.id]?.date ? 'text-red-500' : ''}`}
                       disabled={isSubmitting}
                     />
                     {nebenkostenValidationErrors[entry.id]?.date && (
@@ -257,6 +264,7 @@ function NebenkostenSection({
                     onClick={() => removeNebenkostenEntry(entry.id)}
                     disabled={isSubmitting}
                     className="justify-self-end"
+                    aria-label="Nebenkosten-Eintrag entfernen"
                   >
                     <Trash2 className="size-4" />
                   </Button>
@@ -286,12 +294,14 @@ function ContactFields({
   formData,
   handleDateChange,
   onFieldChange,
+  handleAnredeChange,
   isSubmitting,
   isApplicant,
 }: {
-  formData: { einzug: string; auszug: string; email: string; telefonnummer: string }
+  formData: { einzug: string; auszug: string; email: string; telefonnummer: string; anrede: Anrede }
   handleDateChange: (name: 'einzug' | 'auszug', date: Date | undefined) => void
   onFieldChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
+  handleAnredeChange: (value: Anrede) => void
   isSubmitting: boolean
   isApplicant: boolean
 }) {
@@ -302,6 +312,30 @@ function ContactFields({
       </div>
 
       <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
+        <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+          <PropertyHeader
+            icon={Users}
+            label="Anrede"
+            htmlFor="anrede"
+            infoText="Anrede für Briefe und Mails. Ohne Angabe wird neutral angesprochen."
+          />
+          <Select value={formData.anrede} onValueChange={(wert) => handleAnredeChange(wert as Anrede)} disabled={isSubmitting}>
+            <SelectTrigger
+              id="anrede"
+              aria-label="Anrede"
+              className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 w-auto min-w-[10rem] justify-start"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ANREDE_OPTIONEN.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <input type="hidden" name="anrede" value={formData.anrede} />
+        </div>
+
         <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
           <PropertyHeader
             icon={Calendar}
@@ -315,7 +349,7 @@ function ContactFields({
             onChange={(date) => handleDateChange('einzug', date)}
             placeholder="TT.MM.JJJJ"
             disabled={isSubmitting}
-            className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100"
+            className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100"
           />
           <input type="hidden" name="einzug" value={formData.einzug} />
         </div>
@@ -334,7 +368,7 @@ function ContactFields({
               onChange={(date) => handleDateChange('auszug', date)}
               placeholder="TT.MM.JJJJ"
               disabled={isSubmitting}
-              className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100"
+              className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100"
             />
             <input type="hidden" name="auszug" value={formData.auszug} />
           </div>
@@ -355,7 +389,7 @@ function ContactFields({
             onChange={onFieldChange}
             placeholder="max@mustermann.de"
             disabled={isSubmitting}
-            className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+            className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
           />
         </div>
 
@@ -374,7 +408,7 @@ function ContactFields({
             onChange={onFieldChange}
             placeholder="+49 123 456789"
             disabled={isSubmitting}
-            className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+            className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
           />
         </div>
       </div>
@@ -386,6 +420,7 @@ function FormFields({
   formData,
   onFieldChange,
   handleDateChange,
+  handleAnredeChange,
   handleComboboxChange,
   isSubmitting,
   isLoadingWohnungen,
@@ -399,9 +434,10 @@ function FormFields({
   textareaRef,
   initResize,
 }: {
-  formData: { name: string; wohnung_id: string; einzug: string; auszug: string; email: string; telefonnummer: string; notiz: string; status: TenantStatus }
+  formData: { vorname: string; nachname: string; anrede: Anrede; wohnung_id: string; einzug: string; auszug: string; email: string; telefonnummer: string; notiz: string; status: TenantStatus }
   onFieldChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
   handleDateChange: (name: 'einzug' | 'auszug', date: Date | undefined) => void
+  handleAnredeChange: (value: Anrede) => void
   handleComboboxChange: (value: string | null) => void
   isSubmitting: boolean
   isLoadingWohnungen: boolean
@@ -433,21 +469,30 @@ function FormFields({
               ? (isApplicant ? "Bewerber bearbeiten" : "Mieter bearbeiten")
               : (isApplicant ? "Bewerber hinzufügen" : "Mieter hinzufügen")}
           </SheetTitle>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            value={formData.name}
-            onChange={onFieldChange}
-            placeholder={tenantInitialData?.id
-              ? (isApplicant ? "Unbenannter Bewerber" : "Unbenannter Mieter")
-              : (isApplicant ? "Bewerber hinzufügen" : "Mieter hinzufügen")}
-            disabled={isSubmitting}
-            aria-label={tenantInitialData?.id
-              ? (isApplicant ? "Name des Bewerbers" : "Name des Mieters")
-              : (isApplicant ? "Name des neuen Bewerbers" : "Name des neuen Mieters")}
-            className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
-          />
+          <div className="flex flex-col gap-1 sm:flex-row sm:gap-4">
+            <input
+              type="text"
+              id="vorname"
+              name="vorname"
+              value={formData.vorname}
+              onChange={onFieldChange}
+              placeholder="Vorname"
+              disabled={isSubmitting}
+              aria-label={isApplicant ? "Vorname des Bewerbers" : "Vorname des Mieters"}
+              className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
+            />
+            <input
+              type="text"
+              id="nachname"
+              name="nachname"
+              value={formData.nachname}
+              onChange={onFieldChange}
+              placeholder="Nachname"
+              disabled={isSubmitting}
+              aria-label={isApplicant ? "Nachname des Bewerbers" : "Nachname des Mieters"}
+              className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
+            />
+          </div>
           <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
             {tenantInitialData?.id
               ? (isApplicant ? "Bearbeiten Sie die Informationen für diesen Bewerber." : "Bearbeiten Sie die Informationen für diesen Mieter.")
@@ -492,6 +537,7 @@ function FormFields({
           formData={formData}
           handleDateChange={handleDateChange}
           onFieldChange={onFieldChange}
+          handleAnredeChange={handleAnredeChange}
           isSubmitting={isSubmitting}
           isApplicant={isApplicant}
         />
@@ -518,14 +564,16 @@ function FormFields({
                   onChange={onFieldChange}
                   placeholder="Interne Notizen..."
                   disabled={isSubmitting}
-                  className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all text-sm focus-visible:scale-100 resize-none min-h-[80px] pr-8"
+                  className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors text-sm focus-visible:scale-100 resize-none min-h-[80px] pr-8"
                 />
-                <div
-                  className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors"
+                <button
+                  type="button"
+                  aria-label="Größe des Notizfelds anpassen"
+                  className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors appearance-none bg-transparent border-0"
                   onMouseDown={initResize}
                 >
                   <GripVertical className="size-4 text-foreground/70" />
-                </div>
+                </button>
               </div>
             </div>
           </div>
@@ -604,6 +652,24 @@ function FormActions({
 
 const generateId = () => crypto.randomUUID()
 
+/**
+ * Startwerte der Personenfelder. Altdaten ohne Vor-/Nachnamen: der bisherige Anzeigename (`name`) wird Nachname.
+ */
+/**
+ * true, wenn die Ausgangsdaten die Personenfelder enthalten. Fehlen sie (z. B. Aufrufer, die nur `name` kennen),
+ * darf das Formular Anrede, Vor- und Nachname nicht ungefragt zurueckschreiben.
+ */
+function personNamenBekannt(initial: any): boolean {
+  return Boolean(initial) && (initial.anrede != null || initial.vorname != null || initial.nachname != null)
+}
+
+function personFormFelderAusInitialData(initial: any): PersonFormFelder {
+  const vorname: string = initial?.vorname ?? ""
+  const nachname: string = initial?.nachname ?? (vorname ? "" : (initial?.name ?? ""))
+  const anrede: Anrede = (initial?.anrede === "frau" || initial?.anrede === "herr") ? initial.anrede : "keine_angabe"
+  return { anrede, vorname, nachname }
+}
+
 export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const router = useRouter()
 
@@ -649,7 +715,9 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
   const [formData, setFormData] = useState({
     wohnung_id: "",
-    name: "",
+    anrede: "keine_angabe" as Anrede,
+    vorname: "",
+    nachname: "",
     einzug: "",
     auszug: "",
     email: "",
@@ -734,11 +802,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     tenantModalWohnungen,
     isTenantModalDirty,
     setTenantModalDirty,
-    openKautionModal,
     canViewKautionen: kautionsrecht,
     openTenantMailTemplatesModal,
     openApplicantScoreModal,
   } = useModalStore()
+  // Mehrere Kautionen eines Mieters: zuerst die Auswahl (hooks/use-kaution-oeffnen.ts).
+  const oeffneKaution = useKautionOeffnen()
 
   const getSortedNebenkostenEntries = (entries: NebenkostenEntry[]): NebenkostenEntry[] => {
     const sorted = [...entries]
@@ -757,7 +826,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     if (isTenantModalOpen) {
       setFormData({
         wohnung_id: tenantInitialData?.wohnung_id || "",
-        name: tenantInitialData?.name || "",
+        ...personFormFelderAusInitialData(tenantInitialData),
         einzug: tenantInitialData?.einzug || "",
         auszug: tenantInitialData?.auszug || "",
         email: tenantInitialData?.email || "",
@@ -788,6 +857,11 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     if (!isTenantModalDirty) setTenantModalDirty(true)
   }
 
+  const handleAnredeChange = (value: Anrede) => {
+    setFormData(prev => ({ ...prev, anrede: value }))
+    if (!isTenantModalDirty) setTenantModalDirty(true)
+  }
+
   const handleComboboxChange = (value: string | null) => {
     setFormData(prev => ({ ...prev, wohnung_id: value || "" }))
     if (!isTenantModalDirty) setTenantModalDirty(true)
@@ -810,26 +884,23 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   }
 
   const handleNebenkostenChange = (id: string, field: 'amount' | 'date', value: string) => {
-    let updatedEntryGlobal: NebenkostenEntry | undefined
+    const currentEntry = nebenkostenEntries.find(entry => entry.id === id)
     setNebenkostenEntries(entries => {
-      const newEntries = entries.map(entry => {
-        if (entry.id === id) {
-          updatedEntryGlobal = { ...entry, [field]: value }
-          return updatedEntryGlobal
-        }
-        return entry
-      })
-      if (updatedEntryGlobal) {
-        const errors = validateNebenkostenEntry(updatedEntryGlobal)
-        setNebenkostenValidationErrors(prev => {
-          const newErrors = { ...prev }
-          if (Object.keys(errors).length > 0) newErrors[id] = errors
-          else delete newErrors[id]
-          return newErrors
-        })
-      }
+      const newEntries = entries.map(entry =>
+        entry.id === id ? { ...entry, [field]: value } : entry
+      )
       return getSortedNebenkostenEntries(newEntries)
     })
+    if (currentEntry) {
+      const updatedEntry = { ...currentEntry, [field]: value }
+      const errors = validateNebenkostenEntry(updatedEntry)
+      setNebenkostenValidationErrors(prev => {
+        const newErrors = { ...prev }
+        if (Object.keys(errors).length > 0) newErrors[id] = errors
+        else delete newErrors[id]
+        return newErrors
+      })
+    }
     if (!isTenantModalDirty) setTenantModalDirty(true)
   }
 
@@ -852,29 +923,26 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
   const handleDateChange = (name: 'einzug' | 'auszug', date: Date | undefined) => {
     const formattedDate = date ? format(date, "yyyy-MM-dd") : ""
-    setFormData(prevFormData => {
-      const newFormData = { ...prevFormData, [name]: formattedDate }
+    const oldEinzug = formData.einzug
+    setFormData(prevFormData => ({ ...prevFormData, [name]: formattedDate }))
 
-      if (name === 'einzug' && formattedDate) {
-        setNebenkostenEntries(prevEntries => {
-          if (prevEntries.length === 0) {
-            return [{ id: generateId(), amount: "", date: formattedDate }]
-          }
+    if (name === 'einzug' && formattedDate) {
+      setNebenkostenEntries(prevEntries => {
+        if (prevEntries.length === 0) {
+          return [{ id: generateId(), amount: "", date: formattedDate }]
+        }
 
-          const firstEntry = prevEntries[0]
-          if (firstEntry && (!firstEntry.date || firstEntry.date === prevFormData.einzug)) {
-            return getSortedNebenkostenEntries([
-              { ...firstEntry, date: formattedDate },
-              ...prevEntries.slice(1)
-            ])
-          }
+        const firstEntry = prevEntries[0]
+        if (firstEntry && (!firstEntry.date || firstEntry.date === oldEinzug)) {
+          return getSortedNebenkostenEntries([
+            { ...firstEntry, date: formattedDate },
+            ...prevEntries.slice(1)
+          ])
+        }
 
-          return prevEntries
-        })
-      }
-
-      return newFormData
-    })
+        return prevEntries
+      })
+    }
     if (!isTenantModalDirty) setTenantModalDirty(true)
   }
 
@@ -902,7 +970,8 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     if (!tenantInitialData || isPending) return
     try {
       setIsDeleting(true)
-      const result = await deleteTenantAction(tenantInitialData.id)
+      // Bewerber liegen in der Tabelle "Bewerber" (GH-30), Mieter in "Mieter".
+      const result = isApplicant ? await bewerberLoeschenAction(tenantInitialData.id) : await deleteTenantAction(tenantInitialData.id)
 
       if (result.success) {
         toast({
@@ -921,7 +990,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         })
       }
     } catch (error) {
-      console.error(`Unerwarteter Fehler beim Löschen ${isApplicant ? "des Bewerbers" : "des Mieters"}:`, error)
+      console.error('Unerwarteter Fehler beim Löschen %s:', isApplicant ? "des Bewerbers" : "des Mieters", error)
       toast({
         title: "Systemfehler",
         description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
@@ -942,6 +1011,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (isPending) return
+
+    // Vor- oder Nachname ist Pflicht (wie in der Datenbank); die Prüfung ist hier nur für eine klare Meldung.
+    if (!hatNamen(formData)) {
+      toast({ title: "Validierungsfehler", description: "Bitte geben Sie einen Vor- oder Nachnamen an.", variant: "destructive" })
+      return
+    }
 
     let currentNkErrors: Record<string, { amount?: string; date?: string }> = {}
     let hasValidationErrors = false
@@ -992,11 +1067,22 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
       currentFormData.set('status', formData.status)
 
+      // Beim Bearbeiten ohne bekannte Personenfelder: unveraenderte Namensfelder nicht senden (sonst wuerden
+      // Anrede und Vorname geleert und der ganze Name in den Nachnamen geschrieben).
+      if (tenantInitialData?.id && !personNamenBekannt(tenantInitialData)) {
+        const ausgang = personFormFelderAusInitialData(tenantInitialData)
+        if (formData.anrede === ausgang.anrede && formData.vorname === ausgang.vorname && formData.nachname === ausgang.nachname) {
+          currentFormData.delete('anrede')
+          currentFormData.delete('vorname')
+          currentFormData.delete('nachname')
+        }
+      }
+
       if (tenantInitialData?.id) {
         currentFormData.set('id', tenantInitialData.id)
       }
 
-      const tenantNameForToast = formData.name
+      const tenantNameForToast = personAnzeigename(formData)
       const result = await serverAction(currentFormData)
 
       if (result.success) {
@@ -1053,10 +1139,17 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           actions={tenantInitialData ? getVisibleActions(tenantInitialData, { templatesEnabled: !!templatesEnabled, canViewKautionen }).flatMap((action) => {
             const handlerMap: Record<string, (() => void) | undefined> = {
               // Der Kautionsdialog lädt seine Daten selbst (getKautionDetailsAction): nur der Mieter wird übergeben.
-              kaution: () => openKautionModal(
+              kaution: () => void oeffneKaution(
                 { id: tenantInitialData.id, name: tenantInitialData.name, wohnung_id: tenantInitialData.wohnung_id }
               ),
-              vorlagen: () => openTenantMailTemplatesModal(tenantInitialData.name, tenantInitialData.email || undefined),
+              vorlagen: () => openTenantMailTemplatesModal({
+                name: tenantInitialData.name,
+                email: tenantInitialData.email || null,
+                anrede: tenantInitialData.anrede ?? null,
+                vorname: tenantInitialData.vorname ?? null,
+                nachname: tenantInitialData.nachname ?? null,
+                telefonnummer: tenantInitialData.telefonnummer || null,
+              }),
               datenblatt: () => openApplicantScoreModal({
                 tenant: {
                   id: tenantInitialData.id,
@@ -1079,6 +1172,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               formData={formData}
               onFieldChange={handleChange}
               handleDateChange={handleDateChange}
+              handleAnredeChange={handleAnredeChange}
               handleComboboxChange={handleComboboxChange}
               isSubmitting={isSubmitting}
               isLoadingWohnungen={false}
@@ -1115,7 +1209,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         <DeleteTenantDialog
           open={deleteDialogOpen}
           onOpenChange={setDeleteDialogOpen}
-          tenantName={tenantInitialData?.name || formData.name}
+          tenantName={tenantInitialData?.name || personAnzeigename(formData)}
           isDeleting={isDeleting}
           onDelete={() => handleDelete()}
           isApplicant={isApplicant}

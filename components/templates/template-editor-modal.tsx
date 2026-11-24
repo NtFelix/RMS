@@ -38,7 +38,7 @@ import { TemplateEditor } from '@/components/templates/template-editor';
 import { TEMPLATE_CATEGORIES, TemplateCategory, TEMPLATE_TYPE_CONFIGS, TEMPLATE_ICON_MAP } from '@/lib/template-constants';
 import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from '@/lib/accessibility-constants';
 import { TemplateEditorModalProps } from '@/types/template';
-import { validateTemplate, validateMentionVariables, isEmptyTipTapContent } from '@/lib/template-validation';
+import { validateTemplate, validateMentionVariables, validateBedingungen, isEmptyTipTapContent } from '@/lib/template-validation';
 import { toast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
@@ -264,6 +264,21 @@ export function TemplateEditorModal({
         toast({
           title: 'Ungültige Variablen',
           description: 'Bitte überprüfen Sie die verwendeten @-Variablen.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Bedingungsblöcke getrennt prüfen, damit die genaue Meldung (z. B. "Bitte eine Variable auswählen") ankommt.
+      const bedingungsValidation = validateBedingungen(editorContent);
+      if (!bedingungsValidation.isValid) {
+        setValidationErrors(bedingungsValidation.errors.map(error => error.message));
+        templateForm.setError('inhalt', {
+          message: 'Mindestens ein Bedingungsblock ist unvollständig.',
+        });
+        toast({
+          title: 'Unvollständige Bedingung',
+          description: 'Bitte prüfen Sie die Bedingungsblöcke (Variable, Operator, Vergleichswert).',
           variant: 'destructive',
         });
         return;

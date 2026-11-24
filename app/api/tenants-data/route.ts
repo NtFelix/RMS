@@ -9,11 +9,15 @@ import { PAYMENT_KEYWORDS } from "@/utils/constants"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 import { getCurrentMonthRange } from "@/utils/date-calculations"
 import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns"
+import { mitPersonenfeldern } from "@/lib/personen"
 import { apiPermissionErrorResponse } from "@/lib/api-permission-response"
 
 interface Tenant {
   id: string
   wohnung_id: string | null
+  person_id?: string | null
+  /** Eingebettete Person (GH-30); Name, E-Mail und Telefon werden daraus abgeleitet. */
+  person?: unknown
   name: string
   einzug: string | null
   auszug: string | null
@@ -33,6 +37,16 @@ interface Tenant {
       name: string
     }
   }
+}
+
+/** Leitet name/email/telefonnummer aus der eingebetteten Person ab, sofern die Zeile eine Person eingebettet hat (GH-30). */
+function mitAbgeleitetenPersonenfeldern(zeile: any): any {
+  return zeile && zeile.person !== undefined ? mitPersonenfeldern(zeile) : zeile
+}
+
+/** Sortierung nach Anzeigename (Ersatz für ORDER BY name, das es an "Mieter" nicht mehr gibt). */
+function nachNameSortieren(a: any, b: any): number {
+  return String(a.name ?? "").localeCompare(String(b.name ?? ""), "de")
 }
 
 interface Finance {
@@ -135,7 +149,8 @@ export async function GET(request: Request) {
       const fallbackStartTime = Date.now()
       let tenantsQuery = supabase
         .from("Mieter")
-        // Explizite Spaltenliste ohne das Altfeld "kaution" (Kautionsdaten sind an das Modul "kautionen" gebunden).
+        // Explizite Spaltenliste ohne das Altfeld "kaution" (Kautionsdaten sind an das Modul "kautionen" gebunden)
+        // und mit der eingebetteten Person (GH-30): name, email, telefonnummer kommen aus "Personen".
         .select(`
           ${MIETER_SPALTEN_OHNE_KAUTION},
           Wohnungen (
@@ -155,7 +170,7 @@ export async function GET(request: Request) {
         tenantsQuery = tenantsQuery.in('wohnung_id', wohnungIds);
       }
 
-      const { data: tenants, error: tenantsError } = await tenantsQuery.order("name");
+      const { data: tenants, error: tenantsError } = await tenantsQuery;
 
       const tenantsDuration = Date.now() - fallbackStartTime
 
@@ -197,7 +212,7 @@ export async function GET(request: Request) {
         )
       }
 
-      tenantsData = tenants || []
+      tenantsData = (tenants || []).map(mitAbgeleitetenPersonenfeldern).sort(nachNameSortieren)
       financesData = finances || []
     }
 

@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
 
     } catch (error) {
         const duration = Math.round(performance.now() - startTime)
-        console.error(`[${new Date().toISOString()}] [ERROR] ❌ API: Unexpected error | ${duration}ms`, error)
+        console.error('[%s] [ERROR] API: Unexpected error | %dms', new Date().toISOString(), duration, error)
 
         return NextResponse.json(
             {

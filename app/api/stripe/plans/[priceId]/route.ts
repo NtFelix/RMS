@@ -27,7 +27,7 @@ export async function GET(
 
         return NextResponse.json(plan, { headers: NO_CACHE_HEADERS });
     } catch (error) {
-        console.error(`Error fetching plan details for ${priceId}:`, error);
+        console.error('Error fetching plan details for %s:', priceId, error);
         return NextResponse.json(
             { error: 'Failed to fetch plan details' },
             {

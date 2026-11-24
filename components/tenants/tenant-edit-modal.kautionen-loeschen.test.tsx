@@ -142,4 +142,11 @@ describe('TenantEditModal - Löschen mit Kautionen-Übersicht', () => {
       expect(screen.queryByRole('button', { name: /Kaution/ }) !== null).toBe(sichtbar);
     });
   });
+
+  it('rendert das Notiz-Resize-Handle als semantischen Button mit aria-label', () => {
+    render(<TenantEditModal serverAction={jest.fn()} />);
+    const resizeButton = screen.getByRole('button', { name: 'Größe des Notizfelds anpassen' });
+    expect(resizeButton.tagName).toBe('BUTTON');
+    expect(resizeButton).toHaveAttribute('type', 'button');
+  });
 });

@@ -51,7 +51,8 @@ const fetchCustomerBillingAddress = async () => {
 };
 import { isoToGermanDate } from "@/utils/date-calculations"; // New import for number formatting
 
-import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
+import { analysiereWgVerteilung, computeWgFactorsByTenant, getApartmentOccupants, type WgVerteilungJeWohnung } from "@/utils/wg-cost-calculations";
+import { wgVerteilungHinweise } from "@/utils/vertragsflaeche-hinweise";
 import { formatNumber, formatMonthlyPrepayment } from "@/utils/format"; // New import for number formatting
 import { roundToNearest5 } from "@/lib/utils";
 import { calculateCompleteTenantResult, findUnrecognisedBerechnungsarten, isAreaBasedBerechnungsart } from "@/utils/abrechnung-calculations";
@@ -318,15 +319,17 @@ export function AbrechnungModal({
     });
   }, [isOpen, nebenkostenItem?.id, tenants]);
 
-  // Calculate WG factors for all tenants (memoized to prevent unnecessary recalculations)
-  const wgFactors = useMemo(() => {
-    if (!tenants || tenants.length === 0) return {};
+  // Calculate WG factors for all tenants (memoized to prevent unnecessary recalculations), and per apartment how its days
+  // were split (contract areas, GH-17), for the notes in the WG block
+  const { wgFactors, wgTageJeWohnung } = useMemo((): { wgFactors: Record<string, number>; wgTageJeWohnung: Record<string, WgVerteilungJeWohnung> } => {
+    if (!tenants || tenants.length === 0) return { wgFactors: {}, wgTageJeWohnung: {} };
 
     if (!nebenkostenItem?.startdatum || !nebenkostenItem?.enddatum) {
       // Fallback to current year if date range is not available
-      return computeWgFactorsByTenant(tenants, new Date().getFullYear());
+      return { wgFactors: computeWgFactorsByTenant(tenants, new Date().getFullYear()), wgTageJeWohnung: {} };
     }
-    return computeWgFactorsByTenant(tenants, nebenkostenItem.startdatum, nebenkostenItem.enddatum, nebenkostenItem.rechenbasis);
+    const verteilung = analysiereWgVerteilung(tenants, nebenkostenItem.startdatum, nebenkostenItem.enddatum, nebenkostenItem.rechenbasis);
+    return { wgFactors: verteilung.faktoren, wgTageJeWohnung: verteilung.tageJeWohnung };
   }, [tenants, nebenkostenItem?.startdatum, nebenkostenItem?.enddatum, nebenkostenItem?.rechenbasis]);
 
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
@@ -810,12 +813,22 @@ export function AbrechnungModal({
                     {(() => {
                       // Get all roommates in this apartment
                       const roommates = getApartmentOccupants(tenants, tenantData.apartmentId);
+                      // Notes on contract areas (why areas had no effect on some days, remaining area, vacancy); key as in groupTenantsByApartment
+                      const flaechenHinweise = wgVerteilungHinweise(wgTageJeWohnung[tenantData.apartmentId || tenantData.tenantId], is360);
+                      const hinweisListe = flaechenHinweise.length > 0 && (
+                        <ul className="mt-2 space-y-1 text-xs text-muted-foreground" data-testid="wg-flaechen-hinweise">
+                          {flaechenHinweise.map(text => <li key={text}><span className="font-medium">Vertragsfläche:</span> {text}</li>)}
+                        </ul>
+                      );
 
                       if (roommates.length <= 1) {
                         return (
-                          <p className="text-sm text-muted-foreground">
-                            Keine Mitbewohner in dieser Wohnung gefunden.
-                          </p>
+                          <>
+                            <p className="text-sm text-muted-foreground">
+                              Keine Mitbewohner in dieser Wohnung gefunden.
+                            </p>
+                            {hinweisListe}
+                          </>
                         );
                       }
 
@@ -840,9 +853,10 @@ export function AbrechnungModal({
                             ))}
                           </div>
                           <p className="text-xs text-muted-foreground mt-2">
-                            <span className="font-medium">Hinweis:</span> Die Prozentsätze ergeben zusammen 100% der Wohnungskosten.
-                            Die Aufteilung basiert auf der Anwesenheit im Abrechnungszeitraum.
+                            <span className="font-medium">Hinweis:</span> Die Prozentsätze ergeben zusammen höchstens 100% der Wohnungskosten
+                            (der Rest ist Leerstand). Die Aufteilung basiert auf der Anwesenheit im Abrechnungszeitraum und, wo erfasst, auf der Vertragsfläche.
                           </p>
+                          {hinweisListe}
                         </>
                       );
                     })()}
