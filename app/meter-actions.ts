@@ -119,9 +119,6 @@ Context: ${JSON.stringify({
   }
 }
 
-// Backward compatibility alias
-export const getWasserZaehlerForHausAction = getMeterForHausAction;
-
 /**
  * Fallback function using individual queries
  */
@@ -238,100 +235,6 @@ async function getMeterForHausFallback(
 }
 
 /**
- * Fetch meter data for a specific apartment
- */
-export async function getZaehlerDataAction(wohnungId: string) {
-  let user, supabase;
-  try {
-    ({ user, supabase } = await ensureAuth());
-  } catch (authError: unknown) {
-    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
-    return { success: false, message: errorMessage };
-  }
-
-  try {
-
-    const { data, error } = await supabase.rpc('get_zaehler_data', {
-      wohnung_id_param: wohnungId
-    });
-
-    if (error) {
-      console.error("Error fetching meter data:", error);
-      return { success: false, message: error.message };
-    }
-
-    if (!data || data.length === 0) {
-      return { success: false, message: "Keine Daten gefunden." };
-    }
-
-    const result = data[0];
-
-    return {
-      success: true,
-      data: {
-        wohnung: result.wohnung_data,
-        meters: result.meters || [],
-        readings: result.readings || []
-      }
-    };
-  } catch (error: unknown) {
-    console.error("Unexpected error in getZaehlerDataAction:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
-  }
-}
-
-// Legacy alias
-export const getWasserZaehlerDataAction = getZaehlerDataAction;
-
-/**
- * Fetch readings for a specific meter
- */
-export async function getAblesungenForZaehlerAction(zaehlerId: string) {
-  let user, supabase;
-  try {
-    ({ user, supabase } = await ensureAuth());
-  } catch (authError: unknown) {
-    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
-    return { success: false, message: errorMessage };
-  }
-
-  try {
-
-    const { data, error } = await supabase.rpc('get_ablesungen_for_zaehler', {
-      zaehler_id_param: zaehlerId
-    });
-
-    if (error) {
-      console.error("Error fetching meter readings:", error);
-      return { success: false, message: error.message };
-    }
-
-    if (!data || data.length === 0) {
-      return { success: false, message: "Keine Daten gefunden." };
-    }
-
-    const result = data[0];
-
-    return {
-      success: true,
-      data: {
-        zaehler: result.zaehler_data,
-        readings: result.readings || []
-      }
-    };
-  } catch (error: unknown) {
-    console.error("Unexpected error in getAblesungenForZaehlerAction:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
-  }
-}
-
-// Legacy alias
-export const getWasserAblesenDataAction = getAblesungenForZaehlerAction;
-
-
-/**
  * Fetch readings for multiple meters
  */
 export async function getReadingsForMetersAction(meterIds: string[]) {
@@ -432,9 +335,6 @@ export async function createZaehler(data: Omit<Zaehler, 'id' | 'erstellt_von' | 
   }
 }
 
-// Legacy alias
-export const createWasserZaehler = createZaehler;
-
 /**
  * Update a meter
  */
@@ -512,9 +412,6 @@ export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id'
   }
 }
 
-// Legacy alias
-export const updateWasserZaehler = updateZaehler;
-
 /**
  * Delete a meter
  */
@@ -571,216 +468,6 @@ export async function deleteZaehler(id: string) {
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
-
-// Legacy alias
-export const deleteWasserZaehler = deleteZaehler;
-
-/**
- * Create a new reading
- */
-export async function createAblesung(data: Omit<ZaehlerAblesung, 'id' | 'erstellt_von' | 'organisation_id'>) {
-  let user, supabase;
-  try {
-    ({ user, supabase } = await ensureAuth());
-  } catch (authError: unknown) {
-    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
-    return { success: false, message: errorMessage };
-  }
-
-  // Permission & scope checks
-  const { hasPermission } = await import("@/lib/permissions");
-  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-  
-  if (!(await hasPermission('zaehler', 'erstellen'))) {
-    return { success: false, message: "Keine Berechtigung" };
-  }
-  
-  const wohnungIds = await getAccessibleWohnungIds();
-  if (wohnungIds !== null) {
-    const { data: meter, error: meterError } = await supabase
-      .from("Zaehler")
-      .select("wohnung_id")
-      .eq("id", data.zaehler_id)
-      .single();
-    if (meterError || !meter || !meter.wohnung_id || !wohnungIds.includes(meter.wohnung_id)) {
-      return { success: false, message: "Zugriff auf den Zähler verweigert." };
-    }
-  }
-
-  try {
-
-    const { data: result, error } = await supabase
-      .from("Zaehler_Ablesungen")
-      .insert([data])
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error creating reading:", error);
-      return { success: false, message: error.message };
-    }
-
-    revalidatePath("/betriebskosten");
-
-    await capturePostHogEvent(user.id, 'meter_reading_recorded', {
-      reading_id: result?.id,
-      meter_id: data.zaehler_id,
-      source: 'server_action'
-    });
-
-    return { success: true, data: result };
-  } catch (error: unknown) {
-    console.error("Unexpected error in createAblesung:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
-  }
-}
-
-// Legacy alias
-export const createWasserAblesung = createAblesung;
-
-/**
- * Update a reading
- */
-export async function updateAblesung(id: string, data: Partial<Omit<ZaehlerAblesung, 'id' | 'erstellt_von' | 'organisation_id'>>) {
-  let user, supabase;
-  try {
-    ({ user, supabase } = await ensureAuth());
-  } catch (authError: unknown) {
-    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
-    return { success: false, message: errorMessage };
-  }
-
-  // Permission & scope checks
-  const { hasPermission } = await import("@/lib/permissions");
-  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-  
-  if (!(await hasPermission('zaehler', 'bearbeiten'))) {
-    return { success: false, message: "Keine Berechtigung" };
-  }
-  
-  const wohnungIds = await getAccessibleWohnungIds();
-  if (wohnungIds !== null) {
-    if (data.zaehler_id) {
-      const { data: meter, error: meterError } = await supabase
-        .from("Zaehler")
-        .select("wohnung_id")
-        .eq("id", data.zaehler_id)
-        .single();
-      if (meterError || !meter || !meter.wohnung_id || !wohnungIds.includes(meter.wohnung_id)) {
-        return { success: false, message: "Zugriff auf den Zähler verweigert." };
-      }
-    }
-    
-    const { data: existingReading, error: fetchError } = await supabase
-      .from("Zaehler_Ablesungen")
-      .select("zaehler_id")
-      .eq("id", id)
-      .single();
-    if (fetchError || !existingReading) {
-      return { success: false, message: "Ablesung nicht gefunden." };
-    }
-    
-    const { data: existingMeter, error: meterError } = await supabase
-      .from("Zaehler")
-      .select("wohnung_id")
-      .eq("id", existingReading.zaehler_id)
-      .single();
-    if (meterError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
-      return { success: false, message: "Zugriff auf die Ablesung verweigert." };
-    }
-  }
-
-  try {
-
-    const { data: result, error } = await supabase
-      .from("Zaehler_Ablesungen")
-      .update(data)
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error updating reading:", error);
-      return { success: false, message: error.message };
-    }
-
-    revalidatePath("/betriebskosten");
-
-    await capturePostHogEvent(user.id, 'meter_reading_updated', {
-      reading_id: id,
-      meter_id: result?.zaehler_id,
-      source: 'server_action'
-    });
-
-    return { success: true, data: result };
-  } catch (error: unknown) {
-    console.error("Unexpected error in updateAblesung:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
-  }
-}
-
-// Legacy alias
-export const updateWasserAblesung = updateAblesung;
-
-/**
- * Delete a reading
- */
-export async function deleteAblesung(id: string) {
-  let user, supabase;
-  try {
-    ({ user, supabase } = await ensureAuth());
-  } catch (authError: unknown) {
-    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
-    return { success: false, message: errorMessage };
-  }
-
-  // Permission & scope checks
-  const { hasPermission } = await import("@/lib/permissions");
-  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-  
-  if (!(await hasPermission('zaehler', 'loeschen'))) {
-    return { success: false, message: "Keine Berechtigung" };
-  }
-  
-  const wohnungIds = await getAccessibleWohnungIds();
-  if (wohnungIds !== null) {
-    const { data: existingReading, error: fetchError } = await supabase
-      .from("Zaehler_Ablesungen")
-      .select("zaehler_id")
-      .eq("id", id)
-      .single();
-    if (fetchError || !existingReading) {
-      return { success: false, message: "Ablesung nicht gefunden." };
-    }
-    
-    const { data: existingMeter, error: meterError } = await supabase
-      .from("Zaehler")
-      .select("wohnung_id")
-      .eq("id", existingReading.zaehler_id)
-      .single();
-    if (meterError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
-      return { success: false, message: "Zugriff auf die Ablesung verweigert." };
-    }
-  }
-
-  try {
-
-    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
-    await softDeleteEntryAction("Zaehler_Ablesungen", id);
-
-    revalidatePath("/betriebskosten");
-    return { success: true };
-  } catch (error: unknown) {
-    console.error("Unexpected error in deleteAblesung:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
-  }
-}
-
-// Legacy alias
-export const deleteWasserAblesung = deleteAblesung;
 
 /**
  * Bulk create readings
@@ -855,6 +542,3 @@ export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' 
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
-
-// Legacy alias
-export const bulkCreateWasserAblesungen = bulkCreateAblesungen;
