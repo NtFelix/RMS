@@ -3,7 +3,7 @@
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { type SupabaseClient } from "@supabase/supabase-js";
-import type { Zaehler, ZaehlerAblesung, Wohnung, Mieter } from "@/lib/types";
+import type { Zaehler, ZaehlerAblesung, Mieter } from "@/lib/types";
 import { logAction } from '@/lib/logging-middleware';
 import { capturePostHogEvent } from '@/lib/posthog-helpers';
 import { checkTenantViewAccess, applyTenantAccess, type TenantViewAccess, type WithheldTenantFields } from '@/lib/tenant-view-access';
