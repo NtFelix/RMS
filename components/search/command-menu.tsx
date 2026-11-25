@@ -124,6 +124,12 @@ export function CommandMenu() {
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      // Toggle command menu with Cmd/Ctrl+K
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault()
+        useCommandMenu.setState((state) => ({ open: !state.open }))
+        return
+      }
       // Clear search when Escape is pressed and there's a query
       if (e.key === "Escape" && query.trim().length > 0) {
         e.preventDefault()
