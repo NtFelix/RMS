@@ -4,6 +4,7 @@ import { mkdirSync, rmSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
 
 import { agentRuntimeLocalStorage } from '@/lib/agents/mietevo-agent';
+import { PERSON_SPALTEN_ROLLE, mitPersonenfeldern, type Person } from '@/lib/personen';
 
 const WHITELIST = ['fetch_mieter_list', 'fetch_finanzen_summary', 'create_aufgabe', 'get_haeuser_list'];
 
@@ -51,12 +52,12 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
     ? createSupabaseUserClient(userJwt, orgId) 
     : createSupabaseServiceClient();
 
-  console.log(`[sandboxRpc] Executing ${rpcName}`, { params, orgId });
+  console.log('[sandboxRpc] Executing %s', rpcName, { params, orgId });
 
   // 1. Try RPC execution first
   const { data, error } = await supabase.rpc(rpcName, params);
   if (!error) {
-    console.log(`[sandboxRpc] RPC ${rpcName} returned successfully`, { count: Array.isArray(data) ? data.length : 1 });
+    console.log('[sandboxRpc] RPC %s returned successfully', rpcName, { count: Array.isArray(data) ? data.length : 1 });
     return data;
   }
 
@@ -66,7 +67,7 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
                        (error as any).status === 404;
 
   if (!isMissingRpc) {
-    console.error(`[sandboxRpc] RPC Error in ${rpcName}:`, error);
+    console.error('[sandboxRpc] RPC Error in %s:', rpcName, error);
     throw new Error(`Supabase RPC Error in ${rpcName}: ${error.message}`);
   }
 
@@ -82,9 +83,12 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
     const hausId = params.p_haus_id as string | undefined;
     const search = params.p_search as string | undefined;
 
+    // Name und Kontakt stehen in "Personen". Mit Suchbegriff wird die Person per !inner eingebettet, damit die
+    // Suche auf die Person zielt und nur passende Mieter zurückkommen.
+    const personEmbed = `person:Personen!fk_mieter_person${search ? '!inner' : ''}(${PERSON_SPALTEN_ROLLE})`;
     let query = supabase
       .from('Mieter')
-      .select('id, name, email, telefonnummer, status, einzug, auszug, wohnung_id, Wohnungen!inner(haus_id)')
+      .select(`id, ${personEmbed}, einzug, auszug, wohnung_id, Wohnungen!inner(haus_id)`)
       .is('geloescht_am', null)
       .is('Wohnungen.geloescht_am', null)
       .limit(limit);
@@ -96,16 +100,40 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
       query = query.eq('Wohnungen.haus_id', hausId);
     }
     if (search) {
-      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+      query = query.or(
+        `vorname.ilike.%${search}%,nachname.ilike.%${search}%,email.ilike.%${search}%`,
+        { referencedTable: 'person' },
+      );
     }
 
     const { data: fallbackData, error: fallbackErr } = await query;
     if (fallbackErr) {
-      console.error(`[sandboxRpc] Fallback query failed for ${rpcName}:`, fallbackErr);
+      console.error('[sandboxRpc] Fallback query failed for %s:', rpcName, fallbackErr);
       throw new Error(`Fallback table query failed for ${rpcName}: ${fallbackErr.message}`);
     }
-    console.log(`[sandboxRpc] Fallback query succeeded for ${rpcName}`, { count: fallbackData?.length || 0 });
-    return fallbackData;
+    console.log('[sandboxRpc] Fallback query succeeded for %s', rpcName, { count: fallbackData?.length || 0 });
+    // Jede Mieter-Zeile ist ein Mieter (Bewerber stehen in "Bewerber"); Name und Kontakt kommen aus der Person
+    return ((fallbackData ?? []) as unknown as Array<{
+      id: string;
+      einzug: string | null;
+      auszug: string | null;
+      wohnung_id: string | null;
+      Wohnungen: unknown;
+      person?: Person | Person[] | null;
+    }>).map((zeile) => {
+      const mieter = mitPersonenfeldern(zeile);
+      return {
+        id: mieter.id,
+        name: mieter.name,
+        email: mieter.email,
+        telefonnummer: mieter.telefonnummer,
+        status: 'mieter',
+        einzug: mieter.einzug,
+        auszug: mieter.auszug,
+        wohnung_id: mieter.wohnung_id,
+        Wohnungen: mieter.Wohnungen,
+      };
+    });
   }
 
   if (rpcName === 'fetch_finanzen_summary') {
@@ -129,10 +157,10 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
 
     const { data: fallbackData, error: fallbackErr } = await query;
     if (fallbackErr) {
-      console.error(`[sandboxRpc] Fallback query failed for ${rpcName}:`, fallbackErr);
+      console.error('[sandboxRpc] Fallback query failed for %s:', rpcName, fallbackErr);
       throw new Error(`Fallback table query failed for ${rpcName}: ${fallbackErr.message}`);
     }
-    console.log(`[sandboxRpc] Fallback query succeeded for ${rpcName}`, { count: fallbackData?.length || 0 });
+    console.log('[sandboxRpc] Fallback query succeeded for %s', rpcName, { count: fallbackData?.length || 0 });
     return fallbackData;
   }
 
@@ -152,10 +180,10 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
 
     const { data: fallbackData, error: fallbackErr } = await query;
     if (fallbackErr) {
-      console.error(`[sandboxRpc] Fallback query failed for ${rpcName}:`, fallbackErr);
+      console.error('[sandboxRpc] Fallback query failed for %s:', rpcName, fallbackErr);
       throw new Error(`Fallback table query failed for ${rpcName}: ${fallbackErr.message}`);
     }
-    console.log(`[sandboxRpc] Fallback query succeeded for ${rpcName}`, { count: fallbackData?.length || 0 });
+    console.log('[sandboxRpc] Fallback query succeeded for %s', rpcName, { count: fallbackData?.length || 0 });
     return fallbackData;
   }
 
@@ -177,10 +205,10 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
       .single();
 
     if (fallbackErr) {
-      console.error(`[sandboxRpc] Fallback insert failed for ${rpcName}:`, fallbackErr);
+      console.error('[sandboxRpc] Fallback insert failed for %s:', rpcName, fallbackErr);
       throw new Error(`Fallback table insert failed for ${rpcName}: ${fallbackErr.message}`);
     }
-    console.log(`[sandboxRpc] Fallback insert succeeded for ${rpcName}`, { id: fallbackData?.id });
+    console.log('[sandboxRpc] Fallback insert succeeded for %s', rpcName, { id: fallbackData?.id });
     return fallbackData;
   }
 

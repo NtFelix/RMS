@@ -75,7 +75,8 @@ beforeEach(() => {
   tables = {
     Haeuser: [{ id: HOUSE_ID, name: 'Haus Eins' }],
     Wohnungen: [{ id: APARTMENT_ID, name: 'Wohnung 1', haus_id: HOUSE_ID }],
-    Mieter: [{ id: TENANT_ID, name: 'Mieter Eins', wohnung_id: APARTMENT_ID }],
+    // Name aus der Person (Personen), wie der Embed in der Route ihn liefert
+    Mieter: [{ id: TENANT_ID, person: { anrede: 'herr', vorname: 'Mieter', nachname: 'Eins' }, wohnung_id: APARTMENT_ID }],
   }
   ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(supabase)
   ;(getAccessibleHaeuserIds as jest.Mock).mockResolvedValue([HOUSE_ID])

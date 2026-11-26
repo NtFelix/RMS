@@ -23,6 +23,7 @@ describe("mapMietverhaeltnisError", () => {
     ["23503", "Der Datensatz ist verknüpft und kann nicht geändert werden."],
     ["MV011", "Das Dokument wurde nicht gefunden oder Sie haben keinen Zugriff darauf."],
     ["MV012", "Der Mieter gehört bereits zu einem Mietverhältnis."],
+    ["MV013", "Das Mietverhältnis hat weitere Mieter. Bitte trennen Sie zuerst den Mieter vom gemeinsamen Mietverhältnis."],
   ])("maps %s to a fixed German message with the same code", (code, message) => {
     expect(mapMietverhaeltnisError({ code, message: "MV004: interner Text mit Wert 1234" })).toEqual({ code, message });
   });
@@ -72,7 +73,7 @@ describe("mietverhaeltnisFehler", () => {
 });
 
 describe("ermittleWohnungswechselFehler", () => {
-  const meldung = "Die Wohnung kann nicht geändert werden, weil der Mieter zu einem Mietverhältnis in der bisherigen Wohnung gehört.";
+  const meldung = "Die Wohnung kann hier nicht geändert werden, weil der Mieter zu einem Mietverhältnis gehört. Nutzen Sie im Abschnitt Mietverhältnis den Punkt „Umzug in eine andere Wohnung“.";
 
   it("maps 23503 with the constraint name in message to the apartment change text", () => {
     expect(

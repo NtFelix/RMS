@@ -297,6 +297,25 @@ describe("Daten nur aus der Datenbank", () => {
     expect(mockRpc).toHaveBeenCalledWith(ABRECHNUNG_RPC, { p_mieter_id: TENANT_ID, p_stichtag: "2026-03-15" });
   });
 
+  it("passes a deposit ID from the request to the database (a specific deposit, not the current tenancy)", async () => {
+    const KAUTION_ID = "22222222-2222-4222-8222-222222222222";
+
+    const response = await POST(anfrage({ ...GUELTIG, kautionId: KAUTION_ID }));
+
+    expect(response.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith(ABRECHNUNG_RPC, { p_mieter_id: TENANT_ID, p_stichtag: "2026-03-15", p_kaution_id: KAUTION_ID });
+  });
+
+  it("answers 400 for a malformed deposit ID, with no query and no worker call", async () => {
+    const response = await POST(anfrage({ ...GUELTIG, kautionId: "keine-id" }));
+    const antwort = (await response.json()) as { error: { message: string } };
+
+    expect(response.status).toBe(400);
+    expect(antwort.error.message).toBe("Ungültige Kautions-ID.");
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("uses the settlement date of the database result for the file name when none is sent", async () => {
     const response = await POST(anfrage({ tenantId: TENANT_ID, art: "end" }));
 

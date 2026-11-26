@@ -175,12 +175,11 @@ export default function ProductShowcase() {
                                                 alt={selectedFeature.title}
                                                 width={1200}
                                                 height={800}
+                                                sizes="(max-width: 768px) 92vw, 1200px"
                                                 className={cn(
                                                     "w-auto h-auto max-w-full max-h-[70vh] object-contain",
                                                     selectedFeature.imageDark ? "dark:hidden" : ""
                                                 )}
-                                                priority
-                                                unoptimized
                                             />
                                             {/* Dark Mode Image */}
                                             {selectedFeature.imageDark && (
@@ -189,9 +188,8 @@ export default function ProductShowcase() {
                                                     alt={selectedFeature.title}
                                                     width={1200}
                                                     height={800}
+                                                    sizes="(max-width: 768px) 92vw, 1200px"
                                                     className="w-auto h-auto max-w-full max-h-[70vh] object-contain hidden dark:block"
-                                                    priority
-                                                    unoptimized
                                                 />
                                             )}
                                         </div>

@@ -21,7 +21,7 @@ import {
 /**
  * Settlement PDF of a deposit ("Kautionsabrechnung", GH-6, phase 4).
  *
- * Request: `POST` with JSON `{ tenantId, art: "zwischen" | "end", stichtag? }`.
+ * Request: `POST` with JSON `{ tenantId, art: "zwischen" | "end", stichtag?, kautionId? }`.
  * Flow: request form (JSON only, no cross-site request) -> input check -> figures ONLY from the settlement read action
  * (sign-in, module right `ansehen`, object scope and RPC `get_kaution_abrechnung` under the user's session; the client
  * never sends figures) -> worker `POST` (template `kaution-abrechnung`) -> PDF answer.
@@ -220,11 +220,11 @@ export async function POST(request: NextRequest) {
     }
     const anfrage = parseAbrechnungAnfrage(body);
     if (!anfrage.ok) return ablehnen(400, anfrage.message, { startedAt });
-    const { tenantId, art, stichtag } = anfrage.value;
+    const { tenantId, art, stichtag, kautionId } = anfrage.value;
     const protokoll: Protokoll = { startedAt, art };
 
     // 3. Figures: only from the settlement read action (sign-in, module right, object scope, RPC under the user's session)
-    const ergebnis = await getKautionAbrechnungAction({ tenantId, stichtag });
+    const ergebnis = await getKautionAbrechnungAction({ tenantId, stichtag, kautionId });
     if (!ergebnis.success) {
       const code = ergebnis.error?.code;
       const status = abrechnungFehlerStatus(code);

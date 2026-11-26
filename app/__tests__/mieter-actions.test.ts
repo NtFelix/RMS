@@ -72,46 +72,47 @@ describe('mieter-actions', () => {
   });
 
   describe('handleSubmit', () => {
-    it('creates a new tenant successfully', async () => {
+    it('creates a new tenant successfully via mieter_anlegen (GH-30: Person + Mieter)', async () => {
       const formData = new FormData();
-      formData.append('name', 'Max Mustermann');
+      formData.append('anrede', 'herr');
+      formData.append('vorname', 'Max');
+      formData.append('nachname', 'Mustermann');
       formData.append('email', 'max@test.com');
 
-      mockSupabase.single.mockResolvedValue({ data: { id: 'new-id' }, error: null });
+      mockSupabase.rpc.mockResolvedValue({ data: { mieter_id: 'new-id', person_id: 'p-1' }, error: null });
 
       const result = await handleSubmit(formData);
 
       expect(result.success).toBe(true);
-      expect(mockSupabase.from).toHaveBeenCalledWith('Mieter');
-      expect(mockSupabase.insert).toHaveBeenCalledWith(expect.objectContaining({
-        name: 'Max Mustermann',
-        email: 'max@test.com'
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('mieter_anlegen', expect.objectContaining({
+        p_person: expect.objectContaining({ anrede: 'herr', vorname: 'Max', nachname: 'Mustermann', email: 'max@test.com' }),
       }));
+      // Die Altspalten an "Mieter" werden nicht mehr geschrieben.
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
       expect(revalidatePath).toHaveBeenCalledWith('/mieter');
     });
 
-    it('updates an existing tenant successfully', async () => {
+    it('updates an existing tenant successfully via mieter_aktualisieren', async () => {
       const formData = new FormData();
       formData.append('id', 'existing-id');
-      formData.append('name', 'Updated Name');
+      formData.append('nachname', 'Neuer Name');
 
-      mockSupabase.update.mockReturnThis();
-      mockSupabase.eq.mockResolvedValue({ error: null });
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: null });
 
       const result = await handleSubmit(formData);
 
       expect(result.success).toBe(true);
-      expect(mockSupabase.from).toHaveBeenCalledWith('Mieter');
-      expect(mockSupabase.update).toHaveBeenCalledWith(expect.objectContaining({
-        name: 'Updated Name'
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('mieter_aktualisieren', expect.objectContaining({
+        p_mieter_id: 'existing-id',
+        p_person: expect.objectContaining({ nachname: 'Neuer Name' }),
       }));
-      expect(mockSupabase.eq).toHaveBeenCalledWith('id', 'existing-id');
+      expect(mockSupabase.update).not.toHaveBeenCalled();
       expect(revalidatePath).toHaveBeenCalledWith('/mieter');
     });
 
     it('handles JSON parsing error for nebenkosten', async () => {
       const formData = new FormData();
-      formData.append('name', 'Test');
+      formData.append('nachname', 'Test');
       formData.append('nebenkosten', '{invalid-json');
 
       const result = await handleSubmit(formData);
@@ -120,11 +121,21 @@ describe('mieter-actions', () => {
       expect(result.error?.message).toContain('Ungültiges JSON-Format');
     });
 
-    it('handles Supabase error during insert', async () => {
+    it('rejects a new tenant without first or last name', async () => {
       const formData = new FormData();
-      formData.append('name', 'Test');
+      formData.append('email', 'ohne-name@test.com');
 
-      mockSupabase.single.mockResolvedValue({ data: null, error: { message: 'Insert failed' } });
+      const result = await handleSubmit(formData);
+
+      expect(result.success).toBe(false);
+      expect(mockSupabase.rpc).not.toHaveBeenCalledWith('mieter_anlegen', expect.anything());
+    });
+
+    it('handles RPC error during create', async () => {
+      const formData = new FormData();
+      formData.append('nachname', 'Test');
+
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'Insert failed' } });
 
       const result = await handleSubmit(formData);
 
@@ -208,7 +219,7 @@ describe('mieter-actions', () => {
       const result = await updateTenantApartment('t1', 'w2');
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toBe('Die Wohnung kann nicht geändert werden, weil der Mieter zu einem Mietverhältnis in der bisherigen Wohnung gehört.');
+      expect(result.error?.message).toBe('Die Wohnung kann hier nicht geändert werden, weil der Mieter zu einem Mietverhältnis gehört. Nutzen Sie im Abschnitt Mietverhältnis den Punkt „Umzug in eine andere Wohnung“.');
     });
 
     it('updates tenant apartment link', async () => {

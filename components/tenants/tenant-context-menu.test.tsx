@@ -10,6 +10,13 @@ jest.mock('@/app/mieter-actions', () => ({
   deleteTenantAction: jest.fn(),
 }));
 
+const mockBewerberLoeschen = jest.fn();
+const mockBewerberAnnehmen = jest.fn();
+jest.mock('@/app/bewerber-actions', () => ({
+  bewerberLoeschenAction: (...args: unknown[]) => mockBewerberLoeschen(...args),
+  bewerberAnnehmenAction: (...args: unknown[]) => mockBewerberAnnehmen(...args),
+}));
+
 jest.mock('@/lib/kautionen-loeschen', () => ({
   // Standard: keine gebuchte Kaution betroffen -> die übliche Frage wird gezeigt
   starteLoeschenMitKautionen: jest.fn(async (_tabelle, _ids, handlers) => handlers.einfach()),
@@ -27,13 +34,17 @@ jest.mock('@/hooks/use-modal-store', () => ({
   useModalStore: jest.fn(),
 }));
 
+// Der Kautionseintrag öffnet über den Hook (Auswahl bei mehreren Kautionen); hier wird nur der Aufruf geprüft.
+const mockOeffneKaution = jest.fn();
+jest.mock('@/hooks/use-kaution-oeffnen', () => ({
+  useKautionOeffnen: () => mockOeffneKaution,
+}));
+
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 
 // Kautionsmanagement (GH-6): Der Menüeintrag "Kaution" hängt am Modulrecht `kautionen: ansehen` und übergibt dem
 // Dialog nur noch den Mieter (der Dialog lädt seine Daten selbst).
 describe('TenantContextMenu - Kaution (GH-6)', () => {
-  const mockOpenKautionModal = jest.fn();
-
   const tenant: Tenant = {
     id: 'tenant-1',
     name: 'Test Mieter',
@@ -51,7 +62,6 @@ describe('TenantContextMenu - Kaution (GH-6)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseModalStore.mockReturnValue({
-      openKautionModal: mockOpenKautionModal,
       openTenantMailTemplatesModal: jest.fn(),
       openApplicantScoreModal: jest.fn(),
     } as any);
@@ -90,9 +100,9 @@ describe('TenantContextMenu - Kaution (GH-6)', () => {
 
     fireEvent.click(screen.getByText('Kaution'));
 
-    await waitFor(() => expect(mockOpenKautionModal).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockOeffneKaution).toHaveBeenCalledTimes(1));
     // exakt ein Argument: kein zweiter Parameter mit Kautionsdaten
-    expect(mockOpenKautionModal).toHaveBeenCalledWith({ id: 'tenant-1', name: 'Test Mieter', wohnung_id: 'wohnung-1' });
+    expect(mockOeffneKaution).toHaveBeenCalledWith({ id: 'tenant-1', name: 'Test Mieter', wohnung_id: 'wohnung-1' });
   });
 });
 
@@ -161,5 +171,62 @@ describe('TenantContextMenu - Löschen mit Kautionen', () => {
     await waitFor(() => expect(mockStart).toHaveBeenCalled());
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(mockDelete).not.toHaveBeenCalled();
+  });
+});
+
+// Bewerber (GH-30): eigene Tabelle "Bewerber" für Löschen und Übernahme als Mieter.
+describe('TenantContextMenu - Bewerber (GH-30)', () => {
+  const bewerber = { id: 'b-1', name: 'Bewerber Probe', status: 'bewerber', bewerbung_metadaten: { fit: 'A' } } as Tenant;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseModalStore.mockReturnValue({
+      openTenantMailTemplatesModal: jest.fn(),
+      openApplicantScoreModal: jest.fn(),
+    } as any);
+    mockBewerberLoeschen.mockResolvedValue({ success: true });
+  });
+
+  function oeffneMenue(tenant: Tenant) {
+    const onRefresh = jest.fn();
+    render(
+      <TenantContextMenu tenant={tenant} onEdit={jest.fn()} onRefresh={onRefresh} wohnungen={[{ id: 'w-1', name: 'Whg 1' }]}>
+        <div>Zeile</div>
+      </TenantContextMenu>
+    );
+    fireEvent.contextMenu(screen.getByText('Zeile'));
+    return onRefresh;
+  }
+
+  it('zeigt "Als Mieter übernehmen" nur für Bewerber', () => {
+    oeffneMenue(bewerber);
+    expect(screen.getByText('Als Mieter übernehmen')).toBeInTheDocument();
+  });
+
+  it('zeigt "Als Mieter übernehmen" nicht für Mieter', () => {
+    oeffneMenue({ id: 'm-1', name: 'Mieter Probe' } as Tenant);
+    expect(screen.queryByText('Als Mieter übernehmen')).not.toBeInTheDocument();
+  });
+
+  it('löscht einen Bewerber über bewerberLoeschenAction, nicht über den Mieter-Weg, ohne Kautionsprüfung', async () => {
+    oeffneMenue(bewerber);
+    fireEvent.click(screen.getByText('Löschen'));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(screen.getByText('Bewerber löschen?')).toBeInTheDocument();
+    expect(starteLoeschenMitKautionen).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }));
+
+    await waitFor(() => expect(mockBewerberLoeschen).toHaveBeenCalledWith('b-1'));
+    expect(deleteTenantAction).not.toHaveBeenCalled();
+  });
+
+  it('übernimmt nicht ohne Wohnung und Einzugsdatum', async () => {
+    oeffneMenue(bewerber);
+    fireEvent.click(screen.getByText('Als Mieter übernehmen'));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('button', { name: 'Als Mieter übernehmen' })).toBeDisabled();
+    expect(mockBewerberAnnehmen).not.toHaveBeenCalled();
   });
 });

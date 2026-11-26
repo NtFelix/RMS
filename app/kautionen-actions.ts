@@ -18,6 +18,9 @@
  * - Expected errors are returned as `{ success: false, error: { message, code } }`, not thrown. The messages
  *   are German (formal address) and come from `lib/kautionen-errors.ts`.
  *
+ * Multiple deposits per tenant: `getKautionenListeAction` (`get_kautionen_liste`) and `kautionUebernehmenAction` (`kaution_uebernehmen`);
+ * the details and settlement reads take an optional deposit ID.
+ *
  * Phase 2 (instalment plan: `planeKautionRatenAction`, optional rate of a deposit booking, receipts) and phase 3
  * (agreement fields incl. IBAN, interest schedule `planeKautionZinsstaffelAction`, interest proposal
  * `berechneKautionZinsenAction`, interest credit as a booking type) and phase 4 (settlement read `getKautionAbrechnungAction`,
@@ -80,6 +83,7 @@ import type {
   KautionBewegungsArt,
   KautionDetails,
   KautionLoeschauswirkung,
+  KautionListenEintrag,
   KautionLoeschTabelle,
   KautionRechte,
   KautionVorschlag,
@@ -221,6 +225,8 @@ export interface GetKautionAbrechnungInput {
   tenantId: string;
   /** Settlement date `YYYY-MM-DD` (not before 1990, not in the future: the database decides). Empty: today. */
   stichtag?: string | null;
+  /** A specific deposit (UUID). Empty: the deposit of the current tenancy. */
+  kautionId?: string | null;
 }
 
 export interface SetzeKautionEinbehaltInput {
@@ -468,6 +474,46 @@ function istKautionAbrechnung(value: unknown): value is KautionAbrechnung {
   );
 }
 
+/**
+ * Form check of the deposit list from the RPC (`KautionListenEintrag[]`). Only the fields the app reads are checked
+ * (ID and the current-tenancy flag); an unexpected shape is an unclassified error.
+ */
+function istKautionListe(value: unknown): value is KautionListenEintrag[] {
+  return (
+    Array.isArray(value) &&
+    value.every((eintrag) => {
+      const feld = asRecord(eintrag);
+      return typeof feld.kautionId === "string" && typeof feld.istAktuell === "boolean";
+    })
+  );
+}
+
+/**
+ * Optional deposit ID: `undefined`, `null` and an empty string mean "not given" (`null` result). Anything else must be a
+ * valid UUID, otherwise `KA004`.
+ */
+function optionaleKautionId(value: unknown): Step<string | null> {
+  if (value === undefined || value === null || value === "") return { ok: true, data: null };
+  const id = validateUuid(value, "Kautions-ID");
+  if (!id.ok) return fail(invalid(id.message));
+  return { ok: true, data: id.value };
+}
+
+/**
+ * Earlier deposits of the tenant (`get_kautionen_liste`, `istAktuell` false) for the details view. Only a convenience: a
+ * failing call or an unexpected shape leaves the list empty and never fails the details.
+ */
+async function ladeFruehereKautionen(supabase: SupabaseClient, mieterId: string): Promise<KautionListenEintrag[]> {
+  try {
+    const step = await callRpc(supabase, "get_kautionen_liste", { p_mieter_id: mieterId });
+    if (!step.ok || !istKautionListe(step.data)) return [];
+    return step.data.filter((eintrag) => eintrag.istAktuell === false);
+  } catch (error) {
+    unstable_rethrow(error);
+    return [];
+  }
+}
+
 /** Agreement fields of phase 3 as the database keys (the names of `KautionVereinbarungsFeld`). */
 type PhaseDreiWert = string | boolean | null;
 
@@ -543,11 +589,22 @@ const PHASE_DREI_FELDER = new Map<string, KautionVereinbarungsFeld>([
  * Details of the deposit of a tenant in one consistent snapshot (`get_kaution_details`) plus the module rights
  * of the user (for enabling/disabling buttons; the server stays authoritative) and, if there is no deposit yet
  * and the user may create one, the suggested amount (`get_kaution_vorschlag`).
- * `details` is `null` while the tenant has no deposit.
+ * `details` is `null` while the tenant has no deposit of the current tenancy.
+ *
+ * `kautionId` (optional, UUID): a specific deposit instead of the one of the current tenancy. `fruehere`: only when `details`
+ * is `null`, the deposits of earlier tenancies that can be taken over (`get_kautionen_liste`, `istAktuell` false); otherwise `[]`.
  */
 export async function getKautionDetailsAction(
-  tenantId: string
-): Promise<KautionActionResult<{ details: KautionDetails | null; rechte: KautionRechte; vorschlag: KautionVorschlag | null }>> {
+  tenantId: string,
+  kautionId?: string | null
+): Promise<
+  KautionActionResult<{
+    details: KautionDetails | null;
+    rechte: KautionRechte;
+    vorschlag: KautionVorschlag | null;
+    fruehere: KautionListenEintrag[];
+  }>
+> {
   return runKautionAction({
     actionName: "getKautionDetails",
     tenantId,
@@ -556,9 +613,15 @@ export async function getKautionDetailsAction(
     revalidate: false,
     logSuccess: false,
     run: async (supabase, id) => {
+      // Optional deposit: only forwarded when given (the call without it stays unchanged).
+      const gewaehlt = optionaleKautionId(kautionId);
+      if (!gewaehlt.ok) return fail(gewaehlt.error);
+      const argumente: Record<string, unknown> = { p_mieter_id: id };
+      if (gewaehlt.data !== null) argumente.p_kaution_id = gewaehlt.data;
+
       // The module rights and the details are independent: load them in parallel.
       const [detailsStep, erstellen, bearbeiten, loeschen] = await Promise.all([
-        callRpc(supabase, "get_kaution_details", { p_mieter_id: id }),
+        callRpc(supabase, "get_kaution_details", argumente),
         hasPermission("kautionen", "erstellen"),
         hasPermission("kautionen", "bearbeiten"),
         hasPermission("kautionen", "loeschen"),
@@ -580,7 +643,33 @@ export async function getKautionDetailsAction(
         // Other errors: the suggestion is a convenience, the form works without it.
       }
 
-      return { ok: true, data: { details, rechte, vorschlag } };
+      // Earlier deposits only without a current one (a failure leaves the list empty, see the helper).
+      const fruehere = details === null ? await ladeFruehereKautionen(supabase, id) : [];
+
+      return { ok: true, data: { details, rechte, vorschlag, fruehere } };
+    },
+  });
+}
+
+/**
+ * All deposits of a tenant, current tenancy first (`get_kautionen_liste`). Read only: nothing is revalidated or logged
+ * on success.
+ */
+export async function getKautionenListeAction(tenantId: string): Promise<KautionActionResult<{ kautionen: KautionListenEintrag[] }>> {
+  return runKautionAction({
+    actionName: "getKautionenListe",
+    tenantId,
+    mieterScope: true,
+    aktion: "ansehen",
+    revalidate: false,
+    logSuccess: false,
+    run: async (supabase, id) => {
+      const step = await callRpc(supabase, "get_kautionen_liste", { p_mieter_id: id });
+      if (!step.ok) return fail(step.error);
+      // Defensive: the shape is checked before it reaches the UI.
+      const liste = step.data;
+      if (!istKautionListe(liste)) return fail({ message: KAUTION_FEHLER_FALLBACK_MESSAGE });
+      return { ok: true, data: { kautionen: liste } };
     },
   });
 }
@@ -839,6 +928,29 @@ export async function updateKautionVereinbarungAction(input: UpdateKautionVerein
       const result = await callRpc(supabase, "kaution_aendern", { p_kaution_id: kautionId.value, p_daten: daten });
       if (!result.ok) return fail(result.error);
       return { ok: true, data: undefined };
+    },
+  });
+}
+
+/**
+ * Takes over an EARLIER deposit of the tenant to the tenant's current tenancy (`kaution_uebernehmen`). `tenantId` is only used for the
+ * app's scope check; the RPC takes the deposit ID alone and checks rights, organisation and object access for the tenant the deposit
+ * itself belongs to (it never moves a deposit to another person). The errors are mapped like the other deposit RPCs.
+ */
+export async function kautionUebernehmenAction(tenantId: string, kautionId: string): Promise<KautionActionResult<{ kautionId: string }>> {
+  return runKautionAction({
+    actionName: "kautionUebernehmen",
+    tenantId,
+    mieterScope: true,
+    aktion: "bearbeiten",
+    run: async (supabase) => {
+      const id = validateUuid(kautionId, "Kautions-ID");
+      if (!id.ok) return fail(invalid(id.message));
+
+      const result = await callRpc(supabase, "kaution_uebernehmen", { p_kaution_id: id.value });
+      if (!result.ok) return fail(result.error);
+      if (typeof result.data !== "string") return fail({ message: KAUTION_FEHLER_FALLBACK_MESSAGE });
+      return { ok: true, data: { kautionId: result.data } };
     },
   });
 }
@@ -1195,7 +1307,13 @@ export async function getKautionAbrechnungAction(input: GetKautionAbrechnungInpu
       const stichtag = validateKautionStichtag(raw.stichtag);
       if (!stichtag.ok) return fail(invalid(stichtag.message));
 
-      const result = await callRpc(supabase, "get_kaution_abrechnung", { p_mieter_id: id, p_stichtag: stichtag.value });
+      // Optional deposit: only forwarded when given (without it the database picks the current tenancy's deposit).
+      const gewaehlt = optionaleKautionId(raw.kautionId);
+      if (!gewaehlt.ok) return fail(gewaehlt.error);
+      const argumente: Record<string, unknown> = { p_mieter_id: id, p_stichtag: stichtag.value };
+      if (gewaehlt.data !== null) argumente.p_kaution_id = gewaehlt.data;
+
+      const result = await callRpc(supabase, "get_kaution_abrechnung", argumente);
       if (!result.ok) return fail(result.error);
       if (result.data === null || result.data === undefined) return { ok: true, data: null };
       // Defensive: the shape is checked before it reaches the view or the worker.

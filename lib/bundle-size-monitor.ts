@@ -371,7 +371,7 @@ export class BundleSizeMonitor {
       
       observer.observe({ entryTypes: [entryType] });
     } catch (error) {
-      console.warn(`Failed to observe ${entryType}:`, error);
+      console.warn('Failed to observe %s:', entryType, error);
     }
   }
 

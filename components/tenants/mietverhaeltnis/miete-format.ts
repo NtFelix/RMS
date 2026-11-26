@@ -12,6 +12,7 @@ const MAX_DATUM = "2100-12-31";
 export const FEHLER_DATUM = "Bitte geben Sie ein gültiges Datum an.";
 export const FEHLER_BETRAG = "Bitte geben Sie einen Betrag von 0 bis 99.999.999,99 mit höchstens zwei Nachkommastellen an.";
 export const NOTIZ_MAX_LAENGE = 2000;
+export const FEHLER_FLAECHE = "Bitte geben Sie eine Fläche über 0 bis 100.000 m² mit höchstens zwei Nachkommastellen an.";
 export const GRUND_MAX_LAENGE = 500;
 
 const euroFormatter = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
@@ -51,6 +52,15 @@ export function parseBetragEingabe(text: string): number | null {
   if (!/^\d{1,8}(\.\d{1,2})?$/.test(normalisiert)) return null;
   const betrag = Number(normalisiert);
   return Number.isFinite(betrag) && betrag <= 99999999.99 ? betrag : null;
+}
+
+/** Contract area as typed by the user ("50", "50,5"): `null` for an empty field, `undefined` if invalid, otherwise the m² value. */
+export function parseFlaecheEingabe(text: string): number | null | undefined {
+  const normalisiert = text.trim().replace(",", ".");
+  if (normalisiert === "") return null;
+  if (!/^\d{1,6}(\.\d{1,2})?$/.test(normalisiert)) return undefined;
+  const flaeche = Number(normalisiert);
+  return Number.isFinite(flaeche) && flaeche > 0 && flaeche <= 100000 ? flaeche : undefined;
 }
 
 /** `YYYY-MM-DD` as a real calendar day within the database limits. */

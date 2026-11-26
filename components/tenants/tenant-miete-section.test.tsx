@@ -5,21 +5,51 @@ import {
   getMietverhaeltnisUebersichtAction,
   mieteEntfernenAction,
   mietverhaeltnisAnlegenAction,
-  mieterhoehungErfassenAction,
+  mieteSetzenAction,
+  mieterUmzugAction,
+  restflaecheVerteilenSetzenAction,
   vertragsdatenSpeichernAction,
 } from "@/app/mietverhaeltnis-actions";
+import { toast } from "@/hooks/use-toast";
 
 jest.mock("@/app/mietverhaeltnis-actions", () => ({
   getMietverhaeltnisUebersichtAction: jest.fn(),
   mieteEntfernenAction: jest.fn(),
   mietverhaeltnisAnlegenAction: jest.fn(),
   vertragsdatenSpeichernAction: jest.fn(),
-  mieterhoehungErfassenAction: jest.fn(),
+  restflaecheVerteilenSetzenAction: jest.fn(),
+  mieteSetzenAction: jest.fn(),
+  mieterUmzugAction: jest.fn(),
+  // Phase 6: no other tenants in these tests, the section stays hidden
+  getMitmieterUebersichtAction: jest.fn().mockResolvedValue({ success: true, data: { mitmieter: [], kandidaten: [] } }),
+  mieterZusammenfuehrenAction: jest.fn(),
+  mieterTrennenAction: jest.fn(),
+}));
+
+// Contract document section: not under test here, no document linked
+jest.mock("@/app/mietverhaeltnis-dokument-actions", () => ({
+  getVertragsdokumentAction: jest.fn().mockResolvedValue({ success: true, data: null }),
+  listeVertragsdokumentKandidatenAction: jest.fn(),
+  vertragsdokumentSetzenAction: jest.fn(),
+  vertragsdokumentOeffnenAction: jest.fn(),
 }));
 
 jest.mock("@/hooks/use-toast", () => ({
   toast: jest.fn(),
 }));
+
+// Test double for the combobox: every option is a button that selects it.
+jest.mock("@/components/ui/custom-combobox", () => {
+  const { createElement } = jest.requireActual<typeof import("react")>("react");
+  return {
+    CustomCombobox: ({ options, onChange, id }: { options: { value: string; label: string }[]; onChange: (value: string | null) => void; id?: string }) =>
+      createElement(
+        "div",
+        { id },
+        options.map((option) => createElement("button", { key: option.value, type: "button", onClick: () => onChange(option.value) }, option.label))
+      ),
+  };
+});
 
 // jsdom kennt ResizeObserver nicht (Radix)
 global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
@@ -29,12 +59,27 @@ const MIETER_ID = "11111111-1111-4111-8111-111111111111";
 const MV_ID = "22222222-2222-4222-8222-222222222222";
 const MIETE_NEU = "33333333-3333-4333-8333-333333333333";
 const MIETE_ALT = "44444444-4444-4444-8444-444444444444";
+const WOHNUNG_AKTUELL = "66666666-6666-4666-8666-666666666666";
+const WOHNUNG_NEU = "77777777-7777-4777-8777-777777777777";
+const WOHNUNG_DRITTE = "99999999-9999-4999-8999-999999999999";
+const NEU_MV_ID_UMZUG = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const MV013_MELDUNG = "Das Mietverhältnis hat weitere Mieter. Bitte trennen Sie zuerst den Mieter vom gemeinsamen Mietverhältnis.";
+
+/** Apartment options as the tenant dialog passes them; the current apartment of the tenancy is among them. */
+const WOHNUNGEN = [
+  { value: WOHNUNG_AKTUELL, label: "Erdgeschoss" },
+  { value: WOHNUNG_NEU, label: "Dachgeschoss" },
+  { value: WOHNUNG_DRITTE, label: "Hinterhaus" },
+];
 
 const mockUebersicht = getMietverhaeltnisUebersichtAction as jest.Mock;
 const mockEntfernen = mieteEntfernenAction as jest.Mock;
 const mockAnlegen = mietverhaeltnisAnlegenAction as jest.Mock;
 const mockVertragsdaten = vertragsdatenSpeichernAction as jest.Mock;
-const mockErhoehung = mieterhoehungErfassenAction as jest.Mock;
+const mockSetzen = mieteSetzenAction as jest.Mock;
+const mockUmzug = mieterUmzugAction as jest.Mock;
+const mockToast = toast as unknown as jest.Mock;
+const mockOnUmzug = jest.fn();
 
 const mietverhaeltnis = {
   id: MV_ID,
@@ -45,7 +90,7 @@ const mietverhaeltnis = {
   kuendigung_eingang_am: null,
   kuendigung_zum: null,
   kuendigung_durch: "mieter" as const,
-  abrechnungsmodus: "je_mieter" as const,
+  flaeche: null as number | null,
   vertrag_dokument_id: null,
   notiz: null,
   quelle: "app" as const,
@@ -71,9 +116,10 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockUebersicht.mockResolvedValue({ success: true, data: ohneMietverhaeltnis });
   mockAnlegen.mockResolvedValue({ success: true, data: { mietverhaeltnisId: MV_ID } });
-  mockVertragsdaten.mockResolvedValue({ success: true, data: undefined });
-  mockErhoehung.mockResolvedValue({ success: true, data: { mieteId: MIETE_NEU } });
+  mockVertragsdaten.mockResolvedValue({ success: true, data: { flaechen: { hinweise: [], restflaecheVerteilen: null } } });
+  mockSetzen.mockResolvedValue({ success: true, data: { mieteId: MIETE_NEU } });
   mockEntfernen.mockResolvedValue({ success: true, data: undefined });
+  mockUmzug.mockResolvedValue({ success: true, data: { mietverhaeltnisId: NEU_MV_ID_UMZUG } });
 });
 
 /** Field of the section by the end of its id (the ids carry a React `useId` prefix). */
@@ -131,6 +177,8 @@ describe("TenantMieteSection without tenancy", () => {
 
     await waitFor(() => expect(mockAnlegen).toHaveBeenCalledWith({ mieterId: MIETER_ID, vertragsbeginn: "2026-01-01", miete: 850.5 }));
     await waitFor(() => expect(mockUebersicht).toHaveBeenCalledTimes(2));
+    // Wait until the form has finished saving, so its state updates do not leak into the next test.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Mietverhältnis anlegen" })).toBeEnabled());
   });
 
   it("sends no rent when the rent field is empty", async () => {
@@ -141,6 +189,8 @@ describe("TenantMieteSection without tenancy", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mietverhältnis anlegen" }));
 
     await waitFor(() => expect(mockAnlegen).toHaveBeenCalledWith({ mieterId: MIETER_ID, vertragsbeginn: "2020-01-01", miete: null }));
+    // Wait until the form has finished saving, so its state updates do not leak into the next test.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Mietverhältnis anlegen" })).toBeEnabled());
   });
 
   it("marks an invalid rent at the field and does not call the action", async () => {
@@ -174,6 +224,123 @@ describe("TenantMieteSection without tenancy", () => {
   });
 });
 
+describe("TenantMieteSection move to another apartment", () => {
+  /** Section with a tenancy and the apartment options. */
+  async function mitUmzug(optionen: { value: string; label: string }[] | undefined) {
+    mockUebersicht.mockResolvedValue({ success: true, data: mitMietverhaeltnis });
+    const ergebnis = render(<TenantMieteSection mieterId={MIETER_ID} wohnungen={optionen} onUmzug={mockOnUmzug} />);
+    await screen.findByRole("list");
+    return ergebnis;
+  }
+
+  /** Same, with the move form opened. */
+  async function mitOffenemUmzug(optionen: { value: string; label: string }[] = WOHNUNGEN) {
+    const ergebnis = await mitUmzug(optionen);
+    fireEvent.click(screen.getByRole("button", { name: "Umzug in eine andere Wohnung" }));
+    await screen.findByRole("button", { name: "Umzug speichern" });
+    return ergebnis;
+  }
+
+  it("shows the move only when apartments are passed", async () => {
+    await mitUmzug(undefined);
+    expect(screen.queryByText("Wohnungswechsel")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Umzug in eine andere Wohnung" })).not.toBeInTheDocument();
+  });
+
+  it("shows nothing for an empty apartment list", async () => {
+    await mitUmzug([]);
+    expect(screen.queryByText("Wohnungswechsel")).not.toBeInTheDocument();
+  });
+
+  it("shows the heading and the button, and opens the form in a card on click", async () => {
+    await mitUmzug(WOHNUNGEN);
+    expect(screen.getByText("Wohnungswechsel")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Umzug speichern" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Umzug in eine andere Wohnung" }));
+    expect(await screen.findByRole("button", { name: "Umzug speichern" })).toBeInTheDocument();
+    expect(screen.getByText("Das bisherige Mietverhältnis endet am Vortag. In der neuen Wohnung beginnt ein neues Mietverhältnis.")).toBeInTheDocument();
+  });
+
+  it("offers every apartment except the current one of the tenancy", async () => {
+    await mitOffenemUmzug();
+    expect(screen.getByRole("button", { name: "Dachgeschoss" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hinterhaus" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Erdgeschoss" })).not.toBeInTheDocument();
+  });
+
+  it("closes the form on cancel without an action call", async () => {
+    await mitOffenemUmzug();
+    fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+    expect(screen.queryByRole("button", { name: "Umzug speichern" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Umzug in eine andere Wohnung" })).toBeInTheDocument();
+    expect(mockUmzug).not.toHaveBeenCalled();
+  });
+
+  it("requires the apartment and the date at the fields, without an action call", async () => {
+    const { container } = await mitOffenemUmzug();
+    fireEvent.click(screen.getByRole("button", { name: "Umzug speichern" }));
+
+    expect(await screen.findByText("Bitte wählen Sie eine Wohnung aus.")).toBeInTheDocument();
+    expect(screen.getByText("Bitte geben Sie ein gültiges Datum an.")).toBeInTheDocument();
+    expect(feld(container, "umzugDatum")).toHaveAttribute("aria-invalid", "true");
+    expect(mockUmzug).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid rent at the field, without an action call", async () => {
+    const { container } = await mitOffenemUmzug();
+    fireEvent.click(screen.getByRole("button", { name: "Dachgeschoss" }));
+    setze(feld(container, "umzugDatum"), "01.04.2026");
+    setze(feld(container, "umzugMiete"), "8,555");
+    fireEvent.click(screen.getByRole("button", { name: "Umzug speichern" }));
+
+    expect(await screen.findByText(/höchstens zwei Nachkommastellen/)).toBeInTheDocument();
+    expect(mockUmzug).not.toHaveBeenCalled();
+  });
+
+  it("moves with the entered values, closes the form and passes the new apartment on", async () => {
+    const { container } = await mitOffenemUmzug();
+    fireEvent.click(screen.getByRole("button", { name: "Dachgeschoss" }));
+    setze(feld(container, "umzugDatum"), "01.04.2026");
+    setze(feld(container, "umzugMiete"), "920,50");
+    fireEvent.click(screen.getByRole("button", { name: "Umzug speichern" }));
+
+    await waitFor(() =>
+      expect(mockUmzug).toHaveBeenCalledWith({ mieterId: MIETER_ID, wohnungId: WOHNUNG_NEU, datum: "2026-04-01", miete: 920.5 })
+    );
+    await waitFor(() => expect(mockOnUmzug).toHaveBeenCalledWith(WOHNUNG_NEU));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Umzug speichern" })).not.toBeInTheDocument());
+    expect(await screen.findByRole("button", { name: "Umzug in eine andere Wohnung" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Umzug speichern" })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Kaution bleibt unverändert bei dieser Person");
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ description: "Der Umzug wurde gespeichert." }));
+    await waitFor(() => expect(mockUebersicht).toHaveBeenCalledTimes(2));
+  });
+
+  it("sends null for the rent when it is left empty", async () => {
+    const { container } = await mitOffenemUmzug();
+    fireEvent.click(screen.getByRole("button", { name: "Hinterhaus" }));
+    setze(feld(container, "umzugDatum"), "01.05.2026");
+    fireEvent.click(screen.getByRole("button", { name: "Umzug speichern" }));
+
+    await waitFor(() =>
+      expect(mockUmzug).toHaveBeenCalledWith({ mieterId: MIETER_ID, wohnungId: WOHNUNG_DRITTE, datum: "2026-05-01", miete: null })
+    );
+  });
+
+  it("shows an error of the action as toast and keeps the form open", async () => {
+    mockUmzug.mockResolvedValueOnce({ success: false, error: { code: "MV013", message: MV013_MELDUNG } });
+    const { container } = await mitOffenemUmzug();
+    fireEvent.click(screen.getByRole("button", { name: "Dachgeschoss" }));
+    setze(feld(container, "umzugDatum"), "01.04.2026");
+    fireEvent.click(screen.getByRole("button", { name: "Umzug speichern" }));
+
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ description: MV013_MELDUNG, variant: "destructive" })));
+    expect(screen.getByRole("button", { name: "Umzug speichern" })).toBeInTheDocument();
+    expect(mockOnUmzug).not.toHaveBeenCalled();
+  });
+});
+
 describe("TenantMieteSection with tenancy", () => {
   it("shows the history as a list and the current rent for today", async () => {
     const { container } = await mitVertrag();
@@ -196,11 +363,11 @@ describe("TenantMieteSection with tenancy", () => {
     expect(feld(container, "miete")).toHaveTextContent("800,00 € (Miete der Wohnung)");
   });
 
-  it("shows the type of change and the declaration date in the history", async () => {
+  it("shows the reason and the declaration date in the history, but not the default type", async () => {
     await mitVertrag();
 
     const eintraege = within(screen.getByRole("list")).getAllByRole("listitem");
-    expect(eintraege[0]).toHaveTextContent("Vereinbarung · erklärt am 15.05.2024 · Indexierung");
+    expect(eintraege[0]).toHaveTextContent("erklärt am 15.05.2024 · Indexierung");
     expect(eintraege[1]).not.toHaveTextContent(/erklärt am/);
   });
 
@@ -238,6 +405,7 @@ describe("TenantMieteSection with tenancy", () => {
         kuendigungZum: null,
         kuendigungDurch: "vermieter",
         notiz: "Haustiere erlaubt",
+        flaeche: null,
       })
     );
     await waitFor(() => expect(mockUebersicht).toHaveBeenCalledTimes(2));
@@ -250,6 +418,96 @@ describe("TenantMieteSection with tenancy", () => {
     fireEvent.click(screen.getByRole("button", { name: "Vertragsdaten speichern" }));
 
     await waitFor(() => expect(mockVertragsdaten).toHaveBeenCalledWith(expect.objectContaining({ kuendigungDurch: null, notiz: null })));
+  });
+
+  it("saves a contract area with a decimal comma and shows a stored one", async () => {
+    const { container } = await mitVertrag();
+
+    setze(feld(container, "flaeche"), "50,5");
+    fireEvent.click(screen.getByRole("button", { name: "Vertragsdaten speichern" }));
+
+    await waitFor(() => expect(mockVertragsdaten).toHaveBeenCalledWith(expect.objectContaining({ flaeche: 50.5 })));
+  });
+
+  it("pre-fills a stored contract area", async () => {
+    mockUebersicht.mockResolvedValue({ success: true, data: { ...mitMietverhaeltnis, mietverhaeltnis: { ...mietverhaeltnis, flaeche: 20 } } });
+    const { container } = render(<TenantMieteSection mieterId={MIETER_ID} />);
+    await screen.findByRole("list");
+    expect(feld(container, "flaeche")).toHaveValue("20");
+  });
+
+  it.each([["0"], ["-5"], ["100000,01"], ["12,345"]])("rejects the contract area %s at the field, without an action call", async (wert) => {
+    const { container } = await mitVertrag();
+
+    setze(feld(container, "flaeche"), wert);
+    fireEvent.click(screen.getByRole("button", { name: "Vertragsdaten speichern" }));
+
+    expect(await screen.findByText(/Bitte geben Sie eine Fläche über 0 bis 100.000 m²/)).toBeInTheDocument();
+    expect(feld(container, "flaeche")).toHaveAttribute("aria-invalid", "true");
+    expect(mockVertragsdaten).not.toHaveBeenCalled();
+  });
+
+  it("shows a hint when the contract areas of the apartment exceed the apartment", async () => {
+    mockVertragsdaten.mockResolvedValue({
+      success: true,
+      data: { flaechen: { hinweise: [{ art: "summe_zu_gross", summe: 90, wohnungsgroesse: 70 }], restflaecheVerteilen: false } },
+    });
+    const { container } = await mitVertrag();
+
+    setze(feld(container, "flaeche"), "50");
+    fireEvent.click(screen.getByRole("button", { name: "Vertragsdaten speichern" }));
+
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Hinweis zur Vertragsfläche", description: expect.stringContaining("bis zu 90 m², die Wohnung hat 70 m²") })
+      )
+    );
+  });
+
+  it("shows the area notes below the field and switches the remaining area option of the apartment", async () => {
+    const mockRestflaeche = restflaecheVerteilenSetzenAction as jest.Mock;
+    mockRestflaeche.mockResolvedValue({ success: true, data: { flaechen: { hinweise: [], restflaecheVerteilen: true } } });
+    mockUebersicht.mockResolvedValue({
+      success: true,
+      data: {
+        ...mitMietverhaeltnis,
+        flaechen: { hinweise: [{ art: "flaeche_fehlt", ohneFlaeche: 1, restflaecheVerteilen: false }], restflaecheVerteilen: false },
+      },
+    });
+    render(<TenantMieteSection mieterId={MIETER_ID} />);
+
+    expect(await screen.findByText(/hat keine Vertragsfläche\. An Tagen/)).toBeInTheDocument();
+    const schalter = screen.getByRole("switch", { name: "Restfläche auf Mietverhältnisse ohne Fläche verteilen" });
+    expect(schalter).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(schalter);
+    await waitFor(() => expect(mockRestflaeche).toHaveBeenCalledWith({ mieterId: MIETER_ID, wert: true }));
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ description: expect.stringContaining("rechtlich zu klären") })));
+  });
+
+  it("locks the option switch while typed contract data is unsaved", async () => {
+    mockUebersicht.mockResolvedValue({
+      success: true,
+      data: {
+        ...mitMietverhaeltnis,
+        flaechen: { hinweise: [{ art: "flaeche_fehlt", ohneFlaeche: 1, restflaecheVerteilen: false }], restflaecheVerteilen: false },
+      },
+    });
+    const { container } = render(<TenantMieteSection mieterId={MIETER_ID} />);
+    const schalter = await screen.findByRole("switch", { name: "Restfläche auf Mietverhältnisse ohne Fläche verteilen" });
+    expect(schalter).not.toBeDisabled();
+    setze(feld(container, "flaeche"), "50");
+    expect(schalter).toBeDisabled();
+    expect(screen.getByText(/zuerst die geänderten Vertragsdaten/)).toBeInTheDocument();
+  });
+
+  it("hides the option while no contract lacks an area and the option is off", async () => {
+    mockUebersicht.mockResolvedValue({
+      success: true,
+      data: { ...mitMietverhaeltnis, flaechen: { hinweise: [{ art: "leerstand", flaeche: 65, wohnungsgroesse: 70 }], restflaecheVerteilen: false } },
+    });
+    render(<TenantMieteSection mieterId={MIETER_ID} />);
+    expect(await screen.findByText(/65 m² von 70 m²/)).toBeInTheDocument();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
   });
 
   it("rejects a note that is too long at the field, without an action call", async () => {
@@ -275,88 +533,63 @@ describe("TenantMieteSection with tenancy", () => {
     expect(screen.getByRole("button", { name: "Mietänderung erfassen" })).toBeInTheDocument();
   });
 
-  it("requires the type of change at the field and does not call the action", async () => {
-    const { container } = await mitOffenerMietaenderung();
-
-    setze(feld(container, "betrag"), "920,50");
-    setze(feld(container, "wirksamAb"), "01.04.2026");
-    fireEvent.click(screen.getByRole("button", { name: "Mietänderung speichern" }));
-
-    expect(await screen.findByText("Bitte geben Sie die Art der Mietänderung an.")).toBeInTheDocument();
-    expect(feld(container, "art")).toHaveAttribute("aria-invalid", "true");
-    expect(feld(container, "art")).toHaveAttribute("aria-describedby", expect.stringContaining("-fehler"));
-    expect(mockErhoehung).not.toHaveBeenCalled();
-  });
-
   it("requires amount and effective date, without an action call", async () => {
-    const { container } = await mitOffenerMietaenderung();
+    await mitOffenerMietaenderung();
 
-    setze(feld(container, "art"), "Vereinbarung");
     fireEvent.click(screen.getByRole("button", { name: "Mietänderung speichern" }));
 
     expect(await screen.findByText(/höchstens zwei Nachkommastellen/)).toBeInTheDocument();
     expect(screen.getByText("Bitte geben Sie ein gültiges Datum an.")).toBeInTheDocument();
-    expect(mockErhoehung).not.toHaveBeenCalled();
+    expect(mockSetzen).not.toHaveBeenCalled();
   });
 
-  it("records a rent change with the entered values, closes the form and reloads", async () => {
+  it("has only price, date and an optional reason (no type of change, no declaration date)", async () => {
+    const { container } = await mitOffenerMietaenderung();
+
+    expect(feld(container, "betrag")).toBeInTheDocument();
+    expect(feld(container, "wirksamAb")).toBeInTheDocument();
+    expect(feld(container, "grund")).toBeInTheDocument();
+    expect(container.querySelector('[id$="-art"]')).toBeNull();
+    expect(container.querySelector('[id$="-erklaertAm"]')).toBeNull();
+  });
+
+  it("records the new rent with the entered reason, closes the form and reloads", async () => {
     const { container } = await mitOffenerMietaenderung();
 
     setze(feld(container, "betrag"), "920,50");
     setze(feld(container, "wirksamAb"), "01.04.2026");
-    setze(feld(container, "art"), "  Staffelmiete ");
-    setze(feld(container, "erklaertAm"), "10.03.2026");
     setze(feld(container, "grund"), "  Vereinbart am Vertrag ");
     fireEvent.click(screen.getByRole("button", { name: "Mietänderung speichern" }));
 
     await waitFor(() =>
-      expect(mockErhoehung).toHaveBeenCalledWith({
-        mieterId: MIETER_ID,
-        wirksamAb: "2026-04-01",
-        betrag: 920.5,
-        aenderungsart: "Staffelmiete",
-        erklaertAm: "2026-03-10",
-        grund: "Vereinbart am Vertrag",
-      })
+      expect(mockSetzen).toHaveBeenCalledWith({ mieterId: MIETER_ID, gueltigAb: "2026-04-01", betrag: 920.5, grund: "Vereinbart am Vertrag" })
     );
     expect(await screen.findByRole("button", { name: "Mietänderung erfassen" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mietänderung speichern" })).not.toBeInTheDocument();
     await waitFor(() => expect(mockUebersicht).toHaveBeenCalledTimes(2));
-    expect(await screen.findByRole("list")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Mietänderung speichern" })).not.toBeInTheDocument();
   });
 
-  it("sends null for the empty optional fields of a rent change", async () => {
+  it("sends null when the optional reason is empty", async () => {
     const { container } = await mitOffenerMietaenderung();
 
     setze(feld(container, "betrag"), "900");
     setze(feld(container, "wirksamAb"), "01.05.2026");
-    setze(feld(container, "art"), "Vereinbarung");
     fireEvent.click(screen.getByRole("button", { name: "Mietänderung speichern" }));
 
-    await waitFor(() =>
-      expect(mockErhoehung).toHaveBeenCalledWith({
-        mieterId: MIETER_ID,
-        wirksamAb: "2026-05-01",
-        betrag: 900,
-        aenderungsart: "Vereinbarung",
-        erklaertAm: null,
-        grund: null,
-      })
-    );
+    await waitFor(() => expect(mockSetzen).toHaveBeenCalledWith({ mieterId: MIETER_ID, gueltigAb: "2026-05-01", betrag: 900, grund: null }));
   });
 
-  it("offers the suggestions for the type of change in a datalist and keeps free text", async () => {
+  it("rejects a reason that is too long at the field, without an action call", async () => {
     const { container } = await mitOffenerMietaenderung();
 
-    const art = feld(container, "art");
-    const listId = art.getAttribute("list");
-    expect(listId).toBeTruthy();
-    const optionen = Array.from(container.querySelectorAll(`[id="${listId}"] option`)).map((option) => option.getAttribute("value"));
-    expect(optionen).toEqual(["Vereinbarung", "Staffelmiete", "Indexmiete", "Vergleichsmiete", "Modernisierung", "Sonstiges"]);
+    setze(feld(container, "betrag"), "900");
+    setze(feld(container, "wirksamAb"), "01.05.2026");
+    setze(feld(container, "grund"), "x".repeat(501));
+    fireEvent.click(screen.getByRole("button", { name: "Mietänderung speichern" }));
 
-    setze(art, "Eigene Art");
-    expect(art).toHaveValue("Eigene Art");
+    expect(await screen.findByText(/Die Begründung darf höchstens 500 Zeichen/)).toBeInTheDocument();
+    expect(feld(container, "grund")).toHaveAttribute("aria-invalid", "true");
+    expect(mockSetzen).not.toHaveBeenCalled();
   });
 
   it("shows an error state with retry when loading fails", async () => {

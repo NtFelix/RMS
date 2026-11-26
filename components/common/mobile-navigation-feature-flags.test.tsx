@@ -133,14 +133,14 @@ describe('MobileBottomNavigation Feature Flags', () => {
       const moreButton = screen.getByLabelText(/Mehr menu/i)
       fireEvent.click(moreButton)
       
-      // Count visible dropdown items (should be 8 with Documents)
+      // Count visible dropdown items (8 with Documents, plus Kontakte: der Test schaltet alle Flags ein)
       const dropdownItems = screen.getAllByRole('menuitem')
-      expect(dropdownItems).toHaveLength(8)
+      expect(dropdownItems).toHaveLength(9)
       
       // Verify Documents is in the list
       const itemTexts = dropdownItems.map(item => item.textContent)
       expect(itemTexts).toContain('Dokumente')
-      expect(itemTexts).toEqual(['Profil', 'Homepage', 'Häuser', 'Wohnungen', 'Betriebskosten', 'Aufgaben', 'Dokumente', 'Abmelden'])
+      expect(itemTexts).toEqual(['Profil', 'Homepage', 'Häuser', 'Wohnungen', 'Betriebskosten', 'Aufgaben', 'Dokumente', 'Kontakte', 'Abmelden'])
     })
   })
 

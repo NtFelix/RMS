@@ -232,8 +232,7 @@ export default function DashboardOverlayHost() {
       <TenantMailTemplatesModal
         isOpen={isTenantMailTemplatesModalOpen}
         onClose={closeTenantMailTemplatesModal}
-        tenantName={tenantMailTemplatesModalData?.tenantName}
-        tenantEmail={tenantMailTemplatesModalData?.tenantEmail}
+        mieter={tenantMailTemplatesModalData}
       />
       <TenantPaymentEditModal />
       <TenantPaymentOverviewModal />

@@ -10,13 +10,14 @@ import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
 import { useModalStore } from "@/hooks/use-modal-store";
+import { useKautionOeffnen } from "@/hooks/use-kaution-oeffnen";
 import { PlusCircle, Users, BadgeCheck, Euro, Search, Building2, BarChart3 } from "lucide-react";
 import { StatCard } from "@/components/common/stat-card";
 import { TenantTable } from "@/components/tables/tenant-table";
 import { TenantBulkActionBar } from "@/components/tenants/tenant-bulk-action-bar";
 import { SearchInput } from "@/components/ui/search-input";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
-import { deleteTenantAction, deleteAllApplicantsAction } from "@/app/mieter-actions";
+import { bewerberLadenAction, bewerberAlleLoeschenAction, type BewerberListenEintrag } from "@/app/bewerber-actions";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
@@ -131,13 +132,36 @@ export default function MieterClientView({
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const { openTenantModal, openKautionModal } = useModalStore();
+  const { openTenantModal } = useModalStore();
+  // Mehrere Kautionen eines Mieters: zuerst die Auswahl (hooks/use-kaution-oeffnen.ts).
+  const oeffneKaution = useKautionOeffnen();
   const [depositSearch, setDepositSearch] = useState<string>("");
   const [depositFilter, setDepositFilter] = useState<"all" | "Erhalten" | "Zurückgezahlt" | "Ausstehend">("all");
   const [applicantSearch, setApplicantSearch] = useState<string>("");
   const [applicantFilter, setApplicantFilter] = useState<"all" | "A-Fit" | "B-Fit" | "C-Fit">("all");
   const applicantsMailImportFlag = useFeatureFlagEnabled('applicants-mail-import');
   const [nebenkostenTimeframe, setNebenkostenTimeframe] = useState<"1" | "2" | "5">("1");
+  // Bewerber liegen in der Tabelle "Bewerber" und kommen über bewerberLadenAction, nicht in initialTenants (Mieter).
+  const [bewerber, setBewerber] = useState<BewerberListenEintrag[]>([]);
+
+  const ladeBewerber = useCallback(async () => {
+    const result = await bewerberLadenAction();
+    if (result.success) {
+      setBewerber(result.data);
+    } else {
+      toast({
+        title: "Fehler",
+        description: result.error || "Die Bewerber konnten nicht geladen werden.",
+        variant: "destructive",
+      });
+    }
+  }, []);
+
+  // Neu laden, wenn die Seite neue Daten bekommt (router.refresh) oder der Bewerber-Tab verfügbar wird.
+  useEffect(() => {
+    if (!showApplicantsTab) return;
+    void ladeBewerber();
+  }, [showApplicantsTab, initialTenants, ladeBewerber]);
 
   // Fallback to "mieter" if applicants tab is disabled and user is on "bewerber"
   useEffect(() => {
@@ -152,7 +176,8 @@ export default function MieterClientView({
       return {
         total: 0,
         activeCount: 0,
-        applicantCount: 0,
+        // Bewerber kommen aus eigener Quelle und zählen auch ohne Mieter.
+        applicantCount: bewerber.length,
         pastCount: 0,
         totalDeposit: 0,
         depositReceived: 0,
@@ -161,9 +186,10 @@ export default function MieterClientView({
       }
     }
 
-    let activeCount = 0
-    let applicantCount = 0
-    let pastCount = 0
+    // initialTenants enthält nur Mieter; Bewerber kommen aus bewerber.
+    const activeCount = initialTenants.length
+    const applicantCount = bewerber.length
+    const pastCount = 0
 
     let totalDeposit = 0
     let depositReceived = 0
@@ -171,15 +197,6 @@ export default function MieterClientView({
     const depositStatusCount: Record<string, number> = {}
 
     initialTenants.forEach(t => {
-      const status = t.status || 'mieter'
-      if (status === 'mieter') {
-        activeCount++
-      } else if (status === 'bewerber') {
-        applicantCount++
-      } else {
-        pastCount++
-      }
-
       if (t.kaution) {
         const amount = typeof t.kaution.amount === 'string'
           ? parseFloat(t.kaution.amount)
@@ -211,14 +228,14 @@ export default function MieterClientView({
       depositOutstanding,
       depositStatusCount,
     }
-  }, [initialTenants])
+  }, [initialTenants, bewerber])
 
   // Compute occupancy rate
   const occupancyRate = useMemo(() => {
     if (!initialWohnungen || initialWohnungen.length === 0) return 0;
     const today = new Date();
     const activeTenantWohnungIds = initialTenants.reduce((acc, t) => {
-      if ((t.status || 'mieter') === 'mieter' && (!t.auszug || new Date(t.auszug) > today) && t.wohnung_id) {
+      if ((!t.auszug || new Date(t.auszug) > today) && t.wohnung_id) {
         acc.add(t.wohnung_id);
       }
       return acc;
@@ -240,7 +257,6 @@ export default function MieterClientView({
     const today = new Date();
 
     initialTenants.forEach(t => {
-      if ((t.status || 'mieter') !== 'mieter') return;
       if (!t.einzug) return;
 
       const startDate = new Date(t.einzug);
@@ -283,8 +299,6 @@ export default function MieterClientView({
     }> = [];
 
     initialTenants.forEach(t => {
-      if ((t.status || 'mieter') !== 'mieter') return;
-      
       const wohnungName = t.wohnung_id ? wohnungsMap[t.wohnung_id] : undefined;
 
       if (t.einzug) {
@@ -333,18 +347,16 @@ export default function MieterClientView({
     let low = 0;  // < 60
     let totalWithScore = 0;
 
-    initialTenants.forEach(t => {
-      if (t.status === 'bewerber') {
-        const score = t.bewerbung_score ?? 0;
-        if (score >= 80) high++;
-        else if (score >= 60) good++;
-        else low++;
-        totalWithScore++;
-      }
+    bewerber.forEach(t => {
+      const score = t.bewerbung_score ?? 0;
+      if (score >= 80) high++;
+      else if (score >= 60) good++;
+      else low++;
+      totalWithScore++;
     });
 
     return { high, good, low, totalWithScore };
-  }, [initialTenants]);
+  }, [bewerber]);
 
   // Compute tenant fluctuation data (monthly einzüge vs auszüge) - last 12 months
   const tenantFluctuationData = useMemo(() => {
@@ -449,8 +461,6 @@ export default function MieterClientView({
       const distribution: Array<{ tenantName: string; amount: number }> = [];
 
       initialTenants.forEach(t => {
-        if (t.status === 'bewerber') return;
-
         // Parse move-in date
         let einzugKey = "";
         if (t.einzug) {
@@ -551,16 +561,10 @@ export default function MieterClientView({
   }, [initialTenants]);
 
   // Filter tenants based on tab
+  // Mieter-Liste: jede Zeile in initialTenants ist ein Mieter. Bewerber-Liste: bewerber (Tabelle "Bewerber").
   const filteredTenantsByTab = useMemo(() => {
-    return initialTenants.filter(t => {
-      // Default to "mieter" if status is missing (migration fallback)
-      const status = t.status || 'mieter';
-      // If current tab is overview, we don't strictly filter list records since overview shows stats,
-      // but let's fall back to mieter to prevent errors in list bindings
-      const activeFilterTab = currentTab === 'overview' ? 'mieter' : currentTab;
-      return status === activeFilterTab;
-    });
-  }, [initialTenants, currentTab]);
+    return currentTab === 'bewerber' ? bewerber : initialTenants;
+  }, [initialTenants, bewerber, currentTab]);
 
   // Calculate stats based on the CURRENT TAB
   const summary = useMemo(() => {
@@ -619,13 +623,19 @@ export default function MieterClientView({
 
   const handleEditTenantInTable = useCallback((tenant: Tenant) => {
     // Find the full tenant data if only partial data is passed by the table event
-    const tenantToEdit = initialTenants.find(t => t.id === tenant.id);
+    const tenantToEdit = tenant.status === 'bewerber'
+      ? bewerber.find(t => t.id === tenant.id)
+      : initialTenants.find(t => t.id === tenant.id);
     if (tenantToEdit) {
       // Format data as expected by TenantEditModal's useEffect for parsing Nebenkosten
       const formattedInitialData = {
         id: tenantToEdit.id,
         wohnung_id: tenantToEdit.wohnung_id || "",
         name: tenantToEdit.name,
+        // GH-30: Personenfelder mitgeben, sonst setzt der Dialog beim Speichern Anrede/Vorname/Nachname zurueck
+        anrede: tenantToEdit.anrede,
+        vorname: tenantToEdit.vorname,
+        nachname: tenantToEdit.nachname,
         einzug: tenantToEdit.einzug || "",
         auszug: tenantToEdit.auszug || "",
         email: tenantToEdit.email || "",
@@ -643,7 +653,7 @@ export default function MieterClientView({
       console.error("Tenant not found for editing:", tenant.id);
       // Optionally, show a toast message
     }
-  }, [initialTenants, initialWohnungen, openTenantModal]);
+  }, [initialTenants, bewerber, initialWohnungen, openTenantModal]);
 
 
 
@@ -659,7 +669,7 @@ export default function MieterClientView({
   }, [])
 
   const handleBulkExport = useCallback(() => {
-    const selectedTenantsData = initialTenants.filter(t => selectedTenants.has(t.id))
+    const selectedTenantsData = [...initialTenants, ...bewerber].filter(t => selectedTenants.has(t.id))
 
     // Create CSV header
     const headers = ['Name', 'Email', 'Telefon', 'Wohnung', 'Einzug', 'Auszug', 'Status']
@@ -692,12 +702,12 @@ export default function MieterClientView({
       description: `${selectedTenants.size} Einträge exportiert.`,
       variant: "success",
     })
-  }, [selectedTenants, initialTenants, wohnungsMap, escapeCsvValue])
+  }, [selectedTenants, initialTenants, bewerber, wohnungsMap, escapeCsvValue])
 
   const handleDeleteAllApplicants = async () => {
     setIsDeletingAll(true);
     try {
-      const result = await deleteAllApplicantsAction();
+      const result = await bewerberAlleLoeschenAction();
       if (!result.success) {
         throw new Error(result.error?.message || "Fehler beim Löschen aller Bewerber");
       }
@@ -707,6 +717,7 @@ export default function MieterClientView({
         description: "Alle Bewerber wurden gelöscht.",
         variant: "success",
       });
+      await ladeBewerber();
       router.refresh();
     } catch (error) {
       console.error(error);
@@ -874,6 +885,7 @@ export default function MieterClientView({
                     onUpdate={() => router.refresh()}
                     canEdit={canEdit}
                     canDelete={canDelete}
+                    modus={currentTab === "bewerber" ? "bewerber" : "mieter"}
                   />
                 </div>
                 <TenantTable
@@ -1128,7 +1140,7 @@ export default function MieterClientView({
                         {/* Scrollable list */}
                         <div className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar mt-2">
                           {initialTenants
-                            .filter((t) => t.status === "mieter" && t.kaution && t.kaution.amount !== undefined)
+                            .filter((t) => t.kaution && t.kaution.amount !== undefined)
                             .map((t) => {
                               const amount = typeof t.kaution?.amount === 'string'
                                 ? parseFloat(t.kaution.amount)
@@ -1172,13 +1184,13 @@ export default function MieterClientView({
                                   role="button"
                                   tabIndex={0}
                                   aria-label={`Kaution von ${t.name} öffnen`}
-                                  onClick={() => openKautionModal(t)}
+                                  onClick={() => void oeffneKaution(t)}
                                   onKeyDown={(event) => {
                                     // Nur Tastendrücke der Zeile selbst (nicht von Elementen darin); Leertaste ohne Seitenscroll.
                                     if (event.target !== event.currentTarget) return;
                                     if (event.key === 'Enter' || event.key === ' ') {
                                       event.preventDefault();
-                                      openKautionModal(t);
+                                      void oeffneKaution(t);
                                     }
                                   }}
                                   className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-[border-color,box-shadow] duration-200 cursor-pointer select-none focus-visible:outline-hidden focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
@@ -1216,7 +1228,7 @@ export default function MieterClientView({
                                 </div>
                               );
                             })}
-                          {initialTenants.filter((t) => t.status === "mieter" && t.kaution && t.kaution.amount !== undefined).length === 0 && (
+                          {initialTenants.filter((t) => t.kaution && t.kaution.amount !== undefined).length === 0 && (
                             <div className="flex flex-col items-center justify-center py-6 text-center bg-zinc-100/50 dark:bg-zinc-800/10 rounded-2xl border border-zinc-200/20 dark:border-zinc-800/40">
                               <span className="text-xs text-muted-foreground">Keine Kautionsdaten erfasst</span>
                             </div>
@@ -1349,8 +1361,7 @@ export default function MieterClientView({
 
                           {/* Scrollable list */}
                           <div className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar mt-2">
-                            {initialTenants
-                              .filter((t) => t.status === 'bewerber')
+                            {bewerber
                               .filter((t) => {
                                 // Search filter
                                 const matchesSearch = t.name.toLowerCase().includes(applicantSearch.toLowerCase());
@@ -1572,7 +1583,11 @@ export default function MieterClientView({
       </AlertDialog>
       <ApplicantImportModal
         open={showImportModal}
-        onOpenChange={setShowImportModal}
+        onOpenChange={(offen) => {
+          setShowImportModal(offen);
+          // Nach dem Import (Fenster schließen) die Bewerberliste neu laden.
+          if (!offen) void ladeBewerber();
+        }}
       />
       <ApplicantScoreModal />
       <MailPreviewModal />

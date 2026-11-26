@@ -235,4 +235,25 @@ describe('useFolderNavigation', () => {
     
     expect(screen.getByTestId('navigating')).toHaveTextContent('Navigating...')
   })
+
+  it('intercepts Enter on folder elements but ignores Space inside nested inputs', async () => {
+    render(
+      <NavigationInterceptor orgId="org-1" enableDebouncing={false}>
+        <div data-folder-path="org_org-1/shared/keyboard-folder" data-testid="kb-folder">
+          <input data-testid="nested-input" />
+        </div>
+      </NavigationInterceptor>
+    )
+
+    fireEvent.keyDown(screen.getByTestId('nested-input'), { key: ' ' })
+    expect(mockNavigation.navigateToPath).not.toHaveBeenCalled()
+
+    fireEvent.keyDown(screen.getByTestId('kb-folder'), { key: 'Enter' })
+    await waitFor(() => {
+      expect(mockNavigation.navigateToPath).toHaveBeenCalledWith(
+        'org_org-1/shared/keyboard-folder',
+        expect.any(Object)
+      )
+    })
+  })
 })

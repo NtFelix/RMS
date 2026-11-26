@@ -5,7 +5,7 @@ import { ladeMietHistorien, ladeMietverhaeltnisIds } from "@/lib/mietverhaeltnis
 import { nutztMietHistorie } from "@/lib/mietverhaeltnis-historie-param";
 import { logger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
-import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
+import { MIETER_PERSON_EMBED, mitPersonenfeldern } from "@/lib/personen";
 import { apiPermissionErrorResponse } from "@/lib/api-permission-response";
 
 export async function GET(
@@ -30,12 +30,13 @@ export async function GET(
         ]);
 
         // Fetch tenant with apartment details
-        // Explizite Spaltenliste ohne das Altfeld "kaution" (Kautionsdaten sind an das Modul "kautionen" gebunden;
-        // die Zeile wird hier nur berechnet, aber nie ausgeliefert).
-        const { data: tenant, error: tenantError } = await supabase
+        // Explizite Spaltenliste (ohne Altfeld "kaution" und ohne die Altspalten name/email/telefonnummer/status,
+        // die Name und Kontakt stehen in "Personen"). Die Zeile wird hier nur berechnet, aber nie ausgeliefert.
+        const { data: tenantRoh, error: tenantError } = await supabase
             .from('Mieter')
             .select(`
-        ${MIETER_SPALTEN_OHNE_KAUTION},
+        id, wohnung_id, einzug, auszug, nebenkosten,
+        ${MIETER_PERSON_EMBED},
         Wohnungen (
           id,
           name,
@@ -47,9 +48,11 @@ export async function GET(
             .eq('id', tenantId)
             .single();
 
-        if (tenantError || !tenant) {
+        if (tenantError || !tenantRoh) {
             return NextResponse.json({ error: "Tenant not found." }, { status: 404, headers: NO_CACHE_HEADERS });
         }
+        // name (for matching payment notes) comes from the person
+        const tenant = mitPersonenfeldern(tenantRoh);
 
         // The tenant's apartment must belong to a house the user may access (house scope); checked before any rent
         // income is read

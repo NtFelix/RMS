@@ -276,7 +276,7 @@ export class DirectoryCacheManager {
             this.stats.backgroundPrefetchCount++
           }
         } catch (error) {
-          console.warn(`Failed to preload directory: ${request.path}`, error)
+          console.warn('Failed to preload directory: %s', request.path, error)
           this.pendingPreloads.delete(request.path)
         } finally {
           this.preloadQueue.delete(request.path)

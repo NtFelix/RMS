@@ -24,7 +24,9 @@ import {
   getKautionAbrechnungAction,
   getKautionBelegUrlAction,
   getKautionDetailsAction,
+  getKautionenListeAction,
   getKautionLoeschauswirkungAction,
+  kautionUebernehmenAction,
   planeKautionRatenAction,
   planeKautionZinsstaffelAction,
   setzeKautionEinbehaltAction,
@@ -52,6 +54,28 @@ const SCHLUESSEL = "44444444-4444-4444-8444-444444444444";
 const RATE_ID = "66666666-6666-4666-8666-666666666666";
 const SCOPE_RPC = "kautionen_pruefe_objektzugriff";
 const DOKUMENT_ID = "99999999-9999-4999-8999-999999999999";
+const ALTE_KAUTION_ID = "77777777-7777-4777-8777-777777777777";
+/** Synthetic deposit list entries as `get_kautionen_liste` returns them (current first). */
+const LISTEN_EINTRAG_AKTUELL = {
+  kautionId: KAUTION_ID,
+  mietverhaeltnisId: "88888888-8888-4888-8888-888888888888",
+  kautionsart: "barkaution",
+  sollBetrag: 1500,
+  kontostand: 0,
+  istAktuell: true,
+  vertragsbeginn: "2026-01-01",
+  vertragsende: null,
+};
+const LISTEN_EINTRAG_FRUEHER = {
+  kautionId: ALTE_KAUTION_ID,
+  mietverhaeltnisId: "12121212-1212-4121-8121-121212121212",
+  kautionsart: "sparbuch",
+  sollBetrag: 900,
+  kontostand: 900,
+  istAktuell: false,
+  vertragsbeginn: "2023-01-01",
+  vertragsende: "2025-12-31",
+};
 const MUSTER_ORG = "33333333-3333-4333-8333-333333333333";
 const MUSTER_HAUS = "55555555-5555-4555-8555-555555555555";
 /** Receipt folder of the deposit module: `shared/{house}/Kautionen/{tenantId}` (no apartment segment). */
@@ -123,6 +147,15 @@ function rpcError(code: string, message: string, details?: string) {
   mockRpc.mockResolvedValueOnce({ data: null, error: { code, message, details } });
 }
 
+/** Answers per RPC name (for tests with several calls). An RPC without an answer in the map fails the test loudly. */
+function rpcAntworten(antworten: Record<string, { data?: unknown; error?: { code: string; message: string } }>) {
+  mockRpc.mockImplementation(async (name: string) => {
+    const antwort = antworten[name];
+    if (!antwort) throw new Error(`unerwarteter RPC-Aufruf: ${name}`);
+    return { data: antwort.data ?? null, error: antwort.error ?? null };
+  });
+}
+
 /** The database denies the object scope (`KA002`) for the tenant of the object-scope check. */
 function scopeDenied() {
   mockScopeRpc.mockResolvedValue({ data: null, error: { code: "KA002", message: "KAUT_OBJEKTZUGRIFF: Kein Zugriff auf dieses Objekt." } });
@@ -138,6 +171,8 @@ interface ActionCase {
 
 const ACTION_CASES: ActionCase[] = [
   { name: "getKautionDetailsAction", aktion: "ansehen", call: () => getKautionDetailsAction(TENANT_ID), okData: { kaution: { id: KAUTION_ID } } },
+  { name: "getKautionenListeAction", aktion: "ansehen", call: () => getKautionenListeAction(TENANT_ID), okData: [LISTEN_EINTRAG_AKTUELL] },
+  { name: "kautionUebernehmenAction", aktion: "bearbeiten", call: () => kautionUebernehmenAction(TENANT_ID, KAUTION_ID), okData: KAUTION_ID },
   {
     name: "getKautionLoeschauswirkungAction",
     aktion: "ansehen",
@@ -373,7 +408,9 @@ describe("cross-cutting: sign-in, module right, object scope", () => {
 
   // Object scope: only where the tenant IS the object (details, create). The other actions have no scope pre-check,
   // the RPCs decide (see the next describe block).
-  const SCOPE_CASES = ACTION_CASES.filter((caseItem) => caseItem.name === "getKautionDetailsAction" || caseItem.name === "createKautionAction" || caseItem.name === "getKautionAbrechnungAction");
+  const SCOPE_CASES = ACTION_CASES.filter((caseItem) =>
+    ["getKautionDetailsAction", "createKautionAction", "getKautionAbrechnungAction", "getKautionenListeAction", "kautionUebernehmenAction"].includes(caseItem.name)
+  );
   const OHNE_SCOPE_CASES = ACTION_CASES.filter((caseItem) => !SCOPE_CASES.includes(caseItem));
 
   it.each(SCOPE_CASES)("$name: object scope is checked by the database helper with the tenant ID", async (caseItem) => {
@@ -436,6 +473,8 @@ describe("cross-cutting: sign-in, module right, object scope", () => {
     const calls: Record<string, () => Promise<{ success: boolean; error?: { code?: string } }>> = {
       getKautionDetailsAction: () => getKautionDetailsAction("not-a-uuid"),
       getKautionAbrechnungAction: () => getKautionAbrechnungAction({ tenantId: "not-a-uuid" }),
+      getKautionenListeAction: () => getKautionenListeAction("not-a-uuid"),
+      kautionUebernehmenAction: () => kautionUebernehmenAction("not-a-uuid", KAUTION_ID),
       createKautionAction: () => createKautionAction({ tenantId: "not-a-uuid", sollBetrag: "1500,00" }),
       updateKautionVereinbarungAction: () =>
         updateKautionVereinbarungAction({ tenantId: "not-a-uuid", kautionId: KAUTION_ID, felder: { soll_betrag: "1200,00" } }),
@@ -576,6 +615,7 @@ describe("getKautionDetailsAction", () => {
     expect(result.data?.details).toEqual(details);
     expect(result.data?.rechte).toEqual({ ansehen: true, erstellen: true, bearbeiten: true, loeschen: false });
     expect(result.data?.vorschlag).toBeNull();
+    expect(result.data?.fruehere).toEqual([]);
     expect(mockRpc).toHaveBeenCalledTimes(1);
     expect(mockRpc).toHaveBeenCalledWith("get_kaution_details", { p_mieter_id: TENANT_ID });
   });
@@ -584,6 +624,7 @@ describe("getKautionDetailsAction", () => {
     const vorschlag = { miete: 650, vorschlag_betrag: 1950, basis: "Wohnungen.miete" };
     rpcOk(null);
     rpcOk(vorschlag);
+    rpcOk([]);
 
     const result = await getKautionDetailsAction(TENANT_ID);
 
@@ -591,6 +632,7 @@ describe("getKautionDetailsAction", () => {
       details: null,
       rechte: { ansehen: true, erstellen: true, bearbeiten: true, loeschen: true },
       vorschlag,
+      fruehere: [],
     });
     expect(mockRpc).toHaveBeenNthCalledWith(2, "get_kaution_vorschlag", { p_mieter_id: TENANT_ID });
   });
@@ -598,12 +640,14 @@ describe("getKautionDetailsAction", () => {
   it("does not load the suggestion without the right to create", async () => {
     mockHasPermission.mockImplementation(async (_modul: string, aktion: string) => aktion === "ansehen");
     rpcOk(null);
+    rpcOk([]);
 
     const result = await getKautionDetailsAction(TENANT_ID);
 
     expect(result.data?.vorschlag).toBeNull();
     expect(result.data?.rechte).toEqual({ ansehen: true, erstellen: false, bearbeiten: false, loeschen: false });
-    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).not.toHaveBeenCalledWith("get_kaution_vorschlag", expect.anything());
+    expect(mockRpc).toHaveBeenCalledTimes(2);
   });
 
   it("does not load the suggestion while a deposit exists", async () => {
@@ -617,12 +661,107 @@ describe("getKautionDetailsAction", () => {
   it("a failing suggestion does not fail the details (convenience only)", async () => {
     rpcOk(null);
     rpcError("XX000", "internal");
+    rpcOk([]);
 
     const result = await getKautionDetailsAction(TENANT_ID);
 
     expect(result.success).toBe(true);
     expect(result.data?.details).toBeNull();
     expect(result.data?.vorschlag).toBeNull();
+  });
+
+  it("passes the deposit ID as p_kaution_id only when it is given", async () => {
+    rpcOk(details);
+
+    await getKautionDetailsAction(TENANT_ID, KAUTION_ID);
+
+    expect(mockRpc).toHaveBeenCalledWith("get_kaution_details", { p_mieter_id: TENANT_ID, p_kaution_id: KAUTION_ID });
+  });
+
+  it.each([
+    ["undefined", undefined],
+    ["null", null],
+    ["an empty string", ""],
+  ])("does not pass p_kaution_id for %s", async (_label, kautionId) => {
+    rpcOk(details);
+
+    await getKautionDetailsAction(TENANT_ID, kautionId);
+
+    expect(mockRpc).toHaveBeenCalledWith("get_kaution_details", { p_mieter_id: TENANT_ID });
+  });
+
+  it.each([
+    ["a malformed ID", "keine-id"],
+    ["a number", 12345],
+  ])("rejects %s as deposit ID (KA004) without any details call", async (_label, kautionId) => {
+    const result = await getKautionDetailsAction(TENANT_ID, kautionId as unknown as string);
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("lists the earlier deposits (istAktuell false) only when there is no current deposit", async () => {
+    rpcAntworten({
+      get_kaution_details: { data: null },
+      get_kaution_vorschlag: { data: null },
+      get_kautionen_liste: { data: [LISTEN_EINTRAG_AKTUELL, LISTEN_EINTRAG_FRUEHER] },
+    });
+
+    const result = await getKautionDetailsAction(TENANT_ID);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.details).toBeNull();
+    expect(result.data?.fruehere).toEqual([LISTEN_EINTRAG_FRUEHER]);
+    expect(mockRpc).toHaveBeenCalledWith("get_kautionen_liste", { p_mieter_id: TENANT_ID });
+  });
+
+  it("does not load the list while a current deposit exists (fruehere is empty)", async () => {
+    rpcOk(details);
+
+    const result = await getKautionDetailsAction(TENANT_ID);
+
+    expect(result.data?.fruehere).toEqual([]);
+    expect(mockRpc).not.toHaveBeenCalledWith("get_kautionen_liste", expect.anything());
+  });
+
+  it("a failing list does not fail the details: fruehere is empty", async () => {
+    rpcAntworten({
+      get_kaution_details: { data: null },
+      get_kaution_vorschlag: { data: null },
+      get_kautionen_liste: { error: { code: "XX000", message: "internal" } },
+    });
+
+    const result = await getKautionDetailsAction(TENANT_ID);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.details).toBeNull();
+    expect(result.data?.fruehere).toEqual([]);
+  });
+
+  it("a list with an unexpected shape is ignored: fruehere is empty", async () => {
+    rpcAntworten({
+      get_kaution_details: { data: null },
+      get_kaution_vorschlag: { data: null },
+      get_kautionen_liste: { data: [{ kautionId: 5 }] },
+    });
+
+    const result = await getKautionDetailsAction(TENANT_ID);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.fruehere).toEqual([]);
+  });
+
+  it("a list that throws is ignored as well (convenience only)", async () => {
+    mockRpc.mockImplementation(async (name: string) => {
+      if (name === "get_kautionen_liste") throw new Error("network down");
+      return { data: null, error: null };
+    });
+
+    const result = await getKautionDetailsAction(TENANT_ID);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.fruehere).toEqual([]);
   });
 
   it.each([
@@ -654,6 +793,127 @@ describe("getKautionDetailsAction", () => {
 
     expect(mockRevalidatePath).not.toHaveBeenCalled();
     expect(mockLogAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("getKautionenListeAction", () => {
+  it("returns the deposits of the tenant in the order of the database (current first), read only", async () => {
+    rpcOk([LISTEN_EINTRAG_AKTUELL, LISTEN_EINTRAG_FRUEHER]);
+
+    const result = await getKautionenListeAction(TENANT_ID);
+
+    expect(result).toEqual({ success: true, data: { kautionen: [LISTEN_EINTRAG_AKTUELL, LISTEN_EINTRAG_FRUEHER] } });
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith("get_kautionen_liste", { p_mieter_id: TENANT_ID });
+  });
+
+  it("returns an empty list as an empty list", async () => {
+    rpcOk([]);
+
+    const result = await getKautionenListeAction(TENANT_ID);
+
+    expect(result).toEqual({ success: true, data: { kautionen: [] } });
+  });
+
+  it("neither revalidates nor logs a successful read", async () => {
+    rpcOk([LISTEN_EINTRAG_AKTUELL]);
+
+    await getKautionenListeAction(TENANT_ID);
+
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+    expect(mockLogAction).not.toHaveBeenCalled();
+  });
+
+  it("maps a database error of the list", async () => {
+    rpcError("KA003", "KA003: x");
+
+    const result = await getKautionenListeAction(TENANT_ID);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toEqual({ code: "KA003", message: "Der Datensatz wurde nicht gefunden (evtl. bereits geändert oder gelöscht)." });
+  });
+
+  it("treats an answer that is not a list of deposits as an unclassified error", async () => {
+    for (const shape of [null, {}, "Muster", [{ kautionId: KAUTION_ID }]]) {
+      mockRpc.mockResolvedValueOnce({ data: shape, error: null });
+      const result = await getKautionenListeAction(TENANT_ID);
+      expect(result).toEqual({ success: false, error: { message: KAUTION_FEHLER_FALLBACK_MESSAGE } });
+    }
+  });
+});
+
+describe("kautionUebernehmenAction", () => {
+  it("calls kaution_uebernehmen with the deposit ID, returns the moved deposit, revalidates /mieter and logs the success", async () => {
+    rpcOk(KAUTION_ID);
+
+    const result = await kautionUebernehmenAction(TENANT_ID, ALTE_KAUTION_ID);
+
+    expect(result).toEqual({ success: true, data: { kautionId: KAUTION_ID } });
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith("kaution_uebernehmen", { p_kaution_id: ALTE_KAUTION_ID });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/mieter");
+    expect(mockLogAction).toHaveBeenCalledWith("kautionUebernehmen", "success", {});
+  });
+
+  it("checks the object scope of the tenant first (database helper), then the RPC", async () => {
+    rpcOk(KAUTION_ID);
+
+    await kautionUebernehmenAction(TENANT_ID, ALTE_KAUTION_ID);
+
+    expect(mockScopeRpc).toHaveBeenCalledWith({ p_mieter_id: TENANT_ID });
+  });
+
+  it("rejects a malformed deposit ID (KA004) without any RPC and without revalidation", async () => {
+    const result = await kautionUebernehmenAction(TENANT_ID, "keine-id");
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("KA004");
+    expect(result.error?.message).toBe("Ungültige Kautions-ID.");
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["KA008", "Für diesen Mieter ist bereits eine Kaution angelegt."],
+    ["KA003", "Der Datensatz wurde nicht gefunden (evtl. bereits geändert oder gelöscht)."],
+    ["KA001", "Bitte melden Sie sich erneut an."],
+    ["42501", "Für diese Aktion fehlt die Berechtigung (Modul Kautionen)."],
+  ])("maps the database error %s with the fixed text and does not revalidate", async (code, message) => {
+    rpcError(code, `${code}: Datenbanktext`);
+
+    const result = await kautionUebernehmenAction(TENANT_ID, ALTE_KAUTION_ID);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toEqual({ code, message });
+    expect(JSON.stringify(result)).not.toContain("Datenbanktext");
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("maps a database validation error (KA004) with its German message", async () => {
+    rpcError("KA004", "KAUT_EINGABE_UNGUELTIG: Die Kaution gehört nicht zu diesem Mieter.");
+
+    const result = await kautionUebernehmenAction(TENANT_ID, ALTE_KAUTION_ID);
+
+    expect(result.error?.code).toBe("KA004");
+    expect(result.error?.message).toBe("Die Kaution gehört nicht zu diesem Mieter.");
+  });
+
+  it("treats an RPC result that is not an ID as an unclassified error", async () => {
+    rpcOk(null);
+
+    const result = await kautionUebernehmenAction(TENANT_ID, ALTE_KAUTION_ID);
+
+    expect(result).toEqual({ success: false, error: { message: KAUTION_FEHLER_FALLBACK_MESSAGE } });
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("without the right to edit (or without `ansehen`) it is 42501 and no RPC", async () => {
+    mockHasPermission.mockImplementation(async (_modul: string, aktion: string) => aktion === "erstellen");
+
+    const result = await kautionUebernehmenAction(TENANT_ID, ALTE_KAUTION_ID);
+
+    expect(result.error?.code).toBe("42501");
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });
 
@@ -1780,7 +2040,7 @@ describe("error mapping by SQLSTATE (spec 4.5)", () => {
 });
 
 describe("revalidation and logging", () => {
-  it.each(ACTION_CASES.filter((c) => !["getKautionDetailsAction", "getKautionLoeschauswirkungAction", "getKautionBelegUrlAction", "berechneKautionZinsenAction", "getKautionAbrechnungAction"].includes(c.name)))("$name: revalidates /mieter after success only", async (caseItem) => {
+  it.each(ACTION_CASES.filter((c) => !["getKautionDetailsAction", "getKautionenListeAction", "getKautionLoeschauswirkungAction", "getKautionBelegUrlAction", "berechneKautionZinsenAction", "getKautionAbrechnungAction"].includes(c.name)))("$name: revalidates /mieter after success only", async (caseItem) => {
     queueSuccess(caseItem);
     const ok = await caseItem.call();
     expect(ok.success).toBe(true);
@@ -2309,6 +2569,26 @@ describe("getKautionAbrechnungAction (phase 4, read only)", () => {
     expect(result.success).toBe(false);
     expect(result.error?.code).toBe("KA004");
     expect(result.error?.message).toBe("Stichtag: Bitte geben Sie ein gültiges Datum an (JJJJ-MM-TT).");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("passes a specific deposit as p_kaution_id and leaves it out when none is given", async () => {
+    rpcOk(ABRECHNUNG_FIXTURE);
+    await getKautionAbrechnungAction({ tenantId: TENANT_ID, kautionId: KAUTION_ID });
+    expect(mockRpc).toHaveBeenLastCalledWith("get_kaution_abrechnung", { p_mieter_id: TENANT_ID, p_stichtag: null, p_kaution_id: KAUTION_ID });
+
+    rpcOk(ABRECHNUNG_FIXTURE);
+    await getKautionAbrechnungAction({ tenantId: TENANT_ID, kautionId: null });
+    expect(mockRpc).toHaveBeenLastCalledWith("get_kaution_abrechnung", { p_mieter_id: TENANT_ID, p_stichtag: null });
+    expect(mockRpc.mock.calls[1][1]).not.toHaveProperty("p_kaution_id");
+  });
+
+  it("rejects a malformed deposit ID before the RPC (KA004)", async () => {
+    const result = await getKautionAbrechnungAction({ tenantId: TENANT_ID, kautionId: "keine-id" });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("KA004");
+    expect(result.error?.message).toBe("Ungültige Kautions-ID.");
     expect(mockRpc).not.toHaveBeenCalled();
   });
 

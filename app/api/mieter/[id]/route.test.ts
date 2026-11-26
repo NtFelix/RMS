@@ -3,10 +3,10 @@
  */
 import { GET, PATCH } from './route';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { MIETER_SPALTEN_OHNE_KAUTION } from '@/lib/mieter-columns';
+import { MIETER_LESE_SELECT } from '@/lib/mieter-schreibpfad';
 
 /**
- * Leak-Schließung Altfeld "Mieter.kaution" (GH-6) für GET/PATCH /api/mieter/[id].
+ * Leak-Schließung Altfeld "Mieter.kaution" (GH-6) und Personen-Stammdaten (GH-30) für GET/PATCH /api/mieter/[id].
  */
 
 jest.mock('@/lib/supabase-server', () => ({
@@ -37,12 +37,19 @@ function jsonRequest(method: string, body: unknown) {
 
 const params = Promise.resolve({ id: 'm1' });
 const KAUTION_ALTFELD = { amount: 1500, paymentDate: '2025-01-01', status: 'Erhalten' };
+const zeile = {
+  id: 'm1',
+  wohnung_id: null,
+  person: { id: 'p1', anrede: 'frau', vorname: 'Erika', nachname: 'Beispiel', email: null, telefon: null },
+};
 
 describe('/api/mieter/[id]', () => {
   let consoleErrorSpy: jest.SpyInstance;
+  let mockRpc: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRpc = jest.fn();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -51,45 +58,52 @@ describe('/api/mieter/[id]', () => {
   });
 
   describe('GET', () => {
-    it('liest mit expliziter Spaltenliste ohne "kaution" (und mit eingebetteter Wohnung)', async () => {
-      const builder = createBuilder({ data: { id: 'm1', name: 'Beispiel Mieter', wohnung_id: null }, error: null });
+    it('liest mit expliziter Spaltenliste ohne "kaution" und ohne Personenspalten (mit eingebetteter Wohnung)', async () => {
+      const builder = createBuilder({ data: zeile, error: null });
       (createSupabaseServerClient as jest.Mock).mockResolvedValue({ from: jest.fn(() => builder) });
 
       const res = await GET(new Request('http://localhost/api/mieter/m1') as never, { params });
 
       expect(res.status).toBe(200);
       const selectArg: string = builder.select.mock.calls[0][0];
-      expect(selectArg).toBe(`${MIETER_SPALTEN_OHNE_KAUTION}, Wohnungen(id, name)`);
+      expect(selectArg).toBe(`${MIETER_LESE_SELECT}, Wohnungen(id, name)`);
       expect(selectArg).not.toMatch(/\*|kaution/i);
+      expect(await res.json()).toMatchObject({ id: 'm1', name: 'Erika Beispiel' });
     });
   });
 
   describe('PATCH', () => {
-    function mockClient(updateResult: Result) {
+    function mockClient(rpcResult: Result, leseResult: Result = { data: { ...zeile, notiz: 'Neu' }, error: null }) {
       const checkBuilder = createBuilder({ data: { wohnung_id: null }, error: null });
-      const updateBuilder = createBuilder(updateResult);
-      const from = jest.fn().mockReturnValueOnce(checkBuilder).mockReturnValueOnce(updateBuilder);
-      (createSupabaseServerClient as jest.Mock).mockResolvedValue({ from });
-      return { from, updateBuilder };
+      const leseBuilder = createBuilder(leseResult);
+      const from = jest.fn().mockReturnValueOnce(checkBuilder).mockReturnValueOnce(leseBuilder);
+      mockRpc.mockResolvedValue(rpcResult);
+      (createSupabaseServerClient as jest.Mock).mockResolvedValue({ from, rpc: mockRpc });
+      return { from, leseBuilder };
     }
 
-    it('verwirft "kaution" im Body und liest ohne Altfeld zurück', async () => {
-      const { updateBuilder } = mockClient({ data: [{ id: 'm1', notiz: 'Neu' }], error: null });
+    it('ändert über die RPC, verwirft "kaution" im Body und liest ohne Altfeld zurück', async () => {
+      const { leseBuilder } = mockClient({ data: null, error: null });
 
       const res = await PATCH(jsonRequest('PATCH', { notiz: 'Neu', kaution: KAUTION_ALTFELD }), { params });
 
       expect(res.status).toBe(200);
-      expect(updateBuilder.update).toHaveBeenCalledWith({ notiz: 'Neu' });
-      expect(updateBuilder.select).toHaveBeenCalledWith(MIETER_SPALTEN_OHNE_KAUTION);
+      expect(mockRpc).toHaveBeenCalledWith('mieter_aktualisieren', {
+        p_mieter_id: 'm1',
+        p_person: {},
+        p_mieter: { notiz: 'Neu' },
+      });
+      expect(leseBuilder.select).toHaveBeenCalledWith(MIETER_LESE_SELECT);
     });
 
     it('lehnt eine Änderung ab (400), wenn nur das Altfeld "kaution" gesendet wird', async () => {
-      const { from } = mockClient({ data: [], error: null });
+      const { from } = mockClient({ data: null, error: null });
 
       const res = await PATCH(jsonRequest('PATCH', { kaution: KAUTION_ALTFELD }), { params });
 
       expect(res.status).toBe(400);
       expect(from).not.toHaveBeenCalled();
+      expect(mockRpc).not.toHaveBeenCalled();
     });
 
     it('übersetzt den Wohnungswechsel-Fehler (23503, fk_mieter_mietverhaeltnis) in eine verständliche Meldung', async () => {
@@ -101,7 +115,16 @@ describe('/api/mieter/[id]', () => {
       const res = await PATCH(jsonRequest('PATCH', { wohnung_id: 'w2' }), { params });
 
       expect(res.status).toBe(400);
-      expect(await res.json()).toEqual({ error: 'Die Wohnung kann nicht geändert werden, weil der Mieter zu einem Mietverhältnis in der bisherigen Wohnung gehört.' });
+      expect(await res.json()).toEqual({ error: 'Die Wohnung kann hier nicht geändert werden, weil der Mieter zu einem Mietverhältnis gehört. Nutzen Sie im Abschnitt Mietverhältnis den Punkt „Umzug in eine andere Wohnung“.' });
+    });
+
+    it('gibt die Meldung der RPC ohne Präfix zurück (z. B. fehlende Vor- oder Nachnamen)', async () => {
+      mockClient({ data: null, error: { code: 'PE004', message: 'PERSON_EINGABE_UNGUELTIG: Vor- oder Nachname ist erforderlich.' } });
+
+      const res = await PATCH(jsonRequest('PATCH', { vorname: '', nachname: '' }), { params });
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Vor- oder Nachname ist erforderlich.' });
     });
   });
 });

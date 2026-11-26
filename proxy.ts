@@ -15,6 +15,7 @@ const MANAGED_ROUTE_PREFIXES = [
   "/haeuser",
   "/wohnungen",
   "/mieter",
+  "/kontakte",
   "/todos",
   "/mails",
   "/suche",
@@ -28,6 +29,7 @@ const ROUTE_PERMISSIONS: Record<string, string> = {
   "/haeuser": "haeuser",
   "/wohnungen": "wohnungen",
   "/mieter": "mieter",
+  "/kontakte": "kontakte",
   "/finanzen": "finanzen",
   "/betriebskosten": "betriebskosten",
   "/todos": "aufgaben",
@@ -162,7 +164,7 @@ export async function proxy(request: NextRequest) {
             return redirectResponse
           }
         } catch (e) {
-          console.error(`[Proxy] Exception checking permission for ${modul} (org: ${currentOrgId ?? 'private'}):`, e)
+          console.error('[Proxy] Exception checking permission for %s (org: %s):', modul, currentOrgId ?? 'private', e)
           const redirectUrl = request.nextUrl.clone()
           redirectUrl.pathname = '/unauthorized'
           const redirectResponse = NextResponse.redirect(redirectUrl)
@@ -256,6 +258,8 @@ export const config = {
     "/wohnungen/:path*",
     "/mieter",
     "/mieter/:path*",
+    "/kontakte",
+    "/kontakte/:path*",
     "/todos",
     "/todos/:path*",
     "/mails",

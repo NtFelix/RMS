@@ -119,7 +119,7 @@ export function TaskEditModal({ serverAction }: TaskEditModalProps) {
       }
       closeAufgabeModal(); // Will close directly
     } catch (error) {
-      console.error(`Fehler beim ${isEditing ? "Aktualisieren" : "Erstellen"} der Aufgabe:`, error)
+      console.error('Fehler beim %s der Aufgabe:', isEditing ? "Aktualisieren" : "Erstellen", error)
       toast({
         title: "Fehler",
         description: "Die Aufgabe konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",

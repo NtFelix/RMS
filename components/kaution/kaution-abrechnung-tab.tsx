@@ -113,7 +113,8 @@ export function KautionAbrechnungTab({
     // The data the calculation is made from: a reload while the request runs makes the result stale.
     const datenBeimStart = details;
     try {
-      const result = await getKautionAbrechnungAction({ tenantId, stichtag: datumPruefung.value });
+      // The settlement is always for the deposit shown (not for another deposit of the tenant).
+      const result = await getKautionAbrechnungAction({ tenantId, stichtag: datumPruefung.value, kautionId: datenBeimStart.kaution.id });
       if (result.success) {
         setBerechnung({ stichtag: datumPruefung.value, details: datenBeimStart, abrechnung: result.data ?? null });
       } else {
@@ -292,6 +293,7 @@ export function KautionAbrechnungTab({
 
       <KautionAbrechnungPdf
         tenantId={tenantId}
+        kautionId={details.kaution.id}
         // Only the settlement date of a current calculation: without it the PDF buttons stay disabled.
         stichtag={abrechnung !== null && aktuell !== null ? aktuell.stichtag : null}
         darfAnsehen={rechte.ansehen}

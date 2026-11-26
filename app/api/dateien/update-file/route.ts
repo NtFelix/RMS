@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
         }
 
         lastError = newUploadError
-        console.log(`Upload attempt ${attempt + 1} failed:`, newUploadError)
+        console.log('Upload attempt %d failed:', attempt + 1, newUploadError)
       }
 
       if (!uploadSuccess) {

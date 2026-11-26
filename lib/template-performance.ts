@@ -16,6 +16,8 @@ function debounce<T extends (...args: any[]) => any>(
   };
 }
 import { Template } from '@/types/template';
+import { MENTION_VARIABLES } from '@/lib/template-constants';
+import { BEDINGUNG_NODE_NAME, formatBedingungPraefix, type BedingungAttrs } from '@/lib/vorlagen/bedingungen';
 
 // Debounce delay constants
 export const DEBOUNCE_DELAYS = {
@@ -325,7 +327,7 @@ export function extractTextPreview(content: any, maxLength: number = 120): strin
 export function extractRichTextPreview(content: any, maxLength: number = 120): { 
   text: string; 
   hasHighlights: boolean;
-  segments: Array<{ text: string; isMention: boolean; mentionId?: string; mentionLabel?: string }>;
+  segments: Array<{ text: string; isMention: boolean; mentionId?: string; mentionLabel?: string; isBedingung?: boolean }>;
 } {
   if (!content || !content.content) {
     return { text: '', hasHighlights: false, segments: [] };
@@ -335,7 +337,7 @@ export function extractRichTextPreview(content: any, maxLength: number = 120): {
   const endTimer = monitor.startTimer('rich-text-extraction');
   
   try {
-    const segments: Array<{ text: string; isMention: boolean; mentionId?: string; mentionLabel?: string }> = [];
+    const segments: Array<{ text: string; isMention: boolean; mentionId?: string; mentionLabel?: string; isBedingung?: boolean }> = [];
     let hasHighlights = false;
     
     const extractFromNode = (node: any): void => {
@@ -353,6 +355,18 @@ export function extractRichTextPreview(content: any, maxLength: number = 120): {
           mentionId: node.attrs?.id,
           mentionLabel: mentionLabel
         });
+      } else if (node.type === BEDINGUNG_NODE_NAME) {
+        // Bedingter Block: Kurzbeschreibung der Bedingung, danach der Inhalt des Blocks.
+        const attrs = (node.attrs ?? {}) as Partial<BedingungAttrs>;
+        const variableLabel = MENTION_VARIABLES.find(variable => variable.id === attrs.variable)?.label ?? attrs.variable ?? '';
+        segments.push({
+          text: formatBedingungPraefix(attrs, variableLabel),
+          isMention: false,
+          isBedingung: true
+        });
+        if (Array.isArray(node.content)) {
+          node.content.forEach(extractFromNode);
+        }
       } else if (node.content && Array.isArray(node.content)) {
         node.content.forEach(extractFromNode);
       }

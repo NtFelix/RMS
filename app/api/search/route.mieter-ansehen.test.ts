@@ -15,20 +15,54 @@ jest.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: jest.fn(),
 }));
 
+// Name steht in der eingebetteten Person (GH-30), nicht als Spalte von "Mieter"
 const wohnungRows = [
   { id: 'w1', name: 'Wohnung 1', groesse: 50, miete: 500, Haeuser: { name: 'Musterhaus' },
-    Mieter: [{ name: 'Erika Beispiel', einzug: '2020-01-01', auszug: null }] },
+    Mieter: [{ einzug: '2020-01-01', auszug: null, person: { id: 'p1', vorname: 'Erika', nachname: 'Beispiel' } }] },
   { id: 'w2', name: 'Wohnung 2', groesse: 60, miete: 600, Haeuser: { name: 'Musterhaus' },
-    Mieter: [{ name: 'Max Muster', einzug: '2015-01-01', auszug: '2016-01-01' }] },
+    Mieter: [{ einzug: '2015-01-01', auszug: '2016-01-01', person: { id: 'p2', vorname: 'Max', nachname: 'Muster' } }] },
 ];
+
+/** Zerlegt eine Spaltenliste an den Kommas der obersten Ebene (Klammern bleiben erhalten). */
+function obersteSpalten(inhalt: string): string[] {
+  const teile: string[] = [];
+  let tiefe = 0;
+  let aktuell = '';
+  for (const zeichen of inhalt) {
+    if (zeichen === '(') tiefe += 1;
+    if (zeichen === ')') tiefe -= 1;
+    if (zeichen === ',' && tiefe === 0) {
+      teile.push(aktuell.trim());
+      aktuell = '';
+    } else {
+      aktuell += zeichen;
+    }
+  }
+  if (aktuell.trim()) teile.push(aktuell.trim());
+  return teile;
+}
+
+/** Inhalt von `Mieter!left(...)` mit verschachtelten Klammern (die Person ist eingebettet). */
+function mieterLeftInhalt(columns: string): string {
+  const start = columns.indexOf('Mieter!left(');
+  if (start < 0) return '';
+  const inhaltStart = start + 'Mieter!left('.length;
+  let tiefe = 1;
+  for (let i = inhaltStart; i < columns.length; i += 1) {
+    if (columns[i] === '(') tiefe += 1;
+    if (columns[i] === ')') tiefe -= 1;
+    if (tiefe === 0) return columns.slice(inhaltStart, i);
+  }
+  return '';
+}
 
 /** Filtert die verschachtelten Mieterspalten nach dem `Mieter!left(...)`-Teil des Selects (wie PostgREST). */
 function filterByEmbeddedColumns(columns: string) {
-  const match = columns.match(/Mieter!left\(([^)]*)\)/);
-  const wanted = match ? match[1].split(',').map(c => c.trim()) : [];
+  const wanted = obersteSpalten(mieterLeftInhalt(columns));
+  const wantedKeys = wanted.map(c => c.split(/[:(]/)[0].trim());
   return wohnungRows.map(w => ({
     ...w,
-    Mieter: w.Mieter.map(m => Object.fromEntries(Object.entries(m).filter(([k]) => wanted.includes(k)))),
+    Mieter: w.Mieter.map(m => Object.fromEntries(Object.entries(m).filter(([k]) => wantedKeys.includes(k)))),
   }));
 }
 
@@ -49,7 +83,7 @@ function setup() {
       }
       return builder;
     });
-    for (const method of ['or', 'order', 'limit', 'not', 'eq', 'in', 'ilike']) {
+    for (const method of ['or', 'order', 'limit', 'not', 'eq', 'neq', 'in', 'ilike']) {
       builder[method] = jest.fn(() => builder);
     }
     builder.then = (resolve: (v: unknown) => unknown) => Promise.resolve({ data: rows, error: null }).then(resolve);
@@ -84,7 +118,7 @@ describe('GET /api/search (apartment): mieter:ansehen', () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(selects[0]).toContain('Mieter!left(name, einzug, auszug)');
+    expect(selects[0]).toContain('Mieter!left(einzug, auszug, person:Personen!fk_mieter_person(');
     const [w1, w2] = data.results.apartment;
     expect(w1).toEqual(expect.objectContaining({ name: 'Wohnung 1', status: 'rented' }));
     expect(w1.current_tenant).toEqual({ name: 'Erika Beispiel', move_in_date: '2020-01-01' });
@@ -103,7 +137,7 @@ describe('GET /api/search (apartment): mieter:ansehen', () => {
 
     expect(res.status).toBe(200);
     expect(selects[0]).toContain('Mieter!left(auszug)');
-    expect(selects[0]).not.toMatch(/Mieter!left\([^)]*name/);
+    expect(selects[0]).not.toMatch(/Mieter!left\([^)]*person/);
     const [w1, w2] = data.results.apartment;
     expect(w1).toEqual(expect.objectContaining({ name: 'Wohnung 1', status: 'rented', tenant_access: false }));
     expect(w2).toEqual(expect.objectContaining({ name: 'Wohnung 2', status: 'free', tenant_access: false }));

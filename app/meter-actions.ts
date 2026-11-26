@@ -7,6 +7,7 @@ import type { Zaehler, ZaehlerAblesung, Wohnung, Mieter } from "@/lib/types";
 import { logAction } from '@/lib/logging-middleware';
 import { capturePostHogEvent } from '@/lib/posthog-helpers';
 import { checkTenantViewAccess, applyTenantAccess, type TenantViewAccess, type WithheldTenantFields } from '@/lib/tenant-view-access';
+import { MIETER_PERSON_EMBED, mitPersonenfeldern, type Person } from '@/lib/personen';
 
 type SupabaseClientType = SupabaseClient;
 
@@ -197,14 +198,24 @@ async function getMeterForHausFallback(
       tenantAccess.canViewTenants
         ? supabase
           .from("Mieter")
-          .select("id, name, wohnung_id, einzug, auszug")
+          .select(`id, wohnung_id, einzug, auszug, ${MIETER_PERSON_EMBED}`)
           .in("wohnung_id", wohnungIds)
-          .order('name', { ascending: true })
         : { data: null, error: null }
     ]);
 
     if (readingsError) throw readingsError;
     if (mieterError) throw mieterError;
+
+    // Name from the person (Personen); sorted by name as the query used to order it
+    const mieterListe = ((mieter || []) as unknown as Array<{
+      id: string;
+      wohnung_id: string | null;
+      einzug: string | null;
+      auszug: string | null;
+      person?: Person | Person[] | null;
+    }>)
+      .map(mitPersonenfeldern)
+      .sort((a, b) => a.name.localeCompare(b.name, 'de'));
 
     return {
       success: true,
@@ -212,7 +223,7 @@ async function getMeterForHausFallback(
         wohnungen: (wohnungen || []) as unknown as WohnungBasic[],
         meters: (meters || []) as unknown as Zaehler[],
         readings: (readings || []) as unknown as ZaehlerAblesung[],
-        ...applyTenantAccess(tenantAccess, (mieter || []) as unknown as MieterBasic[])
+        ...applyTenantAccess(tenantAccess, mieterListe as unknown as MieterBasic[])
       }
     };
   } catch (error: unknown) {

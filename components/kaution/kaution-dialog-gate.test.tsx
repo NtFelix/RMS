@@ -5,7 +5,9 @@ let mockFlagAktiv = false;
 let mockRecht = false;
 let mockOffen = false;
 let mockDirty = false;
+let mockAuswahlOffen = false;
 const mockCloseKautionModal = jest.fn();
+const mockCloseKautionAuswahl = jest.fn();
 jest.mock('posthog-js/react', () => ({
   useFeatureFlagEnabled: () => mockFlagAktiv,
   useFeatureFlagPayload: () => undefined,
@@ -17,14 +19,18 @@ jest.mock('@/hooks/use-modal-store', () => ({
       closeKautionModal: mockCloseKautionModal,
       isKautionModalOpen: mockOffen,
       isKautionModalDirty: mockDirty,
+      kautionAuswahl: mockAuswahlOffen ? { tenant: {}, eintraege: [] } : null,
+      closeKautionAuswahl: mockCloseKautionAuswahl,
     }),
 }));
 
 describe('KautionDialogGate', () => {
   beforeEach(() => {
     mockCloseKautionModal.mockClear();
+    mockCloseKautionAuswahl.mockClear();
     mockOffen = false;
     mockDirty = false;
+    mockAuswahlOffen = false;
   });
 
   it.each([
@@ -64,5 +70,24 @@ describe('KautionDialogGate', () => {
     mockDirty = dirty;
     rendereGate();
     expect(mockCloseKautionModal).not.toHaveBeenCalled();
+  });
+
+  it('clears an open deposit selection while hidden', () => {
+    mockRecht = true;
+    mockFlagAktiv = false;
+    mockAuswahlOffen = true;
+    rendereGate();
+    expect(mockCloseKautionAuswahl).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { name: 'no selection is open', auswahl: false, flag: false },
+    { name: 'the dialog is shown', auswahl: true, flag: true },
+  ])('does not clear the selection when $name', ({ auswahl, flag }) => {
+    mockRecht = true;
+    mockFlagAktiv = flag;
+    mockAuswahlOffen = auswahl;
+    rendereGate();
+    expect(mockCloseKautionAuswahl).not.toHaveBeenCalled();
   });
 });
