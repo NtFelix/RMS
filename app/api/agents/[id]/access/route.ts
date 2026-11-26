@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { z } from 'zod';
 
 const setAccessSchema = z.object({
-  mitgliedId: z.string().uuid(),
+  mitgliedId: z.uuid(),
   zugriffsLevel: z.enum(['view', 'manage', 'results_only']),
 });
 

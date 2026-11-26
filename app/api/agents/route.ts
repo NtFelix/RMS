@@ -10,12 +10,12 @@ const createAgentSchema = z.object({
   anweisungen: z.string().min(1),
   trigger: z.object({
     type: z.enum(['manual', 'cron', 'webhook', 'db_event']),
-    config: z.record(z.any()).optional().default({}),
+    config: z.record(z.string(), z.any()).optional().default({}),
   }),
-  aktionen: z.array(z.object({ type: z.string(), config: z.record(z.any()).optional().default({}) })).optional().default([]),
-  benachrichtigungs_kanaele: z.array(z.object({ type: z.string(), config: z.record(z.any()).optional().default({}) })).optional().default([]),
+  aktionen: z.array(z.object({ type: z.string(), config: z.record(z.string(), z.any()).optional().default({}) })).optional().default([]),
+  benachrichtigungs_kanaele: z.array(z.object({ type: z.string(), config: z.record(z.string(), z.any()).optional().default({}) })).optional().default([]),
   berechtigungen: z.object({
-    module: z.record(z.array(z.string())).optional().default({}),
+    module: z.record(z.string(), z.array(z.string())).optional().default({}),
     objekte: z.object({ haeuser: z.array(z.string()).nullable().optional() }).optional().default({ haeuser: null }),
   }).optional(),
 });

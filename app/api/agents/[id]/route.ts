@@ -10,13 +10,13 @@ const updateAgentSchema = z.object({
   anweisungen: z.string().min(1).optional(),
   trigger: z.object({
     type: z.enum(['manual', 'cron', 'webhook', 'db_event']),
-    config: z.record(z.any()).optional().default({}),
+    config: z.record(z.string(), z.any()).optional().default({}),
   }).optional(),
-  aktionen: z.array(z.object({ type: z.string(), config: z.record(z.any()).optional().default({}) })).optional(),
-  benachrichtigungs_kanaele: z.array(z.object({ type: z.string(), config: z.record(z.any()).optional().default({}) })).optional(),
+  aktionen: z.array(z.object({ type: z.string(), config: z.record(z.string(), z.any()).optional().default({}) })).optional(),
+  benachrichtigungs_kanaele: z.array(z.object({ type: z.string(), config: z.record(z.string(), z.any()).optional().default({}) })).optional(),
   status: z.enum(['entwurf', 'aktiv', 'pausiert']).optional(),
   berechtigungen: z.object({
-    module: z.record(z.array(z.string())).optional().default({}),
+    module: z.record(z.string(), z.array(z.string())).optional().default({}),
     objekte: z.object({ haeuser: z.array(z.string()).nullable().optional() }).optional().default({ haeuser: null }),
   }).optional(),
 });

@@ -5,7 +5,7 @@ import { agentRuntimeLocalStorage } from '../../mietevo-agent';
 export const fetchFinanzen = {
   description: 'Ruft eine Finanzübersicht ab. Erfordert Berechtigung: finanzen.ansehen.',
   parameters: z.object({
-    hausId: z.string().uuid().optional().describe('Optionale Haus-ID zum Filtern der Finanzen'),
+    hausId: z.uuid().optional().describe('Optionale Haus-ID zum Filtern der Finanzen'),
     limit: z.number().optional().default(50).describe('Maximale Anzahl der Transaktionen'),
   }),
   execute: async (args: any) => {

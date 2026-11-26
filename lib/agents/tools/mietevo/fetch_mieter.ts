@@ -5,7 +5,7 @@ import { agentRuntimeLocalStorage } from '../../mietevo-agent';
 export const fetchMieter = {
   description: 'Ruft eine Liste von Mietern ab. Erfordert Berechtigung: mieter.ansehen.',
   parameters: z.object({
-    hausId: z.string().uuid().optional().describe('Optionale Haus-ID zum Filtern'),
+    hausId: z.uuid().optional().describe('Optionale Haus-ID zum Filtern'),
     search: z.string().optional().describe('Optionaler Suchbegriff für Name/Email'),
     limit: z.number().optional().default(50).describe('Maximale Anzahl der zurückzugebenden Mieter'),
   }),

@@ -22,14 +22,14 @@ const setupBodySchema = z.object({
     if (!data.skipSetup) {
         if (!data.firstName) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: "custom",
                 path: ["firstName"],
                 message: "First name is required when not skipping setup.",
             });
         }
         if (!data.lastName) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: "custom",
                 path: ["lastName"],
                 message: "Last name is required when not skipping setup.",
             });

@@ -7,7 +7,7 @@ export const createAufgabe = {
   parameters: z.object({
     titel: z.string().describe('Titel der Aufgabe'),
     beschreibung: z.string().optional().describe('Optionale Beschreibung/Details der Aufgabe'),
-    hausId: z.string().uuid().optional().describe('Optionale Haus-ID, der die Aufgabe zugeordnet wird'),
+    hausId: z.uuid().optional().describe('Optionale Haus-ID, der die Aufgabe zugeordnet wird'),
   }),
   execute: async (args: any) => {
     const { titel, beschreibung, hausId } = args;
