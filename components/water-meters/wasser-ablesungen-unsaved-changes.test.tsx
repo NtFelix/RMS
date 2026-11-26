@@ -1,6 +1,25 @@
+import type React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { AblesungenModal } from '@/components/meters/ablesungen-modal'
 import { useModalStore } from '@/hooks/use-modal-store'
+
+// Mock framer-motion to avoid AnimatePresence exit-timer issues across consecutive tests in JSDOM
+jest.mock('framer-motion', () => {
+  const stripMotionProps = (props: Record<string, unknown>) =>
+    Object.fromEntries(
+      Object.entries(props).filter(([key]) => !['initial', 'animate', 'exit', 'transition'].includes(key))
+    )
+  return {
+    motion: {
+      div: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
+        <div {...(stripMotionProps(props) as React.HTMLAttributes<HTMLDivElement>)}>{children}</div>
+      ),
+      rect: (props: Record<string, unknown>) => <rect {...(stripMotionProps(props) as React.SVGProps<SVGRectElement>)} />,
+      path: (props: Record<string, unknown>) => <path {...(stripMotionProps(props) as React.SVGProps<SVGPathElement>)} />,
+    },
+    AnimatePresence: ({ children }: React.PropsWithChildren) => <>{children}</>,
+  }
+})
 
 // Mock the modal store
 jest.mock('@/hooks/use-modal-store')
@@ -254,12 +273,12 @@ describe('AblesungenModal - Unsaved Changes Detection', () => {
       fireEvent.click(editButton)
 
       await waitFor(() => {
-        const editInput = screen.getByDisplayValue('15,500')
+        const editInput = screen.getByDisplayValue('15,5')
         expect(editInput).toBeInTheDocument()
       })
 
       // Change the verbrauch value
-      const verbrauchInput = screen.getByDisplayValue('15,500')
+      const verbrauchInput = screen.getByDisplayValue('15,5')
       fireEvent.change(verbrauchInput, { target: { value: '20.0' } })
 
       // Should set dirty state to true
