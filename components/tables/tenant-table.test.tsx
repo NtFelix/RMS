@@ -1,6 +1,7 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { TenantTable } from './tenant-table';
+import type { TenantSortKey, SortDirection } from './tenant-table';
 import { Tenant } from '@/types/Tenant';
 
 // Mock next/navigation
@@ -185,5 +186,117 @@ describe('TenantTable Kaution (GH-6)', () => {
     expect(mockOeffneKaution).toHaveBeenCalledTimes(1);
     // exakt ein Argument: kein zweiter Parameter mit Kautionsdaten
     expect(mockOeffneKaution).toHaveBeenCalledWith({ id: '1', name: 'Active Tenant', wohnung_id: 'w1' });
+  });
+});
+
+// Kopfzeile und Sortierung im Stil der Rail-Layout-Tabellen (wie die Häuser-Tabelle)
+describe('TenantTable header and sorting', () => {
+  const wohnungen = [{ id: 'w1', name: 'Apartment 1' }];
+  const tenants: Tenant[] = [
+    { id: '1', name: 'Berta', email: 'b@example.com', wohnung_id: 'w1', einzug: '2023-01-01' },
+    { id: '2', name: 'Anton', email: 'z@example.com', wohnung_id: 'w1', einzug: '2023-01-01' },
+    { id: '3', name: 'Clara', email: 'a@example.com', wohnung_id: 'w1', einzug: '2023-01-01' },
+  ];
+
+  const names = () =>
+    screen
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => within(row).getByRole('checkbox').getAttribute('aria-label')?.replace(/^Mieter (.*) auswählen$/, '$1'));
+  const headerButton = (name: RegExp) => within(screen.getByRole('columnheader', { name })).getByRole('button');
+
+  const renderTable = (props: Partial<React.ComponentProps<typeof TenantTable>> = {}) =>
+    render(<TenantTable tenants={tenants} wohnungen={wohnungen} filter="all" searchQuery="" {...props} />);
+
+  it('renders the header row without background, with a stronger bottom border', () => {
+    renderTable();
+
+    const headerRow = screen.getAllByRole('row')[0];
+    expect(headerRow).toHaveClass('border-b', 'border-foreground/15');
+    expect(headerRow.className).not.toMatch(/bg-gray-50|22272e|hover:scale/);
+  });
+
+  it('styles the column labels as semibold 13px foreground text without wrapping', () => {
+    renderTable();
+
+    const cell = screen.getByRole('columnheader', { name: /Name/ });
+    expect(cell).toHaveClass('whitespace-nowrap', 'text-[13px]', 'font-semibold', 'text-foreground');
+    expect(cell.querySelector('svg')).toHaveClass('size-3.5', 'text-muted-foreground');
+  });
+
+  it('shows the sort hint only on hover or focus of inactive columns and keeps the active arrow visible', () => {
+    renderTable();
+
+    const inactiveIcons = within(screen.getByRole('columnheader', { name: /E-Mail/ })).getAllByRole('button')[0].querySelectorAll('svg');
+    expect(inactiveIcons[inactiveIcons.length - 1]).toHaveClass('opacity-0', 'group-hover/header:opacity-100', 'group-focus-within/header:opacity-100');
+
+    const activeIcons = headerButton(/Name/).querySelectorAll('svg');
+    expect(activeIcons[activeIcons.length - 1]).not.toHaveClass('opacity-0');
+  });
+
+  it('announces the active sort with aria-sort', () => {
+    renderTable();
+
+    expect(screen.getByRole('columnheader', { name: /Name/ })).toHaveAttribute('aria-sort', 'ascending');
+    expect(screen.getByRole('columnheader', { name: /E-Mail/ })).not.toHaveAttribute('aria-sort');
+  });
+
+  it('wraps the row checkboxes so they are vertically centred', () => {
+    renderTable();
+
+    const checkbox = screen.getByRole('checkbox', { name: 'Mieter Anton auswählen' });
+    expect(checkbox.parentElement).toHaveClass('flex', 'items-center');
+  });
+
+  it('sorts itself when uncontrolled (name ascending, toggling on click)', () => {
+    renderTable();
+    expect(names()).toEqual(['Anton', 'Berta', 'Clara']);
+
+    fireEvent.click(headerButton(/Name/));
+    expect(names()).toEqual(['Clara', 'Berta', 'Anton']);
+    expect(screen.getByRole('columnheader', { name: /Name/ })).toHaveAttribute('aria-sort', 'descending');
+
+    fireEvent.click(headerButton(/E-Mail/));
+    expect(names()).toEqual(['Clara', 'Berta', 'Anton']);
+    expect(screen.getByRole('columnheader', { name: /E-Mail/ })).toHaveAttribute('aria-sort', 'ascending');
+  });
+
+  describe('controlled sorting', () => {
+    it('shows the given sort and does not sort on its own when the header is clicked', () => {
+      const onSortChange = jest.fn();
+      renderTable({ sortKey: 'email', sortDirection: 'desc', onSortChange });
+
+      expect(names()).toEqual(['Anton', 'Berta', 'Clara']);
+      expect(screen.getByRole('columnheader', { name: /E-Mail/ })).toHaveAttribute('aria-sort', 'descending');
+
+      fireEvent.click(headerButton(/Name/));
+      expect(onSortChange).toHaveBeenCalledWith('name', 'asc');
+      // Zeilenreihenfolge ändert nur der Aufrufer
+      expect(names()).toEqual(['Anton', 'Berta', 'Clara']);
+    });
+
+    it('toggles the direction of the active column', () => {
+      const onSortChange = jest.fn<void, [TenantSortKey, SortDirection]>();
+      renderTable({ sortKey: 'name', sortDirection: 'asc', onSortChange });
+
+      fireEvent.click(headerButton(/Name/));
+      expect(onSortChange).toHaveBeenLastCalledWith('name', 'desc');
+    });
+
+    it('follows the props when the parent changes them', () => {
+      const { rerender } = renderTable({ sortKey: 'name', sortDirection: 'asc', onSortChange: jest.fn() });
+      expect(names()).toEqual(['Anton', 'Berta', 'Clara']);
+
+      rerender(<TenantTable tenants={tenants} wohnungen={wohnungen} filter="all" searchQuery="" sortKey="email" sortDirection="asc" onSortChange={jest.fn()} />);
+      expect(names()).toEqual(['Clara', 'Berta', 'Anton']);
+    });
+
+    it('stays uncontrolled unless all three props are given', () => {
+      renderTable({ sortKey: 'email', sortDirection: 'desc' });
+
+      // Ohne onSortChange gilt der interne Zustand (Name aufsteigend)
+      expect(names()).toEqual(['Anton', 'Berta', 'Clara']);
+      expect(screen.getByRole('columnheader', { name: /Name/ })).toHaveAttribute('aria-sort', 'ascending');
+    });
   });
 });

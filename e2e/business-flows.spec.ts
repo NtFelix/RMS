@@ -300,7 +300,8 @@ test.describe('Business Logic Flows', () => {
     await safeNavigate(page, '/mieter');
 
     // Wait for the page content to fully load (look for a key element)
-    await expect(page.getByText('Mieterverwaltung').first()).toBeAttached({ timeout: 15000 });
+    // Neues Layout: die Kennzahl in der Secondary Rail erscheint erst mit den Daten
+    await expect(page.getByText('Mieter gesamt').first()).toBeAttached({ timeout: 15000 });
 
 
     // Open modal - button shows "Hinzufügen" on mobile, "Mieter hinzufügen" on desktop

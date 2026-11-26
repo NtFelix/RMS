@@ -130,13 +130,19 @@ export type ToolbarFilterGroup = {
   options: { value: string; label: string; count?: number }[]
   /** Empty = no filter on this group. */
   selected: string[]
+  /** Selection of the default view (e.g. only current tenants); the group counts as filtered only when it differs. */
+  defaultSelected?: string[]
   /** Single-select groups toggle: choosing the selected option again clears the group. */
   multiple?: boolean
   onChange: (selected: string[]) => void
 }
 
 export function ToolbarFilterMenu({ groups, onReset }: { groups: ToolbarFilterGroup[]; onReset?: () => void }) {
-  const activeCount = groups.filter((g) => g.selected.length > 0).length
+  const isFiltered = (g: ToolbarFilterGroup) => {
+    const base = g.defaultSelected ?? []
+    return g.selected.length !== base.length || g.selected.some((v) => !base.includes(v))
+  }
+  const activeCount = groups.filter(isFiltered).length
 
   const toggle = (group: ToolbarFilterGroup, value: string) => {
     const isSelected = group.selected.includes(value)

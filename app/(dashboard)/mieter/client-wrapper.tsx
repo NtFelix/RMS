@@ -4,41 +4,43 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useTabParams } from "@/hooks/use-tab-params";
-import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
-import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
-import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useKautionOeffnen } from "@/hooks/use-kaution-oeffnen";
-import { PlusCircle, Users, BadgeCheck, Euro, Search, Building2, BarChart3 } from "lucide-react";
+import { Plus, Users, BadgeCheck, Euro, Building2, BarChart3, ChevronDown, UserPlus, Mail, LogIn, LogOut, Clock, TrendingUp, Coins, Trash2 } from "lucide-react";
 import { StatCard } from "@/components/common/stat-card";
-import { TenantTable } from "@/components/tables/tenant-table";
+import { TenantTable, type TenantSortKey, type SortDirection } from "@/components/tables/tenant-table";
 import { TenantBulkActionBar } from "@/components/tenants/tenant-bulk-action-bar";
-import { SearchInput } from "@/components/ui/search-input";
+import {
+  SecondaryRail,
+  RailSection,
+  RailNavItem,
+  RailStats,
+  RailStat,
+  PageTopBar,
+  ToolbarFilterMenu,
+  ToolbarSortMenu,
+  ToolbarSearch,
+  ToolbarPrimaryButton,
+} from "@/components/dashboard/shell";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { bewerberLadenAction, bewerberAlleLoeschenAction, type BewerberListenEintrag } from "@/app/bewerber-actions";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { useOnboardingStore } from "@/hooks/use-onboarding-store";
-import { STAT_CARD_ROW_CLASS } from "@/components/skeletons/stat-cards-skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SearchInput } from "@/components/ui/search-input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ApplicantImportModal } from "@/components/tenants/applicant-import-modal";
 import { ApplicantScoreModal } from "@/components/tenants/applicant-score-modal";
 import { MailPreviewModal } from "@/components/mail-preview-modal";
-import { ChevronDown, UserPlus, Mail, LogIn, LogOut, Clock, ArrowUpRight, TrendingUp, Coins, Percent } from "lucide-react";
-import { TenantsDonutChart } from "@/components/dashboard/dashboard-charts";
 import { TenantFluctuationChart } from "@/components/dashboard/dashboard-charts-wrapper";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Legend, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 
-
-import { Trash2 } from "lucide-react";
-import type { Tenant, TenantStatus } from "@/types/Tenant";
+import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
+import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 
 const currencyFormatter = new Intl.NumberFormat("de-DE", {
   style: "currency",
@@ -96,8 +98,90 @@ interface MieterClientViewProps {
   canViewKautionen?: boolean;
 }
 
-// Internal AddTenantButton (could be kept from previous step if preferred)
+type Tab = "mieter" | "bewerber" | "overview";
+type TenantFilter = "current" | "previous" | "all";
 
+const TENANT_FILTERS: { value: TenantFilter; label: string }[] = [
+  { value: "current", label: "Aktuelle Mieter" },
+  { value: "previous", label: "Vorherige Mieter" },
+  { value: "all", label: "Alle Mieter" },
+];
+
+const TENANT_SORT_OPTIONS: { value: TenantSortKey; label: string }[] = [
+  { value: "name", label: "Name" },
+  { value: "email", label: "E-Mail" },
+  { value: "telefonnummer", label: "Telefon" },
+  { value: "wohnung", label: "Wohnung" },
+  { value: "nebenkosten", label: "Nebenkosten" },
+];
+
+// Disabled Buttons feuern keine Pointer-Events: Tooltip hängt am umgebenden span
+function NoCreatePermissionTooltip({ children }: { children: React.ReactNode }) {
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-block cursor-not-allowed">{children}</span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="center" sideOffset={5}>
+          Keine Berechtigung zum Erstellen
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function AddTenantButton({ onAdd, canCreate }: { onAdd: () => void; canCreate: boolean }) {
+  const button = (
+    <ToolbarPrimaryButton icon={Plus} aria-label="Mieter hinzufügen" disabled={!canCreate} onClick={onAdd}>
+      Neuer Mieter
+    </ToolbarPrimaryButton>
+  );
+
+  return canCreate ? button : <NoCreatePermissionTooltip>{button}</NoCreatePermissionTooltip>;
+}
+
+// Bewerber lassen sich per Hand anlegen oder (hinter dem Feature Flag) aus E-Mails importieren: daher ein Menü
+function AddApplicantMenu({ onAdd, onImport, canCreate }: { onAdd: () => void; onImport?: () => void; canCreate: boolean }) {
+  const button = (
+    <ToolbarPrimaryButton icon={Plus} aria-label="Bewerber hinzufügen" disabled={!canCreate}>
+      <span className="inline-flex items-center gap-1.5">
+        Neuer Bewerber
+        <ChevronDown className="size-4 opacity-70" aria-hidden="true" />
+      </span>
+    </ToolbarPrimaryButton>
+  );
+
+  if (!canCreate) return <NoCreatePermissionTooltip>{button}</NoCreatePermissionTooltip>;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>{button}</DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuItem onSelect={() => setTimeout(onAdd, 0)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+          <div className="flex items-center font-medium">
+            <UserPlus className="mr-2 size-4" />
+            Bewerber hinzufügen
+          </div>
+          <span className="text-xs text-muted-foreground ml-6">
+            Erstellen Sie einen neuen Bewerber per Hand.
+          </span>
+        </DropdownMenuItem>
+        {onImport && (
+          <DropdownMenuItem onSelect={() => setTimeout(onImport, 0)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+            <div className="flex items-center font-medium">
+              <Mail className="mr-2 size-4" />
+              Aus E-Mails importieren
+            </div>
+            <span className="text-xs text-muted-foreground ml-6">
+              Die KI analysiert E-Mails und erstellt automatisch Bewerber-Profile.
+            </span>
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 // This is the new main client component, previously MieterPageClientComponent in page.tsx
 import { useFeatureFlagEnabled } from "posthog-js/react";
@@ -110,7 +194,6 @@ const VALID_MIETER_TABS_WITH_BEWERBER = ["mieter", "overview", "bewerber"] as co
 export default function MieterClientView({
   initialTenants,
   initialWohnungen,
-  serverAction,
   canCreate = true,
   canEdit = true,
   canDelete = true,
@@ -125,9 +208,11 @@ export default function MieterClientView({
   const rawFlag = useFeatureFlagEnabled('applicants-tab');
   const showApplicantsTab = !!rawFlag;
   const validTabs = showApplicantsTab ? VALID_MIETER_TABS_WITH_BEWERBER : VALID_MIETER_TABS_DEFAULT;
-  const [filter, setFilter] = useState<"current" | "previous" | "all">("current");
-  const [currentTab, setCurrentTab] = useTabParams<"mieter" | "bewerber" | "overview">("mieter", validTabs);
+  const [filter, setFilter] = useState<TenantFilter>("current");
+  const [currentTab, setCurrentTab] = useTabParams<Tab>("mieter", validTabs);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [sortKey, setSortKey] = useState<TenantSortKey>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set());
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
@@ -613,8 +698,8 @@ export default function MieterClientView({
     try {
       // Pass initialWohnungen. The serverAction is passed to TenantEditModal in layout.tsx
       // We want to pass the current tab as the default status for the new tenant
-      // We do this by passing a partial object with just the status
-      const defaultStatus = { status: currentTab };
+      // We do this by passing a partial object with just the status. Die Übersicht legt Mieter an.
+      const defaultStatus = { status: currentTab === "bewerber" ? "bewerber" : "mieter" };
       openTenantModal(defaultStatus, initialWohnungen);
     } catch (error) {
       console.error('Error opening tenant modal:', error);
@@ -704,6 +789,30 @@ export default function MieterClientView({
     })
   }, [selectedTenants, initialTenants, bewerber, wohnungsMap, escapeCsvValue])
 
+  const handleTabChange = (tab: Tab) => {
+    setCurrentTab(tab);
+    setSelectedTenants(new Set());
+    if (tab !== "overview") setFilter("current");
+    // Die Tabelle wird pro Tab neu aufgebaut und begann bisher immer bei "Name, aufsteigend"
+    setSortKey("name");
+    setSortDirection("asc");
+  };
+
+  const handleSortChange = (key: TenantSortKey, direction: SortDirection) => {
+    setSortKey(key);
+    setSortDirection(direction);
+  };
+
+  // Zähler der Filter-Einträge: dasselbe Prädikat wie in TenantTable
+  const filterCounts = useMemo(() => {
+    const todayStr = getTodayISOString();
+    return {
+      current: initialTenants.filter((t) => isTenantActive(t.auszug, todayStr)).length,
+      previous: initialTenants.filter((t) => !isTenantActive(t.auszug, todayStr)).length,
+      all: initialTenants.length,
+    };
+  }, [initialTenants]);
+
   const handleDeleteAllApplicants = async () => {
     setIsDeletingAll(true);
     try {
@@ -731,180 +840,166 @@ export default function MieterClientView({
     }
   };
 
+  const isOverview = currentTab === "overview";
+  const isApplicants = currentTab === "bewerber";
+  const toolbarSortOptions = TENANT_SORT_OPTIONS.map((o) =>
+    o.value === "nebenkosten" && isApplicants ? { ...o, label: "Score" } : o
+  );
+
   return (
-    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
+    <div className="flex flex-col min-h-full">
+      <SecondaryRail title="Mieter">
+        <RailSection label="Ansichten">
+          <RailNavItem
+            icon={Users}
+            label="Mieter"
+            active={currentTab === "mieter"}
+            onClick={() => handleTabChange("mieter")}
+          />
+          {showApplicantsTab && (
+            <RailNavItem
+              icon={UserPlus}
+              label="Bewerber"
+              active={isApplicants}
+              onClick={() => handleTabChange("bewerber")}
+            />
+          )}
+          <RailNavItem
+            icon={BarChart3}
+            label="Übersicht"
+            active={isOverview}
+            onClick={() => handleTabChange("overview")}
+          />
+        </RailSection>
 
-      <div className="flex flex-col gap-6">
-        <AnimatedPillToggle
-          tabs={[
-            { value: "mieter", label: "Mieter", icon: Users },
-            ...(showApplicantsTab ? [{ value: "bewerber" as const, label: "Bewerber", icon: UserPlus }] : []),
-            { value: "overview", label: "Übersicht", icon: BarChart3 },
-          ]}
-          activeTab={currentTab}
-          onTabChange={(tab) => {
-            setCurrentTab(tab);
-            setSelectedTenants(new Set());
-            if (tab !== "overview") setFilter("current");
-          }}
-          layoutId="active-tenant-tab-pill"
-          className={showApplicantsTab ? "sm:w-[380px]" : "sm:w-[260px]"}
-        />
-
-        {currentTab !== "overview" ? (
-          <>
-            <div className={`${STAT_CARD_ROW_CLASS} animate-in fade-in duration-300`}>
-              <StatCard
-                title={currentTab === 'mieter' ? "Mieter gesamt" : "Bewerber gesamt"}
+        {!isOverview && (
+          <RailSection label="Kennzahlen">
+            <RailStats>
+              <RailStat
+                label={isApplicants ? "Bewerber gesamt" : "Mieter gesamt"}
                 value={summary.total}
                 icon={<Users className="size-4 text-muted-foreground" />}
-                className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
               />
-              {currentTab === 'mieter' && (
+              {currentTab === "mieter" && (
                 <>
-                  <StatCard
-                    title="Aktiv / Ehemalig"
+                  <RailStat
+                    label="Aktiv / Ehemalig"
                     value={`${summary.activeCount} / ${summary.formerCount}`}
                     icon={<BadgeCheck className="size-4 text-muted-foreground" />}
-                    className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
                   />
-                  <StatCard
-                    title="Ø Nebenkosten"
-                    value={summary.avgUtilities}
-                    unit="€"
-                    decimals
+                  <RailStat
+                    label="Ø Nebenkosten"
+                    value={currencyFormatter.format(summary.avgUtilities)}
                     icon={<Euro className="size-4 text-muted-foreground" />}
-                    className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
                   />
                 </>
               )}
-            </div>
+            </RailStats>
+          </RailSection>
+        )}
 
-            <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] animate-in fade-in duration-300">
-              <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <CardTitle>{currentTab === 'mieter' ? 'Mieterverwaltung' : 'Bewerberverwaltung'}</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1 hidden sm:block">
-                      {currentTab === 'mieter' ? 'Verwalten Sie hier alle Ihre Mieter' : 'Verwalten Sie hier potenzielle Mieter und Interessenten'}
-                    </p>
-                  </div>
-                  <div className="mt-0 sm:mt-1">
-                    {currentTab === 'bewerber' ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <ButtonWithTooltip className="w-full sm:w-auto gap-2" disabled={!canCreate} tooltip="Keine Berechtigung zum Erstellen" showTooltip={!canCreate}>
-                            <PlusCircle className="size-4" />
-                            Hinzufügen
-                            <ChevronDown className="size-4 opacity-50" />
-                          </ButtonWithTooltip>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-64">
-                          <DropdownMenuItem onSelect={() => setTimeout(handleAddTenant, 0)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                            <div className="flex items-center font-medium">
-                              <UserPlus className="mr-2 size-4" />
-                              Bewerber hinzufügen
-                            </div>
-                            <span className="text-xs text-muted-foreground ml-6">
-                              Erstellen Sie einen neuen Bewerber per Hand.
-                            </span>
-                          </DropdownMenuItem>
-                          {applicantsMailImportFlag && (
-                            <DropdownMenuItem onSelect={() => setTimeout(() => setShowImportModal(true), 0)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                              <div className="flex items-center font-medium">
-                                <Mail className="mr-2 size-4" />
-                                Aus E-Mails importieren
-                              </div>
-                              <span className="text-xs text-muted-foreground ml-6">
-                                Die KI analysiert E-Mails und erstellt automatisch Bewerber-Profile.
-                              </span>
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      <ButtonWithTooltip onClick={handleAddTenant} className="w-full sm:w-auto gap-2" disabled={!canCreate} tooltip="Keine Berechtigung zum Erstellen" showTooltip={!canCreate}>
-                        <PlusCircle className="size-4" />
-                        Mieter hinzufügen
-                      </ButtonWithTooltip>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <div className="px-6">
-                <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
-              </div>
+        {currentTab === "mieter" && (
+          <RailSection label="Filter">
+            {TENANT_FILTERS.map(({ value, label }) => (
+              <RailNavItem
+                key={value}
+                data-testid={`filter-${value}`}
+                label={label}
+                active={filter === value}
+                count={filterCounts[value]}
+                onClick={() => setFilter(value)}
+              />
+            ))}
+          </RailSection>
+        )}
 
-              <CardContent className="flex flex-col gap-6">
-                <div className="flex flex-col gap-4 mt-4 sm:mt-6">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    {currentTab === "mieter" ? (
-                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                        {[
-                          { value: "current" as const, shortLabel: "Aktuelle", fullLabel: "Aktuelle Mieter" },
-                          { value: "previous" as const, shortLabel: "Vorherige", fullLabel: "Vorherige Mieter" },
-                          { value: "all" as const, shortLabel: "Alle", fullLabel: "Alle Mieter" },
-                        ].map(({ value, shortLabel, fullLabel }) => (
-                          <ResponsiveFilterButton
-                            key={value}
-                            shortLabel={shortLabel}
-                            fullLabel={fullLabel}
-                            isActive={filter === value}
-                            onClick={() => setFilter(value)}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowDeleteAllConfirm(true)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="mr-2 size-4" />
-                          Alle Bewerber löschen
-                        </Button>
-                      </div>
-                    )}
-                    <SearchInput
-                      placeholder={currentTab === "mieter" ? "Mieter suchen..." : "Bewerber suchen..."}
-                      className="rounded-full"
-                      mode="table"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onClear={() => setSearchQuery("")}
-                    />
-                  </div>
-                  <TenantBulkActionBar
-                    selectedTenants={selectedTenants}
-                    tenants={filteredTenantsByTab}
-                    wohnungsMap={wohnungsMap}
-                    onClearSelection={() => setSelectedTenants(new Set())}
-                    onExport={handleBulkExport}
-                    onUpdate={() => router.refresh()}
-                    canEdit={canEdit}
-                    canDelete={canDelete}
-                    modus={currentTab === "bewerber" ? "bewerber" : "mieter"}
-                  />
-                </div>
-                <TenantTable
-                  key={currentTab}
-                  tenants={filteredTenantsByTab}
-                  wohnungen={initialWohnungen}
-                  filter={currentTab === "mieter" ? filter : "all"}
-                  searchQuery={searchQuery}
-                  onEdit={handleEditTenantInTable}
-                  selectedTenants={selectedTenants}
-                  onSelectionChange={setSelectedTenants}
-                  mode={currentTab === "mieter" ? "tenants" : "applicants"}
-                  canEdit={canEdit}
-                  canDelete={canDelete}
-                  canViewKautionen={canViewKautionen}
+        {isApplicants && (
+          <RailSection label="Verwalten">
+            <RailNavItem
+              icon={Trash2}
+              label="Alle Bewerber löschen"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setShowDeleteAllConfirm(true)}
+            />
+          </RailSection>
+        )}
+      </SecondaryRail>
+
+      <PageTopBar
+        breadcrumbs={[
+          { label: "Objekte" },
+          { label: "Mieter" },
+          ...(isApplicants ? [{ label: "Bewerber" }] : isOverview ? [{ label: "Übersicht" }] : []),
+        ]}
+        tools={
+          isOverview ? undefined : (
+            <>
+              {currentTab === "mieter" && (
+                <ToolbarFilterMenu
+                  groups={[
+                    {
+                      id: "status",
+                      label: "Status",
+                      options: [
+                        { value: "current", label: "Aktuelle Mieter", count: filterCounts.current },
+                        { value: "previous", label: "Vorherige Mieter", count: filterCounts.previous },
+                      ],
+                      selected: filter === "all" ? [] : [filter],
+                      // Standardansicht sind die aktuellen Mieter: erst eine Abweichung davon zählt als Filter
+                      defaultSelected: ["current"],
+                      onChange: (selected) => setFilter((selected[0] as "current" | "previous" | undefined) ?? "all"),
+                    },
+                  ]}
+                  onReset={() => setFilter("current")}
                 />
-              </CardContent>
-            </Card>
-          </>
+              )}
+              <ToolbarSortMenu
+                options={toolbarSortOptions}
+                sortKey={sortKey}
+                direction={sortDirection}
+                onChange={(key, direction) => handleSortChange(key as TenantSortKey, direction)}
+              />
+              <ToolbarSearch
+                data-testid="search-input"
+                placeholder={isApplicants ? "Bewerber suchen…" : "Mieter suchen…"}
+                value={searchQuery}
+                onChange={setSearchQuery}
+              />
+            </>
+          )
+        }
+        actions={
+          isApplicants ? (
+            <AddApplicantMenu
+              canCreate={canCreate}
+              onAdd={handleAddTenant}
+              onImport={applicantsMailImportFlag ? () => setShowImportModal(true) : undefined}
+            />
+          ) : (
+            <AddTenantButton canCreate={canCreate} onAdd={handleAddTenant} />
+          )
+        }
+      />
+
+      <div className={cn("flex flex-col gap-4 p-4 sm:p-6", !isOverview && "animate-in fade-in duration-300")}>
+        {!isOverview ? (
+          <TenantTable
+            key={currentTab}
+            tenants={filteredTenantsByTab}
+            wohnungen={initialWohnungen}
+            filter={currentTab === "mieter" ? filter : "all"}
+            searchQuery={searchQuery}
+            onEdit={handleEditTenantInTable}
+            selectedTenants={selectedTenants}
+            onSelectionChange={setSelectedTenants}
+            mode={currentTab === "mieter" ? "tenants" : "applicants"}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSortChange={handleSortChange}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            canViewKautionen={canViewKautionen}
+          />
         ) : (
           <div className="flex flex-col gap-6 sm:gap-8 animate-in fade-in duration-300">
             {/* Stats cards for Overview */}
@@ -1591,6 +1686,20 @@ export default function MieterClientView({
       />
       <ApplicantScoreModal />
       <MailPreviewModal />
+
+      {!isOverview && (
+        <TenantBulkActionBar
+          selectedTenants={selectedTenants}
+          tenants={filteredTenantsByTab}
+          wohnungsMap={wohnungsMap}
+          onClearSelection={() => setSelectedTenants(new Set())}
+          onExport={handleBulkExport}
+          onUpdate={() => router.refresh()}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          modus={isApplicants ? "bewerber" : "mieter"}
+        />
+      )}
     </div>
   );
 }
