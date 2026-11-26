@@ -38,8 +38,14 @@ async function deleteE2EEntries(page: Page, entity: CleanupEntity, deadline: num
   }
   await safeNavigate(page, entity.path);
 
+  // Im neuen Layout steckt die Suche hinter einem Icon-Button "Suchen", ältere Seiten zeigen das Feld direkt
   const searchInput = page.locator('input[placeholder*="suchen" i]').first();
-  await expect(searchInput).toBeVisible({ timeout: 15000 });
+  const searchToggle = page.getByRole('button', { name: 'Suchen', exact: true });
+  await expect(searchInput.or(searchToggle).first()).toBeVisible({ timeout: 15000 });
+  if (!(await searchInput.isVisible().catch(() => false))) {
+    await searchToggle.click();
+  }
+  await expect(searchInput).toBeVisible({ timeout: 5000 });
   await searchInput.fill('E2E');
 
   const rowRe = new RegExp(`^${entity.rowLabel} (E2E .+) auswählen$`);
@@ -90,10 +96,11 @@ async function deleteE2EEntries(page: Page, entity: CleanupEntity, deadline: num
       throw new Error(`selection mismatch: ${checkedLabels.length} rows checked, expected ${expectedLabels.length} (different rows)`);
     }
 
-    // Der Button heißt "Löschen (N)"; ein zweiter Span nur für Mobile steckt im Text, nicht im Accessible Name
+    // Der Accessible Name ist "Löschen (N)"; in der Auswahl-Pille steht die Anzahl nur im aria-label, nicht im Text
     const deleteBtn = page.getByRole('button', { name: /Löschen \(\d+\)/ }).first();
     await expect(deleteBtn).toBeVisible({ timeout: 10000 });
-    const selectedCount = Number((await deleteBtn.innerText()).match(/\((\d+)\)/)?.[1]);
+    const deleteLabel = (await deleteBtn.getAttribute('aria-label')) ?? (await deleteBtn.innerText());
+    const selectedCount = Number(deleteLabel.match(/\((\d+)\)/)?.[1]);
     if (selectedCount !== batch.length) {
       throw new Error(`selection mismatch: clicked ${batch.length}, button says ${selectedCount}`);
     }
@@ -144,8 +151,8 @@ test.describe('Business Logic Flows', () => {
   test('Create a House', async ({ page }) => {
     await safeNavigate(page, '/haeuser');
 
-    // Wait for the page content to fully load (look for a key element)
-    await expect(page.getByText('Hausverwaltung').first()).toBeAttached({ timeout: 15000 });
+    // Wait for the page content to fully load: the KPI in the secondary rail only appears with the data
+    await expect(page.getByText('Häuser gesamt').first()).toBeAttached({ timeout: 15000 });
     await page.waitForTimeout(500); // Short wait for React hydration
 
     // Open modal - button shows "Hinzufügen" on mobile, "Haus hinzufügen" on desktop
