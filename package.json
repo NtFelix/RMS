@@ -74,7 +74,6 @@
     "@tiptap/starter-kit": "^3.32.0",
     "@tiptap/suggestion": "^3.32.0",
     "@types/dompurify": "^3.2.0",
-    "@types/pako": "^3.0.0",
     "@vercel/functions": "^3.7.5",
     "ai": "^7.0.173",
     "class-variance-authority": "^0.7.1",

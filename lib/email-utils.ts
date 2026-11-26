@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/client';
-import pako from 'pako';
+import { ungzip } from 'pako';
 
 export interface EmailBody {
   plain: string;
@@ -120,7 +120,7 @@ export async function fetchEmailBodyFromStorage(dateipfad: string): Promise<Emai
     const uint8Array = new Uint8Array(arrayBuffer);
 
     // Decompress with pako
-    const decompressed = pako.ungzip(uint8Array, { to: 'string' });
+    const decompressed = ungzip(uint8Array, { toText: true });
 
     // Parse JSON
     const emailBody = JSON.parse(decompressed) as EmailBody;
