@@ -1,6 +1,5 @@
 import { createSupabaseServerClient } from "./supabase-server";
 import { isTestEnv } from "./test-utils";
-import { after } from "next/server";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 import { MIETER_SPALTEN_OHNE_KAUTION } from "./mieter-columns";
 import { mitPersonenfeldern, type Person } from "./personen";
@@ -757,12 +756,12 @@ export async function fetchWithRpcFallback<T>(
       return null;
     }
 
-    after(() => { logRpcCall(rpcName, contextName, startTime, true); });
+    void logRpcCall(rpcName, contextName, startTime, true).catch(() => {});
     return data as T;
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    after(() => { logRpcCall(rpcName, contextName, startTime, false, { error: errorMessage }); });
+    void logRpcCall(rpcName, contextName, startTime, false, { error: errorMessage }).catch(() => {});
     console.warn(`⚠️ RPC ${rpcName} failed or unavailable. Executing TypeScript fallback for ${contextName}...`);
 
     try {

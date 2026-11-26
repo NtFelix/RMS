@@ -157,6 +157,31 @@ export function NavigationInterceptor({
   }, [router])
 
   /**
+   * Executes the actual navigation logic
+   */
+  const executeNavigation = useCallback(async (
+    path: string, 
+    options: NavigationOptions = {}
+  ) => {
+    // Determine navigation strategy
+    const useClientNavigation = shouldUseClientNavigation(path)
+    
+    if (useClientNavigation) {
+      // Attempt client-side navigation
+      const success = await performClientNavigation(path, options)
+      
+      if (!success && fallbackToSSR) {
+        // Fall back to SSR navigation
+        console.log('Falling back to SSR navigation for:', path)
+        performSSRNavigation(path, options.replace)
+      }
+    } else {
+      // Use SSR navigation directly
+      performSSRNavigation(path, options.replace)
+    }
+  }, [shouldUseClientNavigation, performClientNavigation, performSSRNavigation, fallbackToSSR])
+
+  /**
    * Main navigation handler with debouncing and fallback logic
    */
   const handleNavigation = useCallback(async (
@@ -203,32 +228,7 @@ export function NavigationInterceptor({
     } else {
       await executeNavigation(path, options)
     }
-  }, [navigation.currentPath, enableDebouncing, debounceMs])
-
-  /**
-   * Executes the actual navigation logic
-   */
-  const executeNavigation = useCallback(async (
-    path: string, 
-    options: NavigationOptions = {}
-  ) => {
-    // Determine navigation strategy
-    const useClientNavigation = shouldUseClientNavigation(path)
-    
-    if (useClientNavigation) {
-      // Attempt client-side navigation
-      const success = await performClientNavigation(path, options)
-      
-      if (!success && fallbackToSSR) {
-        // Fall back to SSR navigation
-        console.log('Falling back to SSR navigation for:', path)
-        performSSRNavigation(path, options.replace)
-      }
-    } else {
-      // Use SSR navigation directly
-      performSSRNavigation(path, options.replace)
-    }
-  }, [shouldUseClientNavigation, performClientNavigation, performSSRNavigation, fallbackToSSR])
+  }, [navigation.currentPath, enableDebouncing, debounceMs, executeNavigation])
 
   /**
    * Intercepts click events on folder elements
@@ -363,6 +363,22 @@ export function NavigationInterceptor({
   return (
     <div 
       onClick={interceptFolderClick}
+      onKeyDown={(e) => {
+        const target = e.target as HTMLElement | null
+        if (
+          target &&
+          (target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.tagName === 'SELECT' ||
+            target.isContentEditable)
+        ) {
+          return
+        }
+        if (e.key === 'Enter' || e.key === ' ') {
+          interceptFolderClick(e as unknown as React.MouseEvent<HTMLDivElement>)
+        }
+      }}
+      role="presentation"
       data-navigation-interceptor="true"
     >
       {enhancedChildren}
@@ -435,7 +451,7 @@ export function useFolderNavigation(orgId: string) {
       const url = storageUrlFor(folderPath)
       router.push(url)
     }
-  }, [orgId, navigation, router, toast])
+  }, [orgId, navigation, router, toast, pathname])
   
   return {
     handleFolderClick,

@@ -3,7 +3,7 @@
 import posthog from 'posthog-js'
 import { PostHogProvider as PHProvider } from 'posthog-js/react'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect, Suspense, useState, useReducer } from 'react'
+import { useEffect, Suspense, useReducer } from 'react'
 import posthogProxyConfig from '@/lib/posthog-proxy'
 import { syncSupportIdentity } from '@/lib/posthog-support'
 
@@ -88,6 +88,13 @@ async function initializePostHog(nonce?: string) {
     enable_recording_console_log: false, // Disabled: don't capture console logs in session recordings
     // GDPR: Always opt-out by default, require explicit consent
     opt_out_capturing_by_default: true,
+    // GDPR: Visitors without consent are still counted anonymously. No cookies or
+    // storage are used; PostHog keeps a server-side privacy-preserving hash instead.
+    cookieless_mode: 'on_reject',
+    // Only identified users get person profiles; anonymous events stay personless.
+    person_profiles: 'identified_only',
+    // Browsers with "Do Not Track" stay anonymous even after explicit opt-in.
+    respect_dnt: true,
     nonce: nonce, // Add nonce for CSP
     // Enable early access features
     bootstrap: {
@@ -115,6 +122,7 @@ async function initializePostHog(nonce?: string) {
 
   // Also covers returning visitors whose opt-in is already persisted (branch above not entered)
   setTracingHeaders(consent === 'all' && !posthog.has_opted_out_capturing?.());
+  window.dispatchEvent(new CustomEvent('posthog-initialized'));
 }
 
 // Global initialization removed to support nonce passing from server
@@ -125,17 +133,23 @@ function PostHogPageView() {
   const getParam = searchParams ? searchParams.get.bind(searchParams) : null
   const [consentTrigger, triggerConsent] = useReducer((s) => s + 1, 0)
 
-  // Listen for consent-granted event to trigger tracking immediately
+  // Listen for consent-granted and posthog-initialized events to trigger tracking immediately
   useEffect(() => {
     const handleConsentGranted = () => {
-      setTracingHeaders(true);
+      setTracingHeaders(Boolean(posthog.has_opted_in_capturing?.()));
       console.log('Consent granted event received, triggering tracking...');
       triggerConsent();
     };
 
+    const handleInitialized = () => {
+      triggerConsent();
+    };
+
     window.addEventListener('posthog-consent-granted', handleConsentGranted);
+    window.addEventListener('posthog-initialized', handleInitialized);
     return () => {
       window.removeEventListener('posthog-consent-granted', handleConsentGranted);
+      window.removeEventListener('posthog-initialized', handleInitialized);
     };
   }, []);
 
@@ -183,20 +197,26 @@ function PostHogPageView() {
     let currentIsAuthenticated = false;
 
     const trackPageview = async () => {
-      if (!pathname || !posthog.has_opted_in_capturing?.()) return;
+      // is_capturing() also covers visitors without consent: with cookieless_mode
+      // "on_reject" they are tracked anonymously, so their pageviews count too.
+      if (!posthog.__loaded || !pathname || !posthog.is_capturing?.()) return;
 
       let url = window.origin + pathname;
       if (searchParams.toString()) {
         url = url + `?${searchParams.toString()}`;
       }
 
-      try {
-        const { createClient } = await import('@/utils/supabase/client');
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        currentIsAuthenticated = !!user;
-      } catch {
-        currentIsAuthenticated = false;
+      // Anonymous visitors skip the auth lookup: without consent they stay
+      // anonymous in PostHog, so the authenticated label would not apply anyway.
+      if (posthog.has_opted_in_capturing?.()) {
+        try {
+          const { createClient } = await import('@/utils/supabase/client');
+          const supabase = createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          currentIsAuthenticated = !!user;
+        } catch {
+          currentIsAuthenticated = false;
+        }
       }
 
       posthog.capture('$pageview', {
@@ -209,7 +229,7 @@ function PostHogPageView() {
     trackPageview();
 
     return () => {
-      if (pathname && posthog.has_opted_in_capturing?.()) {
+      if (posthog.__loaded && pathname && posthog.is_capturing?.()) {
         let url = window.origin + pathname;
         if (searchParams.toString()) {
           url = url + `?${searchParams.toString()}`;
@@ -225,7 +245,7 @@ function PostHogPageView() {
 
   // Handle login tracking from auth callback
   useEffect(() => {
-    if (!getParam) return
+    if (!getParam || !posthog.__loaded) return
     
     const loginSuccess = getParam('login_success')
     const provider = getParam('provider')
@@ -257,19 +277,15 @@ function PostHogPageView() {
       newUrl.searchParams.delete('provider')
       window.history.replaceState({}, '', newUrl.toString())
     }
-  }, [searchParams])
+  }, [searchParams, consentTrigger])
 
   return null
 }
 
 export function PostHogProvider({ children, nonce }: { children: React.ReactNode, nonce?: string }) {
   useEffect(() => {
-    const checkPostHogReady = async () => {
-      if (posthog.__loaded) return;
-      await initializePostHog(nonce);
-    };
-
-    checkPostHogReady();
+    if (posthog.__loaded) return;
+    void initializePostHog(nonce);
   }, [nonce]);
 
   return (

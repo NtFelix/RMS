@@ -1,6 +1,6 @@
 {
   "name": "mietevo",
-  "version": "3.0.71",
+  "version": "3.0.77",
   "private": true,
   "engines": {
     "node": "^22.22.0"
@@ -51,7 +51,7 @@
     "@radix-ui/react-menubar": "1.1.24",
     "@radix-ui/react-navigation-menu": "1.2.22",
     "@radix-ui/react-popover": "^1.1.23",
-    "@radix-ui/react-progress": "1.1.16",
+    "@radix-ui/react-progress": "1.2.1",
     "@radix-ui/react-radio-group": "1.5.1",
     "@radix-ui/react-scroll-area": "^1.2.18",
     "@radix-ui/react-select": "2.2.6",

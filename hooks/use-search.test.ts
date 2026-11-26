@@ -814,5 +814,35 @@ describe('useSearch', () => {
       // AbortController should have been called
       expect(mockFetch).toHaveBeenCalled();
     });
+
+    it('should not mutate custom categories and should ignore non-string recent searches', async () => {
+      mockUseDebounce.mockImplementation((value) => value);
+      mockLocalStorage.getItem.mockReturnValueOnce(JSON.stringify(['Mieter', 123, null, '  ', 'Haus']));
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          results: { tenant: [], house: [], apartment: [], finance: [], task: [] },
+          totalCount: 0,
+          executionTime: 10
+        })
+      });
+
+      const customCategories: ('tenant' | 'house')[] = ['tenant', 'house'];
+      const { result } = renderHook(() => useSearch({ categories: customCategories }));
+
+      await waitFor(() => {
+        expect(result.current.recentSearches).toEqual(['Mieter', 'Haus']);
+      });
+
+      act(() => {
+        result.current.setQuery('Wohnung');
+      });
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalled();
+      });
+
+      expect(customCategories).toEqual(['tenant', 'house']);
+    });
   });
 });

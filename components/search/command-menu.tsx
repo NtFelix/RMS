@@ -31,7 +31,7 @@ import { SearchResult } from "@/types/search"
 
 const GLOBAL_SEARCH_RESULT_LIMIT = 15;
 
-const itemClassName = "group flex items-center p-2 rounded-xl hover:bg-primary data-[selected=true]:bg-primary hover:text-primary-foreground data-[selected=true]:text-primary-foreground cursor-pointer transition-all duration-200 ease-in-out hover:scale-[1.01] active:scale-[0.98] border border-transparent hover:border-primary data-[selected=true]:border-primary my-1 opacity-100";
+const itemClassName = "group flex items-center p-2 rounded-xl hover:bg-primary data-[selected=true]:bg-primary hover:text-primary-foreground data-[selected=true]:text-primary-foreground cursor-pointer transition-[background-color,color,border-color,transform] duration-200 ease-in-out hover:scale-[1.01] active:scale-[0.98] border border-transparent hover:border-primary data-[selected=true]:border-primary my-1 opacity-100";
 
 import {
   getUserSubscriptionContext,
@@ -173,10 +173,15 @@ export function CommandMenu() {
 
       // Try focusing immediately and again after the next frame to handle race conditions
       focusInput()
-      requestAnimationFrame(focusInput)
+      const rafId = requestAnimationFrame(focusInput)
 
       // Also try after a short delay to ensure the dialog is fully rendered
-      setTimeout(focusInput, 50)
+      const timeoutId = setTimeout(focusInput, 50)
+
+      return () => {
+        cancelAnimationFrame(rafId)
+        clearTimeout(timeoutId)
+      }
     } else if (query.trim().length > 0) {
       // Clear search when menu is closed
       clearSearch()
@@ -1047,9 +1052,9 @@ export function CommandMenu() {
                 {/* Recent Searches */}
                 {recentSearches.length > 0 && (
                   <CommandGroup heading="Letzte Suchen">
-                    {recentSearches.slice(0, 3).map((recentQuery, index) => (
+                    {recentSearches.slice(0, 3).map((recentQuery) => (
                       <CommandItem
-                        key={`recent-${index}`}
+                        key={`recent-${recentQuery}`}
                         className={itemClassName}
                         onSelect={() => {
                           setQuery(recentQuery)
@@ -1065,9 +1070,9 @@ export function CommandMenu() {
                 {/* Search Suggestions */}
                 {suggestions.length > 0 && (
                   <CommandGroup heading="Vorschläge">
-                    {suggestions.map((suggestion, index) => (
+                    {suggestions.map((suggestion) => (
                       <CommandItem
-                        key={`suggestion-${index}`}
+                        key={`suggestion-${suggestion}`}
                         className={itemClassName}
                         onSelect={() => {
                           setQuery(suggestion)
@@ -1089,9 +1094,9 @@ export function CommandMenu() {
                 {/* Recent Searches */}
                 {recentSearches.length > 0 && (
                   <CommandGroup heading="Letzte Suchen">
-                    {recentSearches.slice(0, 3).map((recentQuery, index) => (
+                    {recentSearches.slice(0, 3).map((recentQuery) => (
                       <CommandItem
-                        key={`recent-nav-${index}`}
+                        key={`recent-nav-${recentQuery}`}
                         className={itemClassName}
                         onSelect={() => {
                           setQuery(recentQuery)

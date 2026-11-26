@@ -109,7 +109,7 @@ function ResizeHandle({
       )}
     >
       <div className={cn(
-        "absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 transition-all duration-150 ease-in-out",
+        "absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 transition-colors duration-150 ease-in-out",
         isResizing ? "bg-primary" : "bg-transparent group-hover/resize-handle:bg-primary/40"
       )} />
     </button>
@@ -238,7 +238,7 @@ function NebenkostenSection({
                       placeholder="Betrag (€)"
                       value={entry.amount}
                       onChange={(e) => handleNebenkostenChange(entry.id, 'amount', e.target.value)}
-                      className={`bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent ${nebenkostenValidationErrors[entry.id]?.amount ? 'text-red-500' : ''}`}
+                      className={`bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent ${nebenkostenValidationErrors[entry.id]?.amount ? 'text-red-500' : ''}`}
                       disabled={isSubmitting}
                     />
                     {nebenkostenValidationErrors[entry.id]?.amount && (
@@ -250,7 +250,7 @@ function NebenkostenSection({
                       value={entry.date}
                       onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
                       placeholder="Datum (TT.MM.JJJJ)"
-                      className={`bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 ${nebenkostenValidationErrors[entry.id]?.date ? 'text-red-500' : ''}`}
+                      className={`bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 ${nebenkostenValidationErrors[entry.id]?.date ? 'text-red-500' : ''}`}
                       disabled={isSubmitting}
                     />
                     {nebenkostenValidationErrors[entry.id]?.date && (
@@ -264,6 +264,7 @@ function NebenkostenSection({
                     onClick={() => removeNebenkostenEntry(entry.id)}
                     disabled={isSubmitting}
                     className="justify-self-end"
+                    aria-label="Nebenkosten-Eintrag entfernen"
                   >
                     <Trash2 className="size-4" />
                   </Button>
@@ -348,7 +349,7 @@ function ContactFields({
             onChange={(date) => handleDateChange('einzug', date)}
             placeholder="TT.MM.JJJJ"
             disabled={isSubmitting}
-            className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100"
+            className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100"
           />
           <input type="hidden" name="einzug" value={formData.einzug} />
         </div>
@@ -367,7 +368,7 @@ function ContactFields({
               onChange={(date) => handleDateChange('auszug', date)}
               placeholder="TT.MM.JJJJ"
               disabled={isSubmitting}
-              className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100"
+              className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100"
             />
             <input type="hidden" name="auszug" value={formData.auszug} />
           </div>
@@ -388,7 +389,7 @@ function ContactFields({
             onChange={onFieldChange}
             placeholder="max@mustermann.de"
             disabled={isSubmitting}
-            className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+            className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
           />
         </div>
 
@@ -407,7 +408,7 @@ function ContactFields({
             onChange={onFieldChange}
             placeholder="+49 123 456789"
             disabled={isSubmitting}
-            className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+            className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
           />
         </div>
       </div>
@@ -563,14 +564,16 @@ function FormFields({
                   onChange={onFieldChange}
                   placeholder="Interne Notizen..."
                   disabled={isSubmitting}
-                  className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all text-sm focus-visible:scale-100 resize-none min-h-[80px] pr-8"
+                  className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors text-sm focus-visible:scale-100 resize-none min-h-[80px] pr-8"
                 />
-                <div
-                  className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors"
+                <button
+                  type="button"
+                  aria-label="Größe des Notizfelds anpassen"
+                  className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors appearance-none bg-transparent border-0"
                   onMouseDown={initResize}
                 >
                   <GripVertical className="size-4 text-foreground/70" />
-                </div>
+                </button>
               </div>
             </div>
           </div>
@@ -881,26 +884,23 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   }
 
   const handleNebenkostenChange = (id: string, field: 'amount' | 'date', value: string) => {
-    let updatedEntryGlobal: NebenkostenEntry | undefined
+    const currentEntry = nebenkostenEntries.find(entry => entry.id === id)
     setNebenkostenEntries(entries => {
-      const newEntries = entries.map(entry => {
-        if (entry.id === id) {
-          updatedEntryGlobal = { ...entry, [field]: value }
-          return updatedEntryGlobal
-        }
-        return entry
-      })
-      if (updatedEntryGlobal) {
-        const errors = validateNebenkostenEntry(updatedEntryGlobal)
-        setNebenkostenValidationErrors(prev => {
-          const newErrors = { ...prev }
-          if (Object.keys(errors).length > 0) newErrors[id] = errors
-          else delete newErrors[id]
-          return newErrors
-        })
-      }
+      const newEntries = entries.map(entry =>
+        entry.id === id ? { ...entry, [field]: value } : entry
+      )
       return getSortedNebenkostenEntries(newEntries)
     })
+    if (currentEntry) {
+      const updatedEntry = { ...currentEntry, [field]: value }
+      const errors = validateNebenkostenEntry(updatedEntry)
+      setNebenkostenValidationErrors(prev => {
+        const newErrors = { ...prev }
+        if (Object.keys(errors).length > 0) newErrors[id] = errors
+        else delete newErrors[id]
+        return newErrors
+      })
+    }
     if (!isTenantModalDirty) setTenantModalDirty(true)
   }
 
@@ -923,29 +923,26 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
   const handleDateChange = (name: 'einzug' | 'auszug', date: Date | undefined) => {
     const formattedDate = date ? format(date, "yyyy-MM-dd") : ""
-    setFormData(prevFormData => {
-      const newFormData = { ...prevFormData, [name]: formattedDate }
+    const oldEinzug = formData.einzug
+    setFormData(prevFormData => ({ ...prevFormData, [name]: formattedDate }))
 
-      if (name === 'einzug' && formattedDate) {
-        setNebenkostenEntries(prevEntries => {
-          if (prevEntries.length === 0) {
-            return [{ id: generateId(), amount: "", date: formattedDate }]
-          }
+    if (name === 'einzug' && formattedDate) {
+      setNebenkostenEntries(prevEntries => {
+        if (prevEntries.length === 0) {
+          return [{ id: generateId(), amount: "", date: formattedDate }]
+        }
 
-          const firstEntry = prevEntries[0]
-          if (firstEntry && (!firstEntry.date || firstEntry.date === prevFormData.einzug)) {
-            return getSortedNebenkostenEntries([
-              { ...firstEntry, date: formattedDate },
-              ...prevEntries.slice(1)
-            ])
-          }
+        const firstEntry = prevEntries[0]
+        if (firstEntry && (!firstEntry.date || firstEntry.date === oldEinzug)) {
+          return getSortedNebenkostenEntries([
+            { ...firstEntry, date: formattedDate },
+            ...prevEntries.slice(1)
+          ])
+        }
 
-          return prevEntries
-        })
-      }
-
-      return newFormData
-    })
+        return prevEntries
+      })
+    }
     if (!isTenantModalDirty) setTenantModalDirty(true)
   }
 
