@@ -73,10 +73,6 @@ jest.mock('@/components/tables/operating-costs-table', () => ({
   OperatingCostsTable: () => <div role="table">Operating Costs Table</div>
 }));
 
-jest.mock('@/components/tasks/task-board', () => ({
-  TaskBoard: () => <div role="table">Task Board</div>
-}));
-
 jest.mock('@/components/finance/finance-visualization', () => ({
   FinanceVisualization: () => <div>Finance Visualization</div>
 }));
