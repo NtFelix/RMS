@@ -28,4 +28,9 @@ export const DASHBOARD_FRAME_CLASS = "min-w-0 flex-1 py-2 pr-2"
 export const DASHBOARD_CONTAINER_CLASS =
   "relative flex h-full overflow-hidden rounded-shell border border-border-subtle bg-surface-container shadow-sm"
 
+// Slim bar on top of the work area (PageTopBar and the page skeletons share it, so loading does not shift the content).
+// box-content: the height is the bar's content box, the bottom border comes on top.
+export const SHELL_BAR_CLASS =
+  "box-content flex h-shell-bar shrink-0 items-center gap-2 border-b border-border-subtle pl-4 pr-shell-bar-inset"
+
 export const DASHBOARD_MAIN_CLASS = "mobile-smooth-scroll relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden"

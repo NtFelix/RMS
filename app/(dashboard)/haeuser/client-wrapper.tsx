@@ -238,7 +238,7 @@ function HousesTab({
         }
         actions={<AddHouseButton onAdd={onAdd} canCreate={flags.canCreate} />}
       />
-      <div className="flex flex-col gap-4 p-4 sm:p-6 animate-in fade-in duration-300">
+      <div className="flex flex-col gap-4 p-4 sm:p-6">
         <HouseTable
           filter={filter}
           searchQuery={searchQuery}

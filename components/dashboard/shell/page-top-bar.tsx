@@ -13,7 +13,9 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { SHELL_BAR_CLASS } from "@/components/dashboard/dashboard-layout-classes"
 import { useSecondaryRail } from "./secondary-rail-context"
+import { SECONDARY_RAIL_ID } from "./secondary-rail-context-value"
 
 export interface PageBreadcrumb {
   label: string
@@ -42,7 +44,8 @@ export function PageTopBar({
   return (
     <header
       className={cn(
-        "sticky top-0 z-10 box-content flex h-shell-bar shrink-0 items-center gap-2 border-b border-border-subtle bg-surface-container pl-4 pr-shell-bar-inset",
+        SHELL_BAR_CLASS,
+        "sticky top-0 z-10 bg-surface-container",
         className,
       )}
     >
@@ -53,6 +56,7 @@ export function PageTopBar({
           className="-ml-2 size-8 shrink-0 rounded-full lg:hidden"
           aria-label="Navigation öffnen"
           aria-expanded={drawerOpen}
+          aria-controls={SECONDARY_RAIL_ID}
           onClick={() => setDrawerOpen(!drawerOpen)}
         >
           <PanelLeft className="size-4" />

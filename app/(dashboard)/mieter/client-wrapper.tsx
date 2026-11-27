@@ -981,7 +981,7 @@ export default function MieterClientView({
         }
       />
 
-      <div className={cn("flex flex-col gap-4 p-4 sm:p-6", !isOverview && "animate-in fade-in duration-300")}>
+      <div className="flex flex-col gap-4 p-4 sm:p-6">
         {!isOverview ? (
           <TenantTable
             key={currentTab}

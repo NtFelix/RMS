@@ -37,7 +37,7 @@ export function DashboardLayoutSkeleton() {
         {/* Organisation switcher: the real logo */}
         <div className={DASHBOARD_RAIL_ITEM_CLASS}>
           <div className="relative size-8 overflow-hidden rounded-lg shadow-2xs">
-            <Image src={LOGO_URL} alt="" fill className="rounded-lg object-cover" sizes="32px" unoptimized />
+            <Image src={LOGO_URL} alt="" fill className="rounded-lg object-cover" sizes="32px" unoptimized preload />
           </div>
         </div>
 
@@ -62,13 +62,9 @@ export function DashboardLayoutSkeleton() {
 
       <div className={DASHBOARD_FRAME_CLASS}>
         <div className={DASHBOARD_CONTAINER_CLASS}>
-          <main className={DASHBOARD_MAIN_CLASS}>
-            <div className="flex flex-col gap-4 p-8">
-              <div className="h-8 w-1/3 rounded bg-muted animate-pulse" />
-              <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
-              <div className="h-4 w-1/2 rounded bg-muted animate-pulse" />
-            </div>
-          </main>
+          {/* Leer: welche Seite kommt, ist hier noch unbekannt. Eine generische Form würde direkt danach vom
+              Skeleton der Seite (mit Top-Bar und Rail) ersetzt und als dritter Ladezustand aufblitzen. */}
+          <main className={DASHBOARD_MAIN_CLASS} />
         </div>
       </div>
     </div>

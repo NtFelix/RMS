@@ -77,14 +77,24 @@ export function ToolbarSearch({
 }) {
   const [open, setOpen] = useState(value !== "")
   const inputRef = useRef<HTMLInputElement>(null)
+  const iconRef = useRef<HTMLButtonElement>(null)
+  // Nach Escape kommt der Fokus auf das Icon zurück (statt auf <body>); beim Blur hat ihn der Nutzer selbst weitergegeben
+  const restoreFocus = useRef(false)
   const expanded = open || value !== ""
 
   useEffect(() => {
     if (open) inputRef.current?.focus()
   }, [open])
 
+  useEffect(() => {
+    if (!expanded && restoreFocus.current) {
+      restoreFocus.current = false
+      iconRef.current?.focus()
+    }
+  }, [expanded])
+
   if (!expanded) {
-    return <ToolbarIconButton icon={Search} label="Suchen" onClick={() => setOpen(true)} />
+    return <ToolbarIconButton ref={iconRef} icon={Search} label="Suchen" onClick={() => setOpen(true)} />
   }
 
   return (
@@ -98,6 +108,7 @@ export function ToolbarSearch({
         onBlur={() => value === "" && setOpen(false)}
         onKeyDown={(e) => {
           if (e.key !== "Escape") return
+          restoreFocus.current = true
           onChange("")
           setOpen(false)
         }}

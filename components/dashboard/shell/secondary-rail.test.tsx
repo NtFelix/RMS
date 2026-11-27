@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { PageTopBar, RailNavItem, RailSection, RailStat, RailStats, SecondaryRail, SecondaryRailProvider, useSecondaryRail } from '.'
+import { PageTopBar, RailNavItem, RailSection, RailStat, RailStats, SecondaryRail, SecondaryRailHold, SecondaryRailProvider, useSecondaryRail } from '.'
+import { ShellPageSkeleton } from './page-skeleton'
 
 // Minimal stand-in for the shell: host element, drawer state
 function Shell({ children }: { children: React.ReactNode }) {
@@ -54,6 +55,82 @@ describe('SecondaryRail', () => {
 
     expect(screen.queryByRole('button', { name: 'Alle' })).not.toBeInTheDocument()
     expect(host).toHaveAttribute('data-has-rail', 'false')
+  })
+})
+
+describe('SecondaryRailHold', () => {
+  // Navigation stand-in: "rail" = page with a rail, "loading" = generic loading state of the route group,
+  // "plain" = page without a rail. Each step swaps the content in one commit, like a route change.
+  function Navigation() {
+    const [step, setStep] = useState<'rail' | 'loading' | 'plain' | 'start'>('start')
+    return (
+      <>
+        {(['start', 'rail', 'loading', 'plain'] as const).map((s) => (
+          <button key={s} onClick={() => setStep(s)}>
+            {s}
+          </button>
+        ))}
+        {step === 'rail' && (
+          <SecondaryRail>
+            <RailNavItem label="Alle" />
+          </SecondaryRail>
+        )}
+        {step === 'loading' && <SecondaryRailHold />}
+      </>
+    )
+  }
+  const renderNavigation = () =>
+    render(
+      <SecondaryRailProvider>
+        <Shell>
+          <Navigation />
+        </Shell>
+      </SecondaryRailProvider>,
+    )
+  const go = (step: string) => fireEvent.click(screen.getByRole('button', { name: step }))
+  const hasRail = () => screen.getByTestId('host').getAttribute('data-has-rail')
+
+  it('keeps a visible column while the next page is still loading, so it does not collapse and reopen', () => {
+    renderNavigation()
+    go('rail')
+    expect(hasRail()).toBe('true')
+
+    go('loading')
+    expect(hasRail()).toBe('true')
+
+    go('rail')
+    expect(hasRail()).toBe('true')
+  })
+
+  it('hides the column together with a page without a rail', () => {
+    renderNavigation()
+    go('rail')
+    go('loading')
+    go('plain')
+    expect(hasRail()).toBe('false')
+  })
+
+  it('does not open a column for the loading state when there was none before', () => {
+    renderNavigation()
+    go('plain')
+    go('loading')
+    expect(hasRail()).toBe('false')
+  })
+})
+
+describe('ShellPageSkeleton', () => {
+  it('brings its own rail and keeps the loading label for screen readers', () => {
+    render(
+      <SecondaryRailProvider>
+        <Shell>
+          <ShellPageSkeleton label="Häuser werden geladen" title="Häuser" rail={[{ label: 'Ansichten', items: 2 }]} />
+        </Shell>
+      </SecondaryRailProvider>,
+    )
+
+    expect(screen.getByRole('status', { name: 'Häuser werden geladen' })).toBeInTheDocument()
+    expect(screen.getByTestId('host')).toHaveAttribute('data-has-rail', 'true')
+    expect(screen.getByTestId('host')).toHaveTextContent('Häuser')
   })
 })
 

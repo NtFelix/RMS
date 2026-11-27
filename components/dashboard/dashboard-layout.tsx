@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useSyncExternalStore } from "react"
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react"
 import { usePathname } from "next/navigation"
 import dynamic from "next/dynamic"
 import { DashboardLayoutSkeleton } from "@/components/dashboard/dashboard-layout-skeleton"
@@ -12,7 +12,9 @@ import {
   DASHBOARD_ROOT_CLASS,
 } from "@/components/dashboard/dashboard-layout-classes"
 import { PrimaryRail } from "@/components/dashboard/shell/primary-rail"
-import { SecondaryRailProvider, useSecondaryRail } from "@/components/dashboard/shell"
+// Direkt statt über das Barrel: sonst landen Toolbar, Top-Bar und Pille im Layout-Chunk jeder Dashboard-Seite
+import { SecondaryRailProvider, useSecondaryRail } from "@/components/dashboard/shell/secondary-rail-context"
+import { SECONDARY_RAIL_ID } from "@/components/dashboard/shell/secondary-rail-context-value"
 import { cn } from "@/lib/utils"
 import type { SidebarUserData } from "@/lib/server/user-data"
 import { TaskDndProvider } from "@/components/tasks/task-dnd-provider"
@@ -74,6 +76,34 @@ function ShellContainer({ children }: { children: React.ReactNode }) {
     setDrawerOpen(false)
   }, [pathname, setDrawerOpen])
 
+  // Fokus-Führung des Drawers (< lg): beim Öffnen in die Rail, beim Schließen zurück zum Toggle in der Top-Bar
+  const asideRef = useRef<HTMLElement | null>(null)
+  // Stabiler Ref-Callback: ein Inline-Callback würde bei jedem Render mit null und neu aufgerufen
+  const setAsideNode = useCallback(
+    (node: HTMLElement | null) => {
+      asideRef.current = node
+      setHostNode(node)
+    },
+    [setHostNode],
+  )
+  const wasOpen = useRef(false)
+  useEffect(() => {
+    const aside = asideRef.current
+    if (!aside || !window.matchMedia("(max-width: 1023.98px)").matches) {
+      wasOpen.current = drawerOpen
+      return
+    }
+    if (drawerOpen) {
+      aside.querySelector<HTMLElement>("a[href], button:not([disabled]), input, [tabindex]:not([tabindex='-1'])")?.focus()
+    } else if (wasOpen.current) {
+      const active = document.activeElement
+      if (!active || active === document.body || aside.contains(active)) {
+        document.querySelector<HTMLElement>(`[aria-controls="${SECONDARY_RAIL_ID}"]`)?.focus()
+      }
+    }
+    wasOpen.current = drawerOpen
+  }, [drawerOpen])
+
   useEffect(() => {
     if (!drawerOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
@@ -86,7 +116,8 @@ function ShellContainer({ children }: { children: React.ReactNode }) {
   return (
     <div className={DASHBOARD_CONTAINER_CLASS}>
       <aside
-        ref={setHostNode}
+        ref={setAsideNode}
+        id={SECONDARY_RAIL_ID}
         aria-label="Kontextnavigation"
         className={cn(
           "flex-col border-r border-border-subtle bg-surface-container",
@@ -95,7 +126,7 @@ function ShellContainer({ children }: { children: React.ReactNode }) {
           "lg:w-[248px] lg:shrink-0",
           // < lg: drawer over the main area; invisible while closed so it cannot take focus
           "max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:z-30 max-lg:w-[248px] max-lg:max-w-[85%] max-lg:shadow-xl",
-          "max-lg:transition-[transform,visibility] max-lg:duration-200 max-lg:ease-in-out",
+          "max-lg:transition-[transform,visibility] max-lg:duration-200 max-lg:ease-in-out motion-reduce:transition-none",
           drawerOpen ? "max-lg:translate-x-0" : "max-lg:invisible max-lg:-translate-x-full",
         )}
       />
