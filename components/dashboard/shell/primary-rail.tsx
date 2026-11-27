@@ -125,7 +125,7 @@ function RailLink({
             : "font-medium text-muted-foreground transition-colors duration-200 group-hover:text-foreground",
         )}
       >
-        {item.title}
+        {item.railLabel ?? item.title}
       </span>
     </Link>
   )

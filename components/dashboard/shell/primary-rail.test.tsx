@@ -66,7 +66,10 @@ describe('PrimaryRail', () => {
     expect(screen.queryAllByRole('group')).toHaveLength(0)
     expect(screen.queryAllByRole('separator')).toHaveLength(0)
     // Die Beschriftung steht sichtbar unter dem Icon und ist der zugängliche Name
-    expect(screen.getByRole('link', { name: 'Betriebskosten' })).toHaveTextContent('Betriebskosten')
+    // Kurze Rail-Beschriftung sichtbar und als Name, der volle Titel im Tooltip
+    const betriebskosten = screen.getByRole('link', { name: 'Abrechnung' })
+    expect(betriebskosten).toHaveAttribute('href', '/betriebskosten')
+    expect(betriebskosten).toHaveAttribute('title', 'Betriebskosten')
   })
 
   it('keeps the ids the onboarding tour looks for', () => {

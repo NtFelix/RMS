@@ -40,7 +40,8 @@ describe('DashboardLayoutSkeleton', () => {
   it('shows the real entries of the default shell as icons, without the feature-flagged ones', () => {
     render(<DashboardLayoutSkeleton />);
 
-    ['Dashboard', 'Suche', 'Organisationen', 'Häuser', 'Wohnungen', 'Mieter', 'Finanzen', 'Betriebskosten', 'Aufgaben'].forEach(
+    // Rail-Beschriftungen (lange Titel haben eine kurze Variante, z. B. Betriebskosten → Abrechnung)
+    ['Dashboard', 'Suche', 'Organisation', 'Häuser', 'Wohnungen', 'Mieter', 'Finanzen', 'Abrechnung', 'Aufgaben'].forEach(
       (title) => expect(screen.getByText(title)).toBeInTheDocument(),
     );
     ['Dokumente', 'E-Mails', 'KI-Agenten', 'Kontakte'].forEach((title) => expect(screen.queryByText(title)).not.toBeInTheDocument());
@@ -50,6 +51,6 @@ describe('DashboardLayoutSkeleton', () => {
     const { container } = render(<DashboardLayoutSkeleton />);
 
     expect(container.querySelectorAll('aside .h-px')).toHaveLength(0);
-    expect(container.querySelector('aside')).toHaveTextContent('Betriebskosten');
+    expect(container.querySelector('aside')).toHaveTextContent('Abrechnung');
   });
 });

@@ -48,7 +48,7 @@ export function DashboardLayoutSkeleton() {
                 <span className={DASHBOARD_RAIL_NAV_TILE_CLASS}>
                   <item.icon className="size-5 shrink-0" aria-hidden="true" />
                 </span>
-                <span className={`${DASHBOARD_RAIL_NAV_LABEL_CLASS} font-medium`}>{item.title}</span>
+                <span className={`${DASHBOARD_RAIL_NAV_LABEL_CLASS} font-medium`}>{item.railLabel ?? item.title}</span>
               </div>
             ))}
           </div>
