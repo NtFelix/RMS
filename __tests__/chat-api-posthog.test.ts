@@ -27,10 +27,6 @@ jest.mock('@google/genai', () => ({
   },
 }));
 
-jest.mock('@/utils/ai-context', () => ({
-  getAIContextForPathname: jest.fn().mockResolvedValue('Mock Context'),
-}));
-
 jest.mock('uuid', () => ({
   v4: () => 'mock-uuid-1234',
 }));
