@@ -1,6 +1,5 @@
 'use client'
-import { useEffect } from 'react'
-import posthog from 'posthog-js'
+import { useErrorBoundaryReporting } from '@/hooks/use-error-boundary-reporting'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
 
@@ -11,9 +10,7 @@ export default function Error({
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  useEffect(() => {
-    posthog.captureException(error)
-  }, [error])
+  useErrorBoundaryReporting(error)
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center">
