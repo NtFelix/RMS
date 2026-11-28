@@ -150,8 +150,8 @@ export type ToolbarFilterGroup = {
 
 export function ToolbarFilterMenu({ groups, onReset }: { groups: ToolbarFilterGroup[]; onReset?: () => void }) {
   const isFiltered = (g: ToolbarFilterGroup) => {
-    const base = g.defaultSelected ?? []
-    return g.selected.length !== base.length || g.selected.some((v) => !base.includes(v))
+    const base = new Set(g.defaultSelected ?? [])
+    return g.selected.length !== base.size || g.selected.some((v) => !base.has(v))
   }
   const activeCount = groups.filter(isFiltered).length
 
