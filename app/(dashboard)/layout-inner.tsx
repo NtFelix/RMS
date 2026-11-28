@@ -129,7 +129,6 @@ export default function DashboardInnerLayout({
         <Suspense fallback={null}>
           <EmailVerificationNotifier />
         </Suspense>
-        {/* <GlobalDragDropProvider> */}
         <CommandMenu />
         <DashboardLayout sidebarData={sidebarData}>{children}</DashboardLayout>
         {/* Render modals: They control their own open/close state via the store */}

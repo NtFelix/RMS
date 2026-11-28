@@ -1541,7 +1541,6 @@ async function fetchNebenkostenListOptimizedImpl(): Promise<OptimizedActionRespo
  * ```
  * 
  * @see {@link docs/database-functions.md#get_wasserzaehler_modal_data} Database function documentation
- * @see {@link components/wasserzaehler-modal.tsx} Modal component that consumes this data
  */
 /**
  * Fetches the most recent Betriebskosten entry for a specific house
