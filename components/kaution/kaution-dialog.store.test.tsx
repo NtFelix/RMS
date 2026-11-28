@@ -83,7 +83,7 @@ function baueDetails(mieterId = TENANT_A, kontostand = KONTOSTAND_A): KautionDet
 }
 
 /**
- * Stand-in for the global host of the confirmation dialog (`app/(dashboard)/dashboard-overlay-host.tsx`): shows the
+ * Stand-in for the global host of the confirmation dialog (`app/(dashboard)/layout-inner.tsx`): shows the
  * confirmation of the store with the real shared dialog, whose "Abbrechen" only closes it (without `onCancel`).
  */
 function BestaetigungsHost() {

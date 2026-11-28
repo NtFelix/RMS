@@ -135,11 +135,6 @@ jest.mock('@/components/ui/toaster', () => ({
   Toaster: () => <div data-testid="toaster">Toaster</div>
 }));
 
-// Mock filters to prevent complex component rendering
-jest.mock('@/components/apartments/apartment-filters', () => ({
-  ApartmentFilters: () => <div>Apartment Filters</div>
-}));
-
 jest.mock('@/components/houses/house-filters', () => ({
   HouseFilters: () => <div>House Filters</div>
 }));
