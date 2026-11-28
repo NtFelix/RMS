@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
 import { useTabParams } from "@/hooks/use-tab-params";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -36,7 +36,6 @@ import { ApplicantImportModal } from "@/components/tenants/applicant-import-moda
 import { ApplicantScoreModal } from "@/components/tenants/applicant-score-modal";
 import { MailPreviewModal } from "@/components/mail-preview-modal";
 import { TenantFluctuationChart } from "@/components/dashboard/dashboard-charts-wrapper";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 
 import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
@@ -47,42 +46,20 @@ const currencyFormatter = new Intl.NumberFormat("de-DE", {
   currency: "EUR",
 });
 
-// Custom tooltip showing total monthly prepayments
-const CustomNebenkostenTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="bg-white/95 dark:bg-zinc-900/95 border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl shadow-xl backdrop-blur-xs text-xs flex flex-col gap-3 min-w-[220px] animate-in fade-in duration-150 z-50">
-        <div className="border-b border-zinc-100 dark:border-zinc-800 pb-2">
-          <span className="text-muted-foreground block text-[10px] uppercase font-semibold tracking-wider">Nebenkosten-Trend</span>
-          <span className="font-bold text-sm text-zinc-900 dark:text-zinc-50">{data.name}</span>
-        </div>
-        
-        <div className="flex items-center justify-between font-bold text-zinc-950 dark:text-zinc-50">
-          <span>Gesamt:</span>
-          <span className="text-accent font-bold text-sm">
-            {currencyFormatter.format(data.amount)}
-          </span>
-        </div>
+// Expliziter Zeitraum und Locale: Server und Browser rendern denselben Text (die Daten sind reine Kalendertage).
+const dateFormatter = new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin" });
+const longDateFormatter = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "long", year: "numeric", timeZone: "Europe/Berlin" });
 
-        {data.distribution && data.distribution.length > 0 && (
-          <div className="flex flex-col gap-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-            <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider block mb-1">Aufteilung nach Mieter</span>
-            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-1">
-              {data.distribution.map((dist: any, idx: number) => (
-                <div key={dist.tenantId || dist.tenantName || idx} className="flex justify-between items-center text-zinc-700 dark:text-zinc-300 gap-4">
-                  <span className="truncate max-w-[120px] font-medium">{dist.tenantName}</span>
-                  <span className="font-semibold shrink-0">{currencyFormatter.format(dist.amount)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-  return null;
-};
+// recharts + framer-motion (Layout-Features) nur laden, wenn die Übersicht geöffnet wird. Der Platzhalter hält die Höhe der Karte.
+const NebenkostenTrendCard = dynamic(() => import("./overview-charts"), {
+  ssr: false,
+  loading: () => (
+    <div
+      className="h-[26rem] w-full animate-pulse rounded-[2rem] border border-gray-200 bg-gray-50 dark:border-[#3C4251] dark:bg-[#22272e]"
+      aria-hidden="true"
+    />
+  ),
+});
 
 interface MieterClientViewProps {
   initialTenants: Tenant[];
@@ -253,7 +230,7 @@ export default function MieterClientView({
     if (rawFlag === false && currentTab === "bewerber") {
       setCurrentTab("mieter");
     }
-  }, [rawFlag, currentTab]);
+  }, [rawFlag, currentTab, setCurrentTab]);
 
   // Compute tenant stats for overview subpage
   const tenantStats = useMemo(() => {
@@ -543,7 +520,7 @@ export default function MieterClientView({
       const formattedName = `${monthNamesGerman[monthIdx]} ${year}`;
 
       let monthlyTotal = 0;
-      const distribution: Array<{ tenantName: string; amount: number }> = [];
+      const distribution: Array<{ tenantId: string; tenantName: string; amount: number }> = [];
 
       initialTenants.forEach(t => {
         // Parse move-in date
@@ -603,6 +580,7 @@ export default function MieterClientView({
         if (activeRate > 0) {
           monthlyTotal += activeRate;
           distribution.push({
+            tenantId: t.id,
             tenantName: t.name,
             amount: parseFloat(activeRate.toFixed(2)),
           });
@@ -778,9 +756,11 @@ export default function MieterClientView({
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
+    const downloadUrl = URL.createObjectURL(blob)
+    link.href = downloadUrl
     link.download = `mieter_export_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
+    URL.revokeObjectURL(downloadUrl)
 
     toast({
       title: "Export erfolgreich",
@@ -1085,7 +1065,7 @@ export default function MieterClientView({
                             {upcomingTransitions[0].tenantName}
                           </span>
                           <span className="text-[10px] text-muted-foreground block mt-0.5">
-                            {new Date(upcomingTransitions[0].dateString).toLocaleDateString('de-DE')}
+                            {dateFormatter.format(new Date(upcomingTransitions[0].dateString))}
                           </span>
                         </div>
                       </div>
@@ -1094,13 +1074,24 @@ export default function MieterClientView({
                       <div className="flex flex-col gap-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
                         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Wechsel-Timeline</h4>
                         <div className="flex flex-col gap-2.5">
-                          {upcomingTransitions.map((t, idx) => {
+                          {upcomingTransitions.map((t) => {
                             const isEinzug = t.type === 'einzug';
                             return (
-                              <div 
-                                key={idx} 
+                              <div
+                                key={`${t.tenant.id}-${t.type}`}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`${t.tenantName} bearbeiten`}
                                 onClick={() => handleEditTenantInTable(t.tenant)}
-                                className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-all duration-200 cursor-pointer select-none"
+                                onKeyDown={(event) => {
+                                  // Nur Tastendrücke der Zeile selbst (nicht von Elementen darin); Leertaste ohne Seitenscroll.
+                                  if (event.target !== event.currentTarget) return;
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    handleEditTenantInTable(t.tenant);
+                                  }
+                                }}
+                                className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-[border-color,box-shadow] duration-200 cursor-pointer select-none focus-visible:outline-hidden focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
                               >
                                 {/* Left section: Icon and basic info */}
                                 <div className="flex items-center gap-3">
@@ -1133,7 +1124,7 @@ export default function MieterClientView({
                                   <div className="flex items-center gap-1.5 min-w-[120px]">
                                     <Clock className="size-3.5 text-muted-foreground shrink-0" />
                                     <span className="text-zinc-700 dark:text-zinc-300 font-medium">
-                                      {new Date(t.dateString).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                      {longDateFormatter.format(new Date(t.dateString))}
                                     </span>
                                   </div>
 
@@ -1216,7 +1207,7 @@ export default function MieterClientView({
                           
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm" className="h-9 text-xs px-3 rounded-xl bg-background border border-input focus:border-primary focus:bg-background/80 hover:border-border/80 hover:bg-muted/30 focus:ring-0 focus:outline-hidden transition-all duration-300 ease-in-out gap-1.5 font-medium cursor-pointer">
+                              <Button variant="outline" size="sm" className="h-9 text-xs px-3 rounded-xl bg-background border border-input focus:border-primary focus:bg-background/80 hover:border-border/80 hover:bg-muted/30 focus:ring-0 focus:outline-hidden transition-[background-color,border-color,box-shadow] duration-300 ease-in-out gap-1.5 font-medium cursor-pointer">
                                 <TrendingUp className="size-3.5 opacity-60 text-muted-foreground" />
                                 <span>
                                   {depositFilter === "all" ? "Alle" : depositFilter === "Erhalten" ? "Bezahlt" : depositFilter === "Zurückgezahlt" ? "Erstattet" : "Ausstehend"}
@@ -1256,7 +1247,7 @@ export default function MieterClientView({
                               return matchesSearch && matchesStatus;
                             })
                             .sort((a, b) => b.amount - a.amount)
-                            .map(({ tenant: t, amount: kautionAmount }, idx) => {
+                            .map(({ tenant: t, amount: kautionAmount }) => {
                               const status = t.kaution?.status || 'Ausstehend';
                               const wohnungName = t.wohnung_id ? wohnungsMap[t.wohnung_id] : undefined;
 
@@ -1275,7 +1266,7 @@ export default function MieterClientView({
 
                               return (
                                 <div
-                                  key={t.id || idx}
+                                  key={t.id}
                                   role="button"
                                   tabIndex={0}
                                   aria-label={`Kaution von ${t.name} öffnen`}
@@ -1344,7 +1335,7 @@ export default function MieterClientView({
                       </div>
                       <div className="h-2 w-full bg-zinc-200/80 dark:bg-zinc-800/80 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.2)]" 
+                          className="h-full bg-accent rounded-full transition-[width] duration-500 shadow-[0_0_8px_rgba(59,130,246,0.2)]" 
                           style={{ 
                             width: `${tenantStats.totalDeposit > 0 
                               ? (depositRefundStats.returnedAmount / tenantStats.totalDeposit) * 100 
@@ -1438,7 +1429,7 @@ export default function MieterClientView({
                             
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-9 text-xs px-3 rounded-xl bg-background border border-input focus:border-primary focus:bg-background/80 hover:border-border/80 hover:bg-muted/30 focus:ring-0 focus:outline-hidden transition-all duration-300 ease-in-out gap-1.5 font-medium cursor-pointer">
+                                <Button variant="outline" size="sm" className="h-9 text-xs px-3 rounded-xl bg-background border border-input focus:border-primary focus:bg-background/80 hover:border-border/80 hover:bg-muted/30 focus:ring-0 focus:outline-hidden transition-[background-color,border-color,box-shadow] duration-300 ease-in-out gap-1.5 font-medium cursor-pointer">
                                   <Users className="size-3.5 opacity-60 text-muted-foreground" />
                                   <span>
                                     {applicantFilter === "all" ? "Alle Fits" : applicantFilter}
@@ -1469,7 +1460,7 @@ export default function MieterClientView({
                                 return matchesSearch && matchesFit;
                               })
                               .sort((a, b) => (b.bewerbung_score ?? 0) - (a.bewerbung_score ?? 0))
-                              .map((t, idx) => {
+                              .map((t) => {
                                 const score = t.bewerbung_score ?? 0;
                                 const fitClass = score >= 80 
                                   ? 'A-Fit' 
@@ -1492,9 +1483,20 @@ export default function MieterClientView({
 
                                 return (
                                   <div
-                                    key={t.id || idx}
+                                    key={t.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={`${t.name} bearbeiten`}
                                     onClick={() => handleEditTenantInTable(t)}
-                                    className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-all duration-200 cursor-pointer select-none"
+                                    onKeyDown={(event) => {
+                                      // Nur Tastendrücke der Zeile selbst (nicht von Elementen darin); Leertaste ohne Seitenscroll.
+                                      if (event.target !== event.currentTarget) return;
+                                      if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault();
+                                        handleEditTenantInTable(t);
+                                      }
+                                    }}
+                                    className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-[border-color,box-shadow] duration-200 cursor-pointer select-none focus-visible:outline-hidden focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
                                   >
                                     <div className="flex items-center gap-3">
                                       <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
@@ -1541,7 +1543,7 @@ export default function MieterClientView({
                           </div>
                           <div className="h-2 w-full bg-zinc-200/80 dark:bg-zinc-800/80 rounded-full overflow-hidden">
                             <div 
-                              className="h-full bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.2)]" 
+                              className="h-full bg-accent rounded-full transition-[width] duration-500 shadow-[0_0_8px_rgba(59,130,246,0.2)]" 
                               style={{ 
                                 width: `${applicantScoreDistribution.totalWithScore > 0 
                                   ? ((applicantScoreDistribution.high + applicantScoreDistribution.good) / applicantScoreDistribution.totalWithScore) * 100 
@@ -1560,102 +1562,12 @@ export default function MieterClientView({
               </Card>
             </div>
 
-            {/* Row 3: Nebenkosten-Entwicklung Trend AreaChart */}
-            <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6">
-              <CardHeader className="px-0 pt-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <CardTitle className="text-base font-semibold">
-                    Nebenkosten-Vorauszahlungs-Trends (€)
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Verteilungsvergleich der monatlichen Vorauszahlungspauschalen nach Mieter
-                  </p>
-                </div>
-
-                {/* Timeframe selector pill */}
-                <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 border border-zinc-200/20 dark:border-zinc-800/20 p-1 rounded-full relative w-full sm:w-auto self-start sm:self-center select-none overflow-hidden">
-                  {(["1", "2", "5"] as const).map((timeframe) => {
-                    const label = timeframe === "1" ? "1 Jahr" : timeframe === "2" ? "2 Jahre" : "5 Jahre";
-                    const isActive = nebenkostenTimeframe === timeframe;
-                    return (
-                      <button
-                        key={timeframe}
-                        type="button"
-                        onClick={() => setNebenkostenTimeframe(timeframe)}
-                        className={cn(
-                          "px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 relative cursor-pointer min-w-[70px] text-center z-10",
-                          isActive
-                            ? "text-zinc-900 dark:text-zinc-50 font-semibold"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        {isActive && (
-                          <motion.div
-                            layoutId="nebenkosten-timeframe-pill"
-                            className="absolute inset-0 bg-white dark:bg-zinc-700 shadow-xs border border-zinc-200/10 dark:border-zinc-600/30 rounded-full -z-10"
-                            transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                          />
-                        )}
-                        <span>{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </CardHeader>
-              <CardContent className="px-0 pb-0 mt-6">
-                {nebenkostenTrend.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-center bg-zinc-100/50 dark:bg-zinc-800/20 rounded-2xl border border-zinc-200/20">
-                    <TrendingUp className="size-8 text-muted-foreground/30 mb-2" />
-                    <span className="text-sm font-medium text-muted-foreground">
-                      Keine erfassten Nebenkostenwerte vorhanden
-                    </span>
-                    <span className="text-xs text-muted-foreground/60 max-w-[240px] mt-1">
-                      Fügen Sie Nebenkosteneinträge bei Ihren Mietern hinzu, um Trends und Preisanomalien zu visualisieren.
-                    </span>
-                  </div>
-                ) : (
-                  <div className="h-72 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart
-                        data={nebenkostenTrend}
-                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                      >
-                        <defs>
-                          <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" className="dark:stroke-zinc-800" />
-                        <XAxis 
-                          dataKey="name" 
-                          stroke="#888888" 
-                          fontSize={11} 
-                          tickLine={false} 
-                          axisLine={false} 
-                        />
-                        <YAxis 
-                          stroke="#888888" 
-                          fontSize={11} 
-                          tickLine={false} 
-                          axisLine={false} 
-                          tickFormatter={(value) => `${value} €`} 
-                        />
-                        <RechartsTooltip content={<CustomNebenkostenTooltip />} />
-                        <Area 
-                          type="monotone" 
-                          dataKey="amount" 
-                          stroke="hsl(var(--accent))" 
-                          strokeWidth={2}
-                          fillOpacity={1} 
-                          fill="url(#colorAmount)" 
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* Row 3: Nebenkosten-Entwicklung Trend AreaChart (recharts wird erst hier nachgeladen) */}
+            <NebenkostenTrendCard
+              trend={nebenkostenTrend}
+              selectedTimeframe={nebenkostenTimeframe}
+              onTimeframeChange={setNebenkostenTimeframe}
+            />
           </div>
         )}
       </div>

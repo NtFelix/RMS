@@ -60,7 +60,6 @@ interface BulkLoeschErgebnis {
 
 export function TenantBulkActionBar({
   selectedTenants,
-  tenants,
   wohnungsMap,
   onClearSelection,
   onExport,

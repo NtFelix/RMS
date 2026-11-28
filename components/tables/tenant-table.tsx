@@ -551,10 +551,8 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   const sortDirection = isSortControlled ? controlledSortDirection : internalSort.sortDirection
   const [internalSelectedTenants, setInternalSelectedTenants] = useState<Set<string>>(new Set())
   const [dialogState, dispatchDialog] = useReducer(dialogReducer, initialDialogState)
-  const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(null as never)
-  if (!contextMenuRefs.current) {
-    contextMenuRefs.current = new Map()
-  }
+  // Lazy-initialised, stable ref-like container (keeps `.current` for callers without touching a ref during render)
+  const [contextMenuRefs] = useState<React.MutableRefObject<Map<string, HTMLElement>>>(() => ({ current: new Map<string, HTMLElement>() }))
 
   const selectedTenants = externalSelectedTenants ?? internalSelectedTenants
   const setSelectedTenants = onSelectionChange ?? setInternalSelectedTenants
@@ -728,9 +726,11 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
+    const downloadUrl = URL.createObjectURL(blob)
+    link.href = downloadUrl
     link.download = `mieter_export_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
+    URL.revokeObjectURL(downloadUrl)
 
     toast({
       title: "Export erfolgreich",
