@@ -47,7 +47,8 @@ const initialActiveState: ActiveStateInfo = {
   breadcrumbs: [],
   isCloudStorageActive: false,
   activeDirectoryPath: null,
-  lastUpdated: Date.now()
+  // Kein Date.now() im Modul-Scope: das Modul wird beim Prerender geladen (Cache Components meldet sonst einen instabilen Wert)
+  lastUpdated: 0
 }
 
 export const useActiveStateStore = create<ActiveStateManager>()(

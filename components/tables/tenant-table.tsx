@@ -22,8 +22,8 @@ import { Tenant, NebenkostenEntry } from "@/types/Tenant";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 import { formatFailureReasons, summarizeBulkDeleteResults } from "@/lib/bulk-delete-summary";
 
-type TenantSortKey = "name" | "email" | "telefonnummer" | "wohnung" | "nebenkosten" | ""
-type SortDirection = "asc" | "desc"
+export type TenantSortKey = "name" | "email" | "telefonnummer" | "wohnung" | "nebenkosten" | ""
+export type SortDirection = "asc" | "desc"
 
 interface TenantTableProps {
   tenants: Tenant[];
@@ -35,6 +35,10 @@ interface TenantTableProps {
   selectedTenants?: Set<string>;
   onSelectionChange?: (selected: Set<string>) => void;
   mode?: "tenants" | "applicants";
+  /** Sortierung von außen (Toolbar): gesteuert nur, wenn alle drei Props gesetzt sind, sonst hält die Tabelle sie selbst. */
+  sortKey?: TenantSortKey;
+  sortDirection?: SortDirection;
+  onSortChange?: (key: TenantSortKey, direction: SortDirection) => void;
   canEdit?: boolean;
   canDelete?: boolean;
   /** Modulrecht `kautionen: ansehen` (GH-6): ohne dieses Recht gibt es weder Tabellen-Button noch Kontextmenü-Eintrag "Kaution". */
@@ -169,13 +173,14 @@ function BulkActionBar({
 }
 
 function SortIcon({ currentSortKey, sortKey, sortDirection }: { currentSortKey: TenantSortKey; sortKey: TenantSortKey; sortDirection: SortDirection }) {
+  // Inaktive Spalten zeigen den Sortier-Hinweis nur beim Hover, die aktive Sortierung bleibt sichtbar
   if (currentSortKey !== sortKey) {
-    return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+    return <ChevronsUpDown className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/header:opacity-100 group-focus-within/header:opacity-100" />
   }
   return sortDirection === "asc" ? (
-    <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
+    <ArrowUp className="size-3.5 text-foreground" />
   ) : (
-    <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
+    <ArrowDown className="size-3.5 text-foreground" />
   )
 }
 
@@ -190,15 +195,18 @@ function TableHeaderCell({ sortKey, currentSortKey, sortDirection, children, cla
   onSort: (key: TenantSortKey) => void;
 }) {
   return (
-    <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
+    <TableHead
+      className={`${className} group/header h-10 whitespace-nowrap text-[13px] font-semibold text-foreground hover:bg-transparent dark:hover:bg-transparent`}
+      aria-sort={sortable && currentSortKey === sortKey ? (sortDirection === "asc" ? "ascending" : "descending") : undefined}
+    >
       <div
         onClick={() => sortable && onSort(sortKey)}
         onKeyUp={(e) => { if (sortable && (e.key === 'Enter' || e.key === ' ')) onSort(sortKey) }}
         role={sortable ? 'button' : undefined}
         tabIndex={sortable ? 0 : undefined}
-        className={`flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] ${sortable ? 'cursor-pointer' : ''}`}
+        className={`-ml-1.5 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring ${sortable ? 'cursor-pointer transition-colors hover:bg-muted' : ''}`}
       >
-        <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+        <Icon className="size-3.5 text-muted-foreground" />
         {children}
         {sortable && <SortIcon currentSortKey={currentSortKey} sortKey={sortKey} sortDirection={sortDirection} />}
       </div>
@@ -329,12 +337,13 @@ function TenantTableContent({
 }) {
   const { openApplicantScoreModal, openMailPreviewModal } = useModalStore()
   return (
-    <div className="overflow-x-auto -mx-4 sm:mx-0 min-h-[600px]">
+    <div className="overflow-x-auto -mx-4 sm:mx-0">
       <div className="inline-block min-w-full align-middle">
         <Table className="min-w-full">
           <TableHeader>
-            <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
-              <TableHead className="w-12 pl-0 pr-0 -ml-2">
+            {/* Kopfzeile ohne Hintergrund: fette Beschriftung und eine kräftigere Linie trennen sie von den Daten */}
+            <TableRow className="border-b border-foreground/15 hover:bg-transparent dark:hover:bg-transparent">
+              <TableHead className="h-10 w-12 pl-0 pr-0 -ml-2 hover:bg-transparent dark:hover:bg-transparent">
                 <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
                   <Checkbox
                     aria-label="Alle Mieter auswählen"
@@ -344,18 +353,18 @@ function TenantTableContent({
                   />
                 </div>
               </TableHead>
-              <TableHeaderCell sortKey="name" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[250px] dark:text-[#f3f4f6]" icon={User} onSort={handleSort}>Name</TableHeaderCell>
-              <TableHeaderCell sortKey="email" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={Mail} onSort={handleSort}>E-Mail</TableHeaderCell>
-              <TableHeaderCell sortKey="telefonnummer" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={Phone} onSort={handleSort}>Telefon</TableHeaderCell>
-              <TableHeaderCell sortKey="wohnung" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={Home} onSort={handleSort}>Wohnung</TableHeaderCell>
-              <TableHeaderCell sortKey="nebenkosten" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={FileText} onSort={handleSort}>{mode === 'applicants' ? 'Score' : 'Nebenkosten'}</TableHeaderCell>
-              <TableHeaderCell sortKey="" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false} onSort={handleSort}>Aktionen</TableHeaderCell>
+              <TableHeaderCell sortKey="name" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[250px]" icon={User} onSort={handleSort}>Name</TableHeaderCell>
+              <TableHeaderCell sortKey="email" currentSortKey={sortKey} sortDirection={sortDirection} icon={Mail} onSort={handleSort}>E-Mail</TableHeaderCell>
+              <TableHeaderCell sortKey="telefonnummer" currentSortKey={sortKey} sortDirection={sortDirection} icon={Phone} onSort={handleSort}>Telefon</TableHeaderCell>
+              <TableHeaderCell sortKey="wohnung" currentSortKey={sortKey} sortDirection={sortDirection} icon={Home} onSort={handleSort}>Wohnung</TableHeaderCell>
+              <TableHeaderCell sortKey="nebenkosten" currentSortKey={sortKey} sortDirection={sortDirection} icon={FileText} onSort={handleSort}>{mode === 'applicants' ? 'Score' : 'Nebenkosten'}</TableHeaderCell>
+              <TableHeaderCell sortKey="" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[80px] pr-2" icon={Pencil} sortable={false} onSort={handleSort}>Aktionen</TableHeaderCell>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedAndFilteredData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-[400px] text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   Keine Mieter gefunden.
                 </TableCell>
               </TableRow>
@@ -393,24 +402,38 @@ function TenantTableContent({
                         className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
                         onClick={(event) => event.stopPropagation()}
                       >
-                        <Checkbox
-                          aria-label={`Mieter ${tenant.name} auswählen`}
-                          checked={selectedTenants.has(tenant.id)}
-                          onCheckedChange={(checked) => handleSelectTenant(tenant.id, checked)}
-                        />
+                        {/* Flex statt inline-block: sonst sitzt die Checkbox auf der Textgrundlinie, ein paar Pixel über der Zeilenmitte */}
+                        <div className="flex items-center">
+                          <Checkbox
+                            aria-label={`Mieter ${tenant.name} auswählen`}
+                            checked={selectedTenants.has(tenant.id)}
+                            onCheckedChange={(checked) => handleSelectTenant(tenant.id, checked)}
+                          />
+                        </div>
                       </TableCell>
-                      <TableCell className={`font-medium py-4 dark:text-[#f3f4f6] flex items-center gap-3`}>
-                        <Avatar className="h-9 w-9 shrink-0 bg-primary text-primary-foreground">
-                          <AvatarImage src="" alt={tenant.name} />
-                          <AvatarFallback className="bg-primary text-primary-foreground">
-                            {getInitials(tenant.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span>{tenant.name}</span>
+                      {/* Flex im inneren Element: display:flex auf dem <td> bricht die Tabellen-Ausrichtung der Zeile */}
+                      <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9 shrink-0 bg-primary text-primary-foreground">
+                            <AvatarImage src="" alt={tenant.name} />
+                            <AvatarFallback className="bg-primary text-primary-foreground">
+                              {getInitials(tenant.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="whitespace-nowrap">{tenant.name}</span>
+                        </div>
                       </TableCell>
-                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.email}</TableCell>
-                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.telefonnummer}</TableCell>
-                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
+                      <TableCell className={`py-4 whitespace-nowrap dark:text-[#f3f4f6]`}>{tenant.email}</TableCell>
+                      <TableCell className={`py-4 whitespace-nowrap dark:text-[#f3f4f6]`}>{tenant.telefonnummer}</TableCell>
+                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
+                        {/* Einzeilig; der volle Wohnungsname steht im Tooltip */}
+                        <span
+                          className="block max-w-[14rem] truncate"
+                          title={tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] : undefined}
+                        >
+                          {tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}
+                        </span>
+                      </TableCell>
                       <TableCell className={`py-4`}>
                         {mode === 'applicants' ? (
                           <div className="flex items-center gap-2">
@@ -520,15 +543,16 @@ function TenantTableContent({
   );
 }
 
-export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete, selectedTenants: externalSelectedTenants, onSelectionChange, mode = "tenants", canEdit = true, canDelete = true, canViewKautionen = false }: TenantTableProps) {
+export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete, selectedTenants: externalSelectedTenants, onSelectionChange, mode = "tenants", sortKey: controlledSortKey, sortDirection: controlledSortDirection, onSortChange, canEdit = true, canDelete = true, canViewKautionen = false }: TenantTableProps) {
   const router = useRouter()
-  const [{ sortKey, sortDirection }, dispatchSort] = useReducer(sortReducer, { sortKey: "name" as TenantSortKey, sortDirection: "asc" as SortDirection })
+  const [internalSort, dispatchSort] = useReducer(sortReducer, { sortKey: "name" as TenantSortKey, sortDirection: "asc" as SortDirection })
+  const isSortControlled = controlledSortKey !== undefined && controlledSortDirection !== undefined && !!onSortChange
+  const sortKey = isSortControlled ? controlledSortKey : internalSort.sortKey
+  const sortDirection = isSortControlled ? controlledSortDirection : internalSort.sortDirection
   const [internalSelectedTenants, setInternalSelectedTenants] = useState<Set<string>>(new Set())
   const [dialogState, dispatchDialog] = useReducer(dialogReducer, initialDialogState)
-  const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(null as never)
-  if (!contextMenuRefs.current) {
-    contextMenuRefs.current = new Map()
-  }
+  // Lazy-initialised, stable ref-like container (keeps `.current` for callers without touching a ref during render)
+  const [contextMenuRefs] = useState<React.MutableRefObject<Map<string, HTMLElement>>>(() => ({ current: new Map<string, HTMLElement>() }))
 
   const selectedTenants = externalSelectedTenants ?? internalSelectedTenants
   const setSelectedTenants = onSelectionChange ?? setInternalSelectedTenants
@@ -639,6 +663,11 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   }
 
   const handleSort = (key: TenantSortKey) => {
+    if (isSortControlled) {
+      // Gleiche Umschalt-Logik wie sortReducer
+      onSortChange(key, key === sortKey ? (sortDirection === "asc" ? "desc" : "asc") : "asc")
+      return
+    }
     dispatchSort({ type: "TOGGLE", payload: key })
   }
 
@@ -697,9 +726,11 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
+    const downloadUrl = URL.createObjectURL(blob)
+    link.href = downloadUrl
     link.download = `mieter_export_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
+    URL.revokeObjectURL(downloadUrl)
 
     toast({
       title: "Export erfolgreich",

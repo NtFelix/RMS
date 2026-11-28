@@ -49,7 +49,6 @@ describe('route loading states', () => {
 // STAT_CARD_ROW_CLASS. The skeleton uses the same component and row class, so the card height cannot drift.
 describe('list route skeletons', () => {
   it.each([
-    ['Mieter', MieterSkeleton, 'Mieter werden geladen', ['Mieter gesamt', 'Aktiv / Ehemalig', 'Ø Nebenkosten']],
     [
       'Wohnungen',
       WohnungenSkeleton,
@@ -67,11 +66,14 @@ describe('list route skeletons', () => {
   });
 
   // Neues Layout: Kennzahlen stehen in der Secondary Rail, das Skeleton zeigt Top-Bar und Tabellenzeilen ohne KPI-Reihe
-  it('Häuser (neues Layout) announces itself without the old KPI row', () => {
-    render(<HaeuserSkeleton />);
+  it.each([
+    ['Häuser', HaeuserSkeleton, 'Häuser werden geladen', 'Häuser gesamt'],
+    ['Mieter', MieterSkeleton, 'Mieter werden geladen', 'Mieter gesamt'],
+  ])('%s (neues Layout) announces itself without the old KPI row', (_name, Skeleton, label, kpi) => {
+    render(<Skeleton />);
 
-    expect(screen.getByRole('status', { name: 'Häuser werden geladen' })).toHaveAttribute('aria-busy', 'true');
-    expect(screen.queryByText('Häuser gesamt')).not.toBeInTheDocument();
+    expect(screen.getByRole('status', { name: label })).toHaveAttribute('aria-busy', 'true');
+    expect(screen.queryByText(kpi)).not.toBeInTheDocument();
   });
 
   it('StatCard shows a placeholder instead of the value while loading', () => {

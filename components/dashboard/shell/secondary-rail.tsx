@@ -147,3 +147,13 @@ export function RailStats({ children }: { children: React.ReactNode }) {
     </div>
   )
 }
+
+/**
+ * Placed in a generic loading state (e.g. the route group's loading.tsx): keeps the rail column as it was while the
+ * real page (with or without a rail) loads, so the column changes in one step together with the page.
+ */
+export function SecondaryRailHold() {
+  const registerHold = useOptionalSecondaryRail()?.registerHold
+  useLayoutEffect(() => registerHold?.(), [registerHold])
+  return null
+}

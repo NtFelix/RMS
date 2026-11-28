@@ -128,15 +128,12 @@ describe('Layout Changes Integration Tests', () => {
         serverAction: jest.fn(),
       };
 
-      const { container } = render(<MieterClientView {...props} />);
+      render(<MieterClientView {...props} />);
 
-      // Should have card-based layout
-      expect(screen.getByText('Mieterverwaltung')).toBeInTheDocument();
+      // Rail-Layout: Breadcrumb und Aktion in der Top-Bar statt Card-Kopf
+      expect(screen.getByRole('banner')).toHaveTextContent('Mieter');
       expect(screen.getByRole('button', { name: /Mieter hinzufügen/i })).toBeInTheDocument();
-      
-      // Should have inline header-button layout
-      const headerContainer = container.querySelector('.flex.flex-row.items-center.justify-between');
-      expect(headerContainer).toBeInTheDocument();
+      expect(screen.queryByText('Mieterverwaltung')).not.toBeInTheDocument();
     });
 
     it('Betriebskosten page has correct inline header-button layout', async () => {
@@ -338,15 +335,16 @@ describe('Layout Changes Integration Tests', () => {
 
   describe('Card Structure', () => {
     it('all pages use consistent card structure', async () => {
-      const MieterClientView = (await import('@/app/(dashboard)/mieter/client-wrapper')).default;
+      // Häuser und Mieter haben im Rail-Layout keine Card mehr um die Tabelle
+      const BetriebskostenClientView = (await import('@/app/(dashboard)/betriebskosten/client-wrapper')).default;
       
       const props = {
-        initialTenants: [],
-        initialWohnungen: [],
-        serverAction: jest.fn(),
+        initialNebenkosten: [],
+        initialHaeuser: [],
+        ownerName: 'Test Owner',
       };
 
-      const { container } = render(<MieterClientView {...props} />);
+      const { container } = render(<BetriebskostenClientView {...props} />);
 
       // Should have card with proper classes
       const card = container.querySelector('[class*="rounded-xl"][class*="shadow-md"]');

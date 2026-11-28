@@ -77,14 +77,24 @@ export function ToolbarSearch({
 }) {
   const [open, setOpen] = useState(value !== "")
   const inputRef = useRef<HTMLInputElement>(null)
+  const iconRef = useRef<HTMLButtonElement>(null)
+  // Nach Escape kommt der Fokus auf das Icon zurück (statt auf <body>); beim Blur hat ihn der Nutzer selbst weitergegeben
+  const restoreFocus = useRef(false)
   const expanded = open || value !== ""
 
   useEffect(() => {
     if (open) inputRef.current?.focus()
   }, [open])
 
+  useEffect(() => {
+    if (!expanded && restoreFocus.current) {
+      restoreFocus.current = false
+      iconRef.current?.focus()
+    }
+  }, [expanded])
+
   if (!expanded) {
-    return <ToolbarIconButton icon={Search} label="Suchen" onClick={() => setOpen(true)} />
+    return <ToolbarIconButton ref={iconRef} icon={Search} label="Suchen" onClick={() => setOpen(true)} />
   }
 
   return (
@@ -98,6 +108,7 @@ export function ToolbarSearch({
         onBlur={() => value === "" && setOpen(false)}
         onKeyDown={(e) => {
           if (e.key !== "Escape") return
+          restoreFocus.current = true
           onChange("")
           setOpen(false)
         }}
@@ -130,13 +141,19 @@ export type ToolbarFilterGroup = {
   options: { value: string; label: string; count?: number }[]
   /** Empty = no filter on this group. */
   selected: string[]
+  /** Selection of the default view (e.g. only current tenants); the group counts as filtered only when it differs. */
+  defaultSelected?: string[]
   /** Single-select groups toggle: choosing the selected option again clears the group. */
   multiple?: boolean
   onChange: (selected: string[]) => void
 }
 
 export function ToolbarFilterMenu({ groups, onReset }: { groups: ToolbarFilterGroup[]; onReset?: () => void }) {
-  const activeCount = groups.filter((g) => g.selected.length > 0).length
+  const isFiltered = (g: ToolbarFilterGroup) => {
+    const base = new Set(g.defaultSelected ?? [])
+    return g.selected.length !== base.size || g.selected.some((v) => !base.has(v))
+  }
+  const activeCount = groups.filter(isFiltered).length
 
   const toggle = (group: ToolbarFilterGroup, value: string) => {
     const isSelected = group.selected.includes(value)

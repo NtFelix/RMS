@@ -1045,4 +1045,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .price-digit-group .price-digit { animation: none !important; }
+  /* Skeleton-Puls und Ein-/Ausblend-Animationen (Pille, Menüs, Inhalte) */
+  .animate-pulse, .animate-in { animation: none !important; }
 }

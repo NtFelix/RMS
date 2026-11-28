@@ -26,6 +26,8 @@ jest.mock("@/app/bewerber-actions", () => ({ bewerberLoeschenAction: jest.fn() }
 const startMock = starteLoeschenMitKautionen as jest.MockedFunction<typeof starteLoeschenMitKautionen>;
 const toastMock = toast as unknown as jest.Mock;
 const fetchMock = jest.fn();
+// Laufender Löschvorgang: Beschriftung der Pillen-Aktion bzw. des Bestätigen-Knopfs im Dialog
+const LAEUFT = /^(Löschen…|Wird gelöscht\.\.\.)$/;
 
 const KAUTION_GRUND = "Der Mieter hat eine hinterlegte Kaution und kann nicht gelöscht werden.";
 const KAUTION_GRUND_ROH = `KAUT_GESPERRT: ${KAUTION_GRUND}`;
@@ -72,7 +74,7 @@ async function loescheUndBestaetige() {
   await screen.findByRole("dialog");
   await user.click(await screen.findByRole("button", { name: "Löschen bestätigen" }));
   await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1));
-  await waitFor(() => expect(screen.queryAllByText("Wird gelöscht...")).toHaveLength(0));
+  await waitFor(() => expect(screen.queryAllByText(LAEUFT)).toHaveLength(0));
   return { user };
 }
 
@@ -113,7 +115,7 @@ describe("TenantBulkActionBar: Löschen", () => {
     await user.click(screen.getByRole("button", { name: /^Löschen \(\d+\)$/ }));
 
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.queryAllByText("Wird gelöscht...")).toHaveLength(0));
+    await waitFor(() => expect(screen.queryAllByText(LAEUFT)).toHaveLength(0));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ ids: ["t-1", "t-2", "t-3"] });
   });
@@ -127,7 +129,7 @@ describe("TenantBulkActionBar: Löschen", () => {
 
     await waitFor(() => expect(startMock).toHaveBeenCalledWith("Mieter", ["t-1", "t-2", "t-3"], expect.any(Object)));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryAllByText("Wird gelöscht...")).toHaveLength(0);
+    expect(screen.queryAllByText(LAEUFT)).toHaveLength(0);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(onClearSelection).not.toHaveBeenCalled();
     expect(onUpdate).not.toHaveBeenCalled();
@@ -291,5 +293,73 @@ describe("TenantBulkActionBar: Bewerber-Modus (Tab Bewerber)", () => {
       title: "Fehler",
       description: expect.stringMatching(/^Keine Bewerber konnten gelöscht werden\. .*Keine Berechtigung/),
     }));
+  });
+});
+
+describe("TenantBulkActionBar: Auswahl-Pille", () => {
+  it("zeigt die Anzahl mit dem Nomen und die Aktionen für Mieter", () => {
+    renderBar({ selectedTenants: new Set(["t-1"]) });
+
+    const pille = screen.getByRole("toolbar", { name: "Aktionen für die Auswahl" });
+    expect(pille).toHaveTextContent("1 Mieter ausgewählt");
+    expect(screen.getByRole("button", { name: "Wohnung zuweisen" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Exportieren" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Löschen (1)" })).toHaveTextContent("Löschen");
+  });
+
+  it("nennt im Bewerber-Modus Bewerber", () => {
+    renderBar({ modus: "bewerber" });
+
+    expect(screen.getByRole("toolbar", { name: "Aktionen für die Auswahl" })).toHaveTextContent("3 Bewerber ausgewählt");
+  });
+
+  it("rendert nichts ohne Auswahl", () => {
+    renderBar({ selectedTenants: new Set() });
+
+    expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
+  });
+
+  it("hebt die Auswahl über das X auf und löst den Export aus", async () => {
+    const onExport = jest.fn();
+    const { onClearSelection } = renderBar({ onExport });
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    await user.click(screen.getByRole("button", { name: "Exportieren" }));
+    expect(onExport).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "Auswahl aufheben" }));
+    expect(onClearSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it("öffnet 'Wohnung zuweisen' als Dialog mit der Zahl der Mieter und sperrt die Aktion ohne Bearbeitungsrecht", async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    renderBar({ wohnungsMap: { w1: "Wohnung 1" } });
+
+    await user.click(screen.getByRole("button", { name: "Wohnung zuweisen" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Weisen Sie 3 ausgewählten Mietern eine Wohnung zu.");
+    cleanup();
+
+    renderBar({ canEdit: false });
+    expect(screen.getByRole("button", { name: "Wohnung zuweisen" })).toBeDisabled();
+  });
+
+  it("zeigt während des Löschens einen Spinner und sperrt die Aktion", async () => {
+    let beende: (wert: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { beende = resolve; }));
+    renderBar();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    await user.click(screen.getByRole("button", { name: "Löschen (3)" }));
+    await user.click(await screen.findByRole("button", { name: "Löschen bestätigen" }));
+
+    // Der Dialog ist modal und blendet die Pille für die Barrierefreiheits-Abfrage aus
+    const aktion = await screen.findByRole("button", { name: "Löschen (3)", hidden: true });
+    await waitFor(() => expect(aktion).toBeDisabled());
+    expect(aktion).toHaveTextContent("Löschen…");
+    expect(aktion).toHaveClass("[&_svg]:animate-spin");
+
+    beende({ ok: true, status: 200, json: async () => ({ successCount: 3, errorCount: 0, reasons: [] }) });
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1));
   });
 });

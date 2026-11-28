@@ -1,10 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
+import { SecondaryRailHold } from "@/components/dashboard/shell/secondary-rail"
 
 export default function Loading() {
   return (
     <div className="flex flex-col gap-8 p-8">
+      {/* Shown while a not yet prefetched route loads: keep the rail column as it was until that page arrives */}
+      <SecondaryRailHold />
       <div className="grid gap-4 grid-cols-1 auto-rows-auto md:grid-cols-6 md:auto-rows-[140px]">
         {/* Row 1: Three summary cards + Tenant Payment List */}
         <Card className="col-span-1 row-span-1 md:col-span-1 md:row-span-1 min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">

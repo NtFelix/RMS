@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { X, Download, Trash2, Home, Loader2 } from "lucide-react"
+import { Download, Trash2, Home, Loader2 } from "lucide-react"
+import { SelectionPill, SelectionPillAction } from "@/components/dashboard/shell"
 import { Tenant } from "@/types/Tenant"
 import {
   Dialog,
@@ -16,7 +16,6 @@ import {
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
-import { updateTenantApartment } from "@/app/mieter-actions"
 import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 import { formatBulkDeleteSuffix, formatFailureReasons, stripDbCodePrefix } from "@/lib/bulk-delete-summary"
 import { bewerberLoeschenAction } from "@/app/bewerber-actions"
@@ -61,7 +60,6 @@ interface BulkLoeschErgebnis {
 
 export function TenantBulkActionBar({
   selectedTenants,
-  tenants,
   wohnungsMap,
   onClearSelection,
   onExport,
@@ -256,103 +254,41 @@ export function TenantBulkActionBar({
     name: name || `Wohnung ${id}`
   }))
 
+  // Fragment statt Wrapper: die Pille ist das letzte Kind der Seite (sticky am unteren Rand), die Dialoge sind Portale.
   return (
-    <div className="p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Checkbox
-            checked={true}
-            onCheckedChange={onClearSelection}
-            className="data-[state=checked]:bg-primary"
-          />
-          <span className="font-medium text-sm">
-            {selectedTenants.size} {selectedTenants.size === 1 ? 'Mieter' : 'Mieter'} ausgewählt
-          </span>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClearSelection}
-          className="h-8 px-2 hover:bg-primary/20"
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-      <div className="flex items-center gap-2">
-        {!istBewerber && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsAssignDialogOpen(true)}
-            disabled={!canEdit || isUpdating}
-            className="h-8 gap-2"
-          >
-            <Home className="h-4 w-4" />
-            Wohnung zuweisen
-          </Button>
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onExport}
-          className="h-8 gap-2"
-        >
-          <Download className="h-4 w-4" />
-          Exportieren
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleDeleteClick}
-          disabled={isDeleting || !canDelete}
-          className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-        >
-          {isDeleting ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Wird gelöscht...
-            </>
-          ) : (
-            <>
-              <Trash2 className="h-4 w-4" />
-              Löschen ({selectedTenants.size})
-            </>
-          )}
-        </Button>
-
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Sind Sie sicher?</DialogTitle>
-              <DialogDescription>
-                Möchten Sie wirklich {selectedTenants.size} ausgewählte {istBewerber ? "Bewerber" : "Mieter"} löschen?
-                Diese Aktion kann nicht rückgängig gemacht werden.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsDeleteDialogOpen(false)}
-                disabled={isDeleting}
-              >
-                Abbrechen
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={() => handleConfirmDelete()}
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Wird gelöscht...
-                  </>
-                ) : 'Löschen bestätigen'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+    <>
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sind Sie sicher?</DialogTitle>
+            <DialogDescription>
+              Möchten Sie wirklich {selectedTenants.size} ausgewählte {istBewerber ? "Bewerber" : "Mieter"} löschen?
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              Abbrechen
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => handleConfirmDelete()}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Wird gelöscht...
+                </>
+              ) : 'Löschen bestätigen'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Assign Apartment Dialog (nur für Mieter) */}
       {!istBewerber && (
@@ -408,6 +344,31 @@ export function TenantBulkActionBar({
         </DialogContent>
       </Dialog>
       )}
-    </div>
+
+      <SelectionPill count={selectedTenants.size} noun={[nomen, nomen]} onClear={onClearSelection}>
+        {!istBewerber && (
+          <SelectionPillAction
+            icon={Home}
+            onClick={() => setIsAssignDialogOpen(true)}
+            disabled={!canEdit || isUpdating}
+          >
+            Wohnung zuweisen
+          </SelectionPillAction>
+        )}
+        <SelectionPillAction icon={Download} onClick={onExport}>
+          Exportieren
+        </SelectionPillAction>
+        <SelectionPillAction
+          icon={isDeleting ? Loader2 : Trash2}
+          variant="destructive"
+          onClick={handleDeleteClick}
+          disabled={isDeleting || !canDelete}
+          aria-label={`Löschen (${selectedTenants.size})`}
+          className={isDeleting ? "[&_svg]:animate-spin" : undefined}
+        >
+          {isDeleting ? "Löschen…" : "Löschen"}
+        </SelectionPillAction>
+      </SelectionPill>
+    </>
   )
 }

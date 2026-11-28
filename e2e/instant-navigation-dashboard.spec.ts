@@ -17,7 +17,7 @@ import { login, hasTestCredentials, acceptCookieConsent } from './utils';
 test.skip(process.env.EXPOSE_TESTING_API !== '1', 'needs a build with EXPOSE_TESTING_API=1');
 
 const ROUTES = [
-  { path: '/mieter', skeleton: 'Mieter werden geladen', heading: 'Mieterverwaltung' },
+  { path: '/mieter', skeleton: 'Mieter werden geladen', heading: 'Mieter gesamt' },
   // Neues Layout: kein Card-Titel mehr, die Kennzahl in der Secondary Rail erscheint erst mit den Daten
   { path: '/haeuser', skeleton: 'Häuser werden geladen', heading: 'Häuser gesamt' },
   { path: '/wohnungen', skeleton: 'Wohnungen werden geladen', heading: 'Wohnungsverwaltung' },

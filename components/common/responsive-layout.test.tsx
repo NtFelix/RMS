@@ -150,11 +150,13 @@ describe('Responsive Layout Tests', () => {
 
       const { container } = render(<MieterClientView {...props} />);
 
+      // Rail-Layout: Seite füllt den Hauptbereich, Abstände kommen aus dem Arbeitsbereich unter der Top-Bar
       const mainContainer = container.firstChild;
-      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-6', 'sm:gap-8', 'p-4', 'sm:p-8');
+      expect(mainContainer).toHaveClass('flex', 'flex-col', 'min-h-full');
 
+      // Auf dem Handy nur das Icon, der Name bleibt über aria-label erhalten
       const addButton = screen.getByRole('button', { name: /Mieter hinzufügen/i });
-      expect(addButton).toHaveClass('sm:w-auto');
+      expect(addButton).toHaveClass('max-sm:w-8', 'max-sm:px-0');
     });
 
     it('Finanzen page adapts to mobile layout', () => {
@@ -309,7 +311,6 @@ describe('Responsive Layout Tests', () => {
     it('all pages maintain consistent desktop layout', () => {
       const components = [
         { component: WohnungenClientView, props: { initialWohnungenData: [], housesData: [], serverApartmentCount: 0, serverApartmentLimit: 10, serverUserIsEligibleToAdd: true, serverLimitReason: 'none' as const } },
-        { component: MieterClientView, props: { initialTenants: [], initialWohnungen: [], serverAction: jest.fn() } },
         { component: BetriebskostenClientView, props: { initialNebenkosten: [], initialHaeuser: [], ownerName: 'Test' } },
       ];
 

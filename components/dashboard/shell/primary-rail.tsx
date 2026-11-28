@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Bell } from "lucide-react"
 import { useFeatureFlagEnabled } from "posthog-js/react"
-import { LOGO_URL, POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
+import { LOGO_URL, POSTHOG_FEATURE_FLAGS, ROUTES } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 import type { SidebarNavItemType } from "@/components/dashboard/sidebar-nav-config"
 import {
@@ -96,6 +96,8 @@ function RailLink({
   return (
     <Link
       href={item.href}
+      // "Suche" öffnet das Befehlsmenü statt zu navigieren, ein Prefetch der Route wäre verschwendet
+      prefetch={item.href === ROUTES.SEARCH ? false : undefined}
       id={getNavItemId(item.href)}
       title={item.title}
       aria-current={isActive ? "page" : undefined}
@@ -157,7 +159,7 @@ function OrganisationSwitcher({
           )}
         >
           <span className="relative size-8 shrink-0 overflow-hidden rounded-lg shadow-2xs">
-            <Image src={LOGO_URL} alt="Mietevo Logo" fill className="rounded-lg object-cover" sizes="32px" unoptimized />
+            <Image src={LOGO_URL} alt="Mietevo Logo" fill className="rounded-lg object-cover" sizes="32px" unoptimized preload />
           </span>
         </button>
       }
