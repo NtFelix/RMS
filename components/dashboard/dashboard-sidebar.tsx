@@ -1,17 +1,22 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useMemo } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Menu, X, Bell, ChevronDown, Check } from "lucide-react"
+import { Menu, X, Bell, ChevronDown } from "lucide-react"
 import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES, POSTHOG_FEATURE_FLAGS, TABLET_BREAKPOINT } from "@/lib/constants"
+import type { SidebarNavItemType } from "@/components/dashboard/sidebar-nav-config"
 import {
-  sidebarNavGroups,
-  SIDEBAR_MODULE_MAP,
-  type SidebarNavItemType,
-} from "@/components/dashboard/sidebar-nav-config"
+  NOTIFICATIONS_POPOVER_CLASS,
+  NotificationsPopoverBody,
+  OrganisationMenuItems,
+  useOrganisationSwitch,
+  useSidebarFeatureFlags,
+  useSidebarOrganisations,
+  useVisibleNavGroups,
+} from "@/components/dashboard/sidebar-shared"
+import { getActiveOrganisationLabel, getNavItemId, handleNavItemClick } from "@/components/dashboard/sidebar-utils"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { UserSettings, type OrganisationItem } from "@/components/common/user-settings"
@@ -20,18 +25,10 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useFeatureFlagEnabled } from "posthog-js/react"
-import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organisation-actions"
-import { useToast } from "@/hooks/use-toast"
-import {
-  CustomDropdown,
-  CustomDropdownItem,
-  CustomDropdownLabel,
-  CustomDropdownSeparator,
-} from "@/components/ui/custom-dropdown"
+import { CustomDropdown } from "@/components/ui/custom-dropdown"
 
 
 const layoutTransition = {
@@ -105,66 +102,8 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
   const isCollapsed = isResponsiveCollapsed || preference === 'collapsed'
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
   const { setOpen } = useCommandMenu()
-  const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
-  const mailsEnabled = useFeatureFlagEnabled('mails-tab')
-  const agentBuilderEnabled = useFeatureFlagEnabled('mietevo-agent-builder')
-  const kontakteEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.KONTAKTE_SEITE)
-
-  const featureFlags = useMemo(() => new Map([
-    ['/dateien', !!documentsEnabled],
-    ['/mails', !!mailsEnabled],
-    ['/agenten', !!agentBuilderEnabled],
-    ['/kontakte', kontakteEnabled === true],
-  ]), [documentsEnabled, mailsEnabled, agentBuilderEnabled, kontakteEnabled]);
-
-  const [{ organisations, currentOrgId }, setOrgState] = useState<{
-    organisations: OrganisationItem[]
-    currentOrgId: string | null
-  }>({
-    organisations: [],
-    currentOrgId: null,
-  })
-
-  useEffect(() => {
-    let ignore = false
-    const cacheKey = sidebarData.user?.id ? `cached_organisations:${sidebarData.user.id}` : "cached_organisations:v1"
-
-    const cached = sessionStorage.getItem(cacheKey)
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached)
-        setOrgState({
-          organisations: parsed.orgs || [],
-          currentOrgId: parsed.currentOrgId ?? null,
-        })
-      } catch {
-        sessionStorage.removeItem(cacheKey)
-      }
-    }
-
-    getMyOrganisationsAction()
-      .then((res) => {
-        if (!ignore && res.success && res.data) {
-          setOrgState({
-            organisations: res.data,
-            currentOrgId: res.currentOrgId ?? null,
-          })
-          sessionStorage.setItem(cacheKey, JSON.stringify({
-            orgs: res.data,
-            currentOrgId: res.currentOrgId
-          }))
-        }
-      })
-      .catch((e) => {
-        if (!ignore) {
-          console.error("Failed to load organisations:", e)
-        }
-      })
-
-    return () => {
-      ignore = true
-    }
-  }, [sidebarData.user?.id])
+  const featureFlags = useSidebarFeatureFlags()
+  const { organisations, currentOrgId } = useSidebarOrganisations(sidebarData.user?.id)
 
   return (
     <LazyMotion features={domAnimation}>
@@ -267,27 +206,8 @@ function SidebarContent({
 }: SidebarContentProps) {
   const notificationCenterFeatureEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.NOTIFICATION_CENTER)
 
-  // Combined loop iteration (flatMap/filter optimized into a single pass using reduce)
-  const visibleNavItems = useMemo(() => {
-    return sidebarNavGroups.reduce<SidebarNavItemType[]>((acc, group) => {
-      for (const item of group.items) {
-        if (featureFlags.has(item.href) && !featureFlags.get(item.href)) {
-          continue;
-        }
-        if (item.href === '/organisation' && sidebarData.isOrganisationHidden) {
-          continue;
-        }
-        const requiredModule = SIDEBAR_MODULE_MAP[item.href];
-        if (requiredModule && sidebarData.modulePermissions !== null) {
-          if (!sidebarData.modulePermissions.has(requiredModule)) {
-            continue;
-          }
-        }
-        acc.push(item);
-      }
-      return acc;
-    }, []);
-  }, [featureFlags, sidebarData.isOrganisationHidden, sidebarData.modulePermissions]);
+  const visibleNavGroups = useVisibleNavGroups(featureFlags, sidebarData)
+  const visibleNavItems = useMemo(() => visibleNavGroups.flatMap((group) => group.items), [visibleNavGroups])
 
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={300}>
@@ -347,12 +267,6 @@ function SidebarContent({
   )
 }
 
-function getRoleLabel(role?: string): string {
-  if (role === 'owner') return 'Eigentümer';
-  if (role === 'admin') return 'Admin';
-  return 'Mitarbeiter';
-}
-
 // Brand Logo & Header Subcomponent
 function SidebarHeader({
   isCollapsed,
@@ -367,45 +281,8 @@ function SidebarHeader({
   currentOrgId: string | null
   userId?: string
 }) {
-  const { toast } = useToast()
-  const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
-  const handleSwitchOrg = async (orgId: string | null) => {
-    if (orgId === currentOrgId) return;
-    setIsSwitchingOrg(true);
-    try {
-      const res = await switchOrganisationAction(orgId);
-      if (res.success) {
-        // Clear cached organisations under the proper user-specific key to prevent stale cache flash on reload
-        const cacheKey = userId ? `cached_organisations:${userId}` : "cached_organisations:v1";
-        sessionStorage.removeItem(cacheKey);
-        window.location.reload();
-      } else {
-        console.error("Failed to switch organisation:", res.error?.message);
-        toast({
-          variant: "destructive",
-          title: "Fehler beim Wechseln",
-          description: "Die Organisation konnte nicht gewechselt werden. Bitte versuche es später erneut.",
-        });
-      }
-    } catch (e) {
-      console.error("Exception switching organisation:", e);
-      toast({
-        variant: "destructive",
-        title: "Fehler",
-        description: "Ein unerwarteter Fehler ist aufgetreten.",
-      });
-    } finally {
-      setIsSwitchingOrg(false);
-    }
-  };
-
-  const activeOrg = organisations.find(o => o.organisation_id === currentOrgId);
-  const activeName = currentOrgId === null ? "Mietevo" : (activeOrg?.name || "Mietevo");
-  const activeSubtitle = currentOrgId === null 
-    ? "Immobilienverwaltung" 
-    : activeOrg 
-    ? getRoleLabel(activeOrg.rolle)
-    : "Organisation";
+  const { switchOrganisation, isSwitching } = useOrganisationSwitch(currentOrgId, userId)
+  const { name: activeName, subtitle: activeSubtitle } = getActiveOrganisationLabel(organisations, currentOrgId)
 
   const triggerPill = (
     <m.div 
@@ -476,62 +353,12 @@ function SidebarHeader({
         className="w-60"
         trigger={triggerPill}
       >
-        <CustomDropdownLabel className="text-xs text-gray-500 font-semibold uppercase tracking-wider px-3 py-1">
-          Organisationen:
-        </CustomDropdownLabel>
-        <CustomDropdownSeparator />
-        <CustomDropdownItem
-          onClick={() => handleSwitchOrg(null)}
-          disabled={isSwitchingOrg}
-          className="flex items-center cursor-pointer"
-        >
-          {currentOrgId === null ? (
-            <Check className="mr-2 size-4 text-primary shrink-0" />
-          ) : (
-            <div className="mr-2 size-4 shrink-0" />
-          )}
-          <div className="flex flex-col text-left min-w-0">
-            <span className={cn(
-              "truncate font-semibold text-sm leading-snug",
-              currentOrgId === null && "text-primary font-bold"
-            )}>
-              Privat
-            </span>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400 leading-tight">
-              Persönlicher Bereich
-            </span>
-          </div>
-        </CustomDropdownItem>
-        {organisations.map((org) => {
-          const isActive = currentOrgId === org.organisation_id;
-          const roleLabel = getRoleLabel(org.rolle);
-
-          return (
-            <CustomDropdownItem
-              key={org.organisation_id}
-              onClick={() => handleSwitchOrg(org.organisation_id)}
-              disabled={isSwitchingOrg}
-              className="flex items-center cursor-pointer"
-            >
-              {isActive ? (
-                <Check className="mr-2 size-4 text-primary shrink-0" />
-              ) : (
-                <div className="mr-2 size-4 shrink-0" />
-              )}
-              <div className="flex flex-col text-left min-w-0">
-                <span className={cn(
-                  "truncate font-semibold text-sm leading-snug",
-                  isActive && "text-primary font-bold"
-                )}>
-                  {org.name}
-                </span>
-                <span className="text-xs text-zinc-500 dark:text-zinc-400 leading-tight">
-                  {roleLabel}
-                </span>
-              </div>
-            </CustomDropdownItem>
-          )
-        })}
+        <OrganisationMenuItems
+          organisations={organisations}
+          currentOrgId={currentOrgId}
+          disabled={isSwitching}
+          onSwitch={switchOrganisation}
+        />
       </CustomDropdown>
     </div>
   )
@@ -585,8 +412,7 @@ function SidebarNavLink({
 }) {
   const isActive = isRouteActive(item.href);
 
-  // Generate safe hypenated HTML IDs instead of raw slashes
-  const safeId = `sidebar-nav-${item.href.replace(/^\//, '').replace(/\//g, '-') || 'home'}`;
+  const safeId = getNavItemId(item.href)
 
   const link = (
     <MotionLink
@@ -595,15 +421,7 @@ function SidebarNavLink({
       href={item.href}
       id={safeId}
       onClick={(e) => {
-        if (item.href === ROUTES.SEARCH) {
-          e.preventDefault();
-          setOpen(true);
-          return;
-        }
-        setIsOpen(false)
-        if (item.href === ROUTES.HOME) {
-          useOnboardingStore.getState().completeStep('overview-open')
-        }
+        if (handleNavItemClick(e, item.href, setOpen)) setIsOpen(false)
       }}
       className={cn(
         // Colour changes are animated for the hover only: a transition on the active state made the previous entry fade out
@@ -730,36 +548,8 @@ function SidebarActions({
             </button>
           </PopoverTrigger>
         )}
-        <PopoverContent 
-          side="right" 
-          align="end" 
-          sideOffset={12} 
-          className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
-        >
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
-              <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Benachrichtigungen</h3>
-              <span className="text-[10px] font-semibold bg-red-500/10 text-red-500 dark:text-red-400 px-2 py-0.5 rounded-full">0 Neu</span>
-            </div>
-            <div className="flex flex-col items-center justify-center py-6 text-center">
-              <div className="size-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
-                <Bell className="size-5 text-zinc-400 dark:text-zinc-500" />
-              </div>
-              <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Alles erledigt!</h4>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
-                Du bist auf dem neuesten Stand. Hier zeigen wir dir wichtige Updates zu deinen Immobilien.
-              </p>
-            </div>
-            <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
-              <Link 
-                href="/settings/notifications" 
-                onClick={() => setNotificationsOpen(false)}
-                className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
-              >
-                Einstellungen öffnen
-              </Link>
-            </div>
-          </div>
+        <PopoverContent side="right" align="end" sideOffset={12} className={NOTIFICATIONS_POPOVER_CLASS}>
+          <NotificationsPopoverBody onNavigate={() => setNotificationsOpen(false)} />
         </PopoverContent>
       </Popover>
     </div>

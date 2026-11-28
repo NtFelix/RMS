@@ -50,7 +50,6 @@ describe('route loading states', () => {
 describe('list route skeletons', () => {
   it.each([
     ['Mieter', MieterSkeleton, 'Mieter werden geladen', ['Mieter gesamt', 'Aktiv / Ehemalig', 'Ø Nebenkosten']],
-    ['Häuser', HaeuserSkeleton, 'Häuser werden geladen', ['Häuser gesamt', 'Wohnungen gesamt', 'Freie Wohnungen']],
     [
       'Wohnungen',
       WohnungenSkeleton,
@@ -65,6 +64,14 @@ describe('list route skeletons', () => {
     const row = screen.getByText(titles[0]).closest('.flex-1')?.parentElement;
     expect(row).toHaveClass(...STAT_CARD_ROW_CLASS.split(' '));
     expect(row?.children).toHaveLength(titles.length);
+  });
+
+  // Neues Layout: Kennzahlen stehen in der Secondary Rail, das Skeleton zeigt Top-Bar und Tabellenzeilen ohne KPI-Reihe
+  it('Häuser (neues Layout) announces itself without the old KPI row', () => {
+    render(<HaeuserSkeleton />);
+
+    expect(screen.getByRole('status', { name: 'Häuser werden geladen' })).toHaveAttribute('aria-busy', 'true');
+    expect(screen.queryByText('Häuser gesamt')).not.toBeInTheDocument();
   });
 
   it('StatCard shows a placeholder instead of the value while loading', () => {

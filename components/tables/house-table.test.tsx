@@ -446,6 +446,55 @@ describe('HouseTable', () => {
     });
   });
 
+  describe('Address cell', () => {
+    const houseWithAddress: House = {
+      id: 'a1',
+      name: 'Musterhaus',
+      strasse: 'Musterweg 1',
+      plz: 12345,
+      ort: 'Musterstadt',
+      totalApartments: 3,
+      freeApartments: 1,
+    };
+
+    it('shows only the city in one line, full address in the card', async () => {
+      const user = userEvent.setup();
+      render(<HouseTable filter="all" searchQuery="" onEdit={mockOnEdit} initialHouses={[houseWithAddress]} />);
+
+      const trigger = screen.getByRole('button', { name: 'Musterstadt' });
+      expect(screen.queryByText('12345 Musterstadt')).not.toBeInTheDocument();
+
+      await user.click(trigger);
+
+      expect(await screen.findByText('Musterweg 1')).toBeInTheDocument();
+      expect(screen.getByText('12345 Musterstadt')).toBeInTheDocument();
+      expect(screen.getByText('3 Wohnungen · 1 frei')).toBeInTheDocument();
+    });
+
+    it('does not open the row editor when the city is clicked', async () => {
+      const user = userEvent.setup();
+      render(<HouseTable filter="all" searchQuery="" onEdit={mockOnEdit} initialHouses={[houseWithAddress]} />);
+
+      await user.click(screen.getByRole('button', { name: 'Musterstadt' }));
+      await user.click(await screen.findByRole('button', { name: /Kopieren/ }));
+
+      expect(mockOnEdit).not.toHaveBeenCalled();
+    });
+
+    it('strips a PLZ that is already part of ort', () => {
+      render(
+        <HouseTable
+          filter="all"
+          searchQuery=""
+          onEdit={mockOnEdit}
+          initialHouses={[{ ...houseWithAddress, plz: null, ort: '12345 Musterstadt' }]}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: 'Musterstadt' })).toBeInTheDocument();
+    });
+  });
+
   describe('Row interactions', () => {
     it('calls onEdit when row is clicked', async () => {
       const user = userEvent.setup();
@@ -721,6 +770,96 @@ describe('HouseTable', () => {
       // Should be sorted: Delta, Alpha (descending)
       expect(within(dataRows[0]).getByText('Haus Delta')).toBeInTheDocument();
       expect(within(dataRows[1]).getByText('Haus Alpha')).toBeInTheDocument();
+    });
+  });
+
+  describe('City filter', () => {
+    const dataNames = () => screen.getAllByRole('row').slice(1).map((row) => row.textContent ?? '')
+
+    it('shows only houses from the selected cities', () => {
+      render(
+        <HouseTable filter="all" searchQuery="" cityFilter={['Berlin', 'Hamburg']} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      expect(screen.getByText('Haus Alpha')).toBeInTheDocument();
+      expect(screen.getByText('Haus Gamma')).toBeInTheDocument();
+      expect(screen.queryByText('Haus Beta')).not.toBeInTheDocument();
+    });
+
+    it('shows all houses for an empty list', () => {
+      render(
+        <HouseTable filter="all" searchQuery="" cityFilter={[]} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      expect(dataNames()).toHaveLength(3);
+    });
+
+    it('combines with filter and search', () => {
+      render(
+        <HouseTable filter="vacant" searchQuery="alpha" cityFilter={['Berlin', 'München']} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      expect(screen.getByText('Haus Alpha')).toBeInTheDocument();
+      expect(screen.queryByText('Haus Beta')).not.toBeInTheDocument();
+    });
+
+    it('shows nothing when the search hit lies outside the selected cities', () => {
+      render(
+        <HouseTable filter="all" searchQuery="alpha" cityFilter={['München']} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      expect(screen.queryByText('Haus Alpha')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Controlled sorting', () => {
+    const orderedNames = () =>
+      screen.getAllByRole('row').slice(1).map((row) => /Haus (Alpha|Beta|Gamma)/.exec(row.textContent ?? '')?.[1])
+
+    it('uses the given sort key and direction', () => {
+      render(
+        <HouseTable filter="all" searchQuery="" sortKey="ort" sortDirection="desc" onSortChange={jest.fn()} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      // München, Hamburg, Berlin
+      expect(orderedNames()).toEqual(['Beta', 'Gamma', 'Alpha']);
+    });
+
+    it('reports a header click on the same key as flipped direction without sorting itself', async () => {
+      const user = userEvent.setup();
+      const onSortChange = jest.fn();
+      render(
+        <HouseTable filter="all" searchQuery="" sortKey="name" sortDirection="asc" onSortChange={onSortChange} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      await user.click(screen.getByText('Häuser').closest('div')!);
+
+      expect(onSortChange).toHaveBeenCalledWith('name', 'desc');
+      expect(orderedNames()).toEqual(['Alpha', 'Beta', 'Gamma']);
+    });
+
+    it('reports a header click on a new key as ascending', async () => {
+      const user = userEvent.setup();
+      const onSortChange = jest.fn();
+      render(
+        <HouseTable filter="all" searchQuery="" sortKey="name" sortDirection="desc" onSortChange={onSortChange} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      await user.click(screen.getByText('Ort').closest('div')!);
+
+      expect(onSortChange).toHaveBeenCalledWith('ort', 'asc');
+    });
+
+    it('follows changed props', () => {
+      const { rerender } = render(
+        <HouseTable filter="all" searchQuery="" sortKey="name" sortDirection="asc" onSortChange={jest.fn()} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+      rerender(
+        <HouseTable filter="all" searchQuery="" sortKey="size" sortDirection="asc" onSortChange={jest.fn()} onEdit={mockOnEdit} initialHouses={mockHouses} />
+      );
+
+      // 100, 150, 200
+      expect(orderedNames()).toEqual(['Gamma', 'Alpha', 'Beta']);
     });
   });
 

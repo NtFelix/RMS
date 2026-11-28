@@ -1,14 +1,31 @@
-// Class strings shared by DashboardLayout and DashboardLayoutSkeleton. The skeleton is the Suspense
+// Class strings shared by DashboardLayout, PrimaryRail and DashboardLayoutSkeleton. The skeleton is the Suspense
 // fallback of the dashboard layout and the hydration fallback of DashboardLayout, so it must keep the
 // geometry of the real shell; sharing the strings keeps the two from drifting apart.
+//
+// Shell: `surface-outer` background, icon rail without a container on the left, and one rounded container
+// (secondary rail + main area) next to it. The viewport does not scroll, only the parts inside the container do.
 
-export const DASHBOARD_ROOT_CLASS = "flex min-h-screen bg-background w-full max-w-full"
+export const DASHBOARD_ROOT_CLASS = "flex h-dvh w-full max-w-full overflow-hidden bg-surface-outer"
 
-export const DASHBOARD_SIDEBAR_CLASS =
-  "desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift overflow-hidden h-screen sticky top-0"
+export const DASHBOARD_RAIL_CLASS = "flex h-full w-[60px] shrink-0 flex-col items-center py-2.5 sm:w-[68px]"
 
-export const DASHBOARD_MAIN_CLASS =
-  "flex flex-1 flex-col min-h-0 overflow-hidden main-content-responsive responsive-transition py-3 pr-3 pl-0"
+export const DASHBOARD_RAIL_ITEM_CLASS = "flex size-10 shrink-0 items-center justify-center rounded-xl"
 
-export const DASHBOARD_CARD_CLASS =
-  "flex-1 border shadow-xs bg-white dark:bg-[#181818] relative overflow-y-auto overflow-x-hidden rounded-[2rem] md:rounded-[2.5rem] responsive-transition prevent-layout-shift mobile-smooth-scroll mb-0"
+// Navigation entry: a rounded rectangle tile around the icon (hover and active state) with a small label below it.
+// On phones the rail stays narrow (icon only, label for screen readers) so the work area keeps its width.
+export const DASHBOARD_RAIL_NAV_ITEM_CLASS =
+  "group flex shrink-0 flex-col items-center justify-center outline-none sm:w-16 sm:gap-1 sm:py-1"
+
+// Square tile with a small fixed radius (the theme's rounded-lg is 16px and would turn it into a pill)
+export const DASHBOARD_RAIL_NAV_TILE_CLASS =
+  "flex size-10 items-center justify-center rounded-[10px] group-focus-visible:ring-2 group-focus-visible:ring-ring"
+
+export const DASHBOARD_RAIL_NAV_LABEL_CLASS = "w-full truncate text-center text-[10px] leading-tight max-sm:sr-only"
+
+// Spacing between the container and the viewport edge (none on the left, the rail provides it).
+export const DASHBOARD_FRAME_CLASS = "min-w-0 flex-1 py-2 pr-2"
+
+export const DASHBOARD_CONTAINER_CLASS =
+  "relative flex h-full overflow-hidden rounded-shell border border-border-subtle bg-surface-container shadow-sm"
+
+export const DASHBOARD_MAIN_CLASS = "mobile-smooth-scroll relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden"

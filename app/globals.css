@@ -67,6 +67,17 @@
   --color-modal-close-hover: hsl(var(--primary) / 0.15);
   --color-hover-bg: hsl(var(--hover-bg));
 
+  /* Dashboard shell: outer background, nested container and its inner dividers */
+  --color-surface-outer: hsl(var(--surface-outer));
+  --color-surface-container: hsl(var(--surface-container));
+  --color-border-subtle: hsl(var(--border-subtle));
+  /* Shell geometry: the bar height is twice the inner radius of the container (radius minus 1px border), so a
+     vertically centred pill control in the corner, with the same gap above and to the right, is concentric to
+     the container corner. Controls in the bar are 2rem high; the inset is the resulting gap. */
+  --radius-shell: calc(var(--radius) + 0.5rem);
+  --spacing-shell-bar: calc((var(--radius) + 0.5rem - 1px) * 2);
+  --spacing-shell-bar-inset: calc((var(--spacing-shell-bar) - 2rem) / 2);
+
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
 
@@ -788,6 +799,9 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 210 29% 24%;
     --hover-bg: 220 13% 91%;
+    --surface-outer: 240 5% 96%;
+    --surface-container: 0 0% 100%;
+    --border-subtle: 220 8% 92%;
     --radius: 1rem;
 
     --digit-dur: 500ms;
@@ -851,6 +865,10 @@
     --ring: 220 39% 25%;
     /* #2D4A6B - darker blue ring */
     --hover-bg: 220 11% 20%;
+    --surface-outer: 0 0% 7%;
+    --surface-container: 0 0% 9.4%;
+    /* #181818, like the former content card */
+    --border-subtle: 0 0% 17%;
 
     /* Custom variables for specific use cases */
     --btn-bg: 215 25% 19%;

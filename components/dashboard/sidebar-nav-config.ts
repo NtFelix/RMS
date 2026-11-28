@@ -10,6 +10,8 @@ import { ROUTES } from "@/lib/constants"
 
 export type SidebarNavItemType = {
   title: string;
+  /** Short label under the icon in the narrow rail (when the title is too long for it); the title stays the tooltip. */
+  railLabel?: string;
   href: string;
   icon: React.ElementType;
 };
@@ -35,6 +37,7 @@ export const sidebarNavGroups: SidebarNavGroupType[] = [
       },
       {
         title: "Organisationen",
+        railLabel: "Organisation",
         href: "/organisation",
         icon: Network,
       },
@@ -75,6 +78,7 @@ export const sidebarNavGroups: SidebarNavGroupType[] = [
       },
       {
         title: "Betriebskosten",
+        railLabel: "Abrechnung",
         href: "/betriebskosten",
         icon: FileSpreadsheet,
       },
@@ -100,6 +104,7 @@ export const sidebarNavGroups: SidebarNavGroupType[] = [
       },
       {
         title: "KI-Agenten",
+        railLabel: "Agenten",
         href: "/agenten",
         icon: Bot,
       },

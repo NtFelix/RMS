@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import WohnungenClientView from '@/app/(dashboard)/wohnungen/client';
 import HaeuserClientView from '@/app/(dashboard)/haeuser/client-wrapper';
 import MieterClientView from '@/app/(dashboard)/mieter/client-wrapper';
@@ -132,11 +132,13 @@ describe('Responsive Layout Tests', () => {
       const props = { enrichedHaeuser: [] };
       const { container } = render(<HaeuserClientView {...props} />);
 
+      // Rail-Layout: Seite füllt den Hauptbereich, Abstände kommen aus dem Arbeitsbereich unter der Top-Bar
       const mainContainer = container.firstChild;
-      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-6', 'sm:gap-8', 'p-4', 'sm:p-8');
+      expect(mainContainer).toHaveClass('flex', 'flex-col', 'min-h-full');
 
+      // Auf dem Handy nur das Icon, der Name bleibt über aria-label erhalten
       const addButton = screen.getByRole('button', { name: /Haus hinzufügen/i });
-      expect(addButton).toHaveClass('sm:w-auto');
+      expect(addButton).toHaveClass('max-sm:w-8', 'max-sm:px-0');
     });
 
     it('Mieter page adapts to mobile layout', () => {
@@ -250,8 +252,8 @@ describe('Responsive Layout Tests', () => {
       render(<HaeuserClientView {...props} />);
 
       const addButton = screen.getByRole('button', { name: /Haus hinzufügen/i });
-      // Button should have auto width on tablet (sm: breakpoint)
-      expect(addButton).toHaveClass('sm:w-auto');
+      // Ab dem sm-Breakpoint wird die Pill-Breite vom Label bestimmt, nur darunter ist sie auf das Icon begrenzt
+      expect(addButton).toHaveClass('px-3.5', 'max-sm:w-8');
     });
   });
 
@@ -307,7 +309,6 @@ describe('Responsive Layout Tests', () => {
     it('all pages maintain consistent desktop layout', () => {
       const components = [
         { component: WohnungenClientView, props: { initialWohnungenData: [], housesData: [], serverApartmentCount: 0, serverApartmentLimit: 10, serverUserIsEligibleToAdd: true, serverLimitReason: 'none' as const } },
-        { component: HaeuserClientView, props: { enrichedHaeuser: [] } },
         { component: MieterClientView, props: { initialTenants: [], initialWohnungen: [], serverAction: jest.fn() } },
         { component: BetriebskostenClientView, props: { initialNebenkosten: [], initialHaeuser: [], ownerName: 'Test' } },
       ];
@@ -445,7 +446,7 @@ describe('Responsive Layout Tests', () => {
       const { rerender } = render(<HaeuserClientView {...props} />);
       let addButton = screen.getByRole('button', { name: /Haus hinzufügen/i });
       expect(addButton).toBeInTheDocument();
-      expect(addButton).toHaveClass('sm:w-auto');
+      expect(addButton).toHaveClass('max-sm:w-8');
 
       // Test on tablet
       setViewportSize(768, 1024);

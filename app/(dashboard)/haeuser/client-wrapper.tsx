@@ -3,25 +3,33 @@
 import { useState, useRef, useCallback, useMemo, useReducer } from "react";
 import { useTabParams } from "@/hooks/use-tab-params";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
-import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
-import { PlusCircle, Building, Home, Key, X, Download, Trash2, Loader2, Building2, BarChart3, Wallet, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Plus, Building, Home, Key, Download, Trash2, Loader2, Building2, BarChart3, Wallet, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { SearchInput } from "@/components/ui/search-input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { STAT_CARD_ROW_CLASS } from "@/components/skeletons/stat-cards-skeleton";
 import { StatCard } from "@/components/common/stat-card";
-import { HouseTable, House } from "@/components/tables/house-table";
+import { HouseTable, House, type SortKey, type SortDirection } from "@/components/tables/house-table";
 import { formatPlzOrt } from "@/lib/address";
 import { useModalStore } from "@/hooks/use-modal-store";
+import {
+  SecondaryRail,
+  RailSection,
+  RailNavItem,
+  RailStats,
+  RailStat,
+  PageTopBar,
+  ToolbarFilterMenu,
+  ToolbarSortMenu,
+  ToolbarSearch,
+  ToolbarPrimaryButton,
+  SelectionPill,
+  SelectionPillAction,
+} from "@/components/dashboard/shell";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { HousesDonutChart } from "@/components/dashboard/dashboard-charts";
 import { cn } from "@/lib/utils";
-import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
 import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 
@@ -86,178 +94,59 @@ function bulkReducer(state: BulkState, action: BulkAction): BulkState {
   }
 }
 
-const HOUSE_TABS = [
-  { value: "houses" as Tab, label: "Häuser", icon: Building2 },
-  { value: "overview" as Tab, label: "Übersicht", icon: BarChart3 },
+function AddHouseButton({ onAdd, canCreate }: { onAdd: () => void; canCreate: boolean }) {
+  const button = (
+    <ToolbarPrimaryButton
+      id="create-object-btn"
+      icon={Plus}
+      aria-label="Haus hinzufügen"
+      disabled={!canCreate}
+      onClick={() => {
+        useOnboardingStore.getState().completeStep('create-house-start');
+        onAdd();
+      }}
+    >
+      Neues Haus
+    </ToolbarPrimaryButton>
+  );
+
+  if (canCreate) return button;
+
+  // Disabled Buttons feuern keine Pointer-Events: Tooltip hängt am umgebenden span
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-block cursor-not-allowed">{button}</span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="center" sideOffset={5}>
+          Keine Berechtigung zum Erstellen
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "name", label: "Name" },
+  { value: "ort", label: "Ort" },
+  { value: "size", label: "Größe" },
+  { value: "rent", label: "Miete" },
+  { value: "pricePerSqm", label: "Miete pro m²" },
+  { value: "status", label: "Status" },
 ];
 
-function TabToggle({ currentTab, onTabChange }: { currentTab: Tab; onTabChange: (tab: Tab) => void }) {
-  return (
-    <AnimatedPillToggle
-      tabs={HOUSE_TABS}
-      activeTab={currentTab}
-      onTabChange={onTabChange}
-      layoutId="active-haeuser-tab-pill"
-    />
-  );
-}
-
-function BulkActionBar({
-  selectedCount,
-  onClearSelection,
-  onExport,
-  onDelete,
-  isDeleting,
-  canDelete,
-}: {
-  selectedCount: number;
-  onClearSelection: () => void;
-  onExport: () => void;
-  onDelete: () => void;
-  isDeleting: boolean;
-  canDelete: boolean;
-}) {
-  return (
-    <div className="p-3 sm:p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between animate-in slide-in-from-top-2 duration-200">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Checkbox
-            checked={true}
-            onCheckedChange={onClearSelection}
-            className="data-[state=checked]:bg-primary"
-          />
-          <span className="font-medium text-sm">
-            {selectedCount} <span className="hidden sm:inline">{selectedCount === 1 ? 'Haus' : 'Häuser'}</span> ausgewählt
-          </span>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClearSelection}
-          className="h-8 px-2 hover:bg-primary/20"
-        >
-          <X className="size-4" />
-        </Button>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onExport}
-          className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm"
-        >
-          <Download className="size-4" />
-          <span className="hidden sm:inline">Exportieren</span>
-          <span className="sm:hidden">Export</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onDelete}
-          disabled={isDeleting || !canDelete}
-          className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-        >
-          {isDeleting ? (
-            <>
-              <Loader2 className="size-4 animate-spin" />
-              <span className="hidden sm:inline">Löschen...</span>
-              <span className="sm:hidden">...</span>
-            </>
-          ) : (
-            <>
-              <Trash2 className="size-4" />
-              <span className="hidden sm:inline">Löschen ({selectedCount})</span>
-              <span className="sm:hidden">{selectedCount}</span>
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function SummaryStats({ summary }: { summary: {
-  totalHouses: number;
-  totalApartments: number;
-  freeApartments: number;
-} }) {
-  return (
-    <div className={`${STAT_CARD_ROW_CLASS} animate-in fade-in duration-300`}>
-      <StatCard
-        title="Häuser gesamt"
-        value={summary.totalHouses}
-        icon={<Building className="size-4 text-muted-foreground" />}
-        className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
-      />
-      <StatCard
-        title="Wohnungen gesamt"
-        value={summary.totalApartments}
-        icon={<Home className="size-4 text-muted-foreground" />}
-        className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
-      />
-      <StatCard
-        title="Freie Wohnungen"
-        value={summary.freeApartments}
-        icon={<Key className="size-4 text-muted-foreground" />}
-        className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
-      />
-    </div>
-  );
-}
-
-function HouseFilters({
-  filter,
-  onFilterChange,
-  searchQuery,
-  onSearchChange,
-  onSearchClear,
-}: {
-  filter: string;
-  onFilterChange: (f: string) => void;
-  searchQuery: string;
-  onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSearchClear: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-4 mt-4 sm:mt-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" data-testid="house-filters">
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {[
-            { value: "all", shortLabel: "Alle", fullLabel: "Alle Häuser" },
-            { value: "full", shortLabel: "Belegt", fullLabel: "Voll belegt" },
-            { value: "vacant", shortLabel: "Frei", fullLabel: "Mit freien Wohnungen" },
-          ].map(({ value, shortLabel, fullLabel }) => (
-            <ResponsiveFilterButton
-              key={value}
-              data-testid={`filter-${value}`}
-              shortLabel={shortLabel}
-              fullLabel={fullLabel}
-              isActive={filter === value}
-              onClick={() => onFilterChange(value)}
-            />
-          ))}
-        </div>
-        <SearchInput
-          data-testid="search-input"
-          placeholder="Suchen..."
-          className="rounded-full"
-          mode="table"
-          value={searchQuery}
-          onChange={onSearchChange}
-          onClear={onSearchClear}
-        />
-      </div>
-    </div>
-  );
-}
-
 function HousesTab({
-  summary,
-  filter,
-  onFilterChange,
   searchQuery,
   onSearchChange,
-  onSearchClear,
+  filter,
+  onFilterChange,
+  filterCounts,
+  cityFilter,
+  onCityFilterChange,
+  sortKey,
+  sortDirection,
+  onSortChange,
   selectedHouses,
   onClearSelection,
   onBulkExport,
@@ -269,12 +158,16 @@ function HousesTab({
   tableReloadRef,
   onSelectionChange,
 }: {
-  summary: { totalHouses: number; totalApartments: number; freeApartments: number };
-  filter: string;
-  onFilterChange: (f: string) => void;
   searchQuery: string;
-  onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSearchClear: () => void;
+  onSearchChange: (value: string) => void;
+  filter: string;
+  onFilterChange: (filter: string) => void;
+  filterCounts: { full: number; vacant: number };
+  cityFilter: string[];
+  onCityFilterChange: (cities: string[]) => void;
+  sortKey: SortKey;
+  sortDirection: SortDirection;
+  onSortChange: (key: SortKey, direction: SortDirection) => void;
   selectedHouses: Set<string>;
   onClearSelection: () => void;
   onBulkExport: () => void;
@@ -286,68 +179,97 @@ function HousesTab({
   tableReloadRef: React.MutableRefObject<(() => void) | null>;
   onSelectionChange: (selected: Set<string>) => void;
 }) {
+  // Orte mit Anzahl Häuser, alphabetisch
+  const cityOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    enrichedHaeuser.forEach((h) => {
+      if (h.ort) counts.set(h.ort, (counts.get(h.ort) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, "de-DE"))
+      .map(([value, count]) => ({ value, label: value, count }));
+  }, [enrichedHaeuser]);
+
   return (
     <>
-      <SummaryStats summary={summary} />
-      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] animate-in fade-in duration-300">
-        <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle>Hausverwaltung</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Häuser</p>
-            </div>
-            <div className="mt-0 sm:mt-1">
-              <ResponsiveButtonWithTooltip
-                id="create-object-btn"
-                onClick={() => {
-                  useOnboardingStore.getState().completeStep('create-house-start');
-                  onAdd();
-                }}
-                icon={<PlusCircle className="size-4" />}
-                shortText="Hinzufügen"
-                disabled={!flags.canCreate}
-                tooltip="Keine Berechtigung zum Erstellen"
-                showTooltip={!flags.canCreate}
-              >
-                Haus hinzufügen
-              </ResponsiveButtonWithTooltip>
-            </div>
-          </div>
-        </CardHeader>
-        <div className="px-6">
-          <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
-        </div>
-        <CardContent className="flex flex-col gap-6">
-          <HouseFilters
-            filter={filter}
-            onFilterChange={onFilterChange}
-            searchQuery={searchQuery}
-            onSearchChange={onSearchChange}
-            onSearchClear={onSearchClear}
-          />
-          {selectedHouses.size > 0 && (
-            <BulkActionBar
-              selectedCount={selectedHouses.size}
-              onClearSelection={onClearSelection}
-              onExport={onBulkExport}
-              onDelete={onBulkDeleteClick}
-              isDeleting={flags.isBulkDeleting}
-              canDelete={flags.canDelete}
+      <PageTopBar
+        breadcrumbs={[{ label: "Objekte" }, { label: "Häuser" }]}
+        tools={
+          <>
+            <ToolbarFilterMenu
+              groups={[
+                {
+                  id: "belegung",
+                  label: "Belegung",
+                  options: [
+                    { value: "full", label: "Voll belegt", count: filterCounts.full },
+                    { value: "vacant", label: "Mit freien Wohnungen", count: filterCounts.vacant },
+                  ],
+                  selected: filter === "all" ? [] : [filter],
+                  onChange: (selected) => onFilterChange(selected[0] ?? "all"),
+                },
+                {
+                  id: "ort",
+                  label: "Ort",
+                  options: cityOptions,
+                  selected: cityFilter,
+                  multiple: true,
+                  onChange: onCityFilterChange,
+                },
+              ]}
+              onReset={() => {
+                onFilterChange("all");
+                onCityFilterChange([]);
+              }}
             />
-          )}
-          <HouseTable
-            filter={filter}
-            searchQuery={searchQuery}
-            reloadRef={tableReloadRef}
-            onEdit={onEdit}
-            initialHouses={enrichedHaeuser}
-            selectedHouses={selectedHouses}
-            onSelectionChange={onSelectionChange}
-            canEdit={flags.canEdit}
-            canDelete={flags.canDelete}
-          />
-        </CardContent>
-      </Card>
+            <ToolbarSortMenu
+              options={SORT_OPTIONS}
+              sortKey={sortKey}
+              direction={sortDirection}
+              onChange={(key, direction) => onSortChange(key as SortKey, direction)}
+            />
+            <ToolbarSearch
+              data-testid="search-input"
+              placeholder="Häuser suchen…"
+              value={searchQuery}
+              onChange={onSearchChange}
+            />
+          </>
+        }
+        actions={<AddHouseButton onAdd={onAdd} canCreate={flags.canCreate} />}
+      />
+      <div className="flex flex-col gap-4 p-4 sm:p-6 animate-in fade-in duration-300">
+        <HouseTable
+          filter={filter}
+          searchQuery={searchQuery}
+          cityFilter={cityFilter}
+          sortKey={sortKey}
+          sortDirection={sortDirection}
+          onSortChange={onSortChange}
+          reloadRef={tableReloadRef}
+          onEdit={onEdit}
+          initialHouses={enrichedHaeuser}
+          selectedHouses={selectedHouses}
+          onSelectionChange={onSelectionChange}
+          canEdit={flags.canEdit}
+          canDelete={flags.canDelete}
+        />
+      </div>
+      <SelectionPill count={selectedHouses.size} noun={["Haus", "Häuser"]} onClear={onClearSelection}>
+        <SelectionPillAction icon={Download} onClick={onBulkExport}>
+          Exportieren
+        </SelectionPillAction>
+        <SelectionPillAction
+          icon={flags.isBulkDeleting ? Loader2 : Trash2}
+          variant="destructive"
+          onClick={onBulkDeleteClick}
+          disabled={flags.isBulkDeleting || !flags.canDelete}
+          aria-label={`Löschen (${selectedHouses.size})`}
+          className={flags.isBulkDeleting ? "[&_svg]:animate-spin" : undefined}
+        >
+          {flags.isBulkDeleting ? "Löschen…" : "Löschen"}
+        </SelectionPillAction>
+      </SelectionPill>
     </>
   );
 }
@@ -365,19 +287,7 @@ function OverviewTab({
 }) {
   return (
     <div className="flex flex-col gap-6 sm:gap-8 animate-in fade-in duration-300">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Häuser gesamt"
-          value={summary.totalHouses}
-          icon={<Building className="size-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
-        />
-        <StatCard
-          title="Wohnungen gesamt"
-          value={summary.totalApartments}
-          icon={<Home className="size-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard
           title="Ø Hausgröße"
           value={summary.avgSize}
@@ -436,7 +346,7 @@ function PropertyDistributionCard({ enrichedHaeuser, summary }: { enrichedHaeuse
             return (
               <div
                 key={h.id}
-                className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-all duration-200"
+                className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-[border-color,box-shadow] duration-200"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
@@ -570,7 +480,7 @@ function FinancialAnalysisCard({ financialMetrics }: { financialMetrics: { sollM
           </div>
           <div className="h-2 w-full bg-zinc-200/80 dark:bg-zinc-800/80 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-accent/95 to-accent rounded-full transition-all duration-500"
+              className="h-full bg-gradient-to-r from-accent/95 to-accent rounded-full transition-[width] duration-500"
               style={{ width: `${Math.round(100 - financialMetrics.vacancyRate)}%` }}
             />
           </div>
@@ -624,7 +534,7 @@ function EfficiencyCard({ efficiencyMetrics }: { efficiencyMetrics: {
             efficiencyMetrics.list.map((item) => (
               <div
                 key={item.id}
-                className="group flex flex-col gap-2 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-all duration-200"
+                className="group flex flex-col gap-2 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-[border-color,box-shadow] duration-200"
               >
                 <div className="flex items-center justify-between text-xs font-semibold">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -653,7 +563,7 @@ function EfficiencyCard({ efficiencyMetrics }: { efficiencyMetrics: {
                 </div>
                 <div className="h-1.5 w-full bg-zinc-200/80 dark:bg-zinc-800/80 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-accent rounded-full transition-all duration-300"
+                    className="h-full bg-accent rounded-full transition-[width] duration-300"
                     style={{ width: `${item.percentageOfTarget}%` }}
                   />
                 </div>
@@ -666,6 +576,12 @@ function EfficiencyCard({ efficiencyMetrics }: { efficiencyMetrics: {
   );
 }
 
+const HOUSE_FILTERS = [
+  { value: "all" as const, label: "Alle Häuser" },
+  { value: "full" as const, label: "Voll belegt" },
+  { value: "vacant" as const, label: "Mit freien Wohnungen" },
+];
+
 const VALID_HAEUSER_TABS = ["houses", "overview"] as const;
 
 export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, canEdit = true, canDelete = true }: HaeuserClientViewProps) {
@@ -673,6 +589,9 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
   const [currentTab, setCurrentTab] = useTabParams<Tab>("houses", VALID_HAEUSER_TABS);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [cityFilter, setCityFilter] = useState<string[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [{ selectedHouses, showBulkDeleteConfirm, isBulkDeleting }, dispatchBulk] = useReducer(bulkReducer, {
     selectedHouses: new Set<string>(),
     showBulkDeleteConfirm: false,
@@ -851,9 +770,11 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
+    const url = URL.createObjectURL(blob)
+    link.href = url
     link.download = `haeuser_export_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 0)
 
     toast({
       title: "Export erfolgreich",
@@ -919,18 +840,84 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
     });
   }, [selectedHouses, handleBulkDelete]);
 
+  // Zähler der Filter-Einträge: dasselbe Prädikat wie in HouseTable
+  const filterCounts = useMemo(() => ({
+    all: enrichedHaeuser.length,
+    full: enrichedHaeuser.filter((h) => h.freeApartments === 0).length,
+    vacant: enrichedHaeuser.filter((h) => (h.freeApartments ?? 0) > 0).length,
+  }), [enrichedHaeuser]);
+
+  const addAction = <AddHouseButton onAdd={handleAdd} canCreate={canCreate} />;
+
   return (
-    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
-      <TabToggle currentTab={currentTab} onTabChange={setCurrentTab} />
+    <div className="flex flex-col min-h-full">
+      <SecondaryRail title="Häuser">
+        <RailSection label="Ansichten">
+          <RailNavItem
+            icon={Building2}
+            label="Häuser"
+            active={currentTab === "houses"}
+            onClick={() => setCurrentTab("houses")}
+          />
+          <RailNavItem
+            icon={BarChart3}
+            label="Übersicht"
+            active={currentTab === "overview"}
+            onClick={() => setCurrentTab("overview")}
+          />
+        </RailSection>
+
+        <RailSection label="Kennzahlen">
+          <RailStats>
+            <RailStat
+              label="Häuser gesamt"
+              value={summary.totalHouses}
+              icon={<Building className="size-4 text-muted-foreground" />}
+            />
+            <RailStat
+              label="Wohnungen gesamt"
+              value={summary.totalApartments}
+              icon={<Home className="size-4 text-muted-foreground" />}
+            />
+            <RailStat
+              label="Freie Wohnungen"
+              value={summary.freeApartments}
+              icon={<Key className="size-4 text-muted-foreground" />}
+            />
+          </RailStats>
+        </RailSection>
+
+        {currentTab === "houses" && (
+          <RailSection label="Filter">
+            {HOUSE_FILTERS.map(({ value, label }) => (
+              <RailNavItem
+                key={value}
+                data-testid={`filter-${value}`}
+                label={label}
+                active={filter === value}
+                count={filterCounts[value]}
+                onClick={() => setFilter(value)}
+              />
+            ))}
+          </RailSection>
+        )}
+      </SecondaryRail>
 
       {currentTab === "houses" ? (
         <HousesTab
-          summary={summary}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
           filter={filter}
           onFilterChange={setFilter}
-          searchQuery={searchQuery}
-          onSearchChange={(e) => setSearchQuery(e.target.value)}
-          onSearchClear={() => setSearchQuery("")}
+          filterCounts={filterCounts}
+          cityFilter={cityFilter}
+          onCityFilterChange={setCityFilter}
+          sortKey={sortKey}
+          sortDirection={sortDirection}
+          onSortChange={(key, direction) => {
+            setSortKey(key);
+            setSortDirection(direction);
+          }}
           selectedHouses={selectedHouses}
           onSelectionChange={(selected) => dispatchBulk({ type: "SET_SELECTED", payload: selected })}
           onClearSelection={() => dispatchBulk({ type: "SET_SELECTED", payload: new Set() })}
@@ -943,12 +930,20 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
           tableReloadRef={tableReloadRef}
         />
       ) : (
-        <OverviewTab
-          enrichedHaeuser={enrichedHaeuser}
-          summary={summary}
-          financialMetrics={financialMetrics}
-          efficiencyMetrics={efficiencyMetrics}
-        />
+        <>
+          <PageTopBar
+            breadcrumbs={[{ label: "Objekte" }, { label: "Häuser" }, { label: "Übersicht" }]}
+            actions={addAction}
+          />
+          <div className="flex flex-col gap-4 p-4 sm:p-6">
+            <OverviewTab
+              enrichedHaeuser={enrichedHaeuser}
+              summary={summary}
+              financialMetrics={financialMetrics}
+              efficiencyMetrics={efficiencyMetrics}
+            />
+          </div>
+        </>
       )}
 
       <AlertDialog open={showBulkDeleteConfirm} onOpenChange={(open) => dispatchBulk({ type: "TOGGLE_BULK_DELETE_CONFIRM", payload: open })}>

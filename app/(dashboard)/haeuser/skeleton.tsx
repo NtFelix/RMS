@@ -1,26 +1,35 @@
-import { Building, Home, Key } from "lucide-react"
-import { PageSkeleton } from "@/components/skeletons/page-skeleton"
-import { StatCardsSkeleton } from "@/components/skeletons/stat-cards-skeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 
-const ICON = "size-4 text-muted-foreground"
+const ROW_COUNT = 8
 
-// Used as the Suspense fallback of page.tsx and as loading.tsx. It mirrors the list tab of client-wrapper.tsx.
+// Used as the Suspense fallback of page.tsx and as loading.tsx. It mirrors the main area of client-wrapper.tsx (top bar + table).
 export function HaeuserSkeleton() {
   return (
-    <PageSkeleton
-      label="Häuser werden geladen"
-      hideDescriptionOnMobile
-      tabCount={2}
-      headerTitleWidth="w-40"
-      headerDescriptionWidth="w-64"
+    <div
+      className="flex flex-col animate-in fade-in duration-500"
+      role="status"
+      aria-busy="true"
+      aria-label="Häuser werden geladen"
     >
-      <StatCardsSkeleton
-        cards={[
-          { title: "Häuser gesamt", icon: <Building className={ICON} /> },
-          { title: "Wohnungen gesamt", icon: <Home className={ICON} /> },
-          { title: "Freie Wohnungen", icon: <Key className={ICON} /> },
-        ]}
-      />
-    </PageSkeleton>
+      <div className="flex items-center justify-between gap-3 h-14 px-4 sm:px-6 border-b border-border">
+        <Skeleton className="h-4 w-40" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="hidden sm:block h-9 w-56 rounded-full" />
+          <Skeleton className="h-9 w-32 rounded-lg" />
+        </div>
+      </div>
+      <div className="flex flex-col gap-4 p-4 sm:p-6">
+        <Skeleton className="h-9 w-full rounded-lg" />
+        {Array.from({ length: ROW_COUNT }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4">
+            <Skeleton className="size-4 rounded" />
+            <Skeleton className="h-5 flex-1" />
+            <Skeleton className="hidden sm:block h-5 w-24" />
+            <Skeleton className="hidden md:block h-5 w-20" />
+            <Skeleton className="h-5 w-16" />
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }

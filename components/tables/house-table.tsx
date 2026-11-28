@@ -19,9 +19,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, Home, MapPin, Ruler, Euro, TrendingUp, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, Home, MapPin, Ruler, Euro, TrendingUp, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil, Copy } from "lucide-react"
 import { ActionMenu } from "@/components/ui/action-menu"
-import { formatPlzOrt } from "@/lib/address"
+import { formatPlzOrt, padPlz } from "@/lib/address"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary"
 
 export interface House {
@@ -38,12 +39,18 @@ export interface House {
   freeApartments?: number
 }
 
-type SortKey = keyof Omit<House, 'totalApartments' | 'freeApartments'> | 'status'
-type SortDirection = "asc" | "desc"
+export type SortKey = keyof Omit<House, 'totalApartments' | 'freeApartments'> | 'status'
+export type SortDirection = "asc" | "desc"
 
 interface HouseTableProps {
   filter: string
   searchQuery: string
+  /** Nur Häuser aus diesen Orten anzeigen (leer = alle). */
+  cityFilter?: string[]
+  /** Kontrollierte Sortierung: alle drei Props gemeinsam setzen, sonst sortiert die Tabelle selbst. */
+  sortKey?: SortKey
+  sortDirection?: SortDirection
+  onSortChange?: (key: SortKey, direction: SortDirection) => void
   reloadRef?: MutableRefObject<(() => void) | null>
   onEdit: (house: House) => void
   initialHouses?: House[]
@@ -191,14 +198,83 @@ function escapeCsvValue(value: string | null | undefined): string {
   return stringValue
 }
 
+/** Ort einzeilig (nur Stadt); die vollständige Adresse steht in einer Hover-Card, auf Touch-Geräten per Tipp. */
+function HouseAddressCell({ house }: { house: House }) {
+  const [open, setOpen] = useState(false)
+  const plz = padPlz(house.plz)
+  const city = (house.ort ?? '').trim().replace(/^\d{4,5}\s+/, '')
+  const plzOrt = formatPlzOrt(house.plz, house.ort)
+  const street = house.strasse?.trim()
+  if (!city && !plz) return <>-</>
+
+  const copyAddress = async () => {
+    try {
+      await navigator.clipboard.writeText([street, plzOrt].filter(Boolean).join(', '))
+      toast({ title: 'Adresse kopiert', variant: 'success' })
+    } catch {
+      toast({ title: 'Adresse konnte nicht kopiert werden', variant: 'destructive' })
+    }
+  }
+
+  const free = house.freeApartments ?? 0
+  const total = house.totalApartments ?? 0
+
+  return (
+    <HoverCard open={open} onOpenChange={setOpen} openDelay={250} closeDelay={100}>
+      <HoverCardTrigger asChild>
+        <button
+          type="button"
+          className="whitespace-nowrap rounded-sm underline decoration-muted-foreground/40 decoration-dotted underline-offset-4 transition-colors hover:decoration-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={(e) => {
+            // Nicht das Bearbeiten der Zeile auslösen; auf Touch-Geräten öffnet der Tipp die Karte
+            e.stopPropagation()
+            setOpen((v) => !v)
+          }}
+        >
+          {city || plzOrt}
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent
+        align="start"
+        className="w-64 rounded-xl p-0"
+        // Klicks in der (portalisierten) Karte bubbeln sonst bis zur Tabellenzeile
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-2.5 p-3">
+          <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="font-medium leading-snug">{house.name}</p>
+            {street && <p className="text-muted-foreground">{street}</p>}
+            {plzOrt && <p className="text-muted-foreground">{plzOrt}</p>}
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-border-subtle px-3 py-2 text-xs text-muted-foreground">
+          <span>
+            {total === 0 ? 'Keine Wohnungen' : `${total} ${total === 1 ? 'Wohnung' : 'Wohnungen'} · ${free} frei`}
+          </span>
+          <button
+            type="button"
+            onClick={copyAddress}
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <Copy className="size-3.5" aria-hidden="true" />
+            Kopieren
+          </button>
+        </div>
+      </HoverCardContent>
+    </HoverCard>
+  )
+}
+
 function SortIcon({ currentSortKey, sortKey, sortDirection }: { currentSortKey: SortKey; sortKey: SortKey; sortDirection: SortDirection }) {
+  // Inaktive Spalten zeigen den Sortier-Hinweis nur beim Hover, die aktive Sortierung bleibt sichtbar
   if (currentSortKey !== sortKey) {
-    return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+    return <ChevronsUpDown className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/header:opacity-100 group-focus-within/header:opacity-100" />
   }
   return sortDirection === "asc" ? (
-    <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
+    <ArrowUp className="size-3.5 text-foreground" />
   ) : (
-    <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
+    <ArrowDown className="size-3.5 text-foreground" />
   )
 }
 
@@ -213,15 +289,18 @@ function TableHeaderCell({ sortKey, currentSortKey, sortDirection, children, cla
   onSort: (key: SortKey) => void;
 }) {
   return (
-    <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
+    <TableHead
+      className={`${className} group/header h-10 whitespace-nowrap text-[13px] font-semibold text-foreground hover:bg-transparent dark:hover:bg-transparent`}
+      aria-sort={sortable && currentSortKey === sortKey ? (sortDirection === "asc" ? "ascending" : "descending") : undefined}
+    >
       <div
         onClick={() => sortable && onSort(sortKey)}
         onKeyUp={(e) => { if (sortable && (e.key === 'Enter' || e.key === ' ')) onSort(sortKey) }}
         role={sortable ? 'button' : undefined}
         tabIndex={sortable ? 0 : undefined}
-        className={`flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] ${sortable ? 'cursor-pointer' : ''}`}
+        className={`-ml-1.5 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring ${sortable ? 'cursor-pointer transition-colors hover:bg-muted' : ''}`}
       >
-        <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+        <Icon className="size-3.5 text-muted-foreground" />
         {children}
         {sortable && <SortIcon currentSortKey={currentSortKey} sortKey={sortKey} sortDirection={sortDirection} />}
       </div>
@@ -321,7 +400,7 @@ function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectH
             contextMenuRefs.current.delete(house.id)
           }
         }}
-        className={`relative transition-all duration-200 ease-out transform ${flags.canEdit ? 'cursor-pointer hover:scale-[1.005] active:scale-[0.998]' : ''} ${isSelected
+        className={`relative transition-[background-color,transform] duration-200 ease-out transform ${flags.canEdit ? 'cursor-pointer hover:scale-[1.005] active:scale-[0.998]' : ''} ${isSelected
           ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
           : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
         }`}
@@ -331,14 +410,17 @@ function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectH
           className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
           onClick={(event) => event.stopPropagation()}
         >
-          <Checkbox
-            aria-label={`Haus ${house.name} auswählen`}
-            checked={selectedHouses.has(house.id)}
-            onCheckedChange={(checked) => onSelectHouse(house.id, checked)}
-          />
+          {/* Flex statt inline-block: sonst sitzt die Checkbox auf der Textgrundlinie, ein paar Pixel über der Zeilenmitte */}
+          <div className="flex items-center">
+            <Checkbox
+              aria-label={`Haus ${house.name} auswählen`}
+              checked={selectedHouses.has(house.id)}
+              onCheckedChange={(checked) => onSelectHouse(house.id, checked)}
+            />
+          </div>
         </TableCell>
         <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{house.name}</TableCell>
-        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatPlzOrt(house.plz, house.ort) || '-'}</TableCell>
+        <TableCell className={`py-4 dark:text-[#f3f4f6]`}><HouseAddressCell house={house} /></TableCell>
         <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.size ? `${house.size} m²` : "-"}</TableCell>
         <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.rent ? `${house.rent} €` : "-"}</TableCell>
         <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.pricePerSqm ? `${house.pricePerSqm} €/m²` : "-"}</TableCell>
@@ -440,8 +522,9 @@ function HouseTableContent({
       <div className="inline-block min-w-full align-middle">
         <Table className="min-w-full">
           <TableHeader>
-            <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
-              <TableHead className="w-12 pl-0 pr-0 -ml-2">
+            {/* Kopfzeile ohne Hintergrund: fette Beschriftung und eine kräftigere Linie trennen sie von den Daten */}
+            <TableRow className="border-b border-foreground/15 hover:bg-transparent dark:hover:bg-transparent">
+              <TableHead className="h-10 w-12 pl-0 pr-0 -ml-2 hover:bg-transparent dark:hover:bg-transparent">
                 <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
                   <Checkbox
                     aria-label="Alle Häuser auswählen"
@@ -451,13 +534,13 @@ function HouseTableContent({
                   />
                 </div>
               </TableHead>
-              <TableHeaderCell sortKey="name" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[250px] dark:text-[#f3f4f6]" icon={Home} onSort={handleSort}>Häuser</TableHeaderCell>
-              <TableHeaderCell sortKey="ort" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={MapPin} onSort={handleSort}>Ort</TableHeaderCell>
-              <TableHeaderCell sortKey="size" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={Ruler} onSort={handleSort}>Größe</TableHeaderCell>
-              <TableHeaderCell sortKey="rent" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={Euro} onSort={handleSort}>Miete</TableHeaderCell>
-              <TableHeaderCell sortKey="pricePerSqm" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={TrendingUp} onSort={handleSort}>Miete pro m²</TableHeaderCell>
-              <TableHeaderCell sortKey="status" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={CheckCircle2} onSort={handleSort}>Status</TableHeaderCell>
-              <TableHeaderCell sortKey="name" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false} onSort={handleSort}>Aktionen</TableHeaderCell>
+              <TableHeaderCell sortKey="name" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[250px]" icon={Home} onSort={handleSort}>Häuser</TableHeaderCell>
+              <TableHeaderCell sortKey="ort" currentSortKey={sortKey} sortDirection={sortDirection} icon={MapPin} onSort={handleSort}>Ort</TableHeaderCell>
+              <TableHeaderCell sortKey="size" currentSortKey={sortKey} sortDirection={sortDirection} icon={Ruler} onSort={handleSort}>Größe</TableHeaderCell>
+              <TableHeaderCell sortKey="rent" currentSortKey={sortKey} sortDirection={sortDirection} icon={Euro} onSort={handleSort}>Miete</TableHeaderCell>
+              <TableHeaderCell sortKey="pricePerSqm" currentSortKey={sortKey} sortDirection={sortDirection} icon={TrendingUp} onSort={handleSort}>Miete pro m²</TableHeaderCell>
+              <TableHeaderCell sortKey="status" currentSortKey={sortKey} sortDirection={sortDirection} icon={CheckCircle2} onSort={handleSort}>Status</TableHeaderCell>
+              <TableHeaderCell sortKey="name" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[80px] pr-2" icon={Pencil} sortable={false} onSort={handleSort}>Aktionen</TableHeaderCell>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -493,9 +576,13 @@ function HouseTableContent({
   );
 }
 
-function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange }: {
+function useHouseTable({ filter, searchQuery, cityFilter, sortKey: controlledSortKey, sortDirection: controlledSortDirection, onSortChange, reloadRef, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange }: {
   filter?: string;
   searchQuery?: string;
+  cityFilter?: string[];
+  sortKey?: SortKey;
+  sortDirection?: SortDirection;
+  onSortChange?: (key: SortKey, direction: SortDirection) => void;
   reloadRef?: React.MutableRefObject<(() => void) | null>;
   initialHouses?: House[];
   selectedHouses?: Set<string>;
@@ -503,13 +590,16 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
 }) {
   const router = useRouter()
   const [houses, setHouses] = useState<House[]>(initialHouses ?? [])
-  const [{ sortKey, sortDirection }, dispatchSort] = useReducer(sortReducer, { sortKey: "name" as SortKey, sortDirection: "asc" as SortDirection })
+  const [internalSort, dispatchSort] = useReducer(sortReducer, { sortKey: "name" as SortKey, sortDirection: "asc" as SortDirection })
+  const isSortControlled = controlledSortKey !== undefined && controlledSortDirection !== undefined && !!onSortChange
+  const sortKey = isSortControlled ? controlledSortKey : internalSort.sortKey
+  const sortDirection = isSortControlled ? controlledSortDirection : internalSort.sortDirection
   const [internalSelectedHouses, setInternalSelectedHouses] = useState<Set<string>>(new Set())
   const [dialogState, dispatchDialog] = useReducer(dialogReducer, initialDialogState)
-  const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(null as never)
-  if (!contextMenuRefs.current) {
-    contextMenuRefs.current = new Map()
-  }
+  // Stable ref-shaped holder, lazily created once (no ref `.current` write during render)
+  const [contextMenuRefs] = useState<React.MutableRefObject<Map<string, HTMLElement>>>(() => ({
+    current: new Map<string, HTMLElement>(),
+  }))
 
   const selectedHouses = externalSelectedHouses ?? internalSelectedHouses
   const setSelectedHouses = onSelectionChange ?? setInternalSelectedHouses
@@ -550,6 +640,11 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
       result = result.filter((house) => house.freeApartments === 0)
     } else if (filter === "vacant") {
       result = result.filter((house) => (house.freeApartments ?? 0) > 0)
+    }
+
+    if (cityFilter && cityFilter.length > 0) {
+      const cities = new Set(cityFilter)
+      result = result.filter((house) => !!house.ort && cities.has(house.ort))
     }
 
     if (searchQuery) {
@@ -595,7 +690,7 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
     }
 
     return result
-  }, [houses, filter, searchQuery, sortKey, sortDirection])
+  }, [houses, filter, searchQuery, cityFilter, sortKey, sortDirection])
 
   const visibleHouseIds = useMemo(() => sortedAndFilteredData.map((house) => house.id), [sortedAndFilteredData])
 
@@ -625,6 +720,11 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
   }
 
   const handleSort = (key: SortKey) => {
+    if (isSortControlled) {
+      // Gleiche Umschalt-Logik wie sortReducer
+      onSortChange(key, key === sortKey ? (sortDirection === "asc" ? "desc" : "asc") : "asc")
+      return
+    }
     dispatchSort({ type: "TOGGLE", payload: key })
   }
 
@@ -703,9 +803,11 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
+    const url = URL.createObjectURL(blob)
+    link.href = url
     link.download = `haeuser_export_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 0)
 
     toast({
       title: "Export erfolgreich",
@@ -767,7 +869,7 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
   }
 }
 
-export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange, canEdit = true, canDelete = true }: HouseTableProps) {
+export function HouseTable({ filter, searchQuery, cityFilter, sortKey: sortKeyProp, sortDirection: sortDirectionProp, onSortChange, reloadRef, onEdit, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange, canEdit = true, canDelete = true }: HouseTableProps) {
   const {
     selectedHouses,
     setSelectedHouses,
@@ -785,7 +887,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
     dialogState,
     dispatchDialog,
     contextMenuRefs,
-  } = useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange })
+  } = useHouseTable({ filter, searchQuery, cityFilter, sortKey: sortKeyProp, sortDirection: sortDirectionProp, onSortChange, reloadRef, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange })
 
   return (
     <div className="rounded-lg">
