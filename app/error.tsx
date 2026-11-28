@@ -1,6 +1,5 @@
 'use client'
-import { useEffect } from 'react'
-import posthog from 'posthog-js'
+import { useErrorBoundaryReporting } from '@/hooks/use-error-boundary-reporting'
 
 export default function Error({
   error,
@@ -9,9 +8,7 @@ export default function Error({
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  useEffect(() => {
-    posthog.captureException(error)
-  }, [error])
+  useErrorBoundaryReporting(error)
 
   return (
     <div>
