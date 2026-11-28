@@ -65,7 +65,7 @@ export function PageTopBar({
           {breadcrumbs.map((crumb, index) => {
             const isLast = index === breadcrumbs.length - 1
             return (
-              <Fragment key={`${index}-${crumb.label}`}>
+              <Fragment key={crumb.href ?? crumb.label}>
                 <BreadcrumbItem className="min-w-0">
                   {isLast ? (
                     <BreadcrumbPage className="truncate font-medium">{crumb.label}</BreadcrumbPage>

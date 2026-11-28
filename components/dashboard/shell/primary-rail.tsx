@@ -19,14 +19,12 @@ import {
   NOTIFICATIONS_POPOVER_CLASS,
   NotificationsPopoverBody,
   OrganisationMenuItems,
-  getActiveOrganisationLabel,
-  getNavItemId,
-  handleNavItemClick,
   useOrganisationSwitch,
   useSidebarFeatureFlags,
   useSidebarOrganisations,
   useVisibleNavGroups,
 } from "@/components/dashboard/sidebar-shared"
+import { getActiveOrganisationLabel, getNavItemId, handleNavItemClick } from "@/components/dashboard/sidebar-utils"
 import { UserSettings, type OrganisationItem } from "@/components/common/user-settings"
 import { CustomDropdown } from "@/components/ui/custom-dropdown"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"

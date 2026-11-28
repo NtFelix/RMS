@@ -346,7 +346,7 @@ function PropertyDistributionCard({ enrichedHaeuser, summary }: { enrichedHaeuse
             return (
               <div
                 key={h.id}
-                className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-all duration-200"
+                className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-[border-color,box-shadow] duration-200"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
@@ -480,7 +480,7 @@ function FinancialAnalysisCard({ financialMetrics }: { financialMetrics: { sollM
           </div>
           <div className="h-2 w-full bg-zinc-200/80 dark:bg-zinc-800/80 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-accent/95 to-accent rounded-full transition-all duration-500"
+              className="h-full bg-gradient-to-r from-accent/95 to-accent rounded-full transition-[width] duration-500"
               style={{ width: `${Math.round(100 - financialMetrics.vacancyRate)}%` }}
             />
           </div>
@@ -534,7 +534,7 @@ function EfficiencyCard({ efficiencyMetrics }: { efficiencyMetrics: {
             efficiencyMetrics.list.map((item) => (
               <div
                 key={item.id}
-                className="group flex flex-col gap-2 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-all duration-200"
+                className="group flex flex-col gap-2 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-[border-color,box-shadow] duration-200"
               >
                 <div className="flex items-center justify-between text-xs font-semibold">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -563,7 +563,7 @@ function EfficiencyCard({ efficiencyMetrics }: { efficiencyMetrics: {
                 </div>
                 <div className="h-1.5 w-full bg-zinc-200/80 dark:bg-zinc-800/80 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-accent rounded-full transition-all duration-300"
+                    className="h-full bg-accent rounded-full transition-[width] duration-300"
                     style={{ width: `${item.percentageOfTarget}%` }}
                   />
                 </div>
@@ -770,9 +770,11 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
+    const url = URL.createObjectURL(blob)
+    link.href = url
     link.download = `haeuser_export_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 0)
 
     toast({
       title: "Export erfolgreich",

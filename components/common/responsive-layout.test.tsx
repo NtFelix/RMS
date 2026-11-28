@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import WohnungenClientView from '@/app/(dashboard)/wohnungen/client';
 import HaeuserClientView from '@/app/(dashboard)/haeuser/client-wrapper';
 import MieterClientView from '@/app/(dashboard)/mieter/client-wrapper';

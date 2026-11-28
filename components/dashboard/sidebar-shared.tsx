@@ -1,11 +1,10 @@
 "use client"
 
-import type React from "react"
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { Bell, Check } from "lucide-react"
 import { useFeatureFlagEnabled } from "posthog-js/react"
-import { POSTHOG_FEATURE_FLAGS, ROUTES } from "@/lib/constants"
+import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 import {
   sidebarNavGroups,
@@ -15,44 +14,16 @@ import {
 import type { OrganisationItem } from "@/components/common/user-settings"
 import type { SidebarUserData } from "@/lib/server/user-data"
 import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organisation-actions"
-import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { useToast } from "@/hooks/use-toast"
 import {
   CustomDropdownItem,
   CustomDropdownLabel,
   CustomDropdownSeparator,
 } from "@/components/ui/custom-dropdown"
+import { getRoleLabel } from "@/components/dashboard/sidebar-utils"
 
 // Logic shared by the global navigation of the dashboard: the icon rail (PrimaryRail) and the classic sidebar
 // (DashboardSidebar) show the same entries, organisations and notifications.
-
-export function getRoleLabel(role?: string): string {
-  if (role === "owner") return "Eigentümer"
-  if (role === "admin") return "Admin"
-  return "Mitarbeiter"
-}
-
-// Safe hyphenated HTML id instead of raw slashes; the onboarding tour finds the entries by it (#sidebar-nav-<path>).
-export function getNavItemId(href: string): string {
-  return `sidebar-nav-${href.replace(/^\//, "").replace(/\//g, "-") || "home"}`
-}
-
-// Side effects of a click on an entry: "Suche" opens the command menu instead of navigating.
-export function handleNavItemClick(
-  event: React.MouseEvent,
-  href: string,
-  openCommandMenu: (open: boolean) => void,
-): boolean {
-  if (href === ROUTES.SEARCH) {
-    event.preventDefault()
-    openCommandMenu(true)
-    return false
-  }
-  if (href === ROUTES.HOME) {
-    useOnboardingStore.getState().completeStep("overview-open")
-  }
-  return true
-}
 
 export function useSidebarFeatureFlags(): Map<string, boolean> {
   const documentsEnabled = useFeatureFlagEnabled("documents_tab_access")
@@ -178,15 +149,6 @@ export function useOrganisationSwitch(currentOrgId: string | null, userId?: stri
   return { switchOrganisation, isSwitching }
 }
 
-export function getActiveOrganisationLabel(organisations: OrganisationItem[], currentOrgId: string | null) {
-  const activeOrg = organisations.find((o) => o.organisation_id === currentOrgId)
-  return {
-    name: currentOrgId === null ? "Mietevo" : activeOrg?.name || "Mietevo",
-    subtitle:
-      currentOrgId === null ? "Immobilienverwaltung" : activeOrg ? getRoleLabel(activeOrg.rolle) : "Organisation",
-  }
-}
-
 // Content of the organisation dropdown (inside a CustomDropdown).
 export function OrganisationMenuItems({
   organisations,
@@ -273,7 +235,7 @@ export function NotificationsPopoverBody({ onNavigate }: { onNavigate: () => voi
         <Link
           href="/settings/notifications"
           onClick={onNavigate}
-          className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
+          className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors duration-200"
         >
           Einstellungen öffnen
         </Link>

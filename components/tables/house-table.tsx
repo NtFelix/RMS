@@ -400,7 +400,7 @@ function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectH
             contextMenuRefs.current.delete(house.id)
           }
         }}
-        className={`relative transition-all duration-200 ease-out transform ${flags.canEdit ? 'cursor-pointer hover:scale-[1.005] active:scale-[0.998]' : ''} ${isSelected
+        className={`relative transition-[background-color,transform] duration-200 ease-out transform ${flags.canEdit ? 'cursor-pointer hover:scale-[1.005] active:scale-[0.998]' : ''} ${isSelected
           ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
           : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
         }`}
@@ -596,10 +596,10 @@ function useHouseTable({ filter, searchQuery, cityFilter, sortKey: controlledSor
   const sortDirection = isSortControlled ? controlledSortDirection : internalSort.sortDirection
   const [internalSelectedHouses, setInternalSelectedHouses] = useState<Set<string>>(new Set())
   const [dialogState, dispatchDialog] = useReducer(dialogReducer, initialDialogState)
-  const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(null as never)
-  if (!contextMenuRefs.current) {
-    contextMenuRefs.current = new Map()
-  }
+  // Stable ref-shaped holder, lazily created once (no ref `.current` write during render)
+  const [contextMenuRefs] = useState<React.MutableRefObject<Map<string, HTMLElement>>>(() => ({
+    current: new Map<string, HTMLElement>(),
+  }))
 
   const selectedHouses = externalSelectedHouses ?? internalSelectedHouses
   const setSelectedHouses = onSelectionChange ?? setInternalSelectedHouses
@@ -643,7 +643,8 @@ function useHouseTable({ filter, searchQuery, cityFilter, sortKey: controlledSor
     }
 
     if (cityFilter && cityFilter.length > 0) {
-      result = result.filter((house) => !!house.ort && cityFilter.includes(house.ort))
+      const cities = new Set(cityFilter)
+      result = result.filter((house) => !!house.ort && cities.has(house.ort))
     }
 
     if (searchQuery) {
@@ -802,9 +803,11 @@ function useHouseTable({ filter, searchQuery, cityFilter, sortKey: controlledSor
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
+    const url = URL.createObjectURL(blob)
+    link.href = url
     link.download = `haeuser_export_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 0)
 
     toast({
       title: "Export erfolgreich",

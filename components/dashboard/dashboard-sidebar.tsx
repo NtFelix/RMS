@@ -11,14 +11,12 @@ import {
   NOTIFICATIONS_POPOVER_CLASS,
   NotificationsPopoverBody,
   OrganisationMenuItems,
-  getActiveOrganisationLabel,
-  getNavItemId,
-  handleNavItemClick,
   useOrganisationSwitch,
   useSidebarFeatureFlags,
   useSidebarOrganisations,
   useVisibleNavGroups,
 } from "@/components/dashboard/sidebar-shared"
+import { getActiveOrganisationLabel, getNavItemId, handleNavItemClick } from "@/components/dashboard/sidebar-utils"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { UserSettings, type OrganisationItem } from "@/components/common/user-settings"
