@@ -1,6 +1,25 @@
+import type React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { WasserZaehlerModal } from '@/components/water-meters/wasser-zaehler-modal'
 import { useModalStore } from '@/hooks/use-modal-store'
+
+// Mock framer-motion to avoid AnimatePresence exit-timer issues across consecutive tests in JSDOM
+jest.mock('framer-motion', () => {
+  const stripMotionProps = (props: Record<string, unknown>) =>
+    Object.fromEntries(
+      Object.entries(props).filter(([key]) => !['initial', 'animate', 'exit', 'transition'].includes(key))
+    )
+  return {
+    motion: {
+      div: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
+        <div {...(stripMotionProps(props) as React.HTMLAttributes<HTMLDivElement>)}>{children}</div>
+      ),
+      rect: (props: Record<string, unknown>) => <rect {...(stripMotionProps(props) as React.SVGProps<SVGRectElement>)} />,
+      path: (props: Record<string, unknown>) => <path {...(stripMotionProps(props) as React.SVGProps<SVGPathElement>)} />,
+    },
+    AnimatePresence: ({ children }: React.PropsWithChildren) => <>{children}</>,
+  }
+})
 
 // Mock the modal store
 jest.mock('@/hooks/use-modal-store')
@@ -122,8 +141,11 @@ describe('WasserZaehlerModal - Unsaved Changes Detection', () => {
       fireEvent.change(editInput, { target: { value: 'Meter-001-Modified' } })
 
       // Find and click cancel button (X button)
-      const cancelButton = screen.getByRole('button', { name: /cancel|abbrechen/i }) || 
-                          editButtons.find(btn => btn.textContent?.includes('X'))
+      const allButtons = screen.getAllByRole('button')
+      const cancelButton = allButtons.find(btn => {
+        const svg = btn.querySelector('svg')
+        return svg?.classList.contains('lucide-x')
+      })
       
       if (cancelButton) {
         fireEvent.click(cancelButton)

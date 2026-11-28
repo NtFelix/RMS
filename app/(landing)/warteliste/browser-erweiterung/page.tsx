@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Package, CheckCircle2, ArrowLeft, Chrome, Globe } from 'lucide-react';
+import { Package, CheckCircle2, ArrowLeft, AppWindow, Globe } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlagRedirect } from '@/hooks/use-feature-flag-redirect';
@@ -111,7 +111,7 @@ export default function BrowserExtensionWaitlistPage() {
               <div className="flex items-center space-x-4 pt-4">
                 <p className="text-sm text-muted-foreground">Unterstützte Browser:</p>
                 <div className="flex items-center space-x-3">
-                  <Chrome className="w-6 h-6 text-muted-foreground" />
+                  <AppWindow className="w-6 h-6 text-muted-foreground" />
                   <Globe className="w-6 h-6 text-muted-foreground" />
                 </div>
               </div>
