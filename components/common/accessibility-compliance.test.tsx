@@ -118,25 +118,6 @@ jest.mock('@/components/tables/operating-costs-table', () => ({
   )
 }));
 
-jest.mock('@/components/tasks/task-board', () => ({
-  TaskBoard: () => (
-    <table role="table" aria-label="Task Board">
-      <thead role="rowgroup">
-        <tr role="row">
-          <th role="columnheader">Task</th>
-          <th role="columnheader">Status</th>
-        </tr>
-      </thead>
-      <tbody role="rowgroup">
-        <tr role="row">
-          <td role="cell">Test Task</td>
-          <td role="cell">Open</td>
-        </tr>
-      </tbody>
-    </table>
-  )
-}));
-
 jest.mock('@/components/finance/finance-visualization', () => ({
   FinanceVisualization: () => <div>Finance Visualization</div>
 }));
@@ -154,21 +135,12 @@ jest.mock('@/components/ui/toaster', () => ({
   Toaster: () => <div data-testid="toaster">Toaster</div>
 }));
 
-// Mock filters to prevent complex component rendering
-jest.mock('@/components/apartments/apartment-filters', () => ({
-  ApartmentFilters: () => <div>Apartment Filters</div>
-}));
-
 jest.mock('@/components/houses/house-filters', () => ({
   HouseFilters: () => <div>House Filters</div>
 }));
 
 jest.mock('@/components/finance/operating-costs-filters', () => ({
   OperatingCostsFilters: () => <div>Operating Costs Filters</div>
-}));
-
-jest.mock('@/components/tasks/task-filters', () => ({
-  TaskFilters: () => <div>Task Filters</div>
 }));
 
 global.fetch = jest.fn(() =>
